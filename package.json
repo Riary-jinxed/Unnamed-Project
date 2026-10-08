@@ -1,0 +1,14 @@
+{
+  "name": "jeu-de-cartes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/engine", "server", "client"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "npm run dev -w @jeu/server & npm run dev -w @jeu/client",
+    "build": "npm run build -w @jeu/client",
+    "start": "npm start -w @jeu/server",
+    "sim": "node packages/engine/src/sim.js"
+  }
+}

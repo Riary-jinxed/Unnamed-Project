@@ -1,0 +1,9 @@
+# Déploiement sur Render (https://render.com) : un seul service web, gratuit.
+services:
+  - type: web
+    name: jeu-de-cartes
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health

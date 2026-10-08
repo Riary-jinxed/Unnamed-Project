@@ -1,0 +1,7 @@
+{
+  "name": "@jeu/engine",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/engine.js",
+  "exports": { ".": "./src/engine.js" }
+}
