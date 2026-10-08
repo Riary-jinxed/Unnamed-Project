@@ -96,8 +96,45 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
 .genbox small { color: var(--muted); }
 .mc.back { background: repeating-linear-gradient(45deg, var(--line) 0 4px, var(--surface) 4px 8px); border-top-color: var(--line); }
 .mc.pending { opacity: .62; border-style: dashed; }
-.mc.flash { animation: flash .6s ease-out; }
-@keyframes flash { from { box-shadow: 0 0 0 3px var(--accent); transform: scale(1.06); } to { box-shadow: 0 0 0 0 transparent; transform: none; } }
+
+/* animations de partie */
+.hc, .mc { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.hc { touch-action: pan-x; transition: transform .15s ease; }
+.mc.mobile { touch-action: none; }
+.hc.dragging, .mc.dragging { opacity: .25; }
+.dragghost { position: fixed; margin: 0; z-index: 30; pointer-events: none; box-shadow: 0 12px 28px rgb(0 0 0 / .35); transition: none; }
+.zone.over { background: color-mix(in srgb, var(--accent) 22%, var(--sunk)); box-shadow: inset 0 0 0 2px var(--accent); }
+.mc.reveal, .mc.reveal-foe { animation: reveal .55s cubic-bezier(.2,.8,.2,1); z-index: 1; }
+.mc.reveal-foe { --glow: var(--foe); }
+.mc.reveal::after, .mc.reveal-foe::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 30%, rgb(255 255 255 / .75) 50%, transparent 70%); background-size: 250% 100%; animation: shine .55s ease-out forwards; }
+@keyframes reveal {
+  0% { transform: perspective(500px) rotateY(90deg) scale(1.2); filter: brightness(1.8); }
+  45% { transform: perspective(500px) rotateY(0) scale(1.18); box-shadow: 0 0 0 2px var(--glow, var(--fam)), 0 0 22px 6px var(--glow, var(--fam)); }
+  100% { transform: none; box-shadow: 0 0 0 0 transparent; filter: none; } }
+@keyframes shine { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+.mc.dropin { animation: dropin .3s cubic-bezier(.3,1.4,.5,1); }
+@keyframes dropin { from { transform: translateY(-14px) scale(1.12); opacity: .3; } }
+.hc.drawn { animation: drawn .45s cubic-bezier(.2,.8,.2,1) backwards; }
+@keyframes drawn { from { transform: translate(60px, 30px) rotate(10deg); opacity: 0; } }
+.p.pup, .p.pdown { animation: pchange .6s ease-out; display: inline-block; }
+.p.pup { --pc: var(--up); } .p.pdown { --pc: var(--down); }
+@keyframes pchange { 30% { transform: scale(1.6); color: var(--pc); text-shadow: 0 0 8px var(--pc); } }
+.score .v.bump { animation: bump .5s ease-out; display: inline-block; }
+@keyframes bump { 35% { transform: scale(1.45); } }
+.zone.spellcast { animation: spellcast .6s ease-out; }
+@keyframes spellcast { 30% { box-shadow: inset 0 0 0 2px var(--accent), 0 0 24px 2px var(--accent); } }
+.terrain.terrain-in { animation: terrainin .6s ease-out; }
+@keyframes terrainin { from { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.08); } }
+.fxghost { position: fixed; margin: 0; z-index: 25; pointer-events: none; }
+.fxghost.shatter { animation: shatter .7s ease-in forwards; }
+@keyframes shatter { 0% { filter: none; } 25% { transform: rotate(-4deg) scale(1.05); filter: brightness(1.6) saturate(0) sepia(1) hue-rotate(-30deg); } 100% { transform: translateY(16px) rotate(8deg) scale(.6); opacity: 0; filter: blur(3px); } }
+.fxghost.spellout { animation: spellout .7s ease-out forwards; }
+@keyframes spellout { 0% { transform: perspective(500px) rotateY(90deg); } 30% { transform: none; box-shadow: 0 0 22px 6px var(--accent); } 100% { transform: translateY(-24px) scale(1.15); opacity: 0; filter: blur(2px) brightness(1.6); } }
+.panel.end-in { animation: endin .5s cubic-bezier(.3,1.4,.5,1); }
+.panel.end-in h2 { animation: endtitle .8s ease-out; }
+@keyframes endin { from { transform: translateY(30px) scale(.9); opacity: 0; } }
+@keyframes endtitle { 0% { letter-spacing: .4em; opacity: 0; } 100% { letter-spacing: .02em; } }
+.btn.icon { padding: 7px 9px; line-height: 0; }
 
 /* bandeau d'info */
 .info { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; min-height: 58px; font-size: 14px; display: grid; gap: 2px; }
@@ -150,7 +187,7 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
   .score .v { font-size: 19px; }
   .top .title { font-size: 16px; }
 }
-@media (prefers-reduced-motion: reduce) { .mc.flash { animation: none; } .hc.sel { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .hc.sel { transform: none; } .mc.reveal, .mc.reveal-foe, .mc.reveal::after, .mc.reveal-foe::after, .mc.dropin, .hc.drawn, .p.pup, .p.pdown, .score .v.bump, .zone.spellcast, .terrain.terrain-in, .panel.end-in, .panel.end-in h2 { animation: none; } }
 
 /* accueil, salon, réseau */
 .field { display: grid; gap: 4px; }

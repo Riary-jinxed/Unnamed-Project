@@ -4,6 +4,7 @@ import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLo
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
 import { hasArt, artVar } from './art.js';
+import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 
 const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon' };
 const famVar = kw => `--fam: var(${FAM[kw[0]] || '--f-neutre'})`;
@@ -23,6 +24,7 @@ const ui = {
   screen: 'home', name: store.get('name', ''), deck: DECKS[savedDeck] ? savedDeck : 'ange', general: GENERALS[savedGen] ? savedGen : '', joinCode: (params.get('code') || '').toUpperCase(),
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, genMode: false, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
+  drag: null, fx: null,
 };
 const app = document.getElementById('app');
 
@@ -31,11 +33,13 @@ const handlers = {
   onLobby(m) { ui.screen = 'lobby'; ui.room = m.room; ui.lobbyNames = m.names; ui.error = ''; store.set('session', { room: m.room, token: m.token }); render(); },
   onView(view, room) {
     if (room) ui.room = room;
+    const prev = ui.screen === 'game' ? ui.view : null;
     if (view.phase !== 'plan' || view.turn !== ui.lastTurn) { ui.pending = []; ui.moves = []; ui.moveSel = null; ui.genZone = null; ui.genMode = false; ui.sel = null; }
     if (view.phase === 'plan' && view.turn !== ui.lastTurn) ui.msg = '';
     ui.lastTurn = view.turn; ui.view = view; ui.screen = 'game';
     if (view.phase === 'over' && !ui.sheet) { ui.sheet = 'end'; }
     if (view.phase !== 'over') { ui.rematchAsked = false; if (ui.sheet === 'end') ui.sheet = null; }
+    viewEffects(prev, view);
     render();
   },
   onError(msg) { ui.error = msg; render(); },
@@ -80,7 +84,7 @@ function miniCard(c, opts = {}) {
   const cls = c.revealed ? (pw > d.power ? 'up' : pw < d.power ? 'down' : '') : '';
   const mv = opts.mine && moveOf(c.uid);
   const mobile = opts.mine && c.mobile && canPlay();
-  return `<div class="mc ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.view.flash === c.uid ? 'flash' : ''} ${hasArt(c.id) ? 'art' : ''}" style="${famVar(d.kw)}${artVar(c.id)}"
+  return `<div class="mc ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${hasArt(c.id) ? 'art' : ''}" style="${famVar(d.kw)}${artVar(c.id)}"
     data-card="${c.uid}" data-id="${c.id}" ${opts.pending ? 'data-pending="1"' : ''} ${mobile ? 'data-mobile="1"' : ''} title="${esc(d.name)}">
     ${mv ? `<span class="mv">→ ${ZONE_NAMES[mv.zone]}</span>` : mobile ? '<span class="mv" aria-label="Déplaçable">⇄</span>' : ''}
     <span class="n">${esc(d.name)}</span>${d.type === 'C' ? `<span class="p num ${cls}">${pw}</span>` : `<span class="p" style="font-size:12px">Sort</span>`}</div>`;
@@ -141,7 +145,7 @@ function renderGame() {
   const hand = (planning ? handLeft() : m.hand).map(c => { const d = CARDS[c.id];
     const cant = d.x ? seals <= 0 : c.cost > seals;
     const pcls = c.power > d.power ? 'up' : c.power < d.power ? 'down' : '';
-    return `<button class="hc ${ui.sel === c.uid ? 'sel' : ''} ${cant ? 'cant' : ''} ${hasArt(c.id) ? 'art' : ''}" style="${famVar(d.kw)}${artVar(c.id)}" data-hand="${c.uid}" data-id="${c.id}">
+    return `<button class="hc ${ui.sel === c.uid ? 'sel' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${cant ? 'cant' : ''} ${hasArt(c.id) ? 'art' : ''}" style="${famVar(d.kw)}${artVar(c.id)}" data-hand="${c.uid}" data-id="${c.id}">
       <span class="top2"><span class="seal">${costLabel(d, c.cost)}</span><span class="t">${typeName(d)}</span></span>
       <span class="n">${esc(d.name)}</span><span class="k">${kwLine(d)}</span>${d.type === 'C' ? `<span class="p num ${pcls}">${c.power}</span>` : ''}</button>`; }).join('');
   const canGen = play && g.activate && !m.generalUsed && (ui.genZone !== null || sealsLeft() >= (g.activateCost || 0));
@@ -149,7 +153,7 @@ function renderGame() {
   return `
   <div class="top"><span class="title">${ui.mode === 'online' ? `Partie ${esc(ui.room || '')}` : 'Contre l\'IA'}</span>
     <span class="turnbox"><span>Tour <b class="num">${v.turn}</b>/${v.turns}</span><span>Sceaux <b class="num">${seals}</b>/${v.turn}</span></span>
-    <button class="btn" data-act="log">Journal</button><button class="btn" data-act="set">Cartes</button></div>
+    ${muteBtn()}<button class="btn" data-act="log">Journal</button><button class="btn" data-act="set">Cartes</button></div>
   ${pbar(f, false, v.connected[1 - v.seat])}
   <div class="board">${board}</div>
   ${pbar(m, true, true)}
@@ -175,7 +179,7 @@ function generalPicker() {
 }
 function renderHome() {
   return `
-  <div class="top"><span class="title">Jeu de cartes</span><button class="btn" data-act="set">Voir les cartes</button></div>
+  <div class="top"><span class="title">Jeu de cartes</span>${muteBtn()}<button class="btn" data-act="set">Voir les cartes</button></div>
   <div class="setup">
     <div class="field"><label class="eyebrow" for="name">Votre pseudo</label><input id="name" maxlength="20" autocomplete="nickname" value="${esc(ui.name)}" placeholder="Votre pseudo"></div>
     <div class="field"><span class="eyebrow">Votre deck</span>${deckPicker()}</div>
@@ -249,7 +253,133 @@ function render() {
   app.innerHTML = body + sheetHTML();
   const h2 = document.getElementById('hand'); if (h2) h2.scrollLeft = sx;
   const lb = document.getElementById('logbox'); if (lb) lb.parentElement.scrollTop = lb.scrollHeight;
+  applyFx();
 }
+
+// ---- Animations et bruitages ----
+const SPEAKER = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/>';
+const muteBtn = () => `<button class="btn icon" data-act="mute" aria-pressed="${isMuted()}" aria-label="${isMuted() ? 'Activer le son' : 'Couper le son'}" title="${isMuted() ? 'Activer le son' : 'Couper le son'}">${SPEAKER}${isMuted() ? '<path d="m16 9 5 6m0-6-5 6"/>' : '<path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>'}</svg></button>`;
+const cardSel = uid => `[data-card="${uid}"]`;
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+function cardsOf(view) {
+  const m = new Map();
+  for (const side of ['me', 'foe']) view[side].board.forEach((col, z) => col.forEach(c => m.set(c.uid, { ...c, side, z })));
+  return m;
+}
+// Copie d'une carte qui quitte le plateau, animée par-dessus la table puis retirée.
+function ghostOut(uid, cls) {
+  const el = app.querySelector(cardSel(uid)); if (!el || reduceMotion()) return;
+  const r = el.getBoundingClientRect(), g = el.cloneNode(true);
+  g.classList.add('fxghost', cls);
+  Object.assign(g.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  document.body.append(g); setTimeout(() => g.remove(), 900);
+}
+// Compare la vue précédente à la nouvelle : prépare les animations du prochain rendu et joue les bruitages.
+function viewEffects(prev, view) {
+  const list = [], sounds = [];
+  let flip = null;
+  if (!prev || view.turn < prev.turn || (prev.phase === 'over' && view.phase !== 'over')) {
+    // Début de partie : la main arrive carte par carte.
+    view.me.hand.forEach((c, i) => list.push([`[data-hand="${c.uid}"]`, 'drawn', i * 70]));
+    ui.fx = { list }; play('draw'); return;
+  }
+  const before = cardsOf(prev), after = cardsOf(view), f = view.flash;
+  if (f !== null && f !== undefined) {
+    const a = before.get(f), b = after.get(f);
+    if (!b) { sounds.push('spell'); ghostOut(f, 'spellout'); if (a) list.push([`.zone[data-z="${a.z}"]`, 'spellcast']); }
+    else if (a && a.revealed) { sounds.push('place'); const el = app.querySelector(cardSel(f)); if (el) flip = { uid: f, rect: el.getBoundingClientRect() }; }
+    else { sounds.push(b.side === 'me' ? 'reveal' : 'revealFoe'); list.push([cardSel(f), b.side === 'me' ? 'reveal' : 'reveal-foe']); }
+  }
+  let gone = false, up = false, down = false;
+  for (const [uid, a] of before) if (a.revealed && uid !== f && !after.has(uid)) { ghostOut(uid, 'shatter'); gone = true; }
+  for (const [uid, b] of after) { const a = before.get(uid);
+    if (a && a.revealed && b.revealed && a.power !== b.power && uid !== f) { const u = b.power > a.power; list.push([`${cardSel(uid)} .p`, u ? 'pup' : 'pdown']); if (u) up = true; else down = true; } }
+  for (const side of ['me', 'foe']) for (const z of [0, 1, 2]) {
+    if (prev[side].zonePower[z] !== view[side].zonePower[z]) list.push([`.zone[data-z="${z}"] .v.${side}`, 'bump']);
+    if (!prev[side].terrains[z] && view[side].terrains[z]) { list.push([`.zone[data-z="${z}"] .terrain.set.${side}`, 'terrain-in']); sounds.push('terrain'); }
+  }
+  if ((!prev.me.generalUsed && view.me.generalUsed) || (!prev.foe.generalUsed && view.foe.generalUsed)) sounds.push('general');
+  if (gone) sounds.push('destroy'); else if (up) sounds.push('up'); else if (down) sounds.push('down');
+  if (view.phase === 'plan' && view.turn !== prev.turn) {
+    const had = new Set(prev.me.hand.map(c => c.uid));
+    view.me.hand.filter(c => !had.has(c.uid)).forEach((c, i) => list.push([`[data-hand="${c.uid}"]`, 'drawn', i * 70]));
+    sounds.push('draw');
+  }
+  if (view.phase === 'over' && prev.phase !== 'over' && view.result) {
+    sounds.push(view.result.winner === view.seat ? 'win' : view.result.winner < 0 ? 'tie' : 'lose');
+    list.push(['.panel.end', 'end-in']);
+  }
+  ui.fx = { list, flip };
+  [...new Set(sounds)].slice(0, 3).forEach((s, i) => i ? setTimeout(() => play(s), i * 110) : play(s));
+}
+// Applique une seule fois les animations préparées, sur les éléments du rendu qui vient d'avoir lieu.
+function applyFx() {
+  const fx = ui.fx; ui.fx = null; if (!fx) return;
+  for (const [sel, cls, delay] of fx.list) for (const el of app.querySelectorAll(sel)) {
+    if (delay) el.style.animationDelay = `${delay}ms`;
+    el.classList.add(cls);
+  }
+  // Déplacement : la carte glisse depuis son ancienne place.
+  if (fx.flip && !reduceMotion()) {
+    const el = app.querySelector(cardSel(fx.flip.uid)); if (!el || !el.animate) return;
+    const r = el.getBoundingClientRect(), dx = fx.flip.rect.left - r.left, dy = fx.flip.rect.top - r.top;
+    el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(1.08)`, zIndex: 2 }, { transform: 'none', zIndex: 2 }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  }
+}
+
+// ---- Glisser-déposer (en plus du toucher) ----
+let drag = null, swallowClick = false;
+const zoneAt = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest('.zone.target'); };
+app.addEventListener('pointerdown', e => {
+  unlockAudio();
+  if ((e.pointerType === 'mouse' && e.button !== 0) || !ui.view || !canPlay() || ui.screen !== 'game') return;
+  const h = e.target.closest('[data-hand]'), m = e.target.closest('[data-mobile]');
+  if (!h && !m) return;
+  if (m && moveOf(+m.dataset.card)) return;
+  const el = h || m;
+  drag = { kind: h ? 'hand' : 'move', uid: +(h ? h.dataset.hand : m.dataset.card), id: el.dataset.id, el, x0: e.clientX, y0: e.clientY, pid: e.pointerId, touch: e.pointerType !== 'mouse', ghost: null };
+});
+function startDrag(e) {
+  const r = drag.el.getBoundingClientRect(), g = drag.el.cloneNode(true);
+  g.classList.remove('sel', 'cant', 'msel'); g.classList.add('dragghost');
+  Object.assign(g.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  drag.dx = e.clientX - r.left; drag.dy = e.clientY - r.top; drag.ghost = g; document.body.append(g);
+  if (drag.kind === 'hand') { ui.sel = drag.uid; ui.moveSel = null; } else { ui.moveSel = drag.uid; ui.sel = null; }
+  ui.genMode = false; ui.msg = ''; ui.focus = { kind: 'card', id: drag.id }; ui.drag = drag.uid;
+  play('pick'); render();
+}
+window.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+  if (!drag.ghost) {
+    if (Math.hypot(dx, dy) < 8) return;
+    // Sur écran tactile, un glissement horizontal dans la main la fait défiler.
+    if (drag.touch && drag.kind === 'hand' && Math.abs(dx) > Math.abs(dy)) { drag = null; return; }
+    startDrag(e);
+  }
+  e.preventDefault();
+  drag.ghost.style.transform = `translate(${e.clientX - drag.dx - parseFloat(drag.ghost.style.left)}px, ${e.clientY - drag.dy - parseFloat(drag.ghost.style.top)}px) rotate(${Math.max(-8, Math.min(8, dx / 20))}deg) scale(1.06)`;
+  const over = zoneAt(e.clientX, e.clientY);
+  for (const z of app.querySelectorAll('.zone.over')) if (z !== over) z.classList.remove('over');
+  if (over) over.classList.add('over');
+}, { passive: false });
+function endDrag(e, cancel) {
+  if (!drag || e.pointerId !== drag.pid) return;
+  const d = drag; drag = null;
+  if (!d.ghost) return;
+  d.ghost.remove(); ui.drag = null; swallowClick = true; setTimeout(() => { swallowClick = false; }, 60);
+  const over = !cancel && zoneAt(e.clientX, e.clientY);
+  if (over) {
+    tryPlace(+over.dataset.z);
+    // Dépôt refusé : la carte revient en main, le message explique pourquoi.
+    if (ui.sel === d.uid || ui.moveSel === d.uid) { ui.sel = null; ui.moveSel = null; render(); }
+  } else {
+    ui.sel = null; ui.moveSel = null; render();
+  }
+}
+window.addEventListener('pointerup', e => endDrag(e, false));
+window.addEventListener('pointercancel', e => endDrag(e, true));
+app.addEventListener('click', e => { if (swallowClick) { e.stopPropagation(); e.preventDefault(); } }, true);
 
 // ---- Interactions ----
 function tryPlace(z) {
@@ -258,8 +388,8 @@ function tryPlace(z) {
   if (ui.moveSel !== null) {
     const from = me().board.findIndex(col => col.some(c => c.uid === ui.moveSel));
     if (z === from) { ui.moveSel = null; ui.msg = ''; }
-    else if (freeSlots(z) <= 0) ui.msg = `La zone ${ZONE_NAMES[z]} est pleine de votre côté.`;
-    else { ui.moves.push({ uid: ui.moveSel, zone: z }); ui.moveSel = null; ui.msg = ''; }
+    else if (freeSlots(z) <= 0) { ui.msg = `La zone ${ZONE_NAMES[z]} est pleine de votre côté.`; play('deny'); }
+    else { ui.moves.push({ uid: ui.moveSel, zone: z }); ui.moveSel = null; ui.msg = ''; play('place'); }
     render(); return;
   }
   if (!ui.sel) return;
@@ -267,7 +397,8 @@ function tryPlace(z) {
   const d = CARDS[c.id], left = sealsLeft();
   if (freeSlots(z) <= 0) ui.msg = `La zone ${ZONE_NAMES[z]} est pleine de votre côté.`;
   else if (d.x ? left <= 0 : c.cost > left) ui.msg = d.x ? `Il ne vous reste aucun sceau pour ${d.name}.` : `Pas assez de sceaux : ${d.name} coûte ${c.cost}, il vous en reste ${left}.`;
-  else { ui.pending.push({ uid: c.uid, id: c.id, zone: z }); ui.sel = null; ui.msg = ''; }
+  else { ui.pending.push({ uid: c.uid, id: c.id, zone: z }); ui.sel = null; ui.msg = ''; ui.fx = { list: [[cardSel(c.uid), 'dropin']] }; play('place'); }
+  if (ui.msg) play('deny');
   render();
 }
 function quit() {
@@ -294,7 +425,7 @@ app.addEventListener('click', e => {
     else if (a === 'solo') goSolo();
     else if (a === 'copy') { const link = document.getElementById('link');
       navigator.clipboard.writeText(link.value).then(() => { t.textContent = 'Lien copié'; }).catch(() => { link.select(); }); }
-    else if (a === 'go') { if (!canPlay()) return;
+    else if (a === 'go') { if (!canPlay()) return; play('validate');
       ui.ctrl.submit({ cards: ui.pending.map(p => ({ uid: p.uid, zone: p.zone })), moves: ui.moves.slice(), general: ui.genZone }); ui.sel = null; ui.moveSel = null; ui.genMode = false; }
     else if (a === 'gen') {
       if (ui.genZone !== null) ui.genZone = null;
@@ -306,17 +437,18 @@ app.addEventListener('click', e => {
       render(); }
     else if (a === 'again') { ui.rematchAsked = true; ui.ctrl.rematch(); render(); }
     else if (a === 'quit') quit();
+    else if (a === 'mute') { setMuted(!isMuted()); render(); }
     return;
   }
   if (ds.deck) { ui.deck = ds.deck; render(); return; }
   if (ds.hand) { if (!canPlay()) { ui.focus = { kind: 'card', id: ds.id }; render(); return; }
-    const uid = +ds.hand; ui.sel = ui.sel === uid ? null : uid; ui.genMode = false; ui.moveSel = null; ui.msg = ''; ui.focus = { kind: 'card', id: ds.id }; render(); return; }
+    const uid = +ds.hand; ui.sel = ui.sel === uid ? null : uid; if (ui.sel !== null) play('pick'); ui.genMode = false; ui.moveSel = null; ui.msg = ''; ui.focus = { kind: 'card', id: ds.id }; render(); return; }
   if (ds.card) {
-    if (ds.pending && canPlay()) { ui.pending = ui.pending.filter(p => p.uid !== +ds.card); ui.msg = ''; ui.focus = { kind: 'card', id: ds.id }; render(); return; }
+    if (ds.pending && canPlay()) { ui.pending = ui.pending.filter(p => p.uid !== +ds.card); play('unplace'); ui.msg = ''; ui.focus = { kind: 'card', id: ds.id }; render(); return; }
     if (ds.mobile && canPlay() && ui.sel === null && !ui.genMode && (ui.moveSel === null || ui.moveSel === +ds.card)) {
       const uid = +ds.card; ui.focus = { kind: 'card', id: ds.id }; ui.msg = '';
-      if (moveOf(uid)) { ui.moves = ui.moves.filter(m => m.uid !== uid); ui.moveSel = null; }
-      else ui.moveSel = ui.moveSel === uid ? null : uid;
+      if (moveOf(uid)) { ui.moves = ui.moves.filter(m => m.uid !== uid); ui.moveSel = null; play('unplace'); }
+      else { ui.moveSel = ui.moveSel === uid ? null : uid; if (ui.moveSel !== null) play('pick'); }
       render(); return; }
     if (ds.id && ui.sel === null && !ui.genMode && ui.moveSel === null) { ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; render(); return; }
   }
