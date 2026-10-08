@@ -24,7 +24,7 @@ const ui = {
   screen: 'home', name: store.get('name', ''), deck: DECKS[savedDeck] ? savedDeck : 'ange', general: GENERALS[savedGen] ? savedGen : '', joinCode: (params.get('code') || '').toUpperCase(),
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, genMode: false, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
-  drag: null, fx: null,
+  drag: null, fx: null, zoom: null,
 };
 const app = document.getElementById('app');
 
@@ -37,7 +37,7 @@ const handlers = {
     if (view.phase !== 'plan' || view.turn !== ui.lastTurn) { ui.pending = []; ui.moves = []; ui.moveSel = null; ui.genZone = null; ui.genMode = false; ui.sel = null; }
     if (view.phase === 'plan' && view.turn !== ui.lastTurn) ui.msg = '';
     ui.lastTurn = view.turn; ui.view = view; ui.screen = 'game';
-    if (view.phase === 'over' && !ui.sheet) { ui.sheet = 'end'; }
+    if (view.phase === 'over' && (!ui.sheet || ui.sheet === 'zoom')) { ui.sheet = 'end'; ui.zoom = null; }
     if (view.phase !== 'over') { ui.rematchAsked = false; if (ui.sheet === 'end') ui.sheet = null; }
     viewEffects(prev, view);
     render();
@@ -109,7 +109,8 @@ function infoHTML() {
   if (ui.genMode) return `<div class="hint">Touchez la zone où activer votre général.</div>`;
   if (ui.moveSel !== null) return `<div class="hint">Touchez la zone vers laquelle déplacer ${esc(CARDS[me().board.flat().find(c => c.uid === ui.moveSel)?.id]?.name || 'cette créature')}. Le déplacement se fait à la révélation.</div>`;
   if (v.phase === 'plan' && v.ready.me) return `<div class="wait">Tour validé. En attente de ${esc(v.foe.name)}…</div>`;
-  if (!f) return `<div class="hint">Touchez une carte de votre main, puis une de vos zones pour la poser. Touchez une carte posée ce tour pour la reprendre. Une créature marquée ⇄ peut changer de zone.</div>`;
+  if (ui.sel !== null && canPlay()) return `<div class="hint">Touchez une de vos zones pour poser ${esc(CARDS[me().hand.find(c => c.uid === ui.sel)?.id]?.name || 'cette carte')}.</div>`;
+  if (!f) return `<div class="hint">Touchez une carte pour la voir en grand et la jouer, ou faites-la glisser vers une zone. Une créature marquée ⇄ peut changer de zone.</div>`;
   if (f.kind === 'card') { const d = CARDS[f.id];
     return `<div class="h"><b>${esc(d.name)}</b><span class="meta">${typeName(d)} · coût ${d.x ? 'X' : d.cost}${d.type === 'C' ? ` · puissance ${d.power}` : ''} · ${kwLine(d)}</span></div><div>${d.text || 'Pas d\'effet.'}</div>`; }
   if (f.kind === 'terrain') { const t = TERRAINS[f.id]; return `<div class="h"><b>${t.name}</b><span class="meta">Terrain</span></div><div>${t.text}</div>`; }
@@ -134,7 +135,8 @@ function renderGame() {
     const a = f.zonePower[z], b = m.zonePower[z];
     const mz = ui.moveSel !== null ? me().board.findIndex(col => col.some(c => c.uid === ui.moveSel)) : -1;
     const target = play && (ui.genMode || (ui.sel && freeSlots(z) > 0) || (ui.moveSel !== null && z !== mz && freeSlots(z) > 0));
-    board += `<div class="zone ${target ? 'target' : ''}" data-z="${z}" ${target ? 'tabindex="0" role="button"' : ''} aria-label="Zone ${ZONE_NAMES[z]}">
+    const won = b > a ? 'won-me' : a > b ? 'won-foe' : '';
+    board += `<div class="zone ${won} ${target ? 'target' : ''}" data-z="${z}" ${target ? 'tabindex="0" role="button"' : ''} aria-label="Zone ${ZONE_NAMES[z]}">
       ${terrainChip(f, z, false)}${slots(f, z, false)}
       <div class="score"><span class="v foe ${a > b ? 'lead' : ''}">${a}</span><span class="zn">${ZONE_NAMES[z]}</span><span class="v me ${b > a ? 'lead' : ''}">${b}</span></div>
       ${slots(m, z, true)}${terrainChip(m, z, true)}
@@ -215,7 +217,48 @@ function fullCard(id) { const d = CARDS[id];
     <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text || 'Pas d\'effet.'}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
 const genCard = k => { const g = GENERALS[k]; return `<div class="fc" style="${famVar([g.fam])}"><b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${g.text}</span></div>`; };
 const terrainCard = k => { const t = TERRAINS[k]; return `<div class="fc" style="${famVar([t.fam])}"><b>${t.name}</b><span class="k">Terrain</span><span class="x">${t.text}</span></div>`; };
+// Carte affichée en grand, avec les actions possibles sur elle pendant la planification.
+function zoomBtns(acts) { return acts.length ? `<div class="zacts">${acts.join('')}</div>` : ''; }
+function zoomHTML() {
+  const zm = ui.zoom, play = ui.view && canPlay();
+  let body = '', style = '';
+  if (zm.kind === 'card') {
+    const d = CARDS[zm.id];
+    const inHand = ui.view && me().hand.find(c => c.uid === zm.uid);
+    const pend = ui.view && ui.pending.find(p => p.uid === zm.uid);
+    const onBoard = ui.view && !pend && cardsOf(ui.view).get(zm.uid);
+    const cost = inHand ? (d.x ? 'X' : inHand.cost) : (d.x ? 'X' : d.cost);
+    const pw = inHand ? inHand.power : onBoard && onBoard.revealed ? onBoard.power : d.power;
+    const pcls = pw > d.power ? 'up' : pw < d.power ? 'down' : '';
+    const acts = [];
+    if (play && inHand && !pend) {
+      const left = sealsLeft(), cant = d.x ? left <= 0 : inHand.cost > left;
+      if (cant) acts.push(`<p class="hint">Pas assez de sceaux pour la jouer ce tour (il vous en reste ${left}).</p>`);
+      else acts.push(`<span class="eyebrow">Jouer dans la zone</span><div class="row">${[0, 1, 2].map(z => `<button class="btn" data-act="zplay" data-zone="${z}" ${freeSlots(z) > 0 ? '' : 'disabled'}>${ZONE_NAMES[z]}</button>`).join('')}</div>`);
+    }
+    if (play && pend) acts.push(`<button class="btn" data-act="zback">Reprendre en main</button>`);
+    if (play && onBoard && onBoard.side === 'me' && onBoard.mobile) {
+      if (moveOf(zm.uid)) acts.push(`<button class="btn" data-act="zstay">Annuler le déplacement</button>`);
+      else acts.push(`<span class="eyebrow">Déplacer vers</span><div class="row">${[0, 1, 2].filter(z => z !== onBoard.z).map(z => `<button class="btn" data-act="zmove" data-zone="${z}" ${freeSlots(z) > 0 ? '' : 'disabled'}>${ZONE_NAMES[z]}</button>`).join('')}</div>`);
+    }
+    style = famVar(d.kw);
+    body = `${hasArt(zm.id) ? `<img class="zart" src="/art/${zm.id}.webp" alt="" width="432" height="640">` : ''}
+      <div class="zh"><span class="seal" title="Coût">${cost}</span><h2>${esc(d.name)}</h2>${d.type === 'C' ? `<span class="zp num ${pcls}" title="Puissance">${pw}</span>` : ''}</div>
+      <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · puissance de base ${d.power}` : ''}</span>
+      <p class="x">${d.text || 'Pas d\'effet.'}</p>${zoomBtns(acts)}`;
+  } else if (zm.kind === 'general') {
+    const g = GENERALS[zm.id]; style = famVar([g.fam]);
+    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}</span><p class="x">${g.text}</p>`;
+  } else {
+    const t = TERRAINS[zm.id]; style = famVar([t.fam]);
+    body = `<div class="zh"><h2>${t.name}</h2></div><span class="k">Terrain${t.fam ? ` · ${t.fam}` : ''}</span><p class="x">${t.text}</p>`;
+  }
+  return `<div class="sheet zoom" data-act="close"><div class="panel zoomcard" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
+    <button class="btn" data-act="close">Fermer</button></div></div>`;
+}
+function openZoom(zoom) { ui.zoom = zoom; ui.sheet = 'zoom'; ui.fx = { list: [['.zoomcard', 'zoom-in']] }; }
 function sheetHTML() {
+  if (ui.sheet === 'zoom' && ui.zoom) return zoomHTML();
   if (ui.sheet === 'log' && ui.view) {
     const names = ui.view.names;
     const lines = ui.view.log.map(l => `<div class="${l.kind}">${esc(renderLog(l.msg, ui.view.seat, names))}</div>`).join('');
@@ -418,7 +461,12 @@ app.addEventListener('click', e => {
   if (ds.stop && !e.target.closest('[data-act]')) return;
   if (ds.act) {
     const a = ds.act;
-    if (a === 'close') { ui.sheet = null; render(); }
+    if (a === 'close') { ui.sheet = null; ui.zoom = null; render(); }
+    else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
+      if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
+      ui.genMode = false; tryPlace(+ds.zone); }
+    else if (a === 'zback') { ui.pending = ui.pending.filter(p => p.uid !== ui.zoom.uid); ui.sheet = null; ui.zoom = null; ui.msg = ''; play('unplace'); render(); }
+    else if (a === 'zstay') { ui.moves = ui.moves.filter(m => m.uid !== ui.zoom.uid); ui.sheet = null; ui.zoom = null; play('unplace'); render(); }
     else if (a === 'log' || a === 'set') { ui.sheet = a; render(); }
     else if (a === 'create') goOnline('create');
     else if (a === 'join') { if (ui.joinCode.length !== 4) { ui.error = 'Le code fait 4 lettres.'; render(); } else goOnline('join'); }
@@ -441,21 +489,24 @@ app.addEventListener('click', e => {
     return;
   }
   if (ds.deck) { ui.deck = ds.deck; render(); return; }
-  if (ds.hand) { if (!canPlay()) { ui.focus = { kind: 'card', id: ds.id }; render(); return; }
-    const uid = +ds.hand; ui.sel = ui.sel === uid ? null : uid; if (ui.sel !== null) play('pick'); ui.genMode = false; ui.moveSel = null; ui.msg = ''; ui.focus = { kind: 'card', id: ds.id }; render(); return; }
+  if (ds.hand) { const uid = +ds.hand; ui.focus = { kind: 'card', id: ds.id };
+    // La carte s'affiche en grand ; en planification elle reste sélectionnée pour être posée en touchant une zone.
+    if (canPlay()) { ui.sel = uid; ui.genMode = false; ui.moveSel = null; ui.msg = ''; play('pick'); }
+    openZoom({ kind: 'card', id: ds.id, uid }); render(); return; }
   if (ds.card) {
-    if (ds.pending && canPlay()) { ui.pending = ui.pending.filter(p => p.uid !== +ds.card); play('unplace'); ui.msg = ''; ui.focus = { kind: 'card', id: ds.id }; render(); return; }
+    if (ds.pending && canPlay() && ui.sel === null && !ui.genMode && ui.moveSel === null) { ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; openZoom({ kind: 'card', id: ds.id, uid: +ds.card }); render(); return; }
     if (ds.mobile && canPlay() && ui.sel === null && !ui.genMode && (ui.moveSel === null || ui.moveSel === +ds.card)) {
       const uid = +ds.card; ui.focus = { kind: 'card', id: ds.id }; ui.msg = '';
-      if (moveOf(uid)) { ui.moves = ui.moves.filter(m => m.uid !== uid); ui.moveSel = null; play('unplace'); }
-      else { ui.moveSel = ui.moveSel === uid ? null : uid; if (ui.moveSel !== null) play('pick'); }
-      render(); return; }
-    if (ds.id && ui.sel === null && !ui.genMode && ui.moveSel === null) { ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; render(); return; }
+      // Sélectionnée pour un déplacement : toucher ensuite une zone la déplace, comme avant.
+      if (!moveOf(uid)) { ui.moveSel = uid; play('pick'); }
+      openZoom({ kind: 'card', id: ds.id, uid }); render(); return; }
+    if (ds.id && ui.sel === null && !ui.genMode && ui.moveSel === null) { ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; openZoom({ kind: 'card', id: ds.id, uid: +ds.card }); render(); return; }
   }
-  if (ds.terrain && ui.sel === null && !ui.genMode && ui.moveSel === null) { ui.focus = { kind: 'terrain', id: ds.terrain }; ui.msg = ''; render(); return; }
-  if (ds.general) { ui.focus = { kind: 'general', id: ds.general }; ui.msg = ''; render(); return; }
+  if (ds.terrain && ui.sel === null && !ui.genMode && ui.moveSel === null) { ui.focus = { kind: 'terrain', id: ds.terrain }; ui.msg = ''; openZoom({ kind: 'terrain', id: ds.terrain }); render(); return; }
+  if (ds.general) { ui.focus = { kind: 'general', id: ds.general }; ui.msg = ''; openZoom({ kind: 'general', id: ds.general }); render(); return; }
   const zone = t.closest('[data-z]'); if (zone) tryPlace(+zone.dataset.z);
 });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.sheet) { ui.sheet = null; ui.zoom = null; render(); } });
 app.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.zone.target')) { e.preventDefault(); tryPlace(+e.target.dataset.z); } });
 
 // Reprise d'une partie en ligne après rechargement de la page
