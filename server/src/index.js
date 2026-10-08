@@ -6,7 +6,7 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { WebSocketServer } from 'ws';
-import { DECKS, newGame, startTurn, runTurn, viewFor, pick } from '@jeu/engine';
+import { DECKS, GENERALS, newGame, startTurn, runTurn, viewFor, pick } from '@jeu/engine';
 
 const PORT = +process.env.PORT || 8787;
 const DIST = fileURLToPath(new URL('../../client/dist/', import.meta.url));
@@ -48,7 +48,7 @@ function lobby(room) {
 }
 function startMatch(room) {
   const decks = room.seats.map(s => (DECKS[s.deck] ? s.deck : pick(Object.keys(DECKS))));
-  room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name));
+  room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: room.seats.map(s => s.general) });
   startTurn(room.st); room.st.phase = 'plan';
   room.plans = [null, null]; room.rematch = [false, false];
   broadcast(room);
@@ -61,18 +61,19 @@ async function resolve(room) {
   broadcast(room);
 }
 
+const generalOf = msg => (GENERALS[msg.general] ? msg.general : null);
 function handle(ws, msg) {
   const name = String(msg.name || 'Joueur').slice(0, 20);
   if (msg.t === 'create') {
     const room = { code: newCode(), seats: [null, null], plans: [null, null], st: null, busy: false, lastActive: Date.now() };
-    room.seats[0] = { name, deck: msg.deck, token: randomBytes(12).toString('hex'), ws };
+    room.seats[0] = { name, deck: msg.deck, general: generalOf(msg), token: randomBytes(12).toString('hex'), ws };
     rooms.set(room.code, room); ws.room = room; ws.seat = 0; lobby(room); return;
   }
   if (msg.t === 'join') {
     const room = rooms.get(String(msg.room || '').toUpperCase());
     if (!room) return send(ws, { t: 'error', msg: 'Aucune partie avec ce code.' });
     if (room.seats[1]) return send(ws, { t: 'error', msg: 'Cette partie est déjà complète.' });
-    room.seats[1] = { name, deck: msg.deck, token: randomBytes(12).toString('hex'), ws };
+    room.seats[1] = { name, deck: msg.deck, general: generalOf(msg), token: randomBytes(12).toString('hex'), ws };
     ws.room = room; ws.seat = 1; lobby(room); startMatch(room); return;
   }
   if (msg.t === 'rejoin') {
@@ -87,14 +88,14 @@ function handle(ws, msg) {
   room.lastActive = Date.now();
   if (msg.t === 'plan') {
     if (!room.st || room.busy || room.st.over || room.plans[ws.seat]) return;
-    room.plans[ws.seat] = { cards: Array.isArray(msg.cards) ? msg.cards.slice(0, 12) : [], general: msg.general ?? null };
+    room.plans[ws.seat] = { cards: Array.isArray(msg.cards) ? msg.cards.slice(0, 12) : [], moves: Array.isArray(msg.moves) ? msg.moves.slice(0, 12) : [], general: msg.general ?? null };
     if (room.plans[0] && room.plans[1]) resolve(room); else broadcast(room);
     return;
   }
   if (msg.t === 'rematch') {
     if (!room.st || !room.st.over) return;
     room.rematch[ws.seat] = true;
-    if (msg.deck && DECKS[msg.deck]) room.seats[ws.seat].deck = msg.deck;
+    if (msg.deck && DECKS[msg.deck]) { room.seats[ws.seat].deck = msg.deck; room.seats[ws.seat].general = generalOf(msg); }
     if (room.rematch[0] && room.rematch[1]) startMatch(room); else broadcast(room);
     return;
   }

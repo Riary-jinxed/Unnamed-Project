@@ -1,11 +1,11 @@
 // Partie contre l'IA : le même moteur tourne directement dans le navigateur.
 import { DECKS, newGame, startTurn, runTurn, aiPlan, viewFor, pick } from '@jeu/engine';
 
-export function startSolo(handlers, { name, deck }) {
+export function startSolo(handlers, { name, deck, general }) {
   const names = [name, 'IA'];
   let st, ready = false, stopped = false;
   const emit = flash => !stopped && handlers.onView(viewFor(st, 0, { flash, ready: { me: ready, foe: true }, names, connected: [true, true] }));
-  function begin() { st = newGame(deck, pick(Object.keys(DECKS)), names); startTurn(st); st.phase = 'plan'; ready = false; emit(null); }
+  function begin() { st = newGame(deck, pick(Object.keys(DECKS)), names, { generals: [general, null] }); startTurn(st); st.phase = 'plan'; ready = false; emit(null); }
   begin();
   return {
     async submit(plan) {

@@ -7,7 +7,7 @@ Cette version sert à tester le jeu entre amis : une appli web installable sur t
 
 | Dossier | Rôle |
 | --- | --- |
-| `packages/engine` | Le moteur de règles et le set de test (cartes, généraux, terrains, decks). Il ne dépend de rien. |
+| `packages/engine` | Le moteur de règles et le set 1 (5 familles, 60 cartes, 12 généraux, 15 terrains, 5 decks de départ). Il ne dépend de rien. |
 | `server` | Le serveur de parties : salons à code, règles appliquées côté serveur, cartes cachées jamais envoyées à l'adversaire. Il sert aussi l'appli compilée. |
 | `client` | L'appli web (PWA) : accueil, salon, plateau, partie contre l'IA. |
 
@@ -35,7 +35,8 @@ npm start   # tout sur http://localhost:8787
 ## Tester l'équilibrage
 
 ```bash
-npm run sim -- 60   # 60 parties IA contre IA par duel de decks
+npm run sim -- 60            # 60 parties IA contre IA par duel de decks
+npm run sim -- 20 generaux   # chaque général avec le deck de sa famille, contre tous les decks
 ```
 
 ## Mettre en ligne pour jouer entre amis
@@ -52,6 +53,8 @@ Sur l'offre gratuite, le serveur s'endort après 15 minutes sans visite : la pre
 
 - **Créer une partie** donne un code de 4 lettres et un lien à envoyer.
 - **Rejoindre** avec ce code : la partie démarre aussitôt.
+- Avant de jouer, choisissez un deck de départ et, si vous voulez, un autre général : le deck n'est pas limité à la famille du général.
+- Pendant votre tour, une créature marquée ⇄ (Déplaçable) peut changer de zone : touchez-la, puis touchez la zone d'arrivée.
 - Une page rechargée ou une connexion perdue reprend la partie automatiquement.
 
 ## Prochaines étapes prévues
