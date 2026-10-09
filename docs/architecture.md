@@ -35,9 +35,11 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `server/src/accounts.js` | ~410 | Comptes, sessions, deck de départ, boosters, boutique, decks, profil, administration, routeur de l'API. |
 | `server/src/progress.js` | ~235 | XP, niveaux, missions, succès, complétions, cosmétiques. |
 | `server/src/games.js` | ~90 | Historique des parties, statistiques admin et profil. |
+| `server/src/friends.js` | ~170 | Amis, présence en ligne et défis entre amis. |
 | `server/src/cards.js` | ~50 | Brouillon et publication du catalogue de cartes. |
 | `client/src/main.js` | ~1000 | Toute l'appli joueur : état, écrans, partie, animations, interactions. |
 | `client/src/net.js` | 30 | Connexion WebSocket avec reconnexion automatique. |
+| `client/src/friends.js` | ~180 | Écran des amis, bandeau de défi, choix du deck pour une partie entre amis. |
 | `client/src/solo.js` | 25 | Partie contre l'IA, entièrement dans le navigateur. |
 | `client/src/api.js` | 10 | Appel JSON à l'API avec la session. |
 | `client/src/common.js` | 10 | Couleur de famille et échappement HTML, partagés par l'appli et `/admin`. |

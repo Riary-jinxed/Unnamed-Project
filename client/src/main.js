@@ -5,6 +5,7 @@ import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE,
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
+import { createFriends } from './friends.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
@@ -26,13 +27,16 @@ const ui = {
   booster: null, shop: null, edit: null, deckStep: 0, renaming: null, profile: null, nameDraft: '', colFam: '', joinCode: (params.get('code') || '').toUpperCase(),
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
-  drag: null, fx: null, zoom: null, soloReward: null, avatars: null,
+  drag: null, fx: null, zoom: null, soloReward: null, avatars: null, friendFoe: null,
 };
 const app = document.getElementById('app');
+// Amis et défis (friends.js) : écran, bandeau de défi, choix du deck pour une partie entre amis.
+const friends = createFriends({ ui, render: () => render(), call: (...x) => call(...x), avatarHTML: (...x) => avatarHTML(...x), errLine: () => errLine(),
+  deckError, play: (...x) => play(...x), generalName: id => GENERALS[id]?.name || 'Sans général', startFriendMatch: (...x) => startFriendMatch(...x) });
 
 // ---- Contrôleurs (en ligne / IA) ----
 const handlers = {
-  onLobby(m) { ui.screen = 'lobby'; ui.room = m.room; ui.lobbyNames = m.names; ui.error = ''; store.set('session', { room: m.room, token: m.token }); render(); },
+  onLobby(m) { ui.screen = 'lobby'; ui.room = m.room; ui.lobbyNames = m.names; ui.error = ''; store.set('session', { room: m.room, token: m.token, foe: ui.friendFoe }); render(); },
   onView(view, room) {
     if (room) ui.room = room;
     if (view.avatars) ui.avatars = view.avatars;
@@ -51,8 +55,12 @@ const handlers = {
     if (!ui.auth) return;
     api('POST', '/api/games/solo', result, ui.auth).then(r => { ui.soloReward = r.reward; if (r.account) ui.account = r.account; render(); }).catch(() => {});
   },
-  onGone() { store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.error = 'La partie a expiré.'; ui.ctrl = null; render(); },
-  onLeft() { store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.error = 'Votre adversaire a quitté la partie.'; ui.ctrl = null; render(); },
+  onGone() { store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.error = 'La partie a expiré.'; ui.ctrl = null; ui.friendFoe = null; render(); },
+  onLeft() {
+    // Défi : l'ami a renoncé avant le début de la partie.
+    ui.error = ui.friendFoe && ui.screen === 'lobby' ? `${ui.friendFoe} a annulé la partie.` : 'Votre adversaire a quitté la partie.';
+    store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.ctrl = null; ui.friendFoe = null; render();
+  },
 };
 // On joue toujours le deck enregistré sur le compte.
 function deckReady() {
@@ -62,8 +70,13 @@ function deckReady() {
 }
 function goOnline(action) {
   if (!deckReady()) return;
-  ui.mode = 'online'; ui.error = ''; ui.avatars = null;
+  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null;
   ui.ctrl = connectOnline(handlers, action === 'create' ? { t: 'create', auth: ui.auth } : { t: 'join', room: ui.joinCode, auth: ui.auth });
+}
+// Défi accepté : on entre dans le salon réservé avec le deck choisi.
+function startFriendMatch(room, deck, foe) {
+  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = foe;
+  ui.ctrl = connectOnline(handlers, { t: 'join', room, auth: ui.auth, deck });
 }
 function goSolo() {
   if (!deckReady()) return;
@@ -77,10 +90,12 @@ const MENU = ['loading', 'login', 'starter'];
 const menuScreen = () => (ui.account ? (ui.account.starter ? 'home' : 'starter') : ui.auth ? 'loading' : 'login');
 function setAccount(a) {
   ui.account = a;
+  friends.start();
   if (a.catalog !== catalogVersion) loadCatalog();
   if (MENU.includes(ui.screen)) ui.screen = a.starter ? 'home' : 'starter';
 }
 function signedOut(msg = '') {
+  friends.stop();
   store.set('auth', null); ui.auth = null; ui.account = null; ui.screen = 'login'; ui.error = msg; ui.busy = false;
 }
 // Appel à l'API avec la session du joueur ; une session expirée renvoie à l'écran de connexion.
@@ -436,7 +451,7 @@ function renderHome() {
     ${errLine()}
     <div class="card-box">
       <h2 style="font-size:22px">Jouer avec un ami</h2>
-      <div class="row"><button class="btn primary" data-act="create">Créer une partie</button></div>
+      <div class="row"><button class="btn primary" data-act="create">Créer une partie</button><button class="btn" data-act="friends">Mes amis${friends.pending() ? ` · ${friends.pending()} demande${friends.pending() > 1 ? 's' : ''}` : ''}</button></div>
       <div class="or">ou rejoindre avec un code</div>
       <div class="row"><div class="field" style="flex:1"><label class="eyebrow" for="code">Code de la partie</label>
         <input id="code" maxlength="4" autocapitalize="characters" autocomplete="off" value="${esc(ui.joinCode)}" placeholder="ABCD"></div>
@@ -636,6 +651,13 @@ function toggleTerrain(k) {
   render();
 }
 function renderLobby() {
+  if (ui.friendFoe) return `
+  <div class="top"><span class="title">Partie entre amis</span></div>
+  <div class="card-box" style="text-align:center;justify-items:center">
+    <span class="eyebrow">Contre ${esc(ui.friendFoe)}</span>
+    <p class="wait">${esc(ui.friendFoe)} choisit son deck. La partie commence dès que son choix est fait.</p>
+    <button class="btn" data-act="quit">Annuler</button>
+  </div>`;
   const link = `${location.origin}${location.pathname}?code=${ui.room}`;
   return `
   <div class="top"><span class="title">Partie en attente</span></div>
@@ -705,6 +727,7 @@ function zoomHTML() {
 function openZoom(zoom) { ui.zoom = zoom; ui.sheet = 'zoom'; ui.fx = { list: [['.zoomcard', 'zoom-in']] }; }
 function sheetHTML() {
   if (ui.sheet === 'zoom' && ui.zoom) return zoomHTML();
+  if (ui.sheet === 'friend-deck') return friends.deckSheet();
   if (ui.sheet === 'log' && ui.view) {
     const names = ui.view.names;
     const lines = ui.view.log.map(l => `<div class="${l.kind}">${esc(renderLog(l.msg, ui.view.seat, names))}</div>`).join('');
@@ -755,11 +778,11 @@ function sheetHTML() {
 }
 function render() {
   const h = document.getElementById('hand'); const sx = h ? h.scrollLeft : 0;
-  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, lobby: renderLobby, game: renderGame };
+  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, lobby: renderLobby, game: renderGame, friends: friends.screen };
   // Récompenses gagnées (niveau, missions, succès, familles et sets complétés) : affichées en revenant à l'accueil.
   if (ui.screen === 'home' && !ui.sheet && prog().inbox.length) ui.sheet = 'inbox';
   const body = screens[ui.screen]();
-  app.innerHTML = body + sheetHTML();
+  app.innerHTML = body + friends.banner() + sheetHTML();
   if (ui.sheet === 'rename') { const r = document.getElementById('rename-input'); if (r && document.activeElement !== r) { r.focus(); r.select(); } }
   const h2 = document.getElementById('hand'); if (h2) h2.scrollLeft = sx;
   const lb = document.getElementById('logbox'); if (lb) lb.parentElement.scrollTop = lb.scrollHeight;
@@ -913,11 +936,12 @@ function tryPlace(z) {
 function quit() {
   if (ui.ctrl) ui.ctrl.leave();
   store.set('session', null);
-  ui.ctrl = null; ui.view = null; ui.screen = menuScreen(); ui.sheet = null; ui.pending = []; ui.lastTurn = 0; ui.soloReward = null; render();
+  ui.ctrl = null; ui.view = null; ui.friendFoe = null; ui.screen = menuScreen(); ui.sheet = null; ui.pending = []; ui.lastTurn = 0; ui.soloReward = null; render();
   // Le compte a pu changer pendant la partie (XP, Éclats, missions, succès).
   if (ui.auth) api('GET', '/api/me', undefined, ui.auth).then(r => { setAccount(r.account); render(); }).catch(() => {});
 }
 app.addEventListener('input', e => {
+  if (friends.input(e)) return;
   if (e.target.id === 'login-id') ui.loginId = e.target.value;
   if (e.target.id === 'login-pass') ui.loginPass = e.target.value;
   if (e.target.id === 'deck-name' && ui.edit) ui.edit.name = e.target.value;
@@ -932,6 +956,7 @@ app.addEventListener('change', e => {
 });
 app.addEventListener('submit', e => {
   e.preventDefault(); if (ui.busy) return;
+  if (friends.submit(e.target)) return;
   if (e.target.id === 'login-form') doLogin();
   else if (e.target.id === 'name-form') saveName();
   else if (e.target.id === 'rename-form') renameDeck();
@@ -943,6 +968,7 @@ app.addEventListener('click', e => {
   if (ds.stop && !e.target.closest('[data-act]')) return;
   if (ds.act) {
     const a = ds.act;
+    if (friends.click(a, ds)) return;
     if (a === 'close') { if (ui.sheet === 'inbox') closeInbox(); ui.sheet = null; ui.zoom = null; ui.renaming = null; render(); }
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
@@ -1020,12 +1046,12 @@ app.addEventListener('click', e => {
   if (ds.general) { ui.focus = { kind: 'general', id: ds.general }; ui.msg = ''; openZoom({ kind: 'general', id: ds.general, mine: ds.side === 'me', side: ds.side }); render(); return; }
   const zone = t.closest('[data-z]'); if (zone) tryPlace(+zone.dataset.z);
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.sheet) { if (ui.sheet === 'inbox') closeInbox(); ui.sheet = null; ui.zoom = null; render(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.sheet && ui.sheet !== 'friend-deck') { if (ui.sheet === 'inbox') closeInbox(); ui.sheet = null; ui.zoom = null; render(); } });
 app.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.zone.target')) { e.preventDefault(); tryPlace(+e.target.dataset.z); } });
 
 // Reprise d'une partie en ligne après rechargement de la page
 const saved = store.get('session', null);
-if (saved && saved.room && saved.token) { ui.mode = 'online'; ui.room = saved.room; ui.ctrl = connectOnline(handlers, { t: 'rejoin', room: saved.room, token: saved.token }); }
+if (saved && saved.room && saved.token) { ui.mode = 'online'; ui.room = saved.room; ui.friendFoe = saved.foe || null; ui.ctrl = connectOnline(handlers, { t: 'rejoin', room: saved.room, token: saved.token }); }
 boot();
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register('/sw.js').catch(() => {});
