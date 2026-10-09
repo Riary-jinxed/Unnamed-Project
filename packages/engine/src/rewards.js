@@ -16,15 +16,15 @@ export const DEFAULT_REWARDS = {
   xpNewCard: 15,
   // Missions quotidiennes : nombre par jour, et missions qu'on peut remplacer par jour.
   missionsPerDay: 3, missionRerolls: 1,
-  // Complétion : famille dans son set d'origine (avec carte unique, titre et dos), part d'une famille dans un autre set, set entier.
-  familyShards: 200, supportShards: 100, setShards: 1000, setBoosters: 3,
+  // Complétion : famille d'un set (avec carte unique, titre et dos), set entier.
+  familyShards: 200, setShards: 1000, setBoosters: 3,
 };
 export const REWARD_LIMITS = {
   xpBase: [10, 100000], xpStep: [0, 100000], xpCap: [10, 1000000], levelShards: [0, 100000], boosterEvery: [0, 100],
   xpPvpWin: [0, 10000], xpPvpLoss: [0, 10000], xpPveWin: [0, 10000], xpPveLoss: [0, 10000],
   shardsPvpWin: [0, 10000], shardsPveWin: [0, 10000], shardsLoss: [0, 10000], gamesPerDay: [0, 100],
   xpNewCard: [0, 10000], missionsPerDay: [0, 6], missionRerolls: [0, 10],
-  familyShards: [0, 100000], supportShards: [0, 100000], setShards: [0, 1000000], setBoosters: [0, 20],
+  familyShards: [0, 100000], setShards: [0, 1000000], setBoosters: [0, 20],
 };
 
 // XP pour passer du niveau `level` au suivant.
@@ -52,31 +52,41 @@ export const FRAMES = {
 };
 const FAM_KEY = { 'Ange': 'ange', 'Démon': 'demon', 'Gobelin': 'gobelin', 'Elfe': 'elfe', 'Dragon': 'dragon', 'Mort-vivant': 'mortvivant', 'Vampire': 'vampire' };
 export const famKey = fam => FAM_KEY[fam] || 'neutre';
-// Dos de carte : celui par défaut, puis un par famille complétée. Il se voit sur vos cartes cachées, côté adversaire.
+// Dos de carte : celui par défaut, puis un par famille complétée dans chaque set. Il se voit sur vos cartes cachées, côté adversaire.
 export const BACKS = { classique: 'Dos classique', ange: 'Dos céleste', demon: 'Dos infernal', gobelin: 'Dos de la horde', elfe: 'Dos sylvestre',
-  dragon: 'Dos d\'écailles', mortvivant: 'Dos funéraire', vampire: 'Dos écarlate' };
+  dragon: 'Dos d\'écailles', mortvivant: 'Dos funéraire', vampire: 'Dos écarlate',
+  ange_set2: 'Dos céleste du Crépuscule', demon_set2: 'Dos infernal du Crépuscule', gobelin_set2: 'Dos du banquet', elfe_set2: 'Dos des arcanes',
+  dragon_set2: 'Dos des couvées' };
 
 // ---- Complétion de famille et de set ----
-// Famille complétée dans son set d'origine : Éclats, une carte unique qui soutient la famille, un titre et un dos de carte.
-export const FAMILY_REWARDS = {
-  'Ange':        { set: 'base', card: 'voix_aube', title: 'Héraut de l\'Aube' },
-  'Démon':       { set: 'base', card: 'heritier_abysses', title: 'Prince des abysses' },
-  'Gobelin':     { set: 'base', card: 'boss_horde', title: 'Grand chef de guerre' },
-  'Elfe':        { set: 'base', card: 'gardienne_sentiers', title: 'Sage sylvestre' },
-  'Dragon':      { set: 'base', card: 'wyrm_tresor', title: 'Seigneur des dragons' },
-  'Mort-vivant': { set: 'set2', card: 'faucheur', title: 'Maître des tombes' },
-  'Vampire':     { set: 'set2', card: 'reine_ecarlate', title: 'Prince de la nuit' },
-};
+// Chaque famille complétée dans chaque set : Éclats, une carte unique qui soutient la famille, un titre et un dos de carte.
+// Un nouveau set ajoute ici une ligne par famille qu'il contient.
+const F = (set, fam, card, title, back) => ({ set, fam, card, title, back });
+export const FAMILY_REWARDS = [
+  F('base', 'Ange', 'voix_aube', 'Héraut de l\'Aube', 'ange'),
+  F('base', 'Démon', 'heritier_abysses', 'Prince des abysses', 'demon'),
+  F('base', 'Gobelin', 'boss_horde', 'Grand chef de guerre', 'gobelin'),
+  F('base', 'Elfe', 'gardienne_sentiers', 'Sage sylvestre', 'elfe'),
+  F('base', 'Dragon', 'wyrm_tresor', 'Seigneur des dragons', 'dragon'),
+  F('set2', 'Mort-vivant', 'faucheur', 'Maître des tombes', 'mortvivant'),
+  F('set2', 'Vampire', 'reine_ecarlate', 'Prince de la nuit', 'vampire'),
+  F('set2', 'Ange', 'prophetesse', 'Oracle du Crépuscule', 'ange_set2'),
+  F('set2', 'Démon', 'prince_dupes', 'Marchand d\'âmes', 'demon_set2'),
+  F('set2', 'Gobelin', 'maitre_banquet', 'Grand ripailleur', 'gobelin_set2'),
+  F('set2', 'Elfe', 'archimage', 'Arcaniste des sylves', 'elfe_set2'),
+  F('set2', 'Dragon', 'doyenne_couvees', 'Gardien des couvées', 'dragon_set2'),
+];
+export const familyReward = (set, fam) => FAMILY_REWARDS.find(r => r.set === set && r.fam === fam) || null;
 // Set complété : Éclats, boosters offerts, une carte Dieu (pour le deck le plus faible du moment), un titre et un cadre.
 export const SET_REWARDS = {
   base: { card: 'dieu_base', title: 'Gardien du Set de base', frame: 'base' },
   set2: { card: 'dieu_set2', title: 'Gardien du Crépuscule', frame: 'set2' },
 };
 // Cartes qu'on ne trouve dans aucun booster : elles ne s'obtiennent qu'en récompense.
-export const REWARD_CARDS = [...Object.values(FAMILY_REWARDS).map(f => f.card), ...Object.values(SET_REWARDS).map(s => s.card)];
+export const REWARD_CARDS = [...FAMILY_REWARDS.map(f => f.card), ...Object.values(SET_REWARDS).map(s => s.card)];
 export const rewardSourceOf = id => {
-  const f = Object.entries(FAMILY_REWARDS).find(([, r]) => r.card === id);
-  if (f) return { kind: 'family', fam: f[0], set: f[1].set };
+  const f = FAMILY_REWARDS.find(r => r.card === id);
+  if (f) return { kind: 'family', fam: f.fam, set: f.set };
   const s = Object.entries(SET_REWARDS).find(([, r]) => r.card === id);
   return s ? { kind: 'set', set: s[0] } : null;
 };
@@ -119,6 +129,6 @@ export const statValue = (stats, stat) => stat.split('.').reduce((o, k) => (o ? 
 // Tous les titres : ceux des succès, des familles et des sets.
 export const TITLES = Object.fromEntries([
   ...ACHIEVEMENTS.filter(a => a.title).map(a => [a.id, a.title]),
-  ...Object.entries(FAMILY_REWARDS).map(([fam, r]) => [`fam:${fam}`, r.title]),
+  ...FAMILY_REWARDS.map(r => [`fam:${r.set}:${r.fam}`, r.title]),
   ...Object.entries(SET_REWARDS).map(([set, r]) => [`set:${set}`, r.title]),
 ]);

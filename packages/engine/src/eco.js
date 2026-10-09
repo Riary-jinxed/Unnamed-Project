@@ -39,8 +39,7 @@ function simulate(p, { set2Day = Infinity, set2Daily = Infinity, maxDays = 400 }
       for (const fam of new Set(s.cards.map(familyOf).filter(Boolean))) {
         const k = `${s.id}:${fam}`;
         if (!a.done[k] && s.cards.filter(id => familyOf(id) === fam).every(id => a.cards[id])) {
-          a.done[k] = 1; const home = s.cards.filter(id => familyOf(id) === fam).length >= 10;
-          gain(0, home ? R.familyShards : R.supportShards);
+          a.done[k] = 1; gain(0, R.familyShards);
         }
       }
       if (!a.done[s.id] && s.cards.every(id => a.cards[id])) { a.done[s.id] = 1; out.complete[s.id] = day; gain(0, R.setShards); a.free += R.setBoosters; }

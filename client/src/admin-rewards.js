@@ -15,7 +15,7 @@ const GROUPS = [
   ]],
   ['Missions et complétions', 'Les cartes, titres, cadres et dos de carte des complétions sont fixes ; seuls les Éclats et boosters se règlent.', [
     ['missionsPerDay', 'Missions par jour', 'Entre 0 et 6.'], ['missionRerolls', 'Missions qu\'on peut changer par jour'],
-    ['familyShards', 'Éclats : famille complétée dans son set d\'origine'], ['supportShards', 'Éclats : cartes d\'une famille complétées dans un autre set'],
+    ['familyShards', 'Éclats : famille complétée dans un set'],
     ['setShards', 'Éclats : set complété'], ['setBoosters', 'Boosters offerts : set complété'],
   ]],
 ];
@@ -42,7 +42,7 @@ export function rewardsTab({ call, render, say, esc, notice }) {
         ${['target', 'xp', 'shards'].map(k => `<td><input id="m-${id}-${k}" type="number" min="0" step="1" value="${v[k]}" style="width:80px" aria-label="${k}"></td>`).join('')}</tr>`; }).join('');
     const achievements = ACHIEVEMENTS.map(x => `<tr><td>${esc(x.label)}</td><td class="hint">${[x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? esc(FRAMES[x.frame]) : ''].filter(Boolean).join(' · ')}</td>
       <td><input id="a-${x.id}" type="number" min="0" step="1" value="${r.achievements[x.id]}" style="width:90px" aria-label="Éclats"></td></tr>`).join('');
-    const fams = Object.entries(FAMILY_REWARDS).map(([fam, f]) => `<li>${esc(fam)} (${f.set === 'base' ? 'Set de base' : 'Crépuscule'}) : ${esc(CARDS[f.card]?.name || f.card)}, titre « ${esc(f.title)} »</li>`).join('');
+    const fams = FAMILY_REWARDS.map(f => `<li>${esc(f.fam)} (${f.set === 'base' ? 'Set de base' : 'Crépuscule'}) : ${esc(CARDS[f.card]?.name || f.card)}, titre « ${esc(f.title)} »</li>`).join('');
     const sets = Object.entries(SET_REWARDS).map(([set, s]) => `<li>${set === 'base' ? 'Set de base' : 'Crépuscule'} : ${esc(CARDS[s.card]?.name || s.card)}, titre « ${esc(s.title)} », ${esc(FRAMES[s.frame])}</li>`).join('');
     return `${notice()}
     <form class="card-box" id="rewards">
@@ -57,7 +57,7 @@ export function rewardsTab({ call, render, say, esc, notice }) {
       <p class="hint" style="margin:0">Les nouveaux réglages valent pour les prochaines récompenses ; les missions déjà tirées aujourd'hui gardent leurs valeurs.</p>
     </form>
     <div class="card-box"><h2 style="font-size:20px">Cartes de récompense</h2>
-      <p class="hint" style="margin:0">Elles ne sortent d'aucun booster. Famille complétée dans son set d'origine : la carte, un titre et le dos de carte de la famille.</p>
+      <p class="hint" style="margin:0">Elles ne sortent d'aucun booster. Chaque famille complétée dans chaque set : sa carte, un titre et un dos de carte.</p>
       <ul class="games">${fams}</ul>
       <p class="hint" style="margin:0">Set complété : une carte Dieu pour le deck le plus faible du moment, un titre et un cadre.</p><ul class="games">${sets}</ul></div>`;
   }

@@ -332,3 +332,10 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
 .mc.back.back-vampire { background: radial-gradient(circle at 50% 50%, #ff5a8c, transparent 45%), repeating-linear-gradient(-45deg, #3a0c22 0 4px, #8c2350 4px 8px); border-top-color: #8c2350; }
 .btn.sm { padding: 3px 9px; font-size: 13px; }
 .ok { color: var(--up); }
+/* Dos du Crépuscule : la famille, assombrie d'un voile violet. */
+.mc.back.back-ange_set2, .mc.back.back-demon_set2, .mc.back.back-gobelin_set2, .mc.back.back-elfe_set2, .mc.back.back-dragon_set2 { border-top-color: #4b2a6b; }
+.mc.back.back-ange_set2 { background: radial-gradient(circle at 50% 40%, #fff6d6, transparent 55%), linear-gradient(#3a2a5c, #6a4f9a), repeating-linear-gradient(0deg, #e2b93e 0 2px, #f8ecc6 2px 6px); }
+.mc.back.back-demon_set2 { background: radial-gradient(circle at 50% 60%, #ff7a52, transparent 50%), linear-gradient(#2b1d3a, #5a2a4f), repeating-linear-gradient(135deg, #5a1414 0 5px, #8e2420 5px 10px); }
+.mc.back.back-gobelin_set2 { background: radial-gradient(circle at 50% 50%, #f2c46b, transparent 45%), linear-gradient(#2b1d3a, #4a3a6a), repeating-linear-gradient(45deg, #3e6e2c 0 6px, #6c9a3e 6px 12px); }
+.mc.back.back-elfe_set2 { background: radial-gradient(circle, #fff 0 1px, transparent 2px) 0 0 / 8px 8px, linear-gradient(#1d2a5a, #2a8a7e); }
+.mc.back.back-dragon_set2 { background: radial-gradient(ellipse at 50% 70%, #ffb36b, transparent 35%), linear-gradient(#2b1d3a, #7a3a1a); }

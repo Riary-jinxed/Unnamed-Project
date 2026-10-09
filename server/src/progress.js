@@ -1,8 +1,8 @@
 // Progression du compte : XP et niveau, missions quotidiennes, succès, complétion de famille et de set, titres, cadres et dos de carte.
 // Les nombres viennent du document « recompenses » (réglé depuis /admin), complété par les valeurs par défaut de rewards.js.
 // Chaque récompense gagnée est aussi rangée dans la boîte « inbox » du compte, que l'appli affiche puis vide.
-import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, ACHIEVEMENTS, FAMILY_REWARDS, SET_REWARDS, TITLES, FRAMES, BACKS,
-  xpToNext, familyOf, statValue, missionLabel, famKey } from '@jeu/engine/rewards';
+import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, ACHIEVEMENTS, familyReward, SET_REWARDS, TITLES, FRAMES, BACKS,
+  xpToNext, familyOf, statValue, missionLabel } from '@jeu/engine/rewards';
 import { SETS, STARTERS, allowedGenerals, today } from '@jeu/engine/collection';
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { HttpError } from './accounts.js';
@@ -75,7 +75,7 @@ export function createProgress(store) {
   // ---- Succès ----
   function statsOf(a) {
     const owned = Object.keys(a.cards || {}).filter(id => a.cards[id]).length;
-    const families = Object.keys(a.completed || {}).filter(k => k.includes(':') && FAMILY_REWARDS[k.split(':')[1]]?.set === k.split(':')[0]).length;
+    const families = Object.keys(a.completed || {}).filter(k => k.includes(':')).length;
     return { ...a.stats, level: a.level, cards: owned, families };
   }
   function checkAchievements(a) {
@@ -103,9 +103,8 @@ export function createProgress(store) {
         const key = `${set.id}:${fam}`;
         if (a.completed[key] || !set.cards.filter(id => familyOf(id) === fam).every(id => a.cards[id])) continue;
         a.completed[key] = new Date().toISOString();
-        const home = FAMILY_REWARDS[fam]?.set === set.id ? FAMILY_REWARDS[fam] : null;
-        grant(a, home ? { kind: 'family', label: `Famille ${fam} complétée (${set.name})`, shards: c.familyShards, card: home.card, title: `fam:${fam}`, back: famKey(fam) }
-          : { kind: 'family', label: `Cartes ${fam} du set ${set.name} complétées`, shards: c.supportShards });
+        const r = familyReward(set.id, fam);
+        grant(a, { kind: 'family', label: `Famille ${fam} complétée (${set.name})`, shards: c.familyShards, ...(r ? { card: r.card, title: `fam:${set.id}:${fam}`, back: r.back } : {}) });
       }
       if (a.completed[set.id] || !set.cards.every(id => a.cards[id])) continue;
       a.completed[set.id] = new Date().toISOString();
@@ -204,8 +203,8 @@ export function createProgress(store) {
   function collectionView(a) {
     return SETS.filter(s => s.cards.length).map(set => ({ id: set.id, name: set.name, done: !!a.completed?.[set.id], reward: SET_REWARDS[set.id] || null,
       families: [...new Set(set.cards.map(familyOf).filter(Boolean))].map(fam => {
-        const ids = set.cards.filter(id => familyOf(id) === fam), home = FAMILY_REWARDS[fam]?.set === set.id;
-        return { fam, owned: ids.filter(id => a.cards[id]).length, total: ids.length, done: !!a.completed?.[`${set.id}:${fam}`], card: home ? FAMILY_REWARDS[fam].card : null, title: home ? FAMILY_REWARDS[fam].title : null };
+        const ids = set.cards.filter(id => familyOf(id) === fam), r = familyReward(set.id, fam);
+        return { fam, owned: ids.filter(id => a.cards[id]).length, total: ids.length, done: !!a.completed?.[`${set.id}:${fam}`], card: r?.card || null, title: r?.title || null };
       }) }));
   }
 
