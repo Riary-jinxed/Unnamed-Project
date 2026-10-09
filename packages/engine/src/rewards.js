@@ -74,8 +74,8 @@ export const CARD_LEVELS = [
   { name: 'Base', look: null, perk: 'Aspect d\'origine' },
   { name: 'Bronze', look: 'bronze', perk: 'Bordure de bronze' },
   { name: 'Argent', look: 'argent', perk: 'Bordure d\'argent' },
-  { name: 'Or', look: 'or', perk: 'Bordure d\'or' },
-  { name: 'Astral', look: 'astral', fx: 'astral', perk: 'Bordure astrale et effet de mise en jeu' },
+  { name: 'Or', look: 'or', pop: true, perk: 'Bordure d\'or et personnage qui sort du cadre' },
+  { name: 'Astral', look: 'astral', fx: 'astral', pop: true, perk: 'Bordure astrale et effet de mise en jeu' },
 ];
 export const MAX_CARD_LEVEL = CARD_LEVELS.length - 1;
 // Essence et Éclats pour passer du niveau level − 1 à level.

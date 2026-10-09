@@ -10,6 +10,7 @@ import { codexHTML } from './codex.js';
 import { createFriends } from './friends.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
+import { artHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { FRAMES, BACKS, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 
@@ -727,9 +728,9 @@ function renderLobby() {
   </div>`;
 }
 function fullCard(id, lvl = 1) { const d = CARDS[id];
-  return `<div class="fc${lvCls(lvl)}" style="${famVar(d.kw)}"><div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
+  return `<div class="fc${lvCls(lvl)}" style="${famVar(d.kw)}">${artHTML(id, d.name, lvl)}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
     <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
-const genCard = (k, lvl = 1) => { const g = GENERALS[k]; return `<div class="fc${lvCls(lvl)}" style="${famVar([g.fam])}"><b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
+const genCard = (k, lvl = 1) => { const g = GENERALS[k]; return `<div class="fc${lvCls(lvl)}" style="${famVar([g.fam])}">${artHTML(k, g.name, lvl)}<b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
 const terrainCard = k => { const t = TERRAINS[k]; return `<div class="fc" style="${famVar([t.fam])}"><b>${t.name}</b><span class="k">Terrain</span><span class="x">${rich(t.text)}</span></div>`; };
 // Carte affichée en grand, avec les actions possibles sur elle pendant la planification.
 function zoomBtns(acts) { return acts.length ? `<div class="zacts">${acts.join('')}</div>` : ''; }
@@ -778,8 +779,9 @@ function zoomHTML() {
     const t = TERRAINS[zm.id]; style = famVar([t.fam]);
     body = `<div class="zh"><h2>${t.name}</h2></div><span class="k">Terrain${t.fam ? ` · ${t.fam}` : ''}</span><p class="x">${rich(t.text)}</p>`;
   }
-  return `<div class="sheet zoom" data-act="close"><div class="panel zoomcard${lvCls(lvl)}" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
-    <button class="btn" data-act="close">Fermer</button></div></div>`;
+  const art = zm.kind === 'terrain' ? '' : artHTML(zm.id, nameOf(zm.id), lvl, 'zoomart');
+  return `<div class="sheet zoom" data-act="close"><div class="zoomwrap" data-stop="1" style="${style}">${art}<div class="panel zoomcard${lvCls(lvl)}" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
+    <button class="btn" data-act="close">Fermer</button></div></div></div>`;
 }
 function openZoom(zoom) { ui.zoom = zoom; ui.sheet = 'zoom'; ui.zoomBack = null; ui.fx = { list: [['.zoomcard', 'zoom-in']] }; }
 // Ferme le panneau ouvert ; une carte ouverte depuis le codex y ramène.
