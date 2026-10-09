@@ -479,7 +479,7 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
 /* Illustration de carte (art.js) : décor coupé à la fenêtre de la carte, personnage détouré par-dessus.
    Gabarit 960x1424, fenêtre 832x1168 à (64, 192) : le personnage déborde de la fenêtre au niveau qui le débloque (.pop). */
 .art { position: relative; aspect-ratio: 832 / 1168; border-radius: 4px; overflow: hidden; container-type: inline-size; background: var(--sunk); }
-.art.pop { overflow: visible; z-index: 1; }
+.zoomart.pop { overflow: visible; z-index: 1; }
 .art-clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .art-decor, .art-perso { position: absolute; left: -7.6923%; top: -16.4384%; width: 115.3846%; height: auto; max-width: none; pointer-events: none; user-select: none; }
 .art-name { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 18% 6% 5%; text-align: center; color: #fff; line-height: 1.05;
@@ -487,8 +487,7 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
   text-shadow: 0 0 1px #000, 0 1px 2px rgb(0 0 0 / .9), 0 0 10px color-mix(in srgb, var(--fam, var(--f-neutre)) 80%, #000);
   background: linear-gradient(transparent, rgb(0 0 0 / .72) 55%); border-radius: 0 0 4px 4px; }
 .fc .art { margin: -2px -2px 2px; }
-/* En vignette, le personnage ne déborde que par le haut et les côtés : il ne recouvre pas le texte de la carte. */
-.fc .art.pop { clip-path: inset(-20% -10% 0 -10%); }
+
 .fc:has(.art) > .h > b, .fc:has(.art) > b { display: none; }
 .fc:has(.art) > .h { justify-content: flex-end; }
 /* Carte ouverte en grand : illustration au-dessus du panneau, hors de sa zone de défilement, et animée. */

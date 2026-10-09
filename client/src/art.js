@@ -13,7 +13,8 @@ for (const [path, url] of Object.entries(files)) {
 }
 export const hasArt = id => !!ART[id]?.decor;
 
-// Le personnage sort du cadre à partir du premier niveau de carte qui le débloque (rewards.js, « pop »).
+// Le personnage sort du cadre à partir du premier niveau de carte qui le débloque (rewards.js, « pop »),
+// seulement dans la vue en grand (style.css, .zoomart.pop) : en vignette, il reste dans le cadre.
 export const POP_LEVEL = CARD_LEVELS.findIndex(l => l?.pop);
 const pops = lvl => POP_LEVEL > 0 && lvl >= POP_LEVEL;
 
