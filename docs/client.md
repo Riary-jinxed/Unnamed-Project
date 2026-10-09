@@ -18,7 +18,7 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 | --- | --- | --- |
 | `loading`, `login` | `renderLoading`, `renderLogin` | Démarrage, connexion. |
 | `starter` | `renderStarter` | Choix du deck de départ (première connexion). |
-| `home` | `renderHome` | Booster du jour, niveau et missions, deck joué, boutique, parties. |
+| `home` | `renderHome` | Booster du jour, niveau et missions, deck joué, boutique, parties, tutoriel et codex. |
 | `collection` | `renderCollection` | Toutes les cartes, par famille, celles qui manquent grisées. |
 | `shop` | `renderShop` | Cartes du jour et boosters de chaque set. |
 | `decks`, `deck` | `renderDecks`, `renderDeck` | Liste des decks ; création en trois étapes (général, terrains, cartes). |
@@ -45,6 +45,12 @@ Pendant la préparation, l'appli refait les calculs simples pour guider le joueu
 
 À chaque nouvelle vue, `viewEffects(avant, après)` compare les deux et prépare les animations (carte révélée, détruite, déplacée, puissance qui monte ou baisse, terrain révélé) et les bruitages (`sfx.js`, synthétisés avec Web Audio). Le glisser-déposer d'une carte vers une zone s'ajoute au toucher (sélectionner, puis toucher la zone).
 
+## Tutoriel et codex
+
+- `tutorial.js` (`startTutorial`) : partie guidée contre l'IA, sur le même modèle que `solo.js`, avec des decks, des pioches et des terrains fixés (`ME`, `FOE`) et un adversaire qui joue toujours les mêmes cartes (`FOE.plays`), pour que chaque leçon se passe comme prévu. Ni statistiques ni récompenses. Le contrôleur offre en plus `coach(ui)` (texte de l'étape et élément à mettre en valeur, affichés à la place de l'encadré d'info), `next()` (bouton Suivant) et `canSubmit(ui)` (le bouton Valider reste bloqué tant que l'étape du tour n'est pas faite). Les étapes sont dans `STEPS` ; changer une carte du tutoriel demande de relire les textes et de rejouer la partie.
+- Le tutoriel est proposé une fois par compte et par appareil, à l'accueil ou au choix du deck de départ (`localStorage` `jeu-tuto-<identifiant>`), et se relance depuis l'accueil.
+- `codex.js` : règles de base et mots-clés (Set de base et Crépuscule) avec leur effet exact et des cartes d'exemple (`CODEX`). Ouvert depuis l'accueil (`ui.sheet = 'codex'`) et depuis « Cartes » (bouton Mots-clés), donc aussi en partie. Une nouvelle mécanique s'y ajoute en même temps qu'à `KEYWORDS` (`common.js`).
+
 ## Catalogue côté appli
 
 Au démarrage puis chaque fois que la version change (`account.catalog`), l'appli charge `GET /api/catalog` et l'applique au moteur (`applyCatalog`) : noms, coûts et textes affichés, et partie contre l'IA, suivent ce qui a été publié.
@@ -53,7 +59,7 @@ Au démarrage puis chaque fois que la version change (`account.catalog`), l'appl
 
 `public/sw.js` (service worker) rend l'appli installable sur téléphone. Les fichiers de `/assets/` (leur nom contient une empreinte, ils ne changent jamais) sont servis depuis le cache ; les pages passent par le réseau, avec le cache en secours. Un changement de la constante `CACHE` efface les anciens caches. L'API et le WebSocket ne passent jamais par le cache.
 
-`localStorage` garde la session (`jeu-auth`), le salon en cours (`jeu-session`, pour reprendre après un rechargement) et le son coupé (`jeu-muted`).
+`localStorage` garde la session (`jeu-auth`), le salon en cours (`jeu-session`, pour reprendre après un rechargement), le son coupé (`jeu-muted`) et le tutoriel déjà proposé (`jeu-tuto-<identifiant>`).
 
 ## Page `/admin` (`admin.js`)
 
