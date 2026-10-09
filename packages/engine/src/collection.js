@@ -12,9 +12,9 @@ export const isGeneral = id => !!GENERALS[id];
 // Tout ce qui peut sortir d'un booster : cartes et généraux.
 export const OWNABLE = [...COLLECTIBLE, ...GENERAL_IDS];
 // Booster quotidien : les cartes et généraux des sets marqués « daily », tous avec la même chance de sortir.
-export const BOOSTER_POOL = OWNABLE.slice();
-// Set d'origine d'une carte ou d'un général (« base » par défaut).
+// Set d'origine d'une carte ou d'un général (« base » par défaut ; « recompense » : jamais dans un booster).
 export const setOf = id => (CARDS[id] || GENERALS[id])?.set || 'base';
+export const BOOSTER_POOL = OWNABLE.filter(id => setOf(id) === 'base');
 
 // Généraux donnés par le deck de départ : les 2 de sa famille et les neutres du Set de base.
 const famOf = starter => (DECKS[starter] ? DECKS[starter].fam : undefined);
@@ -94,7 +94,7 @@ export function draftError(deck, account) {
 // ---- Doublons, sets et boutique ----
 // Un deck ne prend qu'un exemplaire de chaque carte : chaque doublon obtenu devient des Éclats.
 export const SHARDS_PER_DUPLICATE = 10;
-export const SHOP = { dailyCards: 3, cardPrice: 300, boosterPrice: 200, boosterSize: 3 };
+export const SHOP = { dailyCards: 3, cardPrice: 300, boosterPrice: 250, boosterSize: 3 };
 // Chaque set a son espace dans la boutique. Un set fermé (open: false) y apparaît comme « bientôt disponible ».
 // daily : ses cartes sortent aussi du booster quotidien.
 export const DEFAULT_SETS = [

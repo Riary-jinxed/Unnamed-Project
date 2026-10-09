@@ -8,6 +8,7 @@ import { startSolo } from './solo.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { hasArt, artVar } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
+import { FRAMES, BACKS, rewardSourceOf, REWARD_CARDS } from '@jeu/engine/rewards';
 
 const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon', 'Mort-vivant': '--f-mortvivant', 'Vampire': '--f-vampire' };
 const famVar = kw => `--fam: var(${FAM[kw[0]] || '--f-neutre'})`;
@@ -27,7 +28,7 @@ const ui = {
   booster: null, shop: null, edit: null, deckStep: 0, renaming: null, profile: null, nameDraft: '', colFam: '', joinCode: (params.get('code') || '').toUpperCase(),
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, genMode: false, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
-  drag: null, fx: null, zoom: null,
+  drag: null, fx: null, zoom: null, soloReward: null,
 };
 const app = document.getElementById('app');
 
@@ -46,7 +47,11 @@ const handlers = {
     render();
   },
   onError(msg) { ui.error = msg; render(); },
-  onSoloOver(result) { if (ui.auth) api('POST', '/api/games/solo', result, ui.auth).catch(() => {}); },
+  // Partie contre l'IA terminée : le serveur l'enregistre et renvoie ce qu'elle a rapporté.
+  onSoloOver(result) {
+    if (!ui.auth) return;
+    api('POST', '/api/games/solo', result, ui.auth).then(r => { ui.soloReward = r.reward; if (r.account) ui.account = r.account; render(); }).catch(() => {});
+  },
   onGone() { store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.error = 'La partie a expiré.'; ui.ctrl = null; render(); },
   onLeft() { store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.error = 'Votre adversaire a quitté la partie.'; ui.ctrl = null; render(); },
 };
@@ -63,7 +68,7 @@ function goOnline(action) {
 }
 function goSolo() {
   if (!deckReady()) return;
-  ui.mode = 'solo'; ui.sheet = null; ui.lastTurn = 0;
+  ui.mode = 'solo'; ui.sheet = null; ui.lastTurn = 0; ui.soloReward = null;
   ui.ctrl = startSolo(handlers, { name: ui.account.name, deck: ui.account.deck });
 }
 
@@ -160,7 +165,7 @@ async function renameDeck() {
 // ---- Profil ----
 function openProfile() {
   ui.screen = 'profile'; ui.error = ''; ui.msg = ''; ui.nameDraft = ui.account.name; ui.profile = null; render();
-  call('GET', '/api/profile').then(r => { if (r) { ui.profile = r.stats; render(); } });
+  call('GET', '/api/profile').then(r => { if (r) { ui.profile = r.stats; ui.progressInfo = { achievements: r.achievements, collection: r.collection }; render(); } });
 }
 async function saveName() {
   if (await call('PUT', '/api/profile', { name: ui.nameDraft })) { ui.msg = 'Pseudo enregistré.'; render(); }
@@ -183,7 +188,43 @@ async function pickAvatar(file) {
   finally { if (url) URL.revokeObjectURL(url); }
 }
 const initials = name => (String(name || '?').trim().match(/\S/g) || ['?'])[0].toUpperCase();
-const avatarHTML = (a, cls = '') => (a.avatar ? `<img class="avatar ${cls}" src="${esc(a.avatar)}" alt="">` : `<span class="avatar initials ${cls}" aria-hidden="true">${esc(initials(a.name))}</span>`);
+const avatarBare = (a, cls = '') => (a.avatar ? `<img class="avatar ${cls}" src="${esc(a.avatar)}" alt="">` : `<span class="avatar initials ${cls}" aria-hidden="true">${esc(initials(a.name))}</span>`);
+// Le cadre choisi entoure l'image de profil.
+const avatarHTML = (a, cls = '', frame = a.progress?.frame) => (frame ? `<span class="frame frame-${frame} ${cls}">${avatarBare(a, cls)}</span>` : avatarBare(a, cls));
+
+// ---- Progression : niveau, missions, récompenses, personnalisation ----
+const prog = () => ui.account?.progress || { level: 1, xp: 0, xpNext: 1, missions: [], inbox: [], cosmetics: { titles: [], frames: [], backs: [] }, freeBoosters: 0 };
+const pct = (n, d) => Math.max(0, Math.min(100, Math.round(100 * n / (d || 1))));
+const levelBar = p => `<div class="lvl"><span class="lvlnum num">Niv. ${p.level}</span><div class="bar" role="progressbar" aria-valuenow="${p.xp}" aria-valuemin="0" aria-valuemax="${p.xpNext}" aria-label="Expérience"><span style="width:${pct(p.xp, p.xpNext)}%"></span></div><small class="hint num">${p.xp}/${p.xpNext} XP</small></div>`;
+const gains = r => [r.xp ? `+${r.xp} XP` : '', r.shards ? `+${r.shards} Éclats` : '', r.boosters ? `+${r.boosters} booster${r.boosters > 1 ? 's' : ''} offert${r.boosters > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
+const titleLabel = id => prog().cosmetics.titles.find(t => t.id === id)?.label || '';
+function missionsHTML() {
+  const p = prog();
+  if (!p.missions.length) return '';
+  return `<div class="gal-h">Missions du jour</div><div class="missions">${p.missions.map((m, i) => `<div class="mission ${m.done ? 'done' : ''}">
+    <div class="row" style="justify-content:space-between;gap:8px"><span>${m.done ? '✓ ' : ''}${esc(m.label)}</span><small class="hint num">${gains(m)}</small></div>
+    <div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(m.n, m.target)}%"></span></div><small class="num">${m.n}/${m.target}</small>
+      ${!m.done && p.rerollsLeft ? `<button class="btn sm" data-act="reroll" data-i="${i}" ${ui.busy ? 'disabled' : ''}>Changer</button>` : ''}</div></div>`).join('')}</div>
+    <p class="hint" style="margin:0">Nouvelles missions chaque jour à minuit.${p.rerollsLeft ? ` Vous pouvez en changer ${p.rerollsLeft} aujourd'hui.` : ''}</p>`;
+}
+// Ce que contient une récompense : gains, carte, titre, cadre, dos de carte.
+function rewardItem(r) {
+  const extra = [r.title ? `Titre « ${esc(titleLabel(r.title) || r.title)} »` : '', r.frame ? esc(FRAMES[r.frame] || r.frame) : '', r.back ? esc(BACKS[r.back] || r.back) : ''].filter(Boolean).join(' · ');
+  return `<div class="reward"><div><b>${esc(r.label)}</b>${gains(r) ? `<div class="num">${gains(r)}</div>` : ''}${extra ? `<div class="hint">${extra}</div>` : ''}</div>
+    ${r.card ? `<button class="ccard" data-zoom="${zoomKey(r.card)}">${anyCard(r.card)}</button>` : ''}</div>`;
+}
+function closeInbox() {
+  ui.sheet = null; ui.account.progress.inbox = [];
+  api('POST', '/api/rewards/seen', {}, ui.auth).then(r => { if (r.account) { ui.account = r.account; render(); } }).catch(() => {});
+}
+// Fin de partie : XP, Éclats et niveau gagnés.
+function endRewardHTML() {
+  const r = ui.mode === 'online' ? ui.view.reward : ui.soloReward;
+  if (!r) return `<p class="hint" style="margin:0">${ui.auth ? 'Calcul des récompenses…' : ''}</p>`;
+  return `<div class="endreward">${levelBar(r.progress)}
+    <p style="margin:0">${r.rewarded ? (gains(r) || 'Pas de gain pour cette partie.') : 'Plus de récompense de partie aujourd\'hui ; les missions avancent toujours.'}${r.levelUp ? ` · <b>Niveau ${r.progress.level} !</b>` : ''}${r.missions ? ` · ${r.missions} mission${r.missions > 1 ? 's' : ''} accomplie${r.missions > 1 ? 's' : ''}` : ''}</p></div>`;
+}
+async function equip(body, okMsg) { if (await call('PUT', '/api/cosmetics', body)) { ui.msg = okMsg; render(); } }
 
 // ---- Calculs locaux pendant la planification ----
 const me = () => ui.view.me;
@@ -204,7 +245,7 @@ const canPlay = () => ui.view && ui.view.phase === 'plan' && !ui.view.ready.me;
 
 // ---- Rendu ----
 function miniCard(c, opts = {}) {
-  if (c.hidden) return `<div class="mc back" aria-label="Carte cachée"></div>`;
+  if (c.hidden) return `<div class="mc back back-${esc(badgeOf(1 - ui.view.seat)?.back || 'classique')}" aria-label="Carte cachée"></div>`;
   const d = CARDS[c.id]; const pw = c.revealed ? c.power : (opts.power ?? d.power);
   const cls = c.revealed ? (pw > d.power ? 'up' : pw < d.power ? 'down' : '') : '';
   const mv = opts.mine && moveOf(c.uid);
@@ -242,9 +283,11 @@ function infoHTML() {
   if (f.kind === 'general') { const g = GENERALS[f.id]; return `<div class="h"><b>${g.name}</b><span class="meta">Général · ${genLine(g)}</span></div><div>${g.text}</div>`; }
   return '';
 }
+// Titre, niveau et dos de carte de chaque joueur : envoyés par le serveur en ligne ; contre l'IA, ceux du compte.
+const badgeOf = seat => ui.view.badges?.[seat] || (seat === ui.view.seat && ui.account ? prog().badge : null);
 function pbar(side, isMe, connected) {
-  const g = GENERALS[side.general];
-  return `<div class="pbar ${isMe ? 'me' : 'foe'}"><span class="who">${isMe ? 'Vous' : esc(side.name)} · ${esc(side.deckName)}</span>
+  const g = GENERALS[side.general], b = badgeOf(isMe ? ui.view.seat : 1 - ui.view.seat);
+  return `<div class="pbar ${isMe ? 'me' : 'foe'}"><span class="who">${isMe ? 'Vous' : esc(side.name)}${b ? ` <small class="num hint">niv. ${b.level}</small>` : ''}${b?.title ? ` <small class="ptitle">${esc(b.title)}</small>` : ''} · ${esc(side.deckName)}</span>
     ${!isMe && ui.mode === 'online' ? `<span class="dot ${connected ? '' : 'off'}" title="${connected ? 'Connecté' : 'Déconnecté'}"></span>` : ''}
     <button class="chip ${g.activate && side.generalUsed ? 'used' : ''}" data-general="${side.general}">${g.name}</button>
     <span class="num">Main ${side.handCount}</span><span class="num">Deck ${side.deckCount}</span>
@@ -334,7 +377,7 @@ function renderStarter() {
   </div>`;
 }
 function renderHome() {
-  const a = ui.account, d = a.deck, g = d && GENERALS[d.general];
+  const a = ui.account, d = a.deck, g = d && GENERALS[d.general], p = prog();
   const total = OWNABLE.filter(owned).length;
   const deckErr = d ? deckError(d, a) : 'Aucun deck.';
   return `
@@ -344,6 +387,12 @@ function renderHome() {
       <div><span class="eyebrow">Bonjour ${esc(a.name)}</span><h2 style="font-size:22px">Booster du jour</h2></div>
       ${a.boosterReady ? `<button class="btn primary" data-act="booster" ${ui.busy ? 'disabled' : ''}>Ouvrir le booster</button>`
         : '<p class="hint" style="margin:0">Déjà ouvert aujourd\'hui. Le prochain arrive demain à minuit.</p>'}
+    </div>
+    <div class="card-box">
+      <div class="row" style="justify-content:space-between"><span class="eyebrow">Progression${p.title ? ` · <span class="ptitle">${esc(titleLabel(p.title))}</span>` : ''}</span><button class="btn sm" data-act="profile">Succès et titres</button></div>
+      ${levelBar(p)}
+      ${p.freeBoosters ? `<div class="row"><span style="flex:1"><b>${p.freeBoosters} booster${p.freeBoosters > 1 ? 's' : ''} offert${p.freeBoosters > 1 ? 's' : ''}</b> à ouvrir dans le set de votre choix.</span><button class="btn primary" data-act="shop">Ouvrir</button></div>` : ''}
+      ${missionsHTML()}
     </div>
     <div class="card-box">
       <div><span class="eyebrow">Deck joué</span><h2 style="font-size:22px">${esc(d ? d.name : 'Aucun deck')}</h2></div>
@@ -368,12 +417,19 @@ function renderHome() {
     <div class="row"><button class="btn" data-act="solo">Jouer contre l'IA</button></div>
   </div>`;
 }
+// Cartes de récompense : on dit comment les obtenir.
+function lockLabel(id) {
+  const src = rewardSourceOf(id);
+  if (!src) return 'Pas encore obtenue';
+  const set = SETS.find(x => x.id === src.set)?.name || src.set;
+  return src.kind === 'family' ? `Récompense : famille ${src.fam} complète (${set})` : `Récompense : set ${set} complet`;
+}
 function renderCollection() {
   const a = ui.account, fams = [...FAMILIES, 'Neutre'];
   const shown = OWNABLE.filter(id => !ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam).sort(byFamCost);
   const tile = id => { const n = owned(id);
     return `<button class="ccard ${n ? '' : 'locked'}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? `, ${n} exemplaire${n > 1 ? 's' : ''}` : ', pas encore obtenue'}">
-      ${anyCard(id)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : '<span class="lock">Pas encore obtenue</span>'}</button>`; };
+      ${anyCard(id)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}</button>`; };
   return `<div class="top"><span class="title">Ma collection</span><button class="btn" data-act="edit">Modifier le deck</button><button class="btn" data-act="home">Retour</button></div>
   <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.length}, généraux compris. Touchez une carte pour la voir en grand.</p>
   <div class="seg famseg" role="group" aria-label="Famille"><button data-fam="" class="${ui.colFam ? '' : 'on'}">Toutes</button>${fams.map(f => `<button data-fam="${f}" class="${ui.colFam === f ? 'on' : ''}">${f}</button>`).join('')}</div>
@@ -398,7 +454,8 @@ function renderShop() {
       <div class="gallery">${set.offers.map(o => offer(set, o)).join('')}</div>
       <div class="gal-h">Booster du set</div>
       <div class="row"><p class="hint" style="margin:0;flex:1">${P.boosterSize} cartes au hasard parmi les ${set.size} du set, toutes avec la même chance. Les doublons rapportent ${shardRate()} Éclats chacun.</p>
-        <button class="btn primary" data-act="buy-booster" data-set="${set.id}" ${a.shards < P.boosterPrice || ui.busy ? 'disabled' : ''}>Acheter · ${P.boosterPrice} Éclats</button></div>
+        <button class="btn primary" data-act="buy-booster" data-set="${set.id}" ${a.shards < P.boosterPrice || ui.busy ? 'disabled' : ''}>Acheter · ${P.boosterPrice} Éclats</button>
+        ${sh.freeBoosters ? `<button class="btn primary" data-act="free-booster" data-set="${set.id}" ${ui.busy ? 'disabled' : ''}>Ouvrir un booster offert (${sh.freeBoosters})</button>` : ''}</div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
       <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`;
   return `${top}${errLine()}${sh.sets.map(section).join('')}`;
@@ -465,8 +522,40 @@ function renderDeck() {
 }
 
 // Profil : image, pseudo, sets complétés et statistiques de victoire.
+// Personnalisation : titre, cadre de profil et dos de carte débloqués.
+function customizeHTML() {
+  const a = ui.account, p = prog(), c = p.cosmetics;
+  return `<div class="card-box"><div><span class="eyebrow">Personnalisation</span><h2 style="font-size:22px">Titre, cadre et dos de carte</h2></div>
+    <div class="field"><label class="eyebrow" for="title-pick">Titre affiché sous votre pseudo</label>
+      <select id="title-pick" ${c.titles.length ? '' : 'disabled'}><option value="">Aucun titre</option>${c.titles.map(t => `<option value="${esc(t.id)}" ${p.title === t.id ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
+      ${c.titles.length ? '' : '<small class="hint">Les succès et les familles complétées donnent des titres.</small>'}</div>
+    <div class="gal-h">Cadre de profil</div>
+    <div class="picks"><button class="pickc ${p.frame ? '' : 'on'}" data-frame="">${avatarHTML(a, '', null)}<small>Sans cadre</small></button>
+      ${Object.entries(FRAMES).map(([id, label]) => { const ok = c.frames.some(f => f.id === id);
+        return `<button class="pickc ${p.frame === id ? 'on' : ''} ${ok ? '' : 'locked'}" ${ok ? `data-frame="${id}"` : 'disabled'} title="${ok ? '' : 'À débloquer'}">${avatarHTML(a, '', id)}<small>${esc(label)}</small></button>`; }).join('')}</div>
+    <div class="gal-h">Dos de carte</div><p class="hint" style="margin:0">Votre adversaire le voit sur vos cartes cachées.</p>
+    <div class="picks">${Object.entries(BACKS).map(([id, label]) => { const ok = c.backs.some(b => b.id === id);
+      return `<button class="pickc ${p.back === id ? 'on' : ''} ${ok ? '' : 'locked'}" ${ok ? `data-back="${id}"` : 'disabled'}><span class="mc back back-${id}"></span><small>${esc(label)}</small></button>`; }).join('')}</div>
+  </div>`;
+}
+// Familles de chaque set : avancement et récompense (carte unique, titre, dos) ; set complet : carte Dieu.
+function familiesHTML() {
+  const info = ui.progressInfo?.collection; if (!info) return '';
+  return info.map(set => `<div class="gal-h">${esc(set.name)} : familles</div><div class="famlist">${set.families.map(f => `
+    <div class="famrow ${f.done ? 'done' : ''}" style="--fam: var(${FAM[f.fam] || '--f-neutre'})"><span class="fdot"></span><b>${esc(f.fam)}</b><span class="num hint">${f.owned}/${f.total}</span>
+      ${f.card ? `<button class="chip" data-zoom="${zoomKey(f.card)}">${esc(nameOf(f.card))}</button>` : ''}${f.done ? '<span class="ok">✓</span>' : ''}</div>`).join('')}
+    ${set.reward ? `<div class="famrow ${set.done ? 'done' : ''}"><b>Set complet</b><button class="chip" data-zoom="${zoomKey(set.reward.card)}">${esc(nameOf(set.reward.card))}</button>${set.done ? '<span class="ok">✓</span>' : ''}</div>` : ''}</div>`).join('');
+}
+function achievementsHTML() {
+  const list = ui.progressInfo?.achievements; if (!list) return '';
+  const groups = [...new Set(list.map(x => x.group))], done = list.filter(x => x.done).length;
+  return `<div class="card-box"><div><span class="eyebrow">Succès</span><h2 style="font-size:22px">${done} sur ${list.length}</h2></div>
+    ${groups.map(g => `<div class="gal-h">${esc(g)}</div><div class="achs">${list.filter(x => x.group === g).map(x => `<div class="ach ${x.done ? 'done' : ''}">
+      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(x.label)}</span><small class="hint">${[x.shards ? `${x.shards} Éclats` : '', x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? esc(x.frame) : ''].filter(Boolean).join(' · ')}</small></div>
+      ${x.done ? '' : `<div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(x.value, x.goal)}%"></span></div><small class="num">${x.value}/${x.goal}</small></div>`}</div>`).join('')}</div>`).join('')}</div>`;
+}
 function renderProfile() {
-  const a = ui.account, st = ui.profile;
+  const a = ui.account, st = ui.profile, p = prog();
   const sets = SETS.filter(s => s.cards.length).map(s => { const n = s.cards.filter(owned).length, pct = Math.round(100 * n / s.cards.length);
     return `<div class="setline ${n === s.cards.length ? 'done' : ''}"><div class="row" style="justify-content:space-between"><b>${esc(s.name)}</b>
       <span class="num">${n === s.cards.length ? 'Complété · ' : ''}${n}/${s.cards.length}</span></div>
@@ -486,6 +575,8 @@ function renderProfile() {
     ${avatarHTML(a, 'big')}
     <div style="display:grid;gap:8px">
       <span class="eyebrow">Identifiant : ${esc(a.login)}</span>
+      <div><b style="font-size:20px">${esc(a.name)}</b>${p.title ? `<div class="ptitle">${esc(titleLabel(p.title))}</div>` : ''}</div>
+      ${levelBar(p)}
       <div class="row"><label class="btn" for="avatar-file">${a.avatar ? 'Changer l\'image' : 'Ajouter une image'}</label>
         <input id="avatar-file" type="file" accept="image/*" hidden>
         ${a.avatar ? `<button class="btn" data-act="avatar-remove" ${ui.busy ? 'disabled' : ''}>Retirer l'image</button>` : ''}</div>
@@ -495,8 +586,10 @@ function renderProfile() {
     <div class="field"><label class="eyebrow" for="profile-name">Pseudo</label><input id="profile-name" maxlength="20" value="${esc(ui.nameDraft)}"></div>
     <div class="row"><button class="btn primary" type="submit" ${ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === a.name ? 'disabled' : ''}>Enregistrer le pseudo</button></div>
   </form>
+  ${customizeHTML()}
   <div class="card-box"><div><span class="eyebrow">Collection</span><h2 style="font-size:22px">${complete} set${complete > 1 ? 's' : ''} complété${complete > 1 ? 's' : ''}</h2></div>
-    <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.length}, généraux compris.</p>${sets}</div>
+    <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.length}, généraux compris.</p>${sets}${familiesHTML()}</div>
+  ${achievementsHTML()}
   <div class="card-box"><div><span class="eyebrow">Statistiques</span><h2 style="font-size:22px">Victoires</h2></div>${stats}</div>`;
 }
 function togglePick(id) {
@@ -599,9 +692,14 @@ function sheetHTML() {
       <div class="field"><label class="eyebrow" for="rename-input">Nom du deck</label><input id="rename-input" maxlength="30" value="${esc(ui.renaming.name)}"></div>
       <div class="row"><button class="btn primary" type="submit">Renommer</button></div></form></div>`;
   }
+  if (ui.sheet === 'inbox') {
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Récompenses</h2><button class="btn" data-act="close">Fermer</button></div>
+      ${levelBar(prog())}<div class="rewards">${prog().inbox.slice().reverse().map(rewardItem).join('')}</div>
+      <div class="row"><button class="btn primary" data-act="close">Super !</button></div></div></div>`;
+  }
   if (ui.sheet === 'booster' && ui.booster) {
-    const { title, cards, fresh, shards } = ui.booster, n = fresh.filter(Boolean).length;
-    const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats gagnés avec les doublons` : ''].filter(Boolean).join(', ');
+    const { title, cards, fresh, shards, xp } = ui.booster, n = fresh.filter(Boolean).length;
+    const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats gagnés avec les doublons` : '', xp ? `${xp} XP` : ''].filter(Boolean).join(', ');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${esc(title)}</h2><button class="btn" data-act="close">Fermer</button></div>
       <p class="hint" style="margin:0">${sum}.</p>
       <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats</span>`}${anyCard(id)}</div>`).join('')}</div></div></div>`;
@@ -612,7 +710,7 @@ function sheetHTML() {
     const reason = renderLog(r.reason, s, ui.view.names);
     const zs = [0, 1, 2].map(z => `<div><div class="eyebrow">${ZONE_NAMES[z]}</div><b>${ui.view.me.zonePower[z]}</b> contre ${ui.view.foe.zonePower[z]}</div>`).join('');
     return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p>
-      <div class="zs">${zs}</div><div class="row">
+      <div class="zs">${zs}</div>${endRewardHTML()}<div class="row">
       <button class="btn primary" data-act="again" ${ui.rematchAsked ? 'disabled' : ''}>${ui.rematchAsked ? 'Revanche demandée…' : 'Revanche'}</button>
       <button class="btn" data-act="quit">Retour à l'accueil</button><button class="btn" data-act="log">Voir le journal</button></div></div></div>`;
   }
@@ -621,6 +719,8 @@ function sheetHTML() {
 function render() {
   const h = document.getElementById('hand'); const sx = h ? h.scrollLeft : 0;
   const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, lobby: renderLobby, game: renderGame };
+  // Récompenses gagnées (niveau, missions, succès, familles et sets complétés) : affichées en revenant à l'accueil.
+  if (ui.screen === 'home' && !ui.sheet && prog().inbox.length) ui.sheet = 'inbox';
   const body = screens[ui.screen]();
   app.innerHTML = body + sheetHTML();
   if (ui.sheet === 'rename') { const r = document.getElementById('rename-input'); if (r && document.activeElement !== r) { r.focus(); r.select(); } }
@@ -777,7 +877,9 @@ function tryPlace(z) {
 function quit() {
   if (ui.ctrl) ui.ctrl.leave();
   store.set('session', null);
-  ui.ctrl = null; ui.view = null; ui.screen = menuScreen(); ui.sheet = null; ui.pending = []; ui.lastTurn = 0; render();
+  ui.ctrl = null; ui.view = null; ui.screen = menuScreen(); ui.sheet = null; ui.pending = []; ui.lastTurn = 0; ui.soloReward = null; render();
+  // Le compte a pu changer pendant la partie (XP, Éclats, missions, succès).
+  if (ui.auth) api('GET', '/api/me', undefined, ui.auth).then(r => { setAccount(r.account); render(); }).catch(() => {});
 }
 app.addEventListener('input', e => {
   if (e.target.id === 'login-id') ui.loginId = e.target.value;
@@ -788,7 +890,10 @@ app.addEventListener('input', e => {
     if (b) b.disabled = ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === ui.account.name; }
   if (e.target.id === 'code') { ui.joinCode = e.target.value.toUpperCase(); e.target.value = ui.joinCode; }
 });
-app.addEventListener('change', e => { if (e.target.id === 'avatar-file') { pickAvatar(e.target.files[0]); e.target.value = ''; } });
+app.addEventListener('change', e => {
+  if (e.target.id === 'avatar-file') { pickAvatar(e.target.files[0]); e.target.value = ''; }
+  if (e.target.id === 'title-pick') equip({ title: e.target.value || null }, 'Titre changé.');
+});
 app.addEventListener('submit', e => {
   e.preventDefault(); if (ui.busy) return;
   if (e.target.id === 'login-form') doLogin();
@@ -796,13 +901,13 @@ app.addEventListener('submit', e => {
   else if (e.target.id === 'rename-form') renameDeck();
 });
 app.addEventListener('click', e => {
-  const t = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-stop]');
+  const t = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-frame],[data-back],[data-stop]');
   if (!t) return;
   const ds = t.dataset;
   if (ds.stop && !e.target.closest('[data-act]')) return;
   if (ds.act) {
     const a = ds.act;
-    if (a === 'close') { ui.sheet = null; ui.zoom = null; ui.renaming = null; render(); }
+    if (a === 'close') { if (ui.sheet === 'inbox') closeInbox(); ui.sheet = null; ui.zoom = null; ui.renaming = null; render(); }
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
       ui.genMode = false; tryPlace(+ds.zone); }
@@ -824,7 +929,7 @@ app.addEventListener('click', e => {
       // Le coût du général passe avant les cartes : on retire les dernières cartes posées s'il manque des sceaux.
       while (ui.genZone !== null && sealsLeft() < 0 && ui.pending.length) ui.pending.pop();
       render(); }
-    else if (a === 'again') { ui.rematchAsked = true; ui.ctrl.rematch(); render(); }
+    else if (a === 'again') { ui.rematchAsked = true; ui.soloReward = null; ui.ctrl.rematch(); render(); }
     else if (a === 'quit') quit();
     else if (a === 'mute') { setMuted(!isMuted()); render(); }
     else if (a === 'logout') doLogout();
@@ -835,6 +940,8 @@ app.addEventListener('click', e => {
     else if (a === 'shop') openShop();
     else if (a === 'buy-card' && !ui.busy) buy('/api/shop/card', { set: ds.set, card: ds.id });
     else if (a === 'buy-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set });
+    else if (a === 'free-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set, free: true });
+    else if (a === 'reroll' && !ui.busy) call('POST', '/api/missions/reroll', { index: +ds.i });
     else if (a === 'edit') { editDeck(ui.account.active, ui.screen === 'collection' ? 'collection' : 'home'); render(); }
     else if (a === 'home') { ui.screen = 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
     else if (a === 'decks') openDecks();
@@ -849,6 +956,8 @@ app.addEventListener('click', e => {
     return;
   }
   if (ds.starter) { ui.starterPick = ds.starter; render(); return; }
+  if (ds.frame !== undefined && !ui.busy) { equip({ frame: ds.frame || null }, 'Cadre changé.'); return; }
+  if (ds.back && !ui.busy) { equip({ back: ds.back }, 'Dos de carte changé.'); return; }
   if (ds.fam !== undefined) { ui.colFam = ds.fam; render(); return; }
   if (ds.zoom) { const [kind, id] = ds.zoom.split(':'); openZoom({ kind, id }); render(); return; }
   if (ds.pick) { togglePick(ds.pick); return; }
@@ -875,7 +984,7 @@ app.addEventListener('click', e => {
   if (ds.general) { ui.focus = { kind: 'general', id: ds.general }; ui.msg = ''; openZoom({ kind: 'general', id: ds.general }); render(); return; }
   const zone = t.closest('[data-z]'); if (zone) tryPlace(+zone.dataset.z);
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.sheet) { ui.sheet = null; ui.zoom = null; render(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.sheet) { if (ui.sheet === 'inbox') closeInbox(); ui.sheet = null; ui.zoom = null; render(); } });
 app.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.zone.target')) { e.preventDefault(); tryPlace(+e.target.dataset.z); } });
 
 // Reprise d'une partie en ligne après rechargement de la page

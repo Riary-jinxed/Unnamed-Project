@@ -285,3 +285,57 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
 .pickcard { border: 0; background: none; padding: 0; text-align: left; border-radius: var(--r); }
 .pickcard.on .fc { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--bg)); }
 @media (max-width: 480px) { .step > span:nth-child(2) { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+
+/* ---- Progression : niveau, missions, récompenses, succès ---- */
+.lvl { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+.lvlnum { font-family: var(--display); font-size: 18px; color: var(--accent); }
+.missions, .achs, .rewards, .famlist { display: grid; gap: 8px; }
+.mission, .ach { display: grid; gap: 4px; border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; background: var(--bg); }
+.mission.done, .ach.done { border-color: color-mix(in srgb, var(--up) 50%, var(--line)); }
+.mission.done .bar span { background: var(--up); }
+.ach.done span:first-child { color: var(--up); }
+.reward { display: flex; gap: 12px; align-items: center; justify-content: space-between; border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; background: var(--bg); }
+.reward .ccard { flex: 0 0 150px; }
+.endreward { display: grid; gap: 6px; text-align: left; border-top: 1px solid var(--line); padding-top: 10px; }
+.ptitle { color: var(--accent); font-style: italic; font-size: 13px; }
+.famrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-left: 4px solid var(--fam, var(--line)); padding: 4px 8px; }
+.famrow.done b { color: var(--up); }
+.famrow .fdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--fam); }
+.picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.pickc { display: grid; justify-items: center; gap: 4px; width: 92px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 8px 4px; font-size: 12px; text-align: center; }
+.pickc.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.pickc.locked { opacity: .45; }
+.pickc .mc.back { width: 44px; height: 60px; cursor: inherit; }
+
+/* Cadres de profil : un anneau autour de l'image. */
+.frame { display: inline-grid; place-items: center; border-radius: 50%; padding: 3px; background: var(--line); line-height: 0; }
+.frame.big { padding: 5px; }
+.frame .avatar { border-color: var(--surface); }
+.frame-bronze { background: linear-gradient(135deg, #e0a36b, #8a4f22 60%, #d08b50); }
+.frame-argent { background: linear-gradient(135deg, #f4f6f9, #9aa3ae 55%, #dfe4ea); }
+.frame-or { background: linear-gradient(135deg, #ffe08a, #c08a14 55%, #ffd45a); box-shadow: 0 0 8px rgb(224 170 40 / .55); }
+.frame-legende { background: conic-gradient(#d0547f, #e2b93e, #4fbcad, #77a3e6, #a585e6, #d0547f); box-shadow: 0 0 10px rgb(165 133 230 / .6); }
+.frame-flamme { background: conic-gradient(from 200deg, #ffcf4a, #f06a1f, #b2241a, #f06a1f, #ffcf4a); box-shadow: 0 0 9px rgb(240 106 31 / .6); }
+.frame-duel { background: repeating-conic-gradient(#a23f2d 0 15deg, #2d5a9c 15deg 30deg); }
+.frame-tresor { background: radial-gradient(circle at 30% 30%, #fff3b0, #c99a1e 45%, #6d4c0a); }
+.frame-etoile { background: radial-gradient(circle, #fff 0 1px, transparent 2px) 0 0 / 7px 7px, linear-gradient(135deg, #1d2a5a, #4b3a8f); }
+.frame-base { background: linear-gradient(135deg, var(--f-ange), var(--f-demon), var(--f-gobelin), var(--f-elfe), var(--f-dragon)); }
+.frame-set2 { background: linear-gradient(135deg, #2b1d3a, var(--f-vampire) 45%, var(--f-mortvivant)); box-shadow: 0 0 8px rgb(140 35 80 / .5); }
+
+/* Dos de carte : vu par l'adversaire sur les cartes cachées. */
+.mc.back.back-ange { background: radial-gradient(circle at 50% 40%, #fff6d6, transparent 60%), repeating-linear-gradient(0deg, #e2b93e 0 2px, #f8ecc6 2px 6px); border-top-color: #c99a1e; }
+.mc.back.back-demon { background: radial-gradient(circle at 50% 60%, #ff7a52, transparent 55%), repeating-linear-gradient(135deg, #5a1414 0 5px, #8e2420 5px 10px); border-top-color: #a8322f; }
+.mc.back.back-gobelin { background: repeating-linear-gradient(45deg, #3e6e2c 0 6px, #6c9a3e 6px 12px), #4f8c3a; border-top-color: #4f8c3a; }
+.mc.back.back-elfe { background: radial-gradient(ellipse at 30% 20%, #8fe0cf, transparent 50%), repeating-radial-gradient(circle at 50% 120%, #1f6b61 0 6px, #2a8a7e 6px 12px); border-top-color: #2a8a7e; }
+.mc.back.back-dragon { background: radial-gradient(circle at 50% 0, #ffb36b 0 6px, transparent 7px) 0 0 / 12px 10px, #b0521a; border-top-color: #c0611f; }
+.mc.back.back-mortvivant { background: repeating-linear-gradient(90deg, #3c4b42 0 3px, #5f7a6a 3px 9px), #5f7a6a; border-top-color: #5f7a6a; }
+.mc.back.back-vampire { background: radial-gradient(circle at 50% 50%, #ff5a8c, transparent 45%), repeating-linear-gradient(-45deg, #3a0c22 0 4px, #8c2350 4px 8px); border-top-color: #8c2350; }
+.btn.sm { padding: 3px 9px; font-size: 13px; }
+.ok { color: var(--up); }
+/* Dos du Crépuscule : la famille, assombrie d'un voile violet. */
+.mc.back.back-ange_set2, .mc.back.back-demon_set2, .mc.back.back-gobelin_set2, .mc.back.back-elfe_set2, .mc.back.back-dragon_set2 { border-top-color: #4b2a6b; }
+.mc.back.back-ange_set2 { background: radial-gradient(circle at 50% 40%, #fff6d6, transparent 55%), linear-gradient(#3a2a5c, #6a4f9a), repeating-linear-gradient(0deg, #e2b93e 0 2px, #f8ecc6 2px 6px); }
+.mc.back.back-demon_set2 { background: radial-gradient(circle at 50% 60%, #ff7a52, transparent 50%), linear-gradient(#2b1d3a, #5a2a4f), repeating-linear-gradient(135deg, #5a1414 0 5px, #8e2420 5px 10px); }
+.mc.back.back-gobelin_set2 { background: radial-gradient(circle at 50% 50%, #f2c46b, transparent 45%), linear-gradient(#2b1d3a, #4a3a6a), repeating-linear-gradient(45deg, #3e6e2c 0 6px, #6c9a3e 6px 12px); }
+.mc.back.back-elfe_set2 { background: radial-gradient(circle, #fff 0 1px, transparent 2px) 0 0 / 8px 8px, linear-gradient(#1d2a5a, #2a8a7e); }
+.mc.back.back-dragon_set2 { background: radial-gradient(ellipse at 50% 70%, #ffb36b, transparent 35%), linear-gradient(#2b1d3a, #7a3a1a); }
