@@ -18,6 +18,9 @@ export const DEFAULT_REWARDS = {
   missionsPerDay: 3, missionRerolls: 1,
   // Complétion : famille d'un set (avec carte unique, titre et dos), set entier.
   familyShards: 200, setShards: 1000, setBoosters: 3,
+  // Niveaux de carte : essence de la carte gagnée par doublon, puis essence et Éclats pour passer au niveau n (2 à 5).
+  essencePerDuplicate: 10,
+  lvl2Essence: 5, lvl2Shards: 50, lvl3Essence: 10, lvl3Shards: 100, lvl4Essence: 15, lvl4Shards: 200, lvl5Essence: 20, lvl5Shards: 400,
 };
 export const REWARD_LIMITS = {
   xpBase: [10, 100000], xpStep: [0, 100000], xpCap: [10, 1000000], levelShards: [0, 100000], boosterEvery: [0, 100],
@@ -25,6 +28,9 @@ export const REWARD_LIMITS = {
   shardsPvpWin: [0, 10000], shardsPveWin: [0, 10000], shardsLoss: [0, 10000], gamesPerDay: [0, 100],
   xpNewCard: [0, 10000], missionsPerDay: [0, 6], missionRerolls: [0, 10],
   familyShards: [0, 100000], setShards: [0, 1000000], setBoosters: [0, 20],
+  essencePerDuplicate: [0, 1000],
+  lvl2Essence: [0, 10000], lvl2Shards: [0, 100000], lvl3Essence: [0, 10000], lvl3Shards: [0, 100000],
+  lvl4Essence: [0, 10000], lvl4Shards: [0, 100000], lvl5Essence: [0, 10000], lvl5Shards: [0, 100000],
 };
 
 // XP pour passer du niveau `level` au suivant.
@@ -57,6 +63,23 @@ export const BACKS = { classique: 'Dos classique', ange: 'Dos céleste', demon: 
   dragon: 'Dos d\'écailles', mortvivant: 'Dos funéraire', vampire: 'Dos écarlate',
   ange_set2: 'Dos céleste du Crépuscule', demon_set2: 'Dos infernal du Crépuscule', gobelin_set2: 'Dos du banquet', elfe_set2: 'Dos des arcanes',
   dragon_set2: 'Dos des couvées' };
+
+// ---- Niveaux de carte ----
+// Purement cosmétiques : la carte joue pareil à tous les niveaux. Chaque doublon donne de l'essence propre à la carte (ou au général) ;
+// l'essence et des Éclats font monter la carte de niveau. L'adversaire voit le niveau des cartes que vous révélez.
+// look : classe CSS de la bordure (style.css, « .lv-… ») ; fx : effet joué quand la carte est révélée.
+// Les futurs arts alternatifs se rangeront à côté (compte : « arts ») sans toucher aux niveaux.
+export const CARD_LEVELS = [
+  null,
+  { name: 'Base', look: null, perk: 'Aspect d\'origine' },
+  { name: 'Bronze', look: 'bronze', perk: 'Bordure de bronze' },
+  { name: 'Argent', look: 'argent', perk: 'Bordure d\'argent' },
+  { name: 'Or', look: 'or', perk: 'Bordure d\'or' },
+  { name: 'Astral', look: 'astral', fx: 'astral', perk: 'Bordure astrale et effet de mise en jeu' },
+];
+export const MAX_CARD_LEVEL = CARD_LEVELS.length - 1;
+// Essence et Éclats pour passer du niveau level − 1 à level.
+export const levelCost = (level, r = DEFAULT_REWARDS) => ({ essence: r[`lvl${level}Essence`], shards: r[`lvl${level}Shards`] });
 
 // ---- Complétion de famille et de set ----
 // Chaque famille complétée dans chaque set : Éclats, une carte unique qui soutient la famille, un titre et un dos de carte.

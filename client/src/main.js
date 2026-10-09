@@ -11,7 +11,7 @@ import { createFriends } from './friends.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
-import { FRAMES, BACKS, rewardSourceOf, REWARD_CARDS } from '@jeu/engine/rewards';
+import { FRAMES, BACKS, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 
 const famVar = kw => famStyle(kw[0]);
 const kwLine = d => (d.token ? 'Jeton · ' : '') + (d.kw.join(' · ') || 'Neutre');
@@ -251,6 +251,37 @@ function endRewardHTML() {
 }
 async function equip(body, okMsg) { if (await call('PUT', '/api/cosmetics', body)) { ui.msg = okMsg; render(); } }
 
+// ---- Niveaux de carte (cosmétiques) ----
+// Chaque doublon donne de l'essence de la carte ; essence et Éclats la font monter de niveau : bordure, puis effet de mise en jeu.
+const myLevel = id => ui.account?.cardLevels?.[id] || 1;
+const essenceOf = id => ui.account?.essence?.[id] || 0;
+const lvInfo = () => prog().cardLevels || { essenceRate: 0, max: MAX_CARD_LEVEL, costs: {} };
+const nextCost = id => lvInfo().costs[myLevel(id) + 1] || null;
+const canUpgrade = id => { const c = nextCost(id); return !!(ui.account && ui.account.cards[id] && c && essenceOf(id) >= c.essence && ui.account.shards >= c.shards); };
+// Classe de la bordure d'un niveau (style.css, « .lv-… »), vide au niveau de base.
+const lvCls = lvl => (CARD_LEVELS[lvl]?.look ? ` lv lv-${CARD_LEVELS[lvl].look}` : '');
+const hasFx = lvl => !!CARD_LEVELS[lvl]?.fx;
+async function upgrade(id) {
+  const r = await call('POST', '/api/cards/upgrade', { card: id });
+  if (!r) return;
+  ui.msg = `${nameOf(id)} passe au niveau ${r.level} : ${CARD_LEVELS[r.level].perk.toLowerCase()}.`;
+  ui.fx = { list: [['.zoomcard', 'lv-up']], burst: hasFx(r.level) ? ['.zoomcard'] : [] };
+  play(hasFx(r.level) ? 'astral' : 'levelup'); render();
+}
+// Bloc « Niveau de la carte » de la carte ouverte en grand depuis la collection.
+function upgradeHTML(id) {
+  if (!owned(id)) return '';
+  const lvl = myLevel(id), c = nextCost(id), ess = essenceOf(id), rate = lvInfo().essenceRate;
+  const ladder = CARD_LEVELS.slice(2).map((x, i) => `<li class="${lvl >= i + 2 ? 'done' : ''}"><span class="lvsw lv lv-${x.look}"></span><span><b>Niv. ${i + 2} · ${x.name}</b> <small class="hint">${esc(x.perk)}</small></span>${lvl >= i + 2 ? '<span class="ok">✓</span>' : ''}</li>`).join('');
+  const next = c ? `<div class="row" style="gap:8px"><div class="bar" style="flex:1" role="progressbar" aria-valuenow="${Math.min(ess, c.essence)}" aria-valuemin="0" aria-valuemax="${c.essence}" aria-label="Essence"><span style="width:${pct(ess, c.essence)}%"></span></div><small class="num">${ess}/${c.essence} essence</small></div>
+      <button class="btn ${canUpgrade(id) ? 'primary' : ''}" data-act="upgrade" data-id="${id}" ${canUpgrade(id) && !ui.busy ? '' : 'disabled'}>Passer au niveau ${lvl + 1} · ${c.essence} essence + ${c.shards} Éclats</button>
+      ${ess < c.essence ? `<p class="hint">Chaque doublon de cette carte donne ${rate} essence.</p>` : ui.account.shards < c.shards ? `<p class="hint">Il vous manque ${c.shards - ui.account.shards} Éclats.</p>` : ''}`
+    : `<p class="hint">Niveau maximum atteint.${ess ? ` Essence en réserve : ${ess}.` : ''}</p>`;
+  return `<div class="zacts lvbox"><span class="eyebrow">Niveau de la carte · ${lvl}/${MAX_CARD_LEVEL}</span>
+    <p class="hint">Purement cosmétique : la carte joue pareil à tous les niveaux. Votre adversaire voit sa bordure et son effet.</p>
+    <ul class="lvladder">${ladder}</ul>${ui.msg ? `<p class="hint" role="status"><b>${esc(ui.msg)}</b></p>` : ''}${next}</div>`;
+}
+
 // ---- Calculs locaux pendant la planification ----
 const me = () => ui.view.me;
 const myGen = () => GENERALS[me().general];
@@ -275,7 +306,8 @@ function miniCard(c, opts = {}) {
   const cls = c.revealed ? (pw > d.power ? 'up' : pw < d.power ? 'down' : '') : '';
   const mv = opts.mine && moveOf(c.uid);
   const mobile = opts.mine && c.mobile && canPlay();
-  return `<div class="mc ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.drag === c.uid ? 'dragging' : ''}" style="${famVar(d.kw)}"
+  const lv = lvCls(levelIn(opts.mine || opts.pending ? ui.view.seat : 1 - ui.view.seat, c.id));
+  return `<div class="mc${lv} ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.drag === c.uid ? 'dragging' : ''}" style="${famVar(d.kw)}"
     data-card="${c.uid}" data-id="${c.id}" ${opts.pending ? 'data-pending="1"' : ''} ${mobile ? 'data-mobile="1"' : ''} title="${esc(d.name)}">
     ${mv ? `<span class="mv">→ ${ZONE_NAMES[mv.zone]}</span>` : mobile ? '<span class="mv" aria-label="Déplaçable">⇄</span>' : ''}
     <span class="n">${esc(d.name)}</span>${d.type === 'C' ? `<span class="p num ${cls}">${pw}</span>` : `<span class="p" style="font-size:12px">Sort</span>`}</div>`;
@@ -309,6 +341,8 @@ function infoHTML() {
 }
 // Titre, niveau, cadre et dos de carte de chaque joueur : envoyés par le serveur en ligne ; contre l'IA, ceux du compte.
 const badgeOf = seat => ui.view.badges?.[seat] || (seat === ui.view.seat && ui.account ? prog().badge : null);
+// Niveau d'une carte en partie : le sien vient du compte ; celui de l'adversaire, du serveur, une fois la carte révélée.
+const levelIn = (seat, id) => (seat === ui.view.seat ? myLevel(id) : badgeOf(seat)?.looks?.[id] || 1);
 // Image de profil : envoyée une fois par le serveur en ligne ; contre l'IA, la sienne seulement.
 const avatarOf = seat => (ui.mode === 'online' ? ui.avatars?.[seat] : null) || (seat === ui.view.seat ? ui.account?.avatar : null) || null;
 // Carte du général, toujours visible à côté du joueur. La sienne brille quand elle peut être activée.
@@ -316,7 +350,8 @@ function genSlot(side, isMe, canGen) {
   const g = GENERALS[side.general];
   const state = isMe && ui.genZone !== null ? 'armed' : g.activate && side.generalUsed ? 'used' : isMe && canGen ? 'ready' : '';
   const note = state === 'armed' ? 'Activé ce tour' : state === 'used' ? 'Utilisé' : g.activate ? `Activable${g.activateCost ? ` · ${g.activateCost} sceau` : ''}` : g.kind;
-  return `<button class="gencard ${state}" style="${famVar([g.fam])}" data-general="${side.general}" data-side="${isMe ? 'me' : 'foe'}" aria-label="Général : ${esc(g.name)}">
+  const lv = lvCls(levelIn(isMe ? ui.view.seat : 1 - ui.view.seat, side.general));
+  return `<button class="gencard${lv} ${state}" style="${famVar([g.fam])}" data-general="${side.general}" data-side="${isMe ? 'me' : 'foe'}" aria-label="Général : ${esc(g.name)}">
     <span class="gk">Général</span><span class="gn">${esc(g.name)}</span><span class="gs">${esc(note)}</span></button>`;
 }
 function pbar(side, isMe, connected, canGen = false) {
@@ -371,7 +406,7 @@ function renderGame() {
   const hand = (planning ? handLeft() : m.hand).map(c => { const d = CARDS[c.id];
     const cant = d.x ? seals <= 0 : c.cost > seals;
     const pcls = c.power > d.power ? 'up' : c.power < d.power ? 'down' : '';
-    return `<button class="hc ${ui.sel === c.uid ? 'sel' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${cant ? 'cant' : ''}" style="${famVar(d.kw)}" data-hand="${c.uid}" data-id="${c.id}">
+    return `<button class="hc${lvCls(myLevel(c.id))} ${ui.sel === c.uid ? 'sel' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${cant ? 'cant' : ''}" style="${famVar(d.kw)}" data-hand="${c.uid}" data-id="${c.id}">
       <span class="top2"><span class="seal">${costLabel(d, c.cost)}</span>${d.type === 'C' ? `<span class="p num ${pcls}">${c.power}</span>` : '<span class="t">Sort</span>'}</span>
       <span class="n">${esc(d.name)}</span>${d.text ? `<span class="x">${rich(d.text)}</span>` : `<span class="k">${kwLine(d)}</span>`}</button>`; }).join('');
   const canGen = play && g.activate && !m.generalUsed && m.seals >= (g.activateCost || 0);
@@ -403,7 +438,7 @@ const costKey = id => GENERALS[id] ? -1 : CARDS[id].cost;
 const famRank = id => { const i = FAMILIES.indexOf(famOfCard(id)); return i < 0 ? FAMILIES.length : i; };
 const byFamCost = (a, b) => famRank(a) - famRank(b) || costKey(a) - costKey(b) || nameOf(a).localeCompare(nameOf(b));
 // Carte ou général, tel qu'il sort d'un booster ou s'affiche dans la collection.
-const anyCard = id => GENERALS[id] ? genCard(id) : fullCard(id);
+const anyCard = (id, lvl = 1) => GENERALS[id] ? genCard(id, lvl) : fullCard(id, lvl);
 const zoomKey = id => `${GENERALS[id] ? 'general' : 'card'}:${id}`;
 function renderLoading() {
   return `<div class="top"><span class="title">Jeu de cartes</span></div>
@@ -435,7 +470,7 @@ function renderStarter() {
 }
 function renderHome() {
   const a = ui.account, d = a.deck, g = d && GENERALS[d.general], p = prog();
-  const total = OWNABLE.filter(owned).length;
+  const total = OWNABLE.filter(owned).length, upgradable = OWNABLE.filter(canUpgrade).length;
   const deckErr = d ? deckError(d, a) : 'Aucun deck.';
   return `
   <div class="top"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button><span class="title">Jeu de cartes</span>${muteBtn()}<button class="btn" data-act="set">Voir les cartes</button><button class="btn" data-act="logout">Se déconnecter</button></div>
@@ -455,11 +490,11 @@ function renderHome() {
       <div><span class="eyebrow">Deck joué</span><h2 style="font-size:22px">${esc(d ? d.name : 'Aucun deck')}</h2></div>
       ${d ? `<p style="margin:0">Général : ${g ? `<button class="chip" data-zoom="general:${d.general}">${g.name}</button>` : 'à choisir'} · ${d.cards.length} cartes · ${d.terrains.length} terrains</p>` : ''}
       ${deckErr ? `<p class="err" style="margin:0">${esc(deckErr)}</p>` : ''}
-      <div class="row"><button class="btn" data-act="decks">Mes decks (${a.decks.length}/${maxDecks()})</button><button class="btn" data-act="edit">Modifier ce deck</button><button class="btn" data-act="collection">Ma collection (${total}/${OWNABLE.length})</button></div>
+      <div class="row"><button class="btn" data-act="decks">Mes decks (${a.decks.length}/${maxDecks()})</button><button class="btn" data-act="edit">Modifier ce deck</button><button class="btn" data-act="collection">Ma collection (${total}/${OWNABLE.length})${upgradable ? ` · ${upgradable} à améliorer` : ''}</button></div>
     </div>
     <div class="card-box booster">
       <div><span class="eyebrow">Boutique</span><h2 style="font-size:22px"><span class="num">${a.shards}</span> Éclats</h2>
-        <small class="hint">Chaque doublon rapporte ${shardRate()} Éclats.</small></div>
+        <small class="hint">Chaque doublon rapporte ${shardRate()} Éclats et ${lvInfo().essenceRate} essence de la carte, pour la faire monter de niveau.</small></div>
       <button class="btn" data-act="shop">Ouvrir la boutique</button>
     </div>
     ${errLine()}
@@ -489,11 +524,12 @@ function lockLabel(id) {
 function renderCollection() {
   const a = ui.account, fams = [...FAMILIES, 'Neutre'];
   const shown = OWNABLE.filter(id => !ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam).sort(byFamCost);
-  const tile = id => { const n = owned(id);
-    return `<button class="ccard ${n ? '' : 'locked'}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? `, ${n} exemplaire${n > 1 ? 's' : ''}` : ', pas encore obtenue'}">
-      ${anyCard(id)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}</button>`; };
+  const tile = id => { const n = owned(id), lvl = myLevel(id), up = canUpgrade(id);
+    return `<button class="ccard ${n ? '' : 'locked'} ${n && (lvl > 1 || up) ? 'tagged' : ''}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? `, niveau ${lvl}${up ? ', peut monter de niveau' : ''}` : ', pas encore obtenue'}">
+      ${anyCard(id, n ? lvl : 1)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
+      ${n && (lvl > 1 || up) ? `<span class="lvtag num ${up ? 'up' : ''}">${lvl > 1 ? `Niv. ${lvl}` : ''}${up ? `${lvl > 1 ? ' · ' : ''}↑ Améliorer` : ''}</span>` : ''}</button>`; };
   return `<div class="top"><span class="title">Ma collection</span><button class="btn" data-act="edit">Modifier le deck</button><button class="btn" data-act="home">Retour</button></div>
-  <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.length}, généraux compris. Touchez une carte pour la voir en grand.</p>
+  <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.length}, généraux compris. Touchez une carte pour la voir en grand et la faire monter de niveau avec l'essence de ses doublons.</p>
   <div class="seg famseg" role="group" aria-label="Famille"><button data-fam="" class="${ui.colFam ? '' : 'on'}">Toutes</button>${fams.map(f => `<button data-fam="${f}" class="${ui.colFam === f ? 'on' : ''}">${f}</button>`).join('')}</div>
   <div class="gallery">${shown.map(tile).join('')}</div>
   <div class="gal-h">Vos terrains</div><p class="hint" style="margin:0">Les terrains neutres, et ceux des familles dont vous possédez un général.</p>
@@ -515,7 +551,7 @@ function renderShop() {
       <div class="gal-h">Cartes du jour</div><p class="hint" style="margin:0">${set.offers.length > 1 ? `${set.offers.length} cartes choisies` : 'Une carte choisie'} pour vous, renouvelées chaque jour à minuit.</p>
       <div class="gallery">${set.offers.map(o => offer(set, o)).join('')}</div>
       <div class="gal-h">Booster du set</div>
-      <div class="row"><p class="hint" style="margin:0;flex:1">${P.boosterSize} cartes au hasard parmi les ${set.size} du set, toutes avec la même chance. Les doublons rapportent ${shardRate()} Éclats chacun.</p>
+      <div class="row"><p class="hint" style="margin:0;flex:1">${P.boosterSize} cartes au hasard parmi les ${set.size} du set, toutes avec la même chance. Chaque doublon rapporte ${shardRate()} Éclats et ${lvInfo().essenceRate} essence de la carte.</p>
         <button class="btn primary" data-act="buy-booster" data-set="${set.id}" ${a.shards < P.boosterPrice || ui.busy ? 'disabled' : ''}>Acheter · ${P.boosterPrice} Éclats</button>
         ${sh.freeBoosters ? `<button class="btn primary" data-act="free-booster" data-set="${set.id}" ${ui.busy ? 'disabled' : ''}>Ouvrir un booster offert (${sh.freeBoosters})</button>` : ''}</div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
@@ -690,16 +726,16 @@ function renderLobby() {
     <button class="btn" data-act="quit">Annuler</button>
   </div>`;
 }
-function fullCard(id) { const d = CARDS[id];
-  return `<div class="fc" style="${famVar(d.kw)}"><div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
+function fullCard(id, lvl = 1) { const d = CARDS[id];
+  return `<div class="fc${lvCls(lvl)}" style="${famVar(d.kw)}"><div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
     <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
-const genCard = k => { const g = GENERALS[k]; return `<div class="fc" style="${famVar([g.fam])}"><b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
+const genCard = (k, lvl = 1) => { const g = GENERALS[k]; return `<div class="fc${lvCls(lvl)}" style="${famVar([g.fam])}"><b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
 const terrainCard = k => { const t = TERRAINS[k]; return `<div class="fc" style="${famVar([t.fam])}"><b>${t.name}</b><span class="k">Terrain</span><span class="x">${rich(t.text)}</span></div>`; };
 // Carte affichée en grand, avec les actions possibles sur elle pendant la planification.
 function zoomBtns(acts) { return acts.length ? `<div class="zacts">${acts.join('')}</div>` : ''; }
 function zoomHTML() {
   const zm = ui.zoom, play = ui.view && canPlay();
-  let body = '', style = '';
+  let body = '', style = '', lvl = 1;
   if (zm.kind === 'card') {
     const d = CARDS[zm.id];
     const inHand = ui.view && me().hand.find(c => c.uid === zm.uid);
@@ -708,6 +744,7 @@ function zoomHTML() {
     const cost = inHand ? (d.x ? 'X' : inHand.cost) : (d.x ? 'X' : d.cost);
     const pw = inHand ? inHand.power : onBoard && onBoard.revealed ? onBoard.power : d.power;
     const pcls = pw > d.power ? 'up' : pw < d.power ? 'down' : '';
+    lvl = !ui.view ? myLevel(zm.id) : onBoard ? levelIn(onBoard.side === 'me' ? ui.view.seat : 1 - ui.view.seat, zm.id) : myLevel(zm.id);
     const acts = [];
     if (play && inHand && !pend) {
       const left = sealsLeft(), cant = d.x ? left <= 0 : inHand.cost > left;
@@ -722,8 +759,8 @@ function zoomHTML() {
     style = famVar(d.kw);
     body = `
       <div class="zh"><span class="seal" title="Coût">${cost}</span><h2>${esc(d.name)}</h2>${d.type === 'C' ? `<span class="zp num ${pcls}" title="Puissance">${pw}</span>` : ''}</div>
-      <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · puissance de base ${d.power}` : ''}</span>
-      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}`;
+      <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · puissance de base ${d.power}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}</span>
+      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? upgradeHTML(zm.id) : ''}`;
   } else if (zm.kind === 'general') {
     const g = GENERALS[zm.id]; style = famVar([g.fam]);
     const acts = [];
@@ -735,12 +772,13 @@ function zoomHTML() {
       else acts.push(`<button class="btn primary" data-act="zgen" data-zone="0">Activer le général</button>`);
     }
     const deck = ui.view && (zm.mine ? me() : zm.side === 'foe' ? ui.view.foe : null)?.deckName;
-    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}`;
+    lvl = ui.view && zm.side ? levelIn(zm.mine ? ui.view.seat : 1 - ui.view.seat, zm.id) : myLevel(zm.id);
+    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? upgradeHTML(zm.id) : ''}`;
   } else {
     const t = TERRAINS[zm.id]; style = famVar([t.fam]);
     body = `<div class="zh"><h2>${t.name}</h2></div><span class="k">Terrain${t.fam ? ` · ${t.fam}` : ''}</span><p class="x">${rich(t.text)}</p>`;
   }
-  return `<div class="sheet zoom" data-act="close"><div class="panel zoomcard" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
+  return `<div class="sheet zoom" data-act="close"><div class="panel zoomcard${lvCls(lvl)}" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
     <button class="btn" data-act="close">Fermer</button></div></div>`;
 }
 function openZoom(zoom) { ui.zoom = zoom; ui.sheet = 'zoom'; ui.zoomBack = null; ui.fx = { list: [['.zoomcard', 'zoom-in']] }; }
@@ -793,10 +831,10 @@ function sheetHTML() {
   }
   if (ui.sheet === 'booster' && ui.booster) {
     const { title, cards, fresh, shards, xp } = ui.booster, n = fresh.filter(Boolean).length;
-    const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats gagnés avec les doublons` : '', xp ? `${xp} XP` : ''].filter(Boolean).join(', ');
+    const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats${ui.booster.essence ? ` et ${ui.booster.essence} essence` : ''} gagnés avec les doublons` : '', xp ? `${xp} XP` : ''].filter(Boolean).join(', ');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${esc(title)}</h2><button class="btn" data-act="close">Fermer</button></div>
       <p class="hint" style="margin:0">${sum}.</p>
-      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats</span>`}${anyCard(id)}</div>`).join('')}</div></div></div>`;
+      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats${lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}</span>`}${anyCard(id, myLevel(id))}</div>`).join('')}</div></div></div>`;
   }
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;
@@ -851,9 +889,20 @@ function ghostOut(uid, cls) {
   Object.assign(g.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
   document.body.append(g); setTimeout(() => g.remove(), 900);
 }
+// Effet de mise en jeu des cartes au niveau maximum : éclat de lumière et étincelles par-dessus la table.
+function burstAt(el) {
+  if (!el || reduceMotion()) return;
+  const r = el.getBoundingClientRect(), b = document.createElement('div');
+  b.className = 'astralfx'; b.setAttribute('aria-hidden', 'true');
+  Object.assign(b.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  b.style.setProperty('--s', `${Math.max(r.width, r.height)}px`);
+  b.innerHTML = Array.from({ length: 12 }, (_, i) => `<i style="--r:${i * 30}deg;--d:${(i % 3) * 70}ms"></i>`).join('');
+  document.body.append(b); setTimeout(() => b.remove(), 1400);
+}
 // Compare la vue précédente à la nouvelle : prépare les animations du prochain rendu et joue les bruitages.
 function viewEffects(prev, view) {
-  const list = [], sounds = [];
+  const list = [], sounds = [], burst = [];
+  const fxOf = c => c && c.id && hasFx(levelIn(c.side === 'me' ? view.seat : 1 - view.seat, c.id));
   let flip = null;
   if (!prev || view.turn < prev.turn || (prev.phase === 'over' && view.phase !== 'over')) {
     // Début de partie : la main arrive carte par carte.
@@ -863,9 +912,14 @@ function viewEffects(prev, view) {
   const before = cardsOf(prev), after = cardsOf(view), f = view.flash;
   if (f !== null && f !== undefined) {
     const a = before.get(f), b = after.get(f);
-    if (!b) { sounds.push('spell'); ghostOut(f, 'spellout'); if (a) list.push([`.zone[data-z="${a.z}"]`, 'spellcast']); }
+    if (!b) {
+      sounds.push('spell'); if (fxOf(a)) { burstAt(app.querySelector(cardSel(f))); sounds.push('astral'); }
+      ghostOut(f, 'spellout'); if (a) list.push([`.zone[data-z="${a.z}"]`, 'spellcast']); }
     else if (a && a.revealed) { sounds.push('place'); const el = app.querySelector(cardSel(f)); if (el) flip = { uid: f, rect: el.getBoundingClientRect() }; }
-    else { sounds.push(b.side === 'me' ? 'reveal' : 'revealFoe'); list.push([cardSel(f), b.side === 'me' ? 'reveal' : 'reveal-foe']); }
+    else {
+      sounds.push(b.side === 'me' ? 'reveal' : 'revealFoe'); list.push([cardSel(f), b.side === 'me' ? 'reveal' : 'reveal-foe']);
+      if (fxOf(b)) { list.push([cardSel(f), 'astral-in']); burst.push(cardSel(f)); sounds.push('astral'); }
+    }
   }
   let gone = false, up = false, down = false;
   for (const [uid, a] of before) if (a.revealed && uid !== f && !after.has(uid)) { ghostOut(uid, 'shatter'); gone = true; }
@@ -886,7 +940,7 @@ function viewEffects(prev, view) {
     sounds.push(view.result.winner === view.seat ? 'win' : view.result.winner < 0 ? 'tie' : 'lose');
     list.push(['.panel.end', 'end-in']);
   }
-  ui.fx = { list, flip };
+  ui.fx = { list, flip, burst };
   [...new Set(sounds)].slice(0, 3).forEach((s, i) => i ? setTimeout(() => play(s), i * 110) : play(s));
 }
 // Applique une seule fois les animations préparées, sur les éléments du rendu qui vient d'avoir lieu.
@@ -896,6 +950,7 @@ function applyFx() {
     if (delay) el.style.animationDelay = `${delay}ms`;
     el.classList.add(cls);
   }
+  for (const sel of fx.burst || []) burstAt(app.querySelector(sel));
   // Déplacement : la carte glisse depuis son ancienne place.
   if (fx.flip && !reduceMotion()) {
     const el = app.querySelector(cardSel(fx.flip.uid)); if (!el || !el.animate) return;
@@ -1064,13 +1119,14 @@ app.addEventListener('click', e => {
     else if (a === 'profile') openProfile();
     else if (a === 'avatar-remove' && !ui.busy) call('PUT', '/api/profile', { avatar: null });
     else if (a === 'save-deck' && !ui.busy) saveDeck();
+    else if (a === 'upgrade' && !ui.busy) upgrade(ds.id);
     return;
   }
   if (ds.starter) { ui.starterPick = ds.starter; render(); return; }
   if (ds.frame !== undefined && !ui.busy) { equip({ frame: ds.frame || null }, 'Cadre changé.'); return; }
   if (ds.back && !ui.busy) { equip({ back: ds.back }, 'Dos de carte changé.'); return; }
   if (ds.fam !== undefined) { ui.colFam = ds.fam; render(); return; }
-  if (ds.zoom) { const [kind, id] = ds.zoom.split(':'); const back = ui.sheet === 'codex' ? 'codex' : null; openZoom({ kind, id }); ui.zoomBack = back; render(); return; }
+  if (ds.zoom) { const [kind, id] = ds.zoom.split(':'); const back = ui.sheet === 'codex' ? 'codex' : null; openZoom({ kind, id }); ui.zoomBack = back; ui.msg = ''; render(); return; }
   if (ds.pick) { togglePick(ds.pick); return; }
   if (ds.tpick) { toggleTerrain(ds.tpick); return; }
   if (ds.gpick) { ui.edit.general = ds.gpick; ui.msg = '';

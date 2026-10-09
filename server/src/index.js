@@ -66,13 +66,19 @@ const rooms = new Map();
 const newCode = () => { let c; do { c = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join(''); } while (rooms.has(c)); return c; };
 const send = (ws, msg) => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg)); };
 
+// Niveaux de carte de l'adversaire : seulement ceux de son général et des cartes qu'il a déjà révélées, pour ne rien dire de son deck.
+function shownBadge(b, P) {
+  if (!b) return b;
+  const ids = new Set([P.general, ...P.played]);
+  return { ...b, looks: Object.fromEntries(Object.entries(b.looks || {}).filter(([id]) => ids.has(id))) };
+}
 function broadcast(room, flash = null) {
   room.seats.forEach((s, i) => {
     if (!s || !room.st) return;
     const ready = room.plans.map(Boolean);
     send(s.ws, { t: 'state', room: room.code, view: viewFor(room.st, i, { flash, ready: { me: ready[i], foe: ready[1 - i] },
       names: room.seats.map(x => x && x.name), connected: room.seats.map(x => !!(x && x.ws && x.ws.readyState === 1)),
-      badges: room.seats.map(x => x && x.badge), reward: room.rewards ? room.rewards[i] : null,
+      badges: room.seats.map((x, j) => x && (j === i ? x.badge : shownBadge(x.badge, room.st.p[j]))), reward: room.rewards ? room.rewards[i] : null,
       // Images de profil : lourdes, envoyées une seule fois par connexion et par partie.
       avatars: s.avatarsSent ? undefined : room.seats.map(x => (x && x.avatar) || null) }) });
     if (s.ws && s.ws.readyState === 1) s.avatarsSent = true;
@@ -88,7 +94,7 @@ function startMatch(room) {
   room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => d.general) });
   startTurn(room.st); room.st.phase = 'plan';
   room.plans = [null, null]; room.rematch = [false, false]; room.rewards = null;
-  room.seats.forEach(s => { const acc = accounts.byToken(s.auth); if (acc) { s.badge = accounts.progress.badge(acc); s.avatar = acc.avatar || null; } s.avatarsSent = false; });
+  room.seats.forEach((s, i) => { const acc = accounts.byToken(s.auth); if (acc) { s.badge = accounts.progress.badge(acc, decks[i]); s.avatar = acc.avatar || null; } s.avatarsSent = false; });
   broadcast(room);
 }
 async function resolve(room) {

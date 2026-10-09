@@ -125,13 +125,13 @@ Le catalogue publié depuis `/admin` retouche des cartes (nom, coût, puissance,
 
 ## Récompenses (`rewards.js`)
 
-Données partagées par le serveur (qui calcule) et l'appli (qui affiche) : réglages chiffrés par défaut (`DEFAULT_REWARDS`, bornes dans `REWARD_LIMITS`), courbe d'XP (`xpToNext`), missions (`MISSIONS`), succès (`ACHIEVEMENTS`), récompenses de famille et de set (`FAMILY_REWARDS`, `SET_REWARDS`), titres, cadres et dos de carte. Les choix chiffrés sont justifiés dans la proposition d'économie (`recompenses/economie.md`, dans les fichiers du projet Claude, pas dans ce dépôt).
+Données partagées par le serveur (qui calcule) et l'appli (qui affiche) : réglages chiffrés par défaut (`DEFAULT_REWARDS`, bornes dans `REWARD_LIMITS`), courbe d'XP (`xpToNext`), missions (`MISSIONS`), succès (`ACHIEVEMENTS`), récompenses de famille et de set (`FAMILY_REWARDS`, `SET_REWARDS`), titres, cadres et dos de carte, niveaux de carte (`CARD_LEVELS` : nom, bordure `look`, effet `fx` ; `levelCost(n)` lit les coûts dans les réglages). Les choix chiffrés sont justifiés dans la proposition d'économie (`recompenses/economie.md`, dans les fichiers du projet Claude, pas dans ce dépôt).
 
 ## Outils
 
 ```bash
 npm run sim -- 60            # taux de victoire de chaque deck contre chaque deck (60 parties par duel)
 npm run sim -- 20 generaux   # chaque général avec le deck de sa famille, contre tous les decks
-npm run eco                  # jours pour compléter un set selon la façon de jouer
+npm run eco                  # jours pour compléter un set selon la façon de jouer, puis niveaux de carte atteints
 npm run empreinte            # empreinte de 144 parties à hasard fixé (voir Recettes)
 ```

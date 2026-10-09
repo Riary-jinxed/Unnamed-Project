@@ -2,8 +2,8 @@
 // Les nombres viennent du document « recompenses » (réglé depuis /admin), complété par les valeurs par défaut de rewards.js.
 // Chaque récompense gagnée est aussi rangée dans la boîte « inbox » du compte, que l'appli affiche puis vide.
 import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, ACHIEVEMENTS, familyReward, SET_REWARDS, TITLES, FRAMES, BACKS,
-  xpToNext, familyOf, statValue, missionLabel } from '@jeu/engine/rewards';
-import { SETS, STARTERS, allowedGenerals, today } from '@jeu/engine/collection';
+  xpToNext, familyOf, statValue, missionLabel, MAX_CARD_LEVEL, levelCost } from '@jeu/engine/rewards';
+import { SETS, STARTERS, OWNABLE, allowedGenerals, today } from '@jeu/engine/collection';
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { HttpError } from './accounts.js';
 
@@ -180,16 +180,36 @@ export function createProgress(store) {
     if (back !== undefined) { if (!a.cosmetics.backs.includes(back)) throw new HttpError(400, 'Dos de carte non débloqué.'); a.back = back; }
   }
 
+  // ---- Niveaux de carte (cosmétiques) ----
+  // Essence gagnée par doublon, propre à la carte. Le serveur la donne avec les Éclats du doublon (accounts.js).
+  const essenceRate = () => cfg().essencePerDuplicate;
+  // Monte une carte possédée d'un niveau, contre son essence et des Éclats.
+  async function upgradeCard(a, { card }) {
+    if (!OWNABLE.includes(card) || !a.cards?.[card]) throw new HttpError(400, 'Vous ne possédez pas cette carte.');
+    const lvl = a.cardLevels?.[card] || 1;
+    if (lvl >= MAX_CARD_LEVEL) throw new HttpError(409, 'Cette carte est déjà au niveau maximum.');
+    const cost = levelCost(lvl + 1, cfg()), have = a.essence?.[card] || 0;
+    if (have < cost.essence) throw new HttpError(409, `Il vous faut ${cost.essence} essence de cette carte (vous en avez ${have}).`);
+    if ((a.shards || 0) < cost.shards) throw new HttpError(409, `Il vous faut ${cost.shards} Éclats (vous en avez ${a.shards || 0}).`);
+    a.essence[card] = have - cost.essence; a.shards = (a.shards || 0) - cost.shards;
+    a.cardLevels = { ...(a.cardLevels || {}), [card]: lvl + 1 };
+    return lvl + 1;
+  }
+  const levelsView = () => { const c = cfg();
+    return { essenceRate: c.essencePerDuplicate, max: MAX_CARD_LEVEL, costs: Object.fromEntries(Array.from({ length: MAX_CARD_LEVEL - 1 }, (_, i) => [i + 2, levelCost(i + 2, c)])) }; };
+
   // ---- Vues ----
   const levelView = a => ({ level: a.level || 1, xp: a.xp || 0, xpNext: xpToNext(a.level || 1, cfg()) });
-  // Ce qu'un adversaire voit du joueur pendant une partie.
-  const badge = a => ({ title: a.title ? TITLES[a.title] || null : null, frame: a.frame || null, back: a.back || 'classique', level: a.level || 1 });
+  // Ce qu'un adversaire voit du joueur pendant une partie. looks : niveau des cartes du deck joué et de son général (niveau 2 et plus) ;
+  // le serveur n'envoie à l'adversaire que ceux des cartes déjà révélées (index.js).
+  const badge = (a, deck = null) => ({ title: a.title ? TITLES[a.title] || null : null, frame: a.frame || null, back: a.back || 'classique', level: a.level || 1,
+    looks: deck ? Object.fromEntries([...deck.cards, deck.general].filter(id => id && (a.cardLevels?.[id] || 1) > 1).map(id => [id, a.cardLevels[id]])) : {} });
   function view(a) {
-    if (!a.level) return { ...levelView(a), freeBoosters: 0, missions: [], rerollsLeft: 0, inbox: [], badge: badge(a), cosmetics: { titles: [], frames: [], backs: [] } };
+    if (!a.level) return { ...levelView(a), freeBoosters: 0, missions: [], rerollsLeft: 0, inbox: [], badge: badge(a), cosmetics: { titles: [], frames: [], backs: [] }, cardLevels: levelsView() };
     const ms = missions(a), c = cfg();
     return { ...levelView(a), freeBoosters: a.freeBoosters || 0,
       missions: ms.list.map(m => ({ label: missionLabel(m), n: m.n, target: m.target, done: m.done, xp: m.xp, shards: m.shards })),
-      rerollsLeft: Math.max(0, c.missionRerolls - ms.rerolls), inbox: a.inbox || [], badge: badge(a),
+      rerollsLeft: Math.max(0, c.missionRerolls - ms.rerolls), inbox: a.inbox || [], badge: badge(a), cardLevels: levelsView(),
       title: a.title, frame: a.frame, back: a.back,
       cosmetics: { titles: a.cosmetics.titles.map(id => ({ id, label: TITLES[id] || id })), frames: a.cosmetics.frames.map(id => ({ id, label: FRAMES[id] || id })),
         backs: a.cosmetics.backs.map(id => ({ id, label: BACKS[id] || id })) } };
@@ -231,6 +251,6 @@ export function createProgress(store) {
   const settings = () => ({ rewards: cfg(), defaults: { ...DEFAULT_REWARDS, missions: Object.fromEntries(Object.entries(MISSIONS).map(([id, m]) => [id, { target: m.target, xp: m.xp, shards: m.shards, on: true }])),
     achievements: Object.fromEntries(ACHIEVEMENTS.map(x => [x.id, x.shards])) } });
 
-  return { init, onCards, checkCollection, onGame, onBooster, reroll, equip, view, badge, achievementsView, collectionView, saveSettings, settings,
+  return { init, onCards, checkCollection, onGame, onBooster, reroll, equip, view, badge, essenceRate, upgradeCard, achievementsView, collectionView, saveSettings, settings,
     seen: a => { a.inbox = []; } };
 }

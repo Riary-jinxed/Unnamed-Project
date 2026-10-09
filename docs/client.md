@@ -19,7 +19,7 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 | `loading`, `login` | `renderLoading`, `renderLogin` | Démarrage, connexion. |
 | `starter` | `renderStarter` | Choix du deck de départ (première connexion). |
 | `home` | `renderHome` | Booster du jour, niveau et missions, deck joué, boutique, parties, tutoriel et codex. |
-| `collection` | `renderCollection` | Toutes les cartes, par famille, celles qui manquent grisées. |
+| `collection` | `renderCollection` | Toutes les cartes, par famille, celles qui manquent grisées ; niveau de chaque carte. Une carte ouverte en grand y monte de niveau (`upgradeHTML`). |
 | `shop` | `renderShop` | Cartes du jour et boosters de chaque set. |
 | `decks`, `deck` | `renderDecks`, `renderDeck` | Liste des decks ; création en trois étapes (général, terrains, cartes). |
 | `profile` | `renderProfile` | Pseudo, image, titre, cadre, dos, stats, succès, familles. |
@@ -44,7 +44,7 @@ Une partie est pilotée par un « contrôleur » qui offre `submit(plan)`, `rema
 
 Pendant la préparation, l'appli refait les calculs simples pour guider le joueur (sceaux restants, emplacements libres) ; le serveur refait tout de son côté.
 
-À chaque nouvelle vue, `viewEffects(avant, après)` compare les deux et prépare les animations (carte révélée, détruite, déplacée, puissance qui monte ou baisse, terrain révélé) et les bruitages (`sfx.js`, synthétisés avec Web Audio). Le glisser-déposer d'une carte vers une zone s'ajoute au toucher (sélectionner, puis toucher la zone).
+À chaque nouvelle vue, `viewEffects(avant, après)` compare les deux et prépare les animations (carte révélée, détruite, déplacée, puissance qui monte ou baisse, terrain révélé) et les bruitages (`sfx.js`, synthétisés avec Web Audio). Niveaux de carte : `lvCls(niveau)` ajoute la bordure (`.lv-bronze` … `.lv-astral`, `style.css`) aux cartes de la main, du plateau, aux généraux et aux cartes de la collection ; `levelIn(siège, id)` lit son niveau dans le compte, celui de l'adversaire dans `badges[siège].looks`. Une carte de niveau 5 révélée joue en plus son effet de mise en jeu (`burstAt`, bruitage `astral`). Le glisser-déposer d'une carte vers une zone s'ajoute au toucher (sélectionner, puis toucher la zone).
 
 ## Amis (`friends.js`)
 
@@ -80,7 +80,7 @@ Protégée par `ADMIN_KEY`, saisie une fois et gardée dans le navigateur le tem
 | Stats | `admin-stats.js` | Taux de victoire par joueur et par général, cartes les plus jouées, dernières parties. |
 | Cartes, Sets | `admin-cards.js` | Brouillon du catalogue : retoucher ou créer une carte, ranger les cartes en sets, publier. |
 | Boutique | `admin.js` | Prix, taille des boosters, Éclats par doublon, cartes du jour, renouvellement des offres. |
-| Récompenses | `admin-rewards.js` | Courbe d'XP, gains des parties et niveaux, missions, complétions, succès. |
+| Récompenses | `admin-rewards.js` | Courbe d'XP, gains des parties et niveaux, missions, complétions, niveaux de carte (essence par doublon, coûts de chaque niveau), succès. |
 
 Chaque onglet séparé est une fonction (`statsTab`, `cardsTab`, `rewardsTab`) qui reçoit les outils de la page (`call`, `render`, `say`, `esc`, `notice`) et renvoie de quoi s'afficher et réagir aux clics.
 
