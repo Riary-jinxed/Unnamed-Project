@@ -54,7 +54,7 @@ export function createAccounts(store) {
   async function booster(a) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
     if (a.lastBooster === today()) throw new HttpError(409, 'Booster du jour déjà ouvert. Revenez demain.');
-    const cards = openBooster();
+    const cards = openBooster(a.cards);
     const got = addCards(a, cards);
     a.lastBooster = today();
     await store.put(a);

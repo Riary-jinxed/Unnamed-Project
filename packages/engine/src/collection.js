@@ -1,9 +1,9 @@
 // Collection d'un joueur : deck de départ, booster quotidien et règles de construction de deck.
 // Partagé par le serveur (qui fait foi) et l'appli (qui affiche et prévient avant d'envoyer).
-import { CARDS, GENERALS, TERRAINS, DECKS, pick } from './engine.js';
+import { CARDS, GENERALS, TERRAINS, DECKS, pick, shuffle } from './engine.js';
 
 export const STARTERS = ['gobelin', 'elfe', 'demon'];
-export const DECK_SIZE = 15, DECK_TERRAINS = 5, MAX_COPIES = 1, BOOSTER_SIZE = 5;
+export const DECK_SIZE = 15, DECK_TERRAINS = 5, MAX_COPIES = 1, BOOSTER_SIZE = 3;
 // Toutes les cartes du set (hors jetons) ont la même chance de sortir d'un booster.
 export const BOOSTER_POOL = Object.keys(CARDS).filter(k => !CARDS[k].token);
 
@@ -21,7 +21,12 @@ export function starterKit(starter) {
   };
 }
 
-export function openBooster(rand = pick) { return Array.from({ length: BOOSTER_SIZE }, () => rand(BOOSTER_POOL)); }
+// Booster quotidien : 3 cartes au hasard, dont au moins une que le joueur n'a pas (tant qu'il lui en manque).
+export function openBooster(owned = {}, rand = pick) {
+  const missing = BOOSTER_POOL.filter(id => !owned[id]);
+  const cards = [missing.length ? rand(missing) : rand(BOOSTER_POOL), ...Array.from({ length: BOOSTER_SIZE - 1 }, () => rand(BOOSTER_POOL))];
+  return shuffle(cards);
+}
 
 // Jour courant à Paris (AAAA-MM-JJ) : le booster quotidien revient à minuit, heure française.
 export const today = (d = new Date()) => new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(d);
