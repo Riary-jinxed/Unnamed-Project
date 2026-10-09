@@ -24,7 +24,7 @@ Les données locales sont dans `server/data/` : supprimez ce dossier pour repart
    ```
    Sans `set`, la carte appartient au Set de base. Le texte est affiché tel quel : il doit dire exactement ce que fait le code.
 2. Rien d'autre n'est obligatoire : la carte rejoint son set (boutique, boosters, collection), y compris quand un catalogue a déjà été publié depuis `/admin`.
-3. Facultatif : l'ajouter à un deck préconstruit (`DECKS`) pour que l'IA la joue, et une illustration (`client/public/art/<id>.webp` + `ART` dans `client/src/art.js`).
+3. Facultatif : l'ajouter à un deck préconstruit (`DECKS`) pour que l'IA la joue.
 4. Lancez `npm run sim -- 40` pour voir l'effet sur l'équilibre.
 
 Une carte qui reprend simplement l'effet d'une carte existante avec d'autres chiffres peut aussi se créer depuis `/admin` (onglet Cartes), sans toucher au code.

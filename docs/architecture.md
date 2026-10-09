@@ -42,10 +42,9 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `client/src/api.js` | 10 | Appel JSON à l'API avec la session. |
 | `client/src/common.js` | 10 | Couleur de famille et échappement HTML, partagés par l'appli et `/admin`. |
 | `client/src/sfx.js` | ~55 | Bruitages synthétisés (Web Audio). |
-| `client/src/art.js` | 5 | Liste des cartes qui ont une illustration. |
 | `client/src/admin*.js` | ~720 | Page `/admin` : comptes, boutique, stats, cartes et sets, récompenses. |
 | `client/src/style.css` | | Styles de l'appli et de `/admin` (thème clair et sombre). |
-| `client/public/` | | Icône, manifeste PWA, service worker, illustrations `art/*.webp`. |
+| `client/public/` | | Icône, manifeste PWA, service worker. |
 
 ## Partie en ligne
 

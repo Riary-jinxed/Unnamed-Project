@@ -1,6 +1,6 @@
 // Service worker minimal : permet l'installation et garde l'appli disponible si le réseau tousse.
 // Les fichiers de /assets/ ont une empreinte dans leur nom (ils ne changent jamais) : servis d'abord depuis le cache.
-// Le reste (pages, illustrations) passe par le réseau, avec le cache en secours hors ligne.
+// Le reste (pages, icône, manifeste) passe par le réseau, avec le cache en secours hors ligne.
 const CACHE = 'jeu-v3';
 self.addEventListener('install', () => { self.skipWaiting(); });
 self.addEventListener('activate', e => e.waitUntil(

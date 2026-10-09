@@ -42,13 +42,9 @@ Au démarrage puis chaque fois que la version change (`account.catalog`), l'appl
 
 ## Hors ligne et cache
 
-`public/sw.js` (service worker) rend l'appli installable sur téléphone. Les fichiers de `/assets/` (leur nom contient une empreinte, ils ne changent jamais) sont servis depuis le cache ; les pages et les illustrations passent par le réseau, avec le cache en secours. Un changement de la constante `CACHE` efface les anciens caches. L'API et le WebSocket ne passent jamais par le cache.
+`public/sw.js` (service worker) rend l'appli installable sur téléphone. Les fichiers de `/assets/` (leur nom contient une empreinte, ils ne changent jamais) sont servis depuis le cache ; les pages passent par le réseau, avec le cache en secours. Un changement de la constante `CACHE` efface les anciens caches. L'API et le WebSocket ne passent jamais par le cache.
 
 `localStorage` garde la session (`jeu-auth`), le salon en cours (`jeu-session`, pour reprendre après un rechargement) et le son coupé (`jeu-muted`).
-
-## Illustrations
-
-`public/art/<id>.webp` (432 × 640, WebP) ; l'identifiant de la carte doit aussi être ajouté à `ART` dans `src/art.js`.
 
 ## Page `/admin` (`admin.js`)
 

@@ -38,7 +38,7 @@ async function staticFile(path) {
   try { body = await readFile(join(DIST, path)); } catch { return null; }
   const ext = extname(path);
   const file = { body, gz: COMPRESSIBLE.has(ext) && body.length > 1024 ? gzipSync(body) : null, type: MIME[ext] || 'application/octet-stream',
-    cache: path.startsWith('assets/') ? 'public, max-age=31536000, immutable' : path.startsWith('art/') ? 'public, max-age=86400' : 'no-cache' };
+    cache: path.startsWith('assets/') ? 'public, max-age=31536000, immutable' : 'no-cache' };
   files.set(path, file);
   return file;
 }

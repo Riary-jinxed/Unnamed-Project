@@ -6,7 +6,6 @@ import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
 import { applyCatalog } from '@jeu/engine/catalog';
-import { hasArt, artVar } from './art.js';
 import { esc, famStyle } from './common.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { FRAMES, BACKS, rewardSourceOf, REWARD_CARDS } from '@jeu/engine/rewards';
@@ -249,7 +248,7 @@ function miniCard(c, opts = {}) {
   const cls = c.revealed ? (pw > d.power ? 'up' : pw < d.power ? 'down' : '') : '';
   const mv = opts.mine && moveOf(c.uid);
   const mobile = opts.mine && c.mobile && canPlay();
-  return `<div class="mc ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${hasArt(c.id) ? 'art' : ''}" style="${famVar(d.kw)}${artVar(c.id)}"
+  return `<div class="mc ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.drag === c.uid ? 'dragging' : ''}" style="${famVar(d.kw)}"
     data-card="${c.uid}" data-id="${c.id}" ${opts.pending ? 'data-pending="1"' : ''} ${mobile ? 'data-mobile="1"' : ''} title="${esc(d.name)}">
     ${mv ? `<span class="mv">→ ${ZONE_NAMES[mv.zone]}</span>` : mobile ? '<span class="mv" aria-label="Déplaçable">⇄</span>' : ''}
     <span class="n">${esc(d.name)}</span>${d.type === 'C' ? `<span class="p num ${cls}">${pw}</span>` : `<span class="p" style="font-size:12px">Sort</span>`}</div>`;
@@ -314,7 +313,7 @@ function renderGame() {
   const hand = (planning ? handLeft() : m.hand).map(c => { const d = CARDS[c.id];
     const cant = d.x ? seals <= 0 : c.cost > seals;
     const pcls = c.power > d.power ? 'up' : c.power < d.power ? 'down' : '';
-    return `<button class="hc ${ui.sel === c.uid ? 'sel' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${cant ? 'cant' : ''} ${hasArt(c.id) ? 'art' : ''}" style="${famVar(d.kw)}${artVar(c.id)}" data-hand="${c.uid}" data-id="${c.id}">
+    return `<button class="hc ${ui.sel === c.uid ? 'sel' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${cant ? 'cant' : ''}" style="${famVar(d.kw)}" data-hand="${c.uid}" data-id="${c.id}">
       <span class="top2"><span class="seal">${costLabel(d, c.cost)}</span><span class="t">${typeName(d)}</span></span>
       <span class="n">${esc(d.name)}</span><span class="k">${kwLine(d)}</span>${d.type === 'C' ? `<span class="p num ${pcls}">${c.power}</span>` : ''}</button>`; }).join('');
   const canGen = play && g.activate && !m.generalUsed && (ui.genZone !== null || sealsLeft() >= (g.activateCost || 0));
@@ -622,7 +621,7 @@ function renderLobby() {
   </div>`;
 }
 function fullCard(id) { const d = CARDS[id];
-  return `<div class="fc" style="${famVar(d.kw)}">${hasArt(id) ? `<img class="art" src="/art/${id}.webp" alt="" loading="lazy" width="432" height="640">` : ''}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
+  return `<div class="fc" style="${famVar(d.kw)}"><div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
     <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text || 'Pas d\'effet.'}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
 const genCard = k => { const g = GENERALS[k]; return `<div class="fc" style="${famVar([g.fam])}"><b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${g.text}</span></div>`; };
 const terrainCard = k => { const t = TERRAINS[k]; return `<div class="fc" style="${famVar([t.fam])}"><b>${t.name}</b><span class="k">Terrain</span><span class="x">${t.text}</span></div>`; };
@@ -651,7 +650,7 @@ function zoomHTML() {
       else acts.push(`<span class="eyebrow">Déplacer vers</span><div class="row">${[0, 1, 2].filter(z => z !== onBoard.z).map(z => `<button class="btn" data-act="zmove" data-zone="${z}" ${freeSlots(z) > 0 ? '' : 'disabled'}>${ZONE_NAMES[z]}</button>`).join('')}</div>`);
     }
     style = famVar(d.kw);
-    body = `${hasArt(zm.id) ? `<img class="zart" src="/art/${zm.id}.webp" alt="" width="432" height="640">` : ''}
+    body = `
       <div class="zh"><span class="seal" title="Coût">${cost}</span><h2>${esc(d.name)}</h2>${d.type === 'C' ? `<span class="zp num ${pcls}" title="Puissance">${pw}</span>` : ''}</div>
       <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · puissance de base ${d.power}` : ''}</span>
       <p class="x">${d.text || 'Pas d\'effet.'}</p>${zoomBtns(acts)}`;
