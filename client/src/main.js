@@ -6,7 +6,7 @@ import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
 import { applyCatalog } from '@jeu/engine/catalog';
-import { esc, famStyle } from './common.js';
+import { esc, famStyle, rich } from './common.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { FRAMES, BACKS, rewardSourceOf, REWARD_CARDS } from '@jeu/engine/rewards';
 
@@ -25,8 +25,8 @@ const ui = {
   screen: 'loading', auth: store.get('auth', null), account: null, loginId: '', loginPass: '', starterPick: null, busy: false,
   booster: null, shop: null, edit: null, deckStep: 0, renaming: null, profile: null, nameDraft: '', colFam: '', joinCode: (params.get('code') || '').toUpperCase(),
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
-  pending: [], moves: [], moveSel: null, genZone: null, genMode: false, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
-  drag: null, fx: null, zoom: null, soloReward: null,
+  pending: [], moves: [], moveSel: null, genZone: null, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
+  drag: null, fx: null, zoom: null, soloReward: null, avatars: null,
 };
 const app = document.getElementById('app');
 
@@ -35,8 +35,9 @@ const handlers = {
   onLobby(m) { ui.screen = 'lobby'; ui.room = m.room; ui.lobbyNames = m.names; ui.error = ''; store.set('session', { room: m.room, token: m.token }); render(); },
   onView(view, room) {
     if (room) ui.room = room;
+    if (view.avatars) ui.avatars = view.avatars;
     const prev = ui.screen === 'game' ? ui.view : null;
-    if (view.phase !== 'plan' || view.turn !== ui.lastTurn) { ui.pending = []; ui.moves = []; ui.moveSel = null; ui.genZone = null; ui.genMode = false; ui.sel = null; }
+    if (view.phase !== 'plan' || view.turn !== ui.lastTurn) { ui.pending = []; ui.moves = []; ui.moveSel = null; ui.genZone = null; ui.sel = null; }
     if (view.phase === 'plan' && view.turn !== ui.lastTurn) ui.msg = '';
     ui.lastTurn = view.turn; ui.view = view; ui.screen = 'game';
     if (view.phase === 'over' && (!ui.sheet || ui.sheet === 'zoom')) { ui.sheet = 'end'; ui.zoom = null; }
@@ -61,7 +62,7 @@ function deckReady() {
 }
 function goOnline(action) {
   if (!deckReady()) return;
-  ui.mode = 'online'; ui.error = '';
+  ui.mode = 'online'; ui.error = ''; ui.avatars = null;
   ui.ctrl = connectOnline(handlers, action === 'create' ? { t: 'create', auth: ui.auth } : { t: 'join', room: ui.joinCode, auth: ui.auth });
 }
 function goSolo() {
@@ -270,28 +271,59 @@ function terrainChip(side, z, isMe) {
 function infoHTML() {
   const f = ui.focus, v = ui.view;
   if (ui.msg) return `<div class="hint">${esc(ui.msg)}</div>`;
-  if (ui.genMode) return `<div class="hint">Touchez la zone où activer votre général.</div>`;
   if (ui.moveSel !== null) return `<div class="hint">Touchez la zone vers laquelle déplacer ${esc(CARDS[me().board.flat().find(c => c.uid === ui.moveSel)?.id]?.name || 'cette créature')}. Le déplacement se fait à la révélation.</div>`;
   if (v.phase === 'plan' && v.ready.me) return `<div class="wait">Tour validé. En attente de ${esc(v.foe.name)}…</div>`;
   if (ui.sel !== null && canPlay()) return `<div class="hint">Touchez une de vos zones pour poser ${esc(CARDS[me().hand.find(c => c.uid === ui.sel)?.id]?.name || 'cette carte')}.</div>`;
-  if (!f) return `<div class="hint">Touchez une carte pour la voir en grand et la jouer, ou faites-la glisser vers une zone. Une créature marquée ⇄ peut changer de zone.</div>`;
+  if (!f) return `<div class="hint">Touchez une carte pour la jouer, ou glissez-la vers une zone.${canPlay() && me().board.flat().some(c => c.mobile) ? ' Une créature marquée ⇄ peut changer de zone.' : ''}</div>`;
   if (f.kind === 'card') { const d = CARDS[f.id];
-    return `<div class="h"><b>${esc(d.name)}</b><span class="meta">${typeName(d)} · coût ${d.x ? 'X' : d.cost}${d.type === 'C' ? ` · puissance ${d.power}` : ''} · ${kwLine(d)}</span></div><div>${d.text || 'Pas d\'effet.'}</div>`; }
-  if (f.kind === 'terrain') { const t = TERRAINS[f.id]; return `<div class="h"><b>${t.name}</b><span class="meta">Terrain</span></div><div>${t.text}</div>`; }
-  if (f.kind === 'general') { const g = GENERALS[f.id]; return `<div class="h"><b>${g.name}</b><span class="meta">Général · ${genLine(g)}</span></div><div>${g.text}</div>`; }
+    return `<div class="h"><b>${esc(d.name)}</b><span class="meta">${typeName(d)} · coût ${d.x ? 'X' : d.cost}${d.type === 'C' ? ` · puissance ${d.power}` : ''} · ${kwLine(d)}</span></div><div>${d.text ? rich(d.text) : 'Pas d\'effet.'}</div>`; }
+  if (f.kind === 'terrain') { const t = TERRAINS[f.id]; return `<div class="h"><b>${t.name}</b><span class="meta">Terrain</span></div><div>${rich(t.text)}</div>`; }
+  if (f.kind === 'general') { const g = GENERALS[f.id]; return `<div class="h"><b>${g.name}</b><span class="meta">Général · ${genLine(g)}</span></div><div>${rich(g.text)}</div>`; }
   return '';
 }
-// Titre, niveau et dos de carte de chaque joueur : envoyés par le serveur en ligne ; contre l'IA, ceux du compte.
+// Titre, niveau, cadre et dos de carte de chaque joueur : envoyés par le serveur en ligne ; contre l'IA, ceux du compte.
 const badgeOf = seat => ui.view.badges?.[seat] || (seat === ui.view.seat && ui.account ? prog().badge : null);
-function pbar(side, isMe, connected) {
-  const g = GENERALS[side.general], b = badgeOf(isMe ? ui.view.seat : 1 - ui.view.seat);
-  return `<div class="pbar ${isMe ? 'me' : 'foe'}"><span class="who">${isMe ? 'Vous' : esc(side.name)}${b ? ` <small class="num hint">niv. ${b.level}</small>` : ''}${b?.title ? ` <small class="ptitle">${esc(b.title)}</small>` : ''} · ${esc(side.deckName)}</span>
-    ${!isMe && ui.mode === 'online' ? `<span class="dot ${connected ? '' : 'off'}" title="${connected ? 'Connecté' : 'Déconnecté'}"></span>` : ''}
-    <button class="chip ${g.activate && side.generalUsed ? 'used' : ''}" data-general="${side.general}">${g.name}</button>
-    <span class="num">Main ${side.handCount}</span><span class="num">Deck ${side.deckCount}</span>
-    ${side.treasure ? `<span class="num" title="Sceaux non dépensés aux tours précédents">Trésor ${side.treasure}</span>` : ''}
-    ${side.perfectTurns ? `<span class="num" title="Tours finis avec tous les sceaux dépensés">Grâce ${side.perfectTurns}</span>` : ''}
-    ${!isMe && ui.view.phase === 'plan' && ui.view.ready.foe ? '<span class="chip">Prêt</span>' : ''}</div>`;
+// Image de profil : envoyée une fois par le serveur en ligne ; contre l'IA, la sienne seulement.
+const avatarOf = seat => (ui.mode === 'online' ? ui.avatars?.[seat] : null) || (seat === ui.view.seat ? ui.account?.avatar : null) || null;
+// Carte du général, toujours visible à côté du joueur. La sienne brille quand elle peut être activée.
+function genSlot(side, isMe, canGen) {
+  const g = GENERALS[side.general];
+  const state = isMe && ui.genZone !== null ? 'armed' : g.activate && side.generalUsed ? 'used' : isMe && canGen ? 'ready' : '';
+  const note = state === 'armed' ? 'Activé ce tour' : state === 'used' ? 'Utilisé' : g.activate ? `Activable${g.activateCost ? ` · ${g.activateCost} sceau` : ''}` : g.kind;
+  return `<button class="gencard ${state}" style="${famVar([g.fam])}" data-general="${side.general}" data-side="${isMe ? 'me' : 'foe'}" aria-label="Général : ${esc(g.name)}">
+    <span class="gk">Général</span><span class="gn">${esc(g.name)}</span><span class="gs">${esc(note)}</span></button>`;
+}
+function pbar(side, isMe, connected, canGen = false) {
+  const seat = isMe ? ui.view.seat : 1 - ui.view.seat, b = badgeOf(seat);
+  const who = { name: side.name, avatar: avatarOf(seat), progress: { frame: b?.frame } };
+  const stats = [
+    !isMe ? `<span class="num" title="Sceaux de l'adversaire ce tour">Sceaux ${side.seals}</span>` : '',
+    `<span class="num">Main ${side.handCount}</span>`, `<span class="num">Deck ${side.deckCount}</span>`,
+    side.treasure ? `<span class="num" title="Sceaux non dépensés aux tours précédents">Trésor ${side.treasure}</span>` : '',
+    side.perfectTurns ? `<span class="num" title="Tours finis avec tous les sceaux dépensés">Grâce ${side.perfectTurns}</span>` : '',
+  ].filter(Boolean).join('');
+  const ready = !isMe && ui.view.phase === 'plan' && ui.view.ready.foe;
+  return `<div class="pbar ${isMe ? 'me' : 'foe'}">
+    <span class="pav">${avatarHTML(who, 'pa')}${!isMe && ui.mode === 'online' ? `<span class="dot ${connected ? '' : 'off'}" title="${connected ? 'Connecté' : 'Déconnecté'}"></span>` : ''}</span>
+    <div class="pid"><div class="pline"><span class="who">${isMe ? 'Vous' : esc(side.name)}</span>${b ? `<small class="lv num">niv. ${b.level}</small>` : ''}${ready ? '<span class="chip ok">Prêt</span>' : ''}</div>
+      ${b?.title ? `<div class="ptitle">${esc(b.title)}</div>` : ''}
+      <div class="pstats">${stats}</div></div>
+    ${genSlot(side, isMe, canGen)}</div>`;
+}
+// Tour en cours et sceaux, juste au-dessus de la main : sceaux libres, déjà engagés, et ce que coûterait la carte choisie.
+function tempoHTML(seals) {
+  const v = ui.view, total = Math.max(v.me.seals, 0);
+  let pips = ''; for (let t = 1; t <= v.turns; t++) pips += `<span class="pip ${t < v.turn ? 'past' : t === v.turn ? 'now' : ''}"></span>`;
+  const selCost = ui.sel !== null && canPlay() ? (CARDS[me().hand.find(c => c.uid === ui.sel)?.id]?.x ? Math.max(seals, 0) : handCost(ui.sel)) : 0;
+  let tokens = '';
+  if (total <= 12) for (let i = 0; i < total; i++) {
+    const cls = i >= seals ? 'spent' : i >= seals - selCost ? 'cost' : '';
+    tokens += `<span class="tok ${cls}"></span>`;
+  }
+  const last = v.turn === v.turns;
+  return `<div class="tempo ${last ? 'last' : ''}">
+    <div class="tturn"><span class="tl">${last ? 'Dernier tour' : 'Tour'}</span><b class="num">${v.turn}<small>/${v.turns}</small></b><span class="pips" aria-hidden="true">${pips}</span></div>
+    <div class="tseals" aria-label="Sceaux restants : ${seals} sur ${total}"><span class="tl">Sceaux</span><span class="toks" aria-hidden="true">${tokens}</span><b class="num">${seals}<small>/${total}</small></b></div></div>`;
 }
 function renderGame() {
   const v = ui.view, m = v.me, f = v.foe, g = GENERALS[m.general];
@@ -300,13 +332,13 @@ function renderGame() {
   for (const z of [0, 1, 2]) {
     const a = f.zonePower[z], b = m.zonePower[z];
     const mz = ui.moveSel !== null ? me().board.findIndex(col => col.some(c => c.uid === ui.moveSel)) : -1;
-    const target = play && (ui.genMode || (ui.sel && freeSlots(z) > 0) || (ui.moveSel !== null && z !== mz && freeSlots(z) > 0));
+    const target = play && ((ui.sel && freeSlots(z) > 0) || (ui.moveSel !== null && z !== mz && freeSlots(z) > 0));
     const won = b > a ? 'won-me' : a > b ? 'won-foe' : '';
     board += `<div class="zone ${won} ${target ? 'target' : ''}" data-z="${z}" ${target ? 'tabindex="0" role="button"' : ''} aria-label="Zone ${ZONE_NAMES[z]}">
       ${terrainChip(f, z, false)}${slots(f, z, false)}
       <div class="score"><span class="v foe ${a > b ? 'lead' : ''}">${a}</span><span class="zn">${ZONE_NAMES[z]}</span><span class="v me ${b > a ? 'lead' : ''}">${b}</span></div>
       ${slots(m, z, true)}${terrainChip(m, z, true)}
-      ${ui.genZone === z ? `<div class="gmark">Général activé ici</div>` : ''}</div>`;
+      ${ui.genZone === z && g.needsZone ? `<div class="gmark">Général activé ici</div>` : ''}</div>`;
   }
   const planning = v.phase === 'plan';
   const seals = planning ? sealsLeft() : m.seals;
@@ -314,24 +346,21 @@ function renderGame() {
     const cant = d.x ? seals <= 0 : c.cost > seals;
     const pcls = c.power > d.power ? 'up' : c.power < d.power ? 'down' : '';
     return `<button class="hc ${ui.sel === c.uid ? 'sel' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${cant ? 'cant' : ''}" style="${famVar(d.kw)}" data-hand="${c.uid}" data-id="${c.id}">
-      <span class="top2"><span class="seal">${costLabel(d, c.cost)}</span><span class="t">${typeName(d)}</span></span>
-      <span class="n">${esc(d.name)}</span><span class="k">${kwLine(d)}</span>${d.type === 'C' ? `<span class="p num ${pcls}">${c.power}</span>` : ''}</button>`; }).join('');
-  const canGen = play && g.activate && !m.generalUsed && (ui.genZone !== null || sealsLeft() >= (g.activateCost || 0));
+      <span class="top2"><span class="seal">${costLabel(d, c.cost)}</span>${d.type === 'C' ? `<span class="p num ${pcls}">${c.power}</span>` : '<span class="t">Sort</span>'}</span>
+      <span class="n">${esc(d.name)}</span>${d.text ? `<span class="x">${rich(d.text)}</span>` : `<span class="k">${kwLine(d)}</span>`}</button>`; }).join('');
+  const canGen = play && g.activate && !m.generalUsed && m.seals >= (g.activateCost || 0);
   const goLabel = v.phase === 'reveal' ? 'Révélation…' : v.ready.me ? 'En attente…' : v.turn === v.turns ? 'Valider le dernier tour' : 'Valider le tour';
   return `
   <div class="top"><span class="title">${ui.mode === 'online' ? `Partie ${esc(ui.room || '')}` : 'Contre l\'IA'}</span>
-    <span class="turnbox"><span>Tour <b class="num">${v.turn}</b>/${v.turns}</span><span>Sceaux <b class="num">${seals}</b>/${v.turn}</span></span>
     ${muteBtn()}<button class="btn" data-act="log">Journal</button><button class="btn" data-act="set">Cartes</button></div>
   ${pbar(f, false, v.connected[1 - v.seat])}
   <div class="board">${board}</div>
-  ${pbar(m, true, true)}
+  ${pbar(m, true, true, canGen)}
   <div class="info" aria-live="polite">${infoHTML()}</div>
   <div class="hand" id="hand">${hand || '<span class="empty">Main vide.</span>'}</div>
-  <div class="actions">
-    ${g.activate ? `<button class="btn ${ui.genMode || ui.genZone !== null ? 'on' : ''}" data-act="gen" ${canGen ? '' : 'disabled'}>${ui.genZone !== null ? 'Annuler le général' : m.generalUsed ? 'Général utilisé' : `Activer le général${g.activateCost ? ` (${g.activateCost} sceau)` : ''}`}</button>` : ''}
-    <button class="btn" data-act="quit">Quitter</button>
-    <button class="btn primary grow" data-act="go" ${play ? '' : 'disabled'}>${goLabel}</button>
-  </div>`;
+  <div class="dock">${tempoHTML(seals)}
+    <div class="actions"><button class="btn" data-act="quit">Quitter</button>
+      <button class="btn primary grow" data-act="go" ${play ? '' : 'disabled'}>${goLabel}</button></div></div>`;
 }
 // ---- Écrans du compte : connexion, deck de départ, accueil, collection, deck ----
 const errLine = () => (ui.error ? `<p class="err" role="alert">${esc(ui.error)}</p>` : '');
@@ -503,7 +532,7 @@ function renderDeck() {
     help = `Choisissez ${DECK_SIZE} cartes différentes de votre collection.`;
     const row = (id, on) => { const d = CARDS[id];
       return `<button class="pickrow ${on ? 'on' : ''}" data-pick="${id}" style="${famVar(d.kw)}" aria-pressed="${on}">
-        <span class="seal">${d.x ? 'X' : d.cost}</span><span class="pn"><b>${esc(d.name)}</b><small>${kwLine(d)} · ${d.text || 'Pas d\'effet.'}</small></span>
+        <span class="seal">${d.x ? 'X' : d.cost}</span><span class="pn"><b>${esc(d.name)}</b><small>${kwLine(d)} · ${d.text ? rich(d.text) : 'Pas d\'effet.'}</small></span>
         ${d.type === 'C' ? `<span class="p num">${d.power}</span>` : '<span class="p sm">Sort</span>'}</button>`; };
     body = `<div class="picklist">${COLLECTIBLE.filter(owned).sort(byFamCost).map(id => row(id, e.cards.includes(id))).join('')}</div>`;
   }
@@ -622,9 +651,9 @@ function renderLobby() {
 }
 function fullCard(id) { const d = CARDS[id];
   return `<div class="fc" style="${famVar(d.kw)}"><div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
-    <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text || 'Pas d\'effet.'}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
-const genCard = k => { const g = GENERALS[k]; return `<div class="fc" style="${famVar([g.fam])}"><b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${g.text}</span></div>`; };
-const terrainCard = k => { const t = TERRAINS[k]; return `<div class="fc" style="${famVar([t.fam])}"><b>${t.name}</b><span class="k">Terrain</span><span class="x">${t.text}</span></div>`; };
+    <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
+const genCard = k => { const g = GENERALS[k]; return `<div class="fc" style="${famVar([g.fam])}"><b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
+const terrainCard = k => { const t = TERRAINS[k]; return `<div class="fc" style="${famVar([t.fam])}"><b>${t.name}</b><span class="k">Terrain</span><span class="x">${rich(t.text)}</span></div>`; };
 // Carte affichée en grand, avec les actions possibles sur elle pendant la planification.
 function zoomBtns(acts) { return acts.length ? `<div class="zacts">${acts.join('')}</div>` : ''; }
 function zoomHTML() {
@@ -653,13 +682,22 @@ function zoomHTML() {
     body = `
       <div class="zh"><span class="seal" title="Coût">${cost}</span><h2>${esc(d.name)}</h2>${d.type === 'C' ? `<span class="zp num ${pcls}" title="Puissance">${pw}</span>` : ''}</div>
       <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · puissance de base ${d.power}` : ''}</span>
-      <p class="x">${d.text || 'Pas d\'effet.'}</p>${zoomBtns(acts)}`;
+      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}`;
   } else if (zm.kind === 'general') {
     const g = GENERALS[zm.id]; style = famVar([g.fam]);
-    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}</span><p class="x">${g.text}</p>`;
+    const acts = [];
+    if (zm.mine && g.activate && play) {
+      if (ui.genZone !== null) acts.push(`<p class="hint">Activé ce tour${g.needsZone ? `, zone ${ZONE_NAMES[ui.genZone]}` : ''}.</p><button class="btn" data-act="zgen">Annuler l'activation</button>`);
+      else if (me().generalUsed) acts.push(`<p class="hint">Déjà utilisé dans cette partie.</p>`);
+      else if (me().seals < (g.activateCost || 0)) acts.push(`<p class="hint">Pas assez de sceaux pour l'activer ce tour.</p>`);
+      else if (g.needsZone) acts.push(`<span class="eyebrow">Activer dans la zone</span><div class="row">${[0, 1, 2].map(z => `<button class="btn primary" data-act="zgen" data-zone="${z}">${ZONE_NAMES[z]}</button>`).join('')}</div>`);
+      else acts.push(`<button class="btn primary" data-act="zgen" data-zone="0">Activer le général</button>`);
+    }
+    const deck = ui.view && (zm.mine ? me() : zm.side === 'foe' ? ui.view.foe : null)?.deckName;
+    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}`;
   } else {
     const t = TERRAINS[zm.id]; style = famVar([t.fam]);
-    body = `<div class="zh"><h2>${t.name}</h2></div><span class="k">Terrain${t.fam ? ` · ${t.fam}` : ''}</span><p class="x">${t.text}</p>`;
+    body = `<div class="zh"><h2>${t.name}</h2></div><span class="k">Terrain${t.fam ? ` · ${t.fam}` : ''}</span><p class="x">${rich(t.text)}</p>`;
   }
   return `<div class="sheet zoom" data-act="close"><div class="panel zoomcard" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
     <button class="btn" data-act="close">Fermer</button></div></div>`;
@@ -817,7 +855,7 @@ function startDrag(e) {
   Object.assign(g.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
   drag.dx = e.clientX - r.left; drag.dy = e.clientY - r.top; drag.ghost = g; document.body.append(g);
   if (drag.kind === 'hand') { ui.sel = drag.uid; ui.moveSel = null; } else { ui.moveSel = drag.uid; ui.sel = null; }
-  ui.genMode = false; ui.msg = ''; ui.focus = { kind: 'card', id: drag.id }; ui.drag = drag.uid;
+  ui.msg = ''; ui.focus = { kind: 'card', id: drag.id }; ui.drag = drag.uid;
   play('pick'); render();
 }
 window.addEventListener('pointermove', e => {
@@ -856,7 +894,6 @@ app.addEventListener('click', e => { if (swallowClick) { e.stopPropagation(); e.
 // ---- Interactions ----
 function tryPlace(z) {
   if (!canPlay()) return;
-  if (ui.genMode) { ui.genZone = z; ui.genMode = false; ui.msg = ''; render(); return; }
   if (ui.moveSel !== null) {
     const from = me().board.findIndex(col => col.some(c => c.uid === ui.moveSel));
     if (z === from) { ui.moveSel = null; ui.msg = ''; }
@@ -909,7 +946,7 @@ app.addEventListener('click', e => {
     if (a === 'close') { if (ui.sheet === 'inbox') closeInbox(); ui.sheet = null; ui.zoom = null; ui.renaming = null; render(); }
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
-      ui.genMode = false; tryPlace(+ds.zone); }
+      tryPlace(+ds.zone); }
     else if (a === 'zback') { ui.pending = ui.pending.filter(p => p.uid !== ui.zoom.uid); ui.sheet = null; ui.zoom = null; ui.msg = ''; play('unplace'); render(); }
     else if (a === 'zstay') { ui.moves = ui.moves.filter(m => m.uid !== ui.zoom.uid); ui.sheet = null; ui.zoom = null; play('unplace'); render(); }
     else if (a === 'log' || a === 'set') { ui.sheet = a; render(); }
@@ -919,15 +956,15 @@ app.addEventListener('click', e => {
     else if (a === 'copy') { const link = document.getElementById('link');
       navigator.clipboard.writeText(link.value).then(() => { t.textContent = 'Lien copié'; }).catch(() => { link.select(); }); }
     else if (a === 'go') { if (!canPlay()) return; play('validate');
-      ui.ctrl.submit({ cards: ui.pending.map(p => ({ uid: p.uid, zone: p.zone })), moves: ui.moves.slice(), general: ui.genZone }); ui.sel = null; ui.moveSel = null; ui.genMode = false; }
-    else if (a === 'gen') {
-      if (ui.genZone !== null) ui.genZone = null;
-      else if (myGen().needsZone) ui.genMode = !ui.genMode;
-      else ui.genZone = 0;
+      ui.ctrl.submit({ cards: ui.pending.map(p => ({ uid: p.uid, zone: p.zone })), moves: ui.moves.slice(), general: ui.genZone }); ui.sel = null; ui.moveSel = null; }
+    // Activer le général (ou l'annuler) depuis sa carte en grand.
+    else if (a === 'zgen') {
+      if (!canPlay()) return;
+      ui.genZone = ds.zone === undefined ? null : +ds.zone; ui.sheet = null; ui.zoom = null;
       ui.sel = null; ui.moveSel = null; ui.msg = '';
       // Le coût du général passe avant les cartes : on retire les dernières cartes posées s'il manque des sceaux.
       while (ui.genZone !== null && sealsLeft() < 0 && ui.pending.length) ui.pending.pop();
-      render(); }
+      play(ui.genZone === null ? 'unplace' : 'place'); render(); }
     else if (a === 'again') { ui.rematchAsked = true; ui.soloReward = null; ui.ctrl.rematch(); render(); }
     else if (a === 'quit') quit();
     else if (a === 'mute') { setMuted(!isMuted()); render(); }
@@ -968,19 +1005,19 @@ app.addEventListener('click', e => {
   if (ds.step !== undefined) { const i = +ds.step; if (stepOpen(ui.edit, i)) { ui.deckStep = i; ui.msg = ''; render(); } return; }
   if (ds.hand) { const uid = +ds.hand; ui.focus = { kind: 'card', id: ds.id };
     // La carte s'affiche en grand ; en planification elle reste sélectionnée pour être posée en touchant une zone.
-    if (canPlay()) { ui.sel = uid; ui.genMode = false; ui.moveSel = null; ui.msg = ''; play('pick'); }
+    if (canPlay()) { ui.sel = uid; ui.moveSel = null; ui.msg = ''; play('pick'); }
     openZoom({ kind: 'card', id: ds.id, uid }); render(); return; }
   if (ds.card) {
-    if (ds.pending && canPlay() && ui.sel === null && !ui.genMode && ui.moveSel === null) { ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; openZoom({ kind: 'card', id: ds.id, uid: +ds.card }); render(); return; }
-    if (ds.mobile && canPlay() && ui.sel === null && !ui.genMode && (ui.moveSel === null || ui.moveSel === +ds.card)) {
+    if (ds.pending && canPlay() && ui.sel === null && ui.moveSel === null) { ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; openZoom({ kind: 'card', id: ds.id, uid: +ds.card }); render(); return; }
+    if (ds.mobile && canPlay() && ui.sel === null && (ui.moveSel === null || ui.moveSel === +ds.card)) {
       const uid = +ds.card; ui.focus = { kind: 'card', id: ds.id }; ui.msg = '';
       // Sélectionnée pour un déplacement : toucher ensuite une zone la déplace, comme avant.
       if (!moveOf(uid)) { ui.moveSel = uid; play('pick'); }
       openZoom({ kind: 'card', id: ds.id, uid }); render(); return; }
-    if (ds.id && ui.sel === null && !ui.genMode && ui.moveSel === null) { ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; openZoom({ kind: 'card', id: ds.id, uid: +ds.card }); render(); return; }
+    if (ds.id && ui.sel === null && ui.moveSel === null) { ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; openZoom({ kind: 'card', id: ds.id, uid: +ds.card }); render(); return; }
   }
-  if (ds.terrain && ui.sel === null && !ui.genMode && ui.moveSel === null) { ui.focus = { kind: 'terrain', id: ds.terrain }; ui.msg = ''; openZoom({ kind: 'terrain', id: ds.terrain }); render(); return; }
-  if (ds.general) { ui.focus = { kind: 'general', id: ds.general }; ui.msg = ''; openZoom({ kind: 'general', id: ds.general }); render(); return; }
+  if (ds.terrain && ui.sel === null && ui.moveSel === null) { ui.focus = { kind: 'terrain', id: ds.terrain }; ui.msg = ''; openZoom({ kind: 'terrain', id: ds.terrain }); render(); return; }
+  if (ds.general) { ui.focus = { kind: 'general', id: ds.general }; ui.msg = ''; openZoom({ kind: 'general', id: ds.general, mine: ds.side === 'me', side: ds.side }); render(); return; }
   const zone = t.closest('[data-z]'); if (zone) tryPlace(+zone.dataset.z);
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.sheet) { if (ui.sheet === 'inbox') closeInbox(); ui.sheet = null; ui.zoom = null; render(); } });
