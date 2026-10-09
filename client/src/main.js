@@ -320,10 +320,10 @@ function tempoHTML(seals) {
     const cls = i >= seals ? 'spent' : i >= seals - selCost ? 'cost' : '';
     tokens += `<span class="tok ${cls}"></span>`;
   }
-  const last = v.turn === v.turns;
-  return `<div class="tempo ${last ? 'last' : ''}">
-    <div class="tturn"><span class="tl">${last ? 'Dernier tour' : 'Tour'}</span><b class="num">${v.turn}<small>/${v.turns}</small></b><span class="pips" aria-hidden="true">${pips}</span></div>
-    <div class="tseals" aria-label="Sceaux restants : ${seals} sur ${total}"><span class="tl">Sceaux</span><span class="toks" aria-hidden="true">${tokens}</span><b class="num">${seals}<small>/${total}</small></b></div></div>`;
+  // Tour puis sceaux, chacun sur deux lignes (titre et nombre, puis points ou jetons) pour tenir en largeur de téléphone.
+  return `<div class="tempo ${v.turn === v.turns ? 'last' : ''}">
+    <div class="tturn"><div class="th"><span class="tl">Tour</span><b class="num">${v.turn}<small>/${v.turns}</small></b></div><span class="pips" aria-hidden="true">${pips}</span></div>
+    <div class="tseals" aria-label="Sceaux restants : ${seals} sur ${total}"><div class="th"><span class="tl">Sceaux</span><b class="num">${seals}<small>/${total}</small></b></div><span class="toks ${total > 7 ? 'many' : ''}" aria-hidden="true">${tokens}</span></div></div>`;
 }
 function renderGame() {
   const v = ui.view, m = v.me, f = v.foe, g = GENERALS[m.general];
