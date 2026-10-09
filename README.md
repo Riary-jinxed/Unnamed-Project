@@ -7,9 +7,9 @@ Cette version sert à tester le jeu entre amis : une appli web installable sur t
 
 | Dossier | Rôle |
 | --- | --- |
-| `packages/engine` | Le moteur de règles et le set 1 (5 familles, 60 cartes, 12 généraux, 15 terrains, 5 decks de départ). Il ne dépend de rien. |
-| `server` | Le serveur de parties : salons à code, règles appliquées côté serveur, cartes cachées jamais envoyées à l'adversaire. Il sert aussi l'appli compilée. |
-| `client` | L'appli web (PWA) : accueil, salon, plateau, partie contre l'IA. |
+| `packages/engine` | Le moteur de règles et le set 1 (5 familles, 60 cartes, 12 généraux, 15 terrains, 5 decks de départ). `collection.js` : deck de départ, booster quotidien, règles de deck. Il ne dépend de rien. |
+| `server` | Le serveur de parties et des comptes : salons à code, règles appliquées côté serveur, cartes cachées jamais envoyées à l'adversaire, API des comptes. Il sert aussi l'appli compilée. |
+| `client` | L'appli web (PWA) : connexion, collection, deck, booster, salon, plateau, partie contre l'IA. Plus la page `/admin` des comptes. |
 
 Les cartes se modifient dans `packages/engine/src/engine.js` (objets `CARDS`, `GENERALS`, `TERRAINS`, `DECKS`).
 
@@ -24,6 +24,7 @@ npm run dev
 
 - Appli : http://localhost:5173 (sur le même Wi-Fi, un téléphone peut ouvrir `http://<ip-de-l-ordinateur>:5173`)
 - Serveur de parties : port 8787
+- Comptes : sans `DATABASE_URL`, ils sont rangés dans `server/data/comptes.json`. Lancez le serveur avec `ADMIN_KEY=un-secret npm run dev` pour ouvrir http://localhost:5173/admin.html et créer des comptes.
 
 Version de production en local :
 
@@ -49,16 +50,28 @@ Le plus simple est [Render](https://render.com), en offre gratuite :
 
 Sur l'offre gratuite, le serveur s'endort après 15 minutes sans visite : la première connexion prend alors environ 30 secondes.
 
+### Comptes et base de données
+
+Le disque d'un service Render gratuit est effacé à chaque déploiement : les comptes et collections sont donc rangés dans une base PostgreSQL externe et gratuite.
+
+1. Créez une base sur [Neon](https://neon.tech) (offre gratuite, sans expiration) et copiez sa chaîne de connexion (`postgresql://…?sslmode=require`). Supabase marche aussi. Évitez la base PostgreSQL gratuite de Render : elle est supprimée au bout de 30 jours.
+2. Sur Render, dans le service, onglet « Environment » : ajoutez `DATABASE_URL` avec cette chaîne. Vérifiez qu'`ADMIN_KEY` existe (sinon ajoutez-la avec un long mot de passe) et notez sa valeur.
+3. Ouvrez `https://<votre-adresse>/admin`, entrez `ADMIN_KEY`, puis créez un compte par joueur (identifiant, pseudo, mot de passe) et communiquez-leur.
+
+La table `comptes` est créée toute seule au premier démarrage. Sans `DATABASE_URL`, le serveur écrit dans un fichier local et l'indique dans ses journaux.
+
 ## Jouer
 
+- **Se connecter** avec l'identifiant et le mot de passe donnés par l'administrateur (pas d'inscription).
+- À la première connexion, **choisir son deck de départ** : Grande Horde (Gobelin), Vents sylvestres (Elfe) ou Pacte infernal (Démon). Ses 15 cartes forment la collection. Le choix est définitif.
+- **Booster du jour** : 5 cartes tirées parmi les 60 du set, toutes avec la même chance, une fois par jour (minuit, heure de Paris).
+- **Modifier le deck** : 15 cartes différentes de la collection, 5 terrains et un général. Généraux et terrains accessibles : les neutres et ceux de la famille de départ. C'est ce deck qui est joué, en ligne comme contre l'IA.
 - **Créer une partie** donne un code de 4 lettres et un lien à envoyer.
 - **Rejoindre** avec ce code : la partie démarre aussitôt.
-- Avant de jouer, choisissez un deck de départ et, si vous voulez, un autre général : le deck n'est pas limité à la famille du général.
 - Pendant votre tour, une créature marquée ⇄ (Déplaçable) peut changer de zone : touchez-la, puis touchez la zone d'arrivée.
 - Une page rechargée ou une connexion perdue reprend la partie automatiquement.
 
 ## Prochaines étapes prévues
 
-- Comptes et collections avec Supabase (connexion, cartes possédées, boosters).
-- Construction de deck libre à partir de la collection.
+- Inscription libre, plusieurs decks par joueur, échanges ou recyclage des doublons.
 - Publication sur les stores avec Capacitor.

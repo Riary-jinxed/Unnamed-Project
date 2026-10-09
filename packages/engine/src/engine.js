@@ -255,14 +255,15 @@ const vb = (p, il, vous) => `⟦${p}|${il}|${vous}⟧`;
 
 // ---- État ----
 // opts.generals = [général du joueur 0, général du joueur 1] pour remplacer le général par défaut du deck.
+// Un deck est soit la clé d'un deck préconstruit, soit un objet { name, cards, terrains, general } (deck d'un joueur).
 export function newGame(deck0, deck1, names = ['Joueur 1', 'Joueur 2'], opts = {}) {
   let uid = 1;
   const gens = opts.generals || [];
   const mk = (p, key) => {
-    const d = DECKS[key];
+    const d = typeof key === 'string' ? DECKS[key] : key;
     const pool = shuffle(d.terrains), zones = shuffle([0, 1, 2]);
     return {
-      name: names[p], deckKey: key, general: GENERALS[gens[p]] ? gens[p] : d.general, generalUsed: false,
+      name: names[p], deckKey: typeof key === 'string' ? key : null, deckName: d.name, general: GENERALS[gens[p]] ? gens[p] : d.general, generalUsed: false,
       deck: shuffle(d.cards).map(id => ({ uid: uid++, id, owner: p, zone: -1, buff: 0, revealed: false })),
       hand: [], discard: [], terrainPlan: pool.slice(0, 3).map((t, i) => ({ t, z: zones[i], turn: i + 1 })),
       terrains: [null, null, null], board: [[], [], []], zoneBonus: [0, 0, 0],
@@ -585,7 +586,7 @@ export function viewFor(st, seat, extra = {}) {
     const P = st.p[p];
     const g = GENERALS[P.general];
     return {
-      name: P.name, deckKey: P.deckKey, general: P.general, generalUsed: P.generalUsed,
+      name: P.name, deckKey: P.deckKey, deckName: P.deckName, general: P.general, generalUsed: P.generalUsed,
       hand: isMe ? P.hand.map(c => ({ uid: c.uid, id: c.id, cost: costOf(st, c), power: CARDS[c.id].power + c.buff })) : undefined,
       handCount: P.hand.length, deckCount: P.deck.length, seals: P.seals,
       treasure: P.treasure, perfectTurns: P.perfectTurns,

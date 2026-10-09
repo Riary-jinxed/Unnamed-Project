@@ -6,7 +6,10 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { WebSocketServer } from 'ws';
-import { DECKS, GENERALS, newGame, startTurn, runTurn, viewFor, pick } from '@jeu/engine';
+import { newGame, startTurn, runTurn, viewFor } from '@jeu/engine';
+import { deckError } from '@jeu/engine/collection';
+import { openStore } from './store.js';
+import { createAccounts, apiHandler } from './accounts.js';
 
 const PORT = +process.env.PORT || 8787;
 const DIST = fileURLToPath(new URL('../../client/dist/', import.meta.url));
@@ -14,10 +17,15 @@ const ROOM_TTL_MS = 2 * 60 * 60 * 1000;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.ico': 'image/x-icon' };
 
-// ---- Fichiers statiques ----
+const accounts = createAccounts(await openStore());
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '');
+
+// ---- API et fichiers statiques ----
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/health') { res.end('ok'); return; }
+  if (await api(req, res, url)) return;
+  if (url.pathname === '/admin') url.pathname = '/admin.html';
   let path = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, '');
   if (path.includes('..')) { res.writeHead(400); res.end(); return; }
   for (const candidate of [path || 'index.html', 'index.html']) {
@@ -46,9 +54,10 @@ function broadcast(room, flash = null) {
 function lobby(room) {
   room.seats.forEach((s, i) => s && send(s.ws, { t: 'lobby', room: room.code, seat: i, token: s.token, names: room.seats.map(x => x && x.name) }));
 }
+// Chaque joueur joue le deck enregistré sur son compte au moment où la partie (ou la revanche) commence.
 function startMatch(room) {
-  const decks = room.seats.map(s => (DECKS[s.deck] ? s.deck : pick(Object.keys(DECKS))));
-  room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: room.seats.map(s => s.general) });
+  const decks = room.seats.map(s => accounts.byToken(s.auth)?.deck || s.deck);
+  room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => d.general) });
   startTurn(room.st); room.st.phase = 'plan';
   room.plans = [null, null]; room.rematch = [false, false];
   broadcast(room);
@@ -61,19 +70,27 @@ async function resolve(room) {
   broadcast(room);
 }
 
-const generalOf = msg => (GENERALS[msg.general] ? msg.general : null);
+// Un joueur entre dans un salon avec son compte et le deck qui y est enregistré.
+function seatFor(ws, msg) {
+  const acc = accounts.byToken(msg.auth);
+  if (!acc) { send(ws, { t: 'error', msg: 'Session expirée : reconnectez-vous.' }); return null; }
+  const err = acc.deck ? deckError(acc.deck, acc) : 'Choisissez d\'abord votre deck de départ.';
+  if (err) { send(ws, { t: 'error', msg: err }); return null; }
+  return { name: acc.name, auth: msg.auth, deck: acc.deck, token: randomBytes(12).toString('hex'), ws };
+}
 function handle(ws, msg) {
-  const name = String(msg.name || 'Joueur').slice(0, 20);
   if (msg.t === 'create') {
+    const seat = seatFor(ws, msg); if (!seat) return;
     const room = { code: newCode(), seats: [null, null], plans: [null, null], st: null, busy: false, lastActive: Date.now() };
-    room.seats[0] = { name, deck: msg.deck, general: generalOf(msg), token: randomBytes(12).toString('hex'), ws };
+    room.seats[0] = seat;
     rooms.set(room.code, room); ws.room = room; ws.seat = 0; lobby(room); return;
   }
   if (msg.t === 'join') {
     const room = rooms.get(String(msg.room || '').toUpperCase());
     if (!room) return send(ws, { t: 'error', msg: 'Aucune partie avec ce code.' });
     if (room.seats[1]) return send(ws, { t: 'error', msg: 'Cette partie est déjà complète.' });
-    room.seats[1] = { name, deck: msg.deck, general: generalOf(msg), token: randomBytes(12).toString('hex'), ws };
+    const seat = seatFor(ws, msg); if (!seat) return;
+    room.seats[1] = seat;
     ws.room = room; ws.seat = 1; lobby(room); startMatch(room); return;
   }
   if (msg.t === 'rejoin') {
@@ -95,7 +112,6 @@ function handle(ws, msg) {
   if (msg.t === 'rematch') {
     if (!room.st || !room.st.over) return;
     room.rematch[ws.seat] = true;
-    if (msg.deck && DECKS[msg.deck]) { room.seats[ws.seat].deck = msg.deck; room.seats[ws.seat].general = generalOf(msg); }
     if (room.rematch[0] && room.rematch[1]) startMatch(room); else broadcast(room);
     return;
   }

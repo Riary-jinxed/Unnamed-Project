@@ -1,6 +1,8 @@
-// Appli web : accueil, salon en ligne, partie (en ligne ou contre l'IA).
+// Appli web : connexion, collection et deck, accueil, salon en ligne, partie (en ligne ou contre l'IA).
 import './style.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
+import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, BOOSTER_POOL, allowedGenerals, allowedTerrains, deckError } from '@jeu/engine/collection';
+import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
 import { hasArt, artVar } from './art.js';
@@ -19,9 +21,9 @@ const store = {
 };
 
 const params = new URLSearchParams(location.search);
-const savedDeck = store.get('deck', 'ange'), savedGen = store.get('general', '');
 const ui = {
-  screen: 'home', name: store.get('name', ''), deck: DECKS[savedDeck] ? savedDeck : 'ange', general: GENERALS[savedGen] ? savedGen : '', joinCode: (params.get('code') || '').toUpperCase(),
+  screen: 'loading', auth: store.get('auth', null), account: null, loginId: '', loginPass: '', starterPick: null, busy: false,
+  booster: null, edit: null, colFam: '', joinCode: (params.get('code') || '').toUpperCase(),
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, genMode: false, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
   drag: null, fx: null, zoom: null,
@@ -43,21 +45,71 @@ const handlers = {
     render();
   },
   onError(msg) { ui.error = msg; render(); },
-  onGone() { store.set('session', null); ui.screen = 'home'; ui.error = 'La partie a expiré.'; ui.ctrl = null; render(); },
-  onLeft() { store.set('session', null); ui.screen = 'home'; ui.error = 'Votre adversaire a quitté la partie.'; ui.ctrl = null; render(); },
+  onGone() { store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.error = 'La partie a expiré.'; ui.ctrl = null; render(); },
+  onLeft() { store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.error = 'Votre adversaire a quitté la partie.'; ui.ctrl = null; render(); },
 };
+// On joue toujours le deck enregistré sur le compte.
+function deckReady() {
+  const err = deckError(ui.account.deck, ui.account);
+  if (err) { ui.error = `Votre deck n'est pas jouable : ${err}`; render(); }
+  return !err;
+}
 function goOnline(action) {
-  const name = ui.name.trim() || 'Joueur';
-  store.set('name', name); store.set('deck', ui.deck); store.set('general', ui.general);
+  if (!deckReady()) return;
   ui.mode = 'online'; ui.error = '';
-  const general = ui.general || null;
-  ui.ctrl = connectOnline(handlers, action === 'create' ? { t: 'create', name, deck: ui.deck, general } : { t: 'join', room: ui.joinCode, name, deck: ui.deck, general });
+  ui.ctrl = connectOnline(handlers, action === 'create' ? { t: 'create', auth: ui.auth } : { t: 'join', room: ui.joinCode, auth: ui.auth });
 }
 function goSolo() {
-  const name = ui.name.trim() || 'Joueur';
-  store.set('name', name); store.set('deck', ui.deck); store.set('general', ui.general);
+  if (!deckReady()) return;
   ui.mode = 'solo'; ui.sheet = null; ui.lastTurn = 0;
-  ui.ctrl = startSolo(handlers, { name, deck: ui.deck, general: ui.general || null });
+  ui.ctrl = startSolo(handlers, { name: ui.account.name, deck: ui.account.deck });
+}
+
+// ---- Compte ----
+const MENU = ['loading', 'login', 'starter'];
+// Écran d'accueil selon l'état du compte (en dehors d'une partie).
+const menuScreen = () => (ui.account ? (ui.account.starter ? 'home' : 'starter') : ui.auth ? 'loading' : 'login');
+function setAccount(a) {
+  ui.account = a;
+  if (MENU.includes(ui.screen)) ui.screen = a.starter ? 'home' : 'starter';
+}
+function signedOut(msg = '') {
+  store.set('auth', null); ui.auth = null; ui.account = null; ui.screen = 'login'; ui.error = msg; ui.busy = false;
+}
+// Appel à l'API avec la session du joueur ; une session expirée renvoie à l'écran de connexion.
+async function call(method, path, body) {
+  ui.busy = true; ui.error = ''; render();
+  try { const r = await api(method, path, body, ui.auth); if (r.account) setAccount(r.account); return r; }
+  catch (e) { if (e.status === 401) signedOut(e.message); else ui.error = e.message; return null; }
+  finally { ui.busy = false; render(); }
+}
+async function boot() {
+  if (!ui.auth) { signedOut(); render(); return; }
+  await call('GET', '/api/me');
+}
+async function doLogin() {
+  ui.busy = true; ui.error = ''; render();
+  try {
+    const r = await api('POST', '/api/login', { login: ui.loginId, password: ui.loginPass });
+    store.set('auth', r.token); ui.auth = r.token; ui.loginPass = ''; setAccount(r.account);
+  } catch (e) { ui.error = e.message; }
+  ui.busy = false; render();
+}
+function doLogout() {
+  const token = ui.auth; signedOut(); render();
+  api('POST', '/api/logout', {}, token).catch(() => {});
+}
+async function openBoosterNow() {
+  const r = await call('POST', '/api/booster');
+  if (r) { ui.booster = r; ui.sheet = 'booster'; play('reveal'); render(); }
+}
+function editDeck() {
+  const d = ui.account.deck;
+  ui.edit = { name: d.name, cards: d.cards.slice(), terrains: d.terrains.slice(), general: d.general };
+  ui.screen = 'deck'; ui.error = ''; ui.msg = '';
+}
+async function saveDeck() {
+  if (await call('PUT', '/api/deck', ui.edit)) { ui.edit = null; ui.screen = 'home'; render(); }
 }
 
 // ---- Calculs locaux pendant la planification ----
@@ -119,7 +171,7 @@ function infoHTML() {
 }
 function pbar(side, isMe, connected) {
   const g = GENERALS[side.general];
-  return `<div class="pbar ${isMe ? 'me' : 'foe'}"><span class="who">${isMe ? 'Vous' : esc(side.name)} · ${DECKS[side.deckKey].name}</span>
+  return `<div class="pbar ${isMe ? 'me' : 'foe'}"><span class="who">${isMe ? 'Vous' : esc(side.name)} · ${esc(side.deckName)}</span>
     ${!isMe && ui.mode === 'online' ? `<span class="dot ${connected ? '' : 'off'}" title="${connected ? 'Connecté' : 'Déconnecté'}"></span>` : ''}
     <button class="chip ${g.activate && side.generalUsed ? 'used' : ''}" data-general="${side.general}">${g.name}</button>
     <span class="num">Main ${side.handCount}</span><span class="num">Deck ${side.deckCount}</span>
@@ -167,26 +219,59 @@ function renderGame() {
     <button class="btn primary grow" data-act="go" ${play ? '' : 'disabled'}>${goLabel}</button>
   </div>`;
 }
-function deckPicker() {
-  return `<div class="decks">${Object.keys(DECKS).map(k => { const d = DECKS[k], g = GENERALS[d.general];
-    return `<button class="deckopt ${ui.deck === k ? 'sel' : ''}" data-deck="${k}"><span class="eyebrow">${d.fam}</span><h3>${d.name}</h3>
-      <small>Général conseillé : ${g.name}</small></button>`; }).join('')}</div>`;
+// ---- Écrans du compte : connexion, deck de départ, accueil, collection, deck ----
+const errLine = () => (ui.error ? `<p class="err" role="alert">${esc(ui.error)}</p>` : '');
+const owned = id => (ui.account && ui.account.cards[id]) || 0;
+const famOfCard = id => CARDS[id].kw.find(k => FAMILIES.includes(k)) || null;
+// Ordre d'affichage : famille du set, puis coût, puis nom.
+const byFamCost = (a, b) => [...FAMILIES, null].indexOf(famOfCard(a)) - [...FAMILIES, null].indexOf(famOfCard(b)) || CARDS[a].cost - CARDS[b].cost || CARDS[a].name.localeCompare(CARDS[b].name);
+function renderLoading() {
+  return `<div class="top"><span class="title">Jeu de cartes</span></div>
+  <div class="card-box">${ui.error ? `${errLine()}<div class="row"><button class="btn primary" data-act="retry">Réessayer</button><button class="btn" data-act="logout">Changer de compte</button></div>` : '<p class="wait">Connexion…</p>'}</div>`;
 }
-function generalPicker() {
-  const def = DECKS[ui.deck].general, cur = GENERALS[ui.general || def];
-  const opt = k => `<option value="${k}" ${ui.general === k ? 'selected' : ''}>${GENERALS[k].name} (${GENERALS[k].fam || 'générique'})</option>`;
-  return `<div class="field genbox"><label class="eyebrow" for="general">Votre général</label>
-    <select id="general"><option value="" ${ui.general ? '' : 'selected'}>Général conseillé : ${GENERALS[def].name}</option>${Object.keys(GENERALS).map(opt).join('')}</select>
-    <small>${cur.kind} : ${cur.text}</small></div>`;
+function renderLogin() {
+  return `<div class="top"><span class="title">Jeu de cartes</span>${muteBtn()}</div>
+  <form class="card-box" id="login-form">
+    <h2 style="font-size:22px">Connexion</h2>
+    <p class="hint" style="margin:0">Utilisez l'identifiant et le mot de passe qu'on vous a donnés.</p>
+    <div class="field"><label class="eyebrow" for="login-id">Identifiant</label><input id="login-id" autocomplete="username" autocapitalize="none" spellcheck="false" value="${esc(ui.loginId)}"></div>
+    <div class="field"><label class="eyebrow" for="login-pass">Mot de passe</label><input id="login-pass" type="password" autocomplete="current-password" value="${esc(ui.loginPass)}"></div>
+    ${errLine()}
+    <div class="row"><button class="btn primary" type="submit" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'Connexion…' : 'Se connecter'}</button></div>
+  </form>`;
+}
+function renderStarter() {
+  const opts = STARTERS.map(k => { const d = DECKS[k];
+    const gens = allowedGenerals(k).filter(g => GENERALS[g].fam).map(g => GENERALS[g].name).join(', ');
+    return `<button class="deckopt ${ui.starterPick === k ? 'sel' : ''}" data-starter="${k}" style="${famVar([d.fam])}" aria-pressed="${ui.starterPick === k}">
+      <span class="eyebrow">${d.fam}</span><h3>${d.name}</h3><small>Généraux : ${gens}, plus les généraux neutres.</small></button>`; }).join('');
+  return `<div class="top"><span class="title">Bienvenue, ${esc(ui.account.name)}</span><button class="btn" data-act="set">Voir les cartes</button><button class="btn" data-act="logout">Se déconnecter</button></div>
+  <div class="setup">
+    <p>Choisissez votre deck de départ. Ses ${DECK_SIZE} cartes forment votre collection ; le booster quotidien l'agrandit ensuite. Vos généraux et terrains sont les neutres et ceux de cette famille. Ce choix est définitif.</p>
+    <div class="decks starters">${opts}</div>
+    ${errLine()}
+    <div class="row"><button class="btn primary" data-act="starter" ${ui.starterPick && !ui.busy ? '' : 'disabled'}>${ui.starterPick ? `Prendre ${DECKS[ui.starterPick].name}` : 'Choisissez un deck'}</button></div>
+  </div>`;
 }
 function renderHome() {
+  const a = ui.account, d = a.deck, g = GENERALS[d.general];
+  const total = BOOSTER_POOL.filter(owned).length;
+  const deckErr = deckError(d, a);
   return `
-  <div class="top"><span class="title">Jeu de cartes</span>${muteBtn()}<button class="btn" data-act="set">Voir les cartes</button></div>
+  <div class="top"><span class="title">Jeu de cartes</span>${muteBtn()}<button class="btn" data-act="set">Voir les cartes</button><button class="btn" data-act="logout">Se déconnecter</button></div>
   <div class="setup">
-    <div class="field"><label class="eyebrow" for="name">Votre pseudo</label><input id="name" maxlength="20" autocomplete="nickname" value="${esc(ui.name)}" placeholder="Votre pseudo"></div>
-    <div class="field"><span class="eyebrow">Votre deck</span>${deckPicker()}</div>
-    ${generalPicker()}
-    ${ui.error ? `<p class="err">${esc(ui.error)}</p>` : ''}
+    <div class="card-box booster ${a.boosterReady ? 'ready' : ''}">
+      <div><span class="eyebrow">Bonjour ${esc(a.name)}</span><h2 style="font-size:22px">Booster du jour</h2></div>
+      ${a.boosterReady ? `<button class="btn primary" data-act="booster" ${ui.busy ? 'disabled' : ''}>Ouvrir le booster</button>`
+        : '<p class="hint" style="margin:0">Déjà ouvert aujourd\'hui. Le prochain arrive demain à minuit.</p>'}
+    </div>
+    <div class="card-box">
+      <div><span class="eyebrow">Votre deck</span><h2 style="font-size:22px">${esc(d.name)}</h2></div>
+      <p style="margin:0">Général : <button class="chip" data-zoom="general:${d.general}">${g.name}</button> · ${d.cards.length} cartes · ${d.terrains.length} terrains</p>
+      ${deckErr ? `<p class="err" style="margin:0">${esc(deckErr)}</p>` : ''}
+      <div class="row"><button class="btn" data-act="edit">Modifier le deck</button><button class="btn" data-act="collection">Ma collection (${total}/${BOOSTER_POOL.length})</button></div>
+    </div>
+    ${errLine()}
     <div class="card-box">
       <h2 style="font-size:22px">Jouer avec un ami</h2>
       <div class="row"><button class="btn primary" data-act="create">Créer une partie</button></div>
@@ -197,6 +282,57 @@ function renderHome() {
     </div>
     <div class="row"><button class="btn" data-act="solo">Jouer contre l'IA</button></div>
   </div>`;
+}
+function renderCollection() {
+  const a = ui.account, fams = [...FAMILIES, 'Neutre'];
+  const shown = BOOSTER_POOL.filter(id => !ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam).sort(byFamCost);
+  const tile = id => { const n = owned(id);
+    return `<button class="ccard ${n ? '' : 'locked'}" data-zoom="card:${id}" aria-label="${esc(CARDS[id].name)}${n ? `, ${n} exemplaire${n > 1 ? 's' : ''}` : ', pas encore obtenue'}">
+      ${fullCard(id)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : '<span class="lock">Pas encore obtenue</span>'}</button>`; };
+  return `<div class="top"><span class="title">Ma collection</span><button class="btn" data-act="edit">Modifier le deck</button><button class="btn" data-act="home">Retour</button></div>
+  <p class="hint" style="margin:0">${BOOSTER_POOL.filter(owned).length} cartes sur ${BOOSTER_POOL.length}. Touchez une carte pour la voir en grand.</p>
+  <div class="seg famseg" role="group" aria-label="Famille"><button data-fam="" class="${ui.colFam ? '' : 'on'}">Toutes</button>${fams.map(f => `<button data-fam="${f}" class="${ui.colFam === f ? 'on' : ''}">${f}</button>`).join('')}</div>
+  <div class="gallery">${shown.map(tile).join('')}</div>
+  <div class="gal-h">Vos généraux</div><div class="gallery">${allowedGenerals(a.starter).map(genCard).join('')}</div>
+  <div class="gal-h">Vos terrains</div><div class="gallery">${allowedTerrains(a.starter).map(terrainCard).join('')}</div>`;
+}
+// Constructeur de deck : on coche les cartes de la collection, les terrains et le général.
+function renderDeck() {
+  const a = ui.account, e = ui.edit, err = deckError(e, a);
+  const row = (id, on) => { const d = CARDS[id];
+    return `<button class="pickrow ${on ? 'on' : ''}" data-pick="${id}" style="${famVar(d.kw)}" aria-pressed="${on}">
+      <span class="seal">${d.x ? 'X' : d.cost}</span><span class="pn"><b>${esc(d.name)}</b><small>${kwLine(d)} · ${d.text || 'Pas d\'effet.'}</small></span>
+      ${d.type === 'C' ? `<span class="p num">${d.power}</span>` : '<span class="p sm">Sort</span>'}</button>`; };
+  const trow = k => { const t = TERRAINS[k], on = e.terrains.includes(k);
+    return `<button class="pickrow ${on ? 'on' : ''}" data-tpick="${k}" style="${famVar([t.fam])}" aria-pressed="${on}"><span class="pn"><b>${t.name}</b><small>${t.fam || 'Neutre'} · ${t.text}</small></span></button>`; };
+  const cards = BOOSTER_POOL.filter(owned).sort(byFamCost);
+  const gens = allowedGenerals(a.starter), cur = GENERALS[e.general];
+  return `<div class="top"><span class="title">Modifier le deck</span><button class="btn" data-act="home">Annuler</button>
+    <button class="btn primary" data-act="save-deck" ${err || ui.busy ? 'disabled' : ''}>Enregistrer</button></div>
+  <div class="deckbar"><span class="num ${e.cards.length === DECK_SIZE ? 'ok' : ''}">Cartes ${e.cards.length}/${DECK_SIZE}</span><span class="num ${e.terrains.length === DECK_TERRAINS ? 'ok' : ''}">Terrains ${e.terrains.length}/${DECK_TERRAINS}</span>
+    <span class="hint">${esc(ui.msg || err || 'Deck prêt à jouer.')}</span></div>
+  ${errLine()}
+  <div class="field"><label class="eyebrow" for="deck-name">Nom du deck</label><input id="deck-name" maxlength="30" value="${esc(e.name)}"></div>
+  <div class="field genbox"><label class="eyebrow" for="deck-general">Général</label>
+    <select id="deck-general">${gens.map(k => `<option value="${k}" ${e.general === k ? 'selected' : ''}>${GENERALS[k].name} (${GENERALS[k].fam || 'neutre'})</option>`).join('')}</select>
+    <small>${cur ? `${cur.kind} : ${cur.text}` : ''}</small></div>
+  <div class="gal-h">Terrains</div><div class="picklist">${allowedTerrains(a.starter).map(trow).join('')}</div>
+  <div class="gal-h">Cartes de votre collection</div><div class="picklist">${cards.map(id => row(id, e.cards.includes(id))).join('')}</div>`;
+}
+function togglePick(id) {
+  const e = ui.edit; ui.msg = '';
+  if (e.cards.includes(id)) e.cards.splice(e.cards.indexOf(id), 1);
+  else if (e.cards.length >= DECK_SIZE) ui.msg = `Le deck est complet (${DECK_SIZE} cartes) : retirez-en une d'abord.`;
+  else if (e.cards.filter(x => x === id).length >= MAX_COPIES || owned(id) <= e.cards.filter(x => x === id).length) ui.msg = 'Déjà dans le deck.';
+  else e.cards.push(id);
+  render();
+}
+function toggleTerrain(k) {
+  const e = ui.edit; ui.msg = '';
+  if (e.terrains.includes(k)) e.terrains.splice(e.terrains.indexOf(k), 1);
+  else if (e.terrains.length >= DECK_TERRAINS) ui.msg = `Vous avez déjà ${DECK_TERRAINS} terrains : retirez-en un d'abord.`;
+  else e.terrains.push(k);
+  render();
 }
 function renderLobby() {
   const link = `${location.origin}${location.pathname}?code=${ui.room}`;
@@ -276,7 +412,13 @@ function sheetHTML() {
         ${cards.map(fullCard).join('')}${ids(TERRAINS).filter(k => TERRAINS[k].fam === fam).map(terrainCard).join('')}${tokens.map(fullCard).join('')}</div>`;
     }
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Set 1</h2><button class="btn" data-act="close">Fermer</button></div>
-      <p class="hint" style="margin:0">Le deck est libre : 15 cartes, 5 terrains et n'importe quel général. Les decks de l'accueil sont des listes de départ.</p>${h}</div></div>`;
+      <p class="hint" style="margin:0">Un deck : ${DECK_SIZE} cartes différentes de votre collection, ${DECK_TERRAINS} terrains et un général. Généraux et terrains : les neutres et ceux de la famille de votre deck de départ.</p>${h}</div></div>`;
+  }
+  if (ui.sheet === 'booster' && ui.booster) {
+    const { cards, fresh } = ui.booster;
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Booster du jour</h2><button class="btn" data-act="close">Fermer</button></div>
+      <p class="hint" style="margin:0">${cards.length} cartes ajoutées à votre collection.</p>
+      <div class="gallery">${cards.map((id, i) => `<div class="bcard" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : ''}${fullCard(id)}</div>`).join('')}</div></div></div>`;
   }
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;
@@ -292,7 +434,8 @@ function sheetHTML() {
 }
 function render() {
   const h = document.getElementById('hand'); const sx = h ? h.scrollLeft : 0;
-  const body = ui.screen === 'home' ? renderHome() : ui.screen === 'lobby' ? renderLobby() : renderGame();
+  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, deck: renderDeck, lobby: renderLobby, game: renderGame };
+  const body = screens[ui.screen]();
   app.innerHTML = body + sheetHTML();
   const h2 = document.getElementById('hand'); if (h2) h2.scrollLeft = sx;
   const lb = document.getElementById('logbox'); if (lb) lb.parentElement.scrollTop = lb.scrollHeight;
@@ -447,15 +590,18 @@ function tryPlace(z) {
 function quit() {
   if (ui.ctrl) ui.ctrl.leave();
   store.set('session', null);
-  ui.ctrl = null; ui.view = null; ui.screen = 'home'; ui.sheet = null; ui.pending = []; ui.lastTurn = 0; render();
+  ui.ctrl = null; ui.view = null; ui.screen = menuScreen(); ui.sheet = null; ui.pending = []; ui.lastTurn = 0; render();
 }
 app.addEventListener('input', e => {
-  if (e.target.id === 'name') ui.name = e.target.value;
+  if (e.target.id === 'login-id') ui.loginId = e.target.value;
+  if (e.target.id === 'login-pass') ui.loginPass = e.target.value;
+  if (e.target.id === 'deck-name' && ui.edit) ui.edit.name = e.target.value;
   if (e.target.id === 'code') { ui.joinCode = e.target.value.toUpperCase(); e.target.value = ui.joinCode; }
 });
-app.addEventListener('change', e => { if (e.target.id === 'general') { ui.general = e.target.value; render(); } });
+app.addEventListener('change', e => { if (e.target.id === 'deck-general' && ui.edit) { ui.edit.general = e.target.value; render(); } });
+app.addEventListener('submit', e => { e.preventDefault(); if (e.target.id === 'login-form' && !ui.busy) doLogin(); });
 app.addEventListener('click', e => {
-  const t = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-deck],[data-stop]');
+  const t = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-fam],[data-zoom],[data-stop]');
   if (!t) return;
   const ds = t.dataset;
   if (ds.stop && !e.target.closest('[data-act]')) return;
@@ -486,9 +632,21 @@ app.addEventListener('click', e => {
     else if (a === 'again') { ui.rematchAsked = true; ui.ctrl.rematch(); render(); }
     else if (a === 'quit') quit();
     else if (a === 'mute') { setMuted(!isMuted()); render(); }
+    else if (a === 'logout') doLogout();
+    else if (a === 'retry') boot();
+    else if (a === 'starter' && ui.starterPick && !ui.busy) call('POST', '/api/starter', { starter: ui.starterPick });
+    else if (a === 'booster' && !ui.busy) openBoosterNow();
+    else if (a === 'collection') { ui.screen = 'collection'; ui.error = ''; render(); }
+    else if (a === 'edit') { editDeck(); render(); }
+    else if (a === 'home') { ui.screen = 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
+    else if (a === 'save-deck' && !ui.busy) saveDeck();
     return;
   }
-  if (ds.deck) { ui.deck = ds.deck; render(); return; }
+  if (ds.starter) { ui.starterPick = ds.starter; render(); return; }
+  if (ds.fam !== undefined) { ui.colFam = ds.fam; render(); return; }
+  if (ds.zoom) { const [kind, id] = ds.zoom.split(':'); openZoom({ kind, id }); render(); return; }
+  if (ds.pick) { togglePick(ds.pick); return; }
+  if (ds.tpick) { toggleTerrain(ds.tpick); return; }
   if (ds.hand) { const uid = +ds.hand; ui.focus = { kind: 'card', id: ds.id };
     // La carte s'affiche en grand ; en planification elle reste sélectionnée pour être posée en touchant une zone.
     if (canPlay()) { ui.sel = uid; ui.genMode = false; ui.moveSel = null; ui.msg = ''; play('pick'); }
@@ -512,6 +670,6 @@ app.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') 
 // Reprise d'une partie en ligne après rechargement de la page
 const saved = store.get('session', null);
 if (saved && saved.room && saved.token) { ui.mode = 'online'; ui.room = saved.room; ui.ctrl = connectOnline(handlers, { t: 'rejoin', room: saved.room, token: saved.token }); }
-render();
+boot();
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register('/sw.js').catch(() => {});
