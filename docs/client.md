@@ -59,8 +59,8 @@ Un bandeau en bas de l'écran (hors partie) montre le défi reçu (Accepter, Ref
 ## Tutoriel et codex
 
 - `tutorial.js` (`startTutorial`) : partie guidée contre l'IA, sur le même modèle que `solo.js`, avec des decks, des pioches et des terrains fixés (`ME`, `FOE`) et un adversaire qui joue toujours les mêmes cartes (`FOE.plays`), pour que chaque leçon se passe comme prévu. Ni statistiques ni récompenses. Le contrôleur offre en plus `coach(ui)` (texte de l'étape et élément à mettre en valeur, affichés à la place de l'encadré d'info), `next()` (bouton Suivant) et `canSubmit(ui)` (le bouton Valider reste bloqué tant que l'étape du tour n'est pas faite). Les étapes sont dans `STEPS` ; changer une carte du tutoriel demande de relire les textes et de rejouer la partie.
-- Le tutoriel est proposé une fois par compte et par appareil, à l'accueil ou au choix du deck de départ (`localStorage` `jeu-tuto-<identifiant>`), et se relance depuis l'accueil.
-- `codex.js` : règles de base et mots-clés (Set de base et Crépuscule) avec leur effet exact et des cartes d'exemple (`CODEX`). Ouvert depuis l'accueil (`ui.sheet = 'codex'`) et depuis « Cartes » (bouton Mots-clés), donc aussi en partie. Une nouvelle mécanique s'y ajoute en même temps qu'à `KEYWORDS` (`common.js`).
+- Le tutoriel est proposé une fois par compte et par appareil, à l'accueil ou au choix du deck de départ (`localStorage` `jeu-tuto-<identifiant>`), et se relance depuis « Apprendre », dans la barre du bas de l'accueil (`ui.sheet = 'learn'`).
+- `codex.js` : règles de base et mots-clés (Set de base et Crépuscule) avec leur effet exact et des cartes d'exemple (`CODEX`). Ouvert depuis « Apprendre » sur l'accueil (`ui.sheet = 'codex'`) et depuis « Cartes » (bouton Mots-clés), donc aussi en partie. Une nouvelle mécanique s'y ajoute en même temps qu'à `KEYWORDS` (`common.js`).
 
 ## Catalogue côté appli
 
@@ -89,3 +89,5 @@ Chaque onglet séparé est une fonction (`statsTab`, `cardsTab`, `rewardsTab`) q
 ## Utilitaires partagés
 
 `common.js` : `famStyle(famille)` (variable CSS de couleur de la famille), `rich(texte)` (texte d'effet avec les mots-clés en gras) et `esc(texte)` (échappement HTML, à utiliser pour tout texte venant d'un joueur ou de l'administration : pseudo, nom de deck, carte retouchée).
+
+Accueil (`renderHome`) : en haut, le booster à ouvrir s'il y en a un, puis un bloc « Jouer » (deck joué, partie classée, contre l'IA, avec un ami : `ui.sheet = 'play-friend'` pour créer une partie ou rejoindre avec un code), puis la progression avec les missions repliables. Le reste passe par la barre du bas (`.tabbar`) : Collection, Decks, Boutique, Amis, Apprendre. La déconnexion est dans le profil.

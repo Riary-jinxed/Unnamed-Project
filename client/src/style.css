@@ -527,3 +527,27 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
 @keyframes artdrift { from { transform: scale(1); } to { transform: scale(1.06) translateY(-1%); } }
 @keyframes artfloat { 50% { transform: translateY(-1.2%); } }
 @media (prefers-reduced-motion: reduce) { .zoomart .art-decor, .zoomart .art-perso { animation: none; } }
+
+/* accueil : un bloc « Jouer », la progression, et une barre de menu en bas pour le reste */
+.home { gap: 12px; }
+.card-box.play { border-top: 3px solid var(--accent); }
+.deckline { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; text-align: left; border: 0; border-bottom: 1px solid var(--line); background: none; padding: 0 0 10px; }
+.deckline b { font-family: var(--display); font-size: 18px; }
+.deckline > :last-child { margin-left: auto; text-decoration: underline; }
+.play .rank { font-family: var(--display); font-size: 20px; }
+.btn.big { padding-block: 12px; font-size: 17px; }
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.top .chip[data-act] { font-size: 13px; padding: 4px 10px; font-weight: 600; }
+.mdetails summary { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; cursor: pointer; font-family: var(--display); font-weight: 700; font-size: 16px; list-style: none; }
+.mdetails summary::-webkit-details-marker { display: none; }
+.mdetails summary::after { content: '▾'; color: var(--muted); }
+.mdetails[open] summary::after { content: '▴'; }
+.mdetails summary small { margin-left: auto; font-family: var(--body); font-weight: 400; }
+.mdetails[open] { display: grid; gap: 10px; }
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 760px; margin-inline: auto;
+  background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.tabbar button { position: relative; border: 0; background: none; padding: 14px 2px; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.tabbar button + button { border-left: 1px solid var(--line); }
+.tabbar .badge { position: absolute; top: 4px; right: 6px; min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 11px; line-height: 18px; }
+#app:has(.tabbar) { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+#app:has(.tabbar) .fbanner { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }

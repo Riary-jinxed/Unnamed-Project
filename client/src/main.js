@@ -78,12 +78,12 @@ function deckReady() {
 }
 function goOnline(action) {
   if (!deckReady()) return;
-  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = false;
+  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = false; ui.sheet = null;
   ui.ctrl = connectOnline(handlers, action === 'create' ? { t: 'create', auth: ui.auth } : { t: 'join', room: ui.joinCode, auth: ui.auth });
 }
 // Défi accepté : on entre dans le salon réservé avec le deck choisi.
 function startFriendMatch(room, deck, foe) {
-  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = foe; ui.rankedAi = false;
+  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = foe; ui.rankedAi = false; ui.sheet = null;
   ui.ctrl = connectOnline(handlers, { t: 'join', room, auth: ui.auth, deck });
 }
 // Partie classée contre l'IA : jouée par le serveur, l'IA est plus forte à chaque palier.
@@ -237,7 +237,7 @@ const titleLabel = id => prog().cosmetics.titles.find(t => t.id === id)?.label |
 function missionsHTML() {
   const p = prog();
   if (!p.missions.length) return '';
-  return `<div class="gal-h">Missions du jour</div><div class="missions">${p.missions.map((m, i) => `<div class="mission ${m.done ? 'done' : ''}">
+  return `<div class="missions">${p.missions.map((m, i) => `<div class="mission ${m.done ? 'done' : ''}">
     <div class="row" style="justify-content:space-between;gap:8px"><span>${m.done ? '✓ ' : ''}${esc(m.label)}</span><small class="hint num">${gains(m)}</small></div>
     <div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(m.n, m.target)}%"></span></div><small class="num">${m.n}/${m.target}</small>
       ${!m.done && p.rerollsLeft ? `<button class="btn sm" data-act="reroll" data-i="${i}" ${ui.busy ? 'disabled' : ''}>Changer</button>` : ''}</div></div>`).join('')}</div>
@@ -519,54 +519,38 @@ function renderStarter() {
 }
 function renderHome() {
   const a = ui.account, d = a.deck, g = d && GENERALS[d.general], p = prog();
-  const total = OWNABLE.filter(owned).length, upgradable = OWNABLE.filter(canUpgrade).length;
+  const upgradable = OWNABLE.filter(canUpgrade).length, asks = friends.pending();
   const deckErr = d ? deckError(d, a) : 'Aucun deck.';
+  const left = p.missions.filter(m => !m.done).length;
+  // Booster du jour et boosters offerts : un seul bandeau, seulement quand il y a quelque chose à ouvrir.
+  const gift = a.boosterReady ? `<div class="card-box booster ready">
+      <div><span class="eyebrow">Bonjour ${esc(a.name)}</span><h2 style="font-size:20px">Booster du jour</h2></div>
+      <button class="btn primary" data-act="booster" ${ui.busy ? 'disabled' : ''}>Ouvrir</button></div>`
+    : p.freeBoosters ? `<div class="card-box booster ready">
+      <div><span class="eyebrow">Récompense</span><h2 style="font-size:20px">${p.freeBoosters} booster${p.freeBoosters > 1 ? 's' : ''} offert${p.freeBoosters > 1 ? 's' : ''}</h2></div>
+      <button class="btn primary" data-act="shop">Ouvrir</button></div>` : '';
+  const nav = (act, label, badge) => `<button data-act="${act}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
   return `
-  <div class="top"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button><span class="title">Jeu de cartes</span>${muteBtn()}<button class="btn" data-act="set">Voir les cartes</button><button class="btn" data-act="logout">Se déconnecter</button></div>
-  <div class="setup">
-    <div class="card-box booster ${a.boosterReady ? 'ready' : ''}">
-      <div><span class="eyebrow">Bonjour ${esc(a.name)}</span><h2 style="font-size:22px">Booster du jour</h2></div>
-      ${a.boosterReady ? `<button class="btn primary" data-act="booster" ${ui.busy ? 'disabled' : ''}>Ouvrir le booster</button>`
-        : '<p class="hint" style="margin:0">Déjà ouvert aujourd\'hui. Le prochain arrive demain à minuit.</p>'}
-    </div>
-    <div class="card-box">
-      <div class="row" style="justify-content:space-between"><span class="eyebrow">Progression${p.title ? ` · <span class="ptitle">${esc(titleLabel(p.title))}</span>` : ''}</span><button class="btn sm" data-act="profile">Succès et titres</button></div>
-      ${levelBar(p)}
-      ${p.freeBoosters ? `<div class="row"><span style="flex:1"><b>${p.freeBoosters} booster${p.freeBoosters > 1 ? 's' : ''} offert${p.freeBoosters > 1 ? 's' : ''}</b> à ouvrir dans le set de votre choix.</span><button class="btn primary" data-act="shop">Ouvrir</button></div>` : ''}
-      ${missionsHTML()}
-    </div>
-    <div class="card-box">
-      <div><span class="eyebrow">Deck joué</span><h2 style="font-size:22px">${esc(d ? d.name : 'Aucun deck')}</h2></div>
-      ${d ? `<p style="margin:0">Général : ${g ? `<button class="chip" data-zoom="general:${d.general}">${g.name}</button>` : 'à choisir'} · ${d.cards.length} cartes · ${d.terrains.length} terrains</p>` : ''}
+  <div class="top"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button><span class="title">Jeu de cartes</span>
+    <button class="chip num" data-act="shop" aria-label="${a.shards} Éclats, ouvrir la boutique">${a.shards} Éclats</button>${muteBtn()}</div>
+  <div class="setup home">
+    ${gift}
+    <div class="card-box play">
+      <button class="deckline" data-act="decks"><span class="eyebrow">Deck joué</span><b>${esc(d ? d.name : 'Aucun deck')}</b>${g ? `<small class="hint">${esc(g.name)}</small>` : ''}<span class="hint">Changer</span></button>
       ${deckErr ? `<p class="err" style="margin:0">${esc(deckErr)}</p>` : ''}
-      <div class="row"><button class="btn" data-act="decks">Mes decks (${a.decks.length}/${maxDecks()})</button><button class="btn" data-act="edit">Modifier ce deck</button><button class="btn" data-act="collection">Ma collection (${total}/${OWNABLE.length})${upgradable ? ` · ${upgradable} à améliorer` : ''}</button></div>
-    </div>
-    <div class="card-box booster">
-      <div><span class="eyebrow">Boutique</span><h2 style="font-size:22px"><span class="num">${a.shards}</span> Éclats</h2>
-        <small class="hint">Chaque doublon rapporte ${shardRate()} Éclats et ${lvInfo().essenceRate} essence de la carte, pour la faire monter de niveau.</small></div>
-      <button class="btn" data-act="shop">Ouvrir la boutique</button>
+      ${p.ranked ? `<div class="row" style="justify-content:space-between"><span class="eyebrow">Classé · ${esc(p.ranked.seasonName)}</span><button class="btn sm" data-act="ranked">Classement</button></div>
+      <div>${rankHTML(p.ranked.rank)}</div>
+      <button class="btn primary big" data-act="ranked-play">Partie classée</button>` : ''}
+      <div class="duo"><button class="btn ${p.ranked ? '' : 'primary'}" data-act="solo">Contre l'IA</button><button class="btn" data-act="play-friend">Avec un ami</button></div>
     </div>
     ${errLine()}
-    ${p.ranked ? `<div class="card-box">
-      <div class="row" style="justify-content:space-between"><span class="eyebrow">Mode classé · saison ${esc(p.ranked.seasonName)}</span><button class="btn sm" data-act="ranked">Classement</button></div>
-      <h2 style="font-size:22px">${rankHTML(p.ranked.rank)}</h2>
-      <div class="row"><button class="btn primary" data-act="ranked-play">Partie classée contre l'IA ${esc(p.ranked.ai)}</button></div>
-    </div>` : ''}
     <div class="card-box">
-      <h2 style="font-size:22px">Jouer avec un ami</h2>
-      <div class="row"><button class="btn primary" data-act="create">Créer une partie</button><button class="btn" data-act="friends">Mes amis${friends.pending() ? ` · ${friends.pending()} demande${friends.pending() > 1 ? 's' : ''}` : ''}</button></div>
-      <div class="or">ou rejoindre avec un code</div>
-      <div class="row"><div class="field" style="flex:1"><label class="eyebrow" for="code">Code de la partie</label>
-        <input id="code" maxlength="4" autocapitalize="characters" autocomplete="off" value="${esc(ui.joinCode)}" placeholder="ABCD"></div>
-        <button class="btn" data-act="join" style="align-self:end">Rejoindre</button></div>
+      <div class="row" style="justify-content:space-between"><span class="eyebrow">Progression${p.title ? ` · <span class="ptitle">${esc(titleLabel(p.title))}</span>` : ''}</span><button class="btn sm" data-act="profile">Succès</button></div>
+      ${levelBar(p)}
+      ${p.missions.length ? `<details class="mdetails" ${ui.missionsOpen ? 'open' : ''}><summary><span>Missions du jour</span><small class="hint num">${left ? `${left} à faire` : 'Toutes faites ✓'}</small></summary>${missionsHTML()}</details>` : ''}
     </div>
-    <div class="row"><button class="btn" data-act="solo">Jouer contre l'IA</button></div>
-    <div class="card-box">
-      <div><span class="eyebrow">Apprendre</span><h2 style="font-size:22px">Règles et mots-clés</h2></div>
-      <p class="hint" style="margin:0">Le tutoriel vous guide pendant une partie contre l'IA. Le codex explique chaque mot-clé des cartes.</p>
-      <div class="row"><button class="btn" data-act="tuto">Tutoriel</button><button class="btn" data-act="codex">Codex des mots-clés</button></div>
-    </div>
-  </div>`;
+  </div>
+  <nav class="tabbar" aria-label="Menu">${nav('collection', 'Collection', upgradable)}${nav('decks', 'Decks')}${nav('shop', 'Boutique')}${nav('friends', 'Amis', asks)}${nav('learn', 'Apprendre')}</nav>`;
 }
 // Cartes de récompense : on dit comment les obtenir.
 function lockLabel(id) {
@@ -721,7 +705,7 @@ function renderProfile() {
     ${st.generals.length ? `<div class="gal-h">Par général</div><div class="statlist">${st.generals.map(g => `<div class="row"><span style="flex:1">${esc(g.name)}</span><span class="num hint">${g.games} partie${g.games > 1 ? 's' : ''}</span><b class="num">${g.rate} %</b></div>`).join('')}</div>` : ''}
     ${st.recent.length ? `<div class="gal-h">Dernières parties</div><div class="statlist">${st.recent.map(r => `<div class="row"><b class="res ${r.result}">${RES[r.result]}</b><span style="flex:1">contre ${esc(r.foe)} <small class="hint">· ${esc(r.deck || '')}</small></span><small class="hint num">${new Date(r.at).toLocaleDateString('fr-FR')}</small></div>`).join('')}</div>`
       : '<p class="hint" style="margin:0">Aucune partie jouée pour l\'instant.</p>'}`;
-  return `<div class="top"><span class="title">Mon profil</span><button class="btn" data-act="home">Retour</button></div>
+  return `<div class="top"><span class="title">Mon profil</span><button class="btn" data-act="logout">Se déconnecter</button><button class="btn" data-act="home">Retour</button></div>
   ${errLine()}${ui.msg ? `<p class="hint" role="status" style="margin:0">${esc(ui.msg)}</p>` : ''}
   <div class="card-box profile">
     ${avatarHTML(a, 'big')}
@@ -869,6 +853,19 @@ function sheetHTML() {
       <div class="field"><label class="eyebrow" for="codex-q">Chercher un mot-clé</label><input id="codex-q" type="search" autocomplete="off" value="${esc(ui.codexQuery)}" placeholder="Horde, Grâce, sceaux…"></div>
       <div id="codex-list">${codexHTML(ui.codexQuery)}</div></div></div>`;
   }
+  if (ui.sheet === 'play-friend') {
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Jouer avec un ami</h2><button class="btn" data-act="close">Fermer</button></div>
+      <div class="row"><button class="btn primary" data-act="create">Créer une partie</button><button class="btn" data-act="friends">Défier un ami${friends.pending() ? ` · ${friends.pending()}` : ''}</button></div>
+      <div class="or">ou rejoindre avec un code</div>
+      <div class="row"><div class="field" style="flex:1"><label class="eyebrow" for="code">Code de la partie</label>
+        <input id="code" maxlength="4" autocapitalize="characters" autocomplete="off" value="${esc(ui.joinCode)}" placeholder="ABCD"></div>
+        <button class="btn" data-act="join" style="align-self:end">Rejoindre</button></div>${errLine()}</div></div>`;
+  }
+  if (ui.sheet === 'learn') {
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Apprendre</h2><button class="btn" data-act="close">Fermer</button></div>
+      <p class="hint" style="margin:0">Le tutoriel vous guide pendant une partie contre l'IA. Le codex explique chaque mot-clé des cartes.</p>
+      <div class="row"><button class="btn primary" data-act="tuto">Tutoriel</button><button class="btn" data-act="codex">Codex des mots-clés</button><button class="btn" data-act="set">Toutes les cartes</button></div></div></div>`;
+  }
   if (ui.sheet === 'tuto-offer') {
     return `<div class="sheet"><div class="panel" role="dialog" aria-label="Tutoriel"><h2>Première partie ?</h2>
       <p style="margin:0">Le tutoriel vous apprend les règles en quelques tours contre l'IA, avec un deck prêt à jouer. Vous pourrez le relancer depuis l'accueil.</p>
@@ -897,7 +894,7 @@ function sheetHTML() {
     const reason = renderLog(r.reason, s, ui.view.names);
     const zs = [0, 1, 2].map(z => `<div><div class="eyebrow">${ZONE_NAMES[z]}</div><b>${ui.view.me.zonePower[z]}</b> contre ${ui.view.foe.zonePower[z]}</div>`).join('');
     if (ui.mode === 'tuto') return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p><div class="zs">${zs}</div>
-      <p style="margin:0">Tutoriel terminé : vous connaissez les bases. Le codex, sur l'accueil, explique tous les autres mots-clés.</p><div class="row">
+      <p style="margin:0">Tutoriel terminé : vous connaissez les bases. Le codex, dans « Apprendre » sur l'accueil, explique tous les autres mots-clés.</p><div class="row">
       <button class="btn primary" data-act="quit">Retour à l'accueil</button><button class="btn" data-act="again">Rejouer le tutoriel</button><button class="btn" data-act="codex">Ouvrir le codex</button></div></div></div>`;
     return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p>
       <div class="zs">${zs}</div>${endRewardHTML()}<div class="row">
@@ -1123,6 +1120,8 @@ app.addEventListener('submit', e => {
   else if (e.target.id === 'name-form') saveName();
   else if (e.target.id === 'rename-form') renameDeck();
 });
+// Les missions repliées ou dépliées le restent d'un affichage à l'autre.
+app.addEventListener('toggle', e => { if (e.target.classList?.contains('mdetails')) ui.missionsOpen = e.target.open; }, true);
 app.addEventListener('click', e => {
   const t = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-frame],[data-back],[data-stop]');
   if (!t) return;
@@ -1130,6 +1129,7 @@ app.addEventListener('click', e => {
   if (ds.stop && !e.target.closest('[data-act]')) return;
   if (ds.act) {
     const a = ds.act;
+    if (a === 'friends' && ui.sheet === 'play-friend') { ui.sheet = null; ui.error = ''; }
     if (friends.click(a, ds)) return;
     if (a === 'close') closeSheet();
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
@@ -1137,7 +1137,8 @@ app.addEventListener('click', e => {
       tryPlace(+ds.zone); }
     else if (a === 'zback') { ui.pending = ui.pending.filter(p => p.uid !== ui.zoom.uid); ui.sheet = null; ui.zoom = null; ui.msg = ''; play('unplace'); render(); }
     else if (a === 'zstay') { ui.moves = ui.moves.filter(m => m.uid !== ui.zoom.uid); ui.sheet = null; ui.zoom = null; play('unplace'); render(); }
-    else if (a === 'log' || a === 'set') { ui.sheet = a; render(); }
+    else if (a === 'log' || a === 'set' || a === 'learn') { ui.sheet = a; render(); }
+    else if (a === 'play-friend') { ui.sheet = a; ui.error = ''; render(); }
     else if (a === 'create') goOnline('create');
     else if (a === 'join') { if (ui.joinCode.length !== 4) { ui.error = 'Le code fait 4 lettres.'; render(); } else goOnline('join'); }
     else if (a === 'solo') goSolo();

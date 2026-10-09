@@ -70,7 +70,7 @@ La table `comptes` est créée toute seule au premier démarrage. Sans `DATABASE
 
 ## Jouer
 
-- **Tutoriel et codex** : à la première connexion, l'appli propose un tutoriel, une partie guidée contre l'IA avec un deck prêt à jouer ; il se relance depuis l'accueil. Le codex, sur l'accueil et dans « Cartes », explique les règles et chaque mot-clé.
+- **Tutoriel et codex** : à la première connexion, l'appli propose un tutoriel, une partie guidée contre l'IA avec un deck prêt à jouer ; il se relance depuis « Apprendre », en bas de l'accueil. Le codex, dans « Apprendre » et dans « Cartes », explique les règles et chaque mot-clé.
 - **Se connecter** avec l'identifiant et le mot de passe donnés par l'administrateur (pas d'inscription).
 - À la première connexion, **choisir son deck de départ** : Grande Horde (Gobelin), Vents sylvestres (Elfe) ou Pacte infernal (Démon). Ses 15 cartes, ses 2 généraux de famille et les 2 généraux neutres forment la collection. Le choix est définitif.
 - **Généraux** : ils se collectionnent comme les cartes et sortent des boosters (quotidien, de set, cartes du jour). Un deck prend un général de sa collection ; ses terrains sont les neutres et ceux des familles dont on possède un général.
@@ -81,7 +81,7 @@ La table `comptes` est créée toute seule au premier démarrage. Sans `DATABASE
 - **Profil** : touchez votre image en haut de l'accueil. On y change son pseudo et son image de profil (recadrée en carré, réduite à 160 px et affichée en cercle), on voit les sets complétés et ses statistiques de victoire (en ligne, contre l'IA, par général, dernières parties).
 - **Mes decks** : jusqu'à 5 decks. Le deck de départ est le premier. Chaque deck se crée en trois étapes : le général, puis 5 terrains, puis 15 cartes différentes de la collection. Généraux et terrains accessibles : les neutres et ceux de la famille de départ. Un deck peut être renommé, modifié, remis à zéro ou supprimé (il en reste toujours un). Un deck incomplet est gardé mais pas jouable ; « Jouer ce deck » choisit celui qui est joué, en ligne comme contre l'IA.
 - **Niveau de compte** : les parties (10 premières du jour), les nouvelles cartes et les missions donnent de l'XP. Chaque niveau rapporte des Éclats, et tous les 5 niveaux un booster offert à ouvrir en boutique dans le set de son choix.
-- **Missions du jour** : 3 missions sur l'accueil, renouvelées à minuit ; une peut être changée par jour.
+- **Missions du jour** : 3 missions sur l'accueil (à déplier sous la progression), renouvelées à minuit ; une peut être changée par jour.
 - **Succès** (page profil) : des Éclats, des titres à afficher sous son pseudo et des cadres autour de son image.
 - **Familles et sets complétés** : chaque famille complétée dans chaque set donne une carte unique (une par famille et par set), un titre et un dos de carte (vu par l'adversaire sur vos cartes cachées) ; un set complet donne des Éclats, des boosters offerts et une carte Dieu. Tout se règle dans l'onglet « Récompenses » de `/admin` ; `npm run eco` estime le temps pour compléter un set avec les réglages par défaut.
 - **Créer une partie** donne un code de 4 lettres et un lien à envoyer.
