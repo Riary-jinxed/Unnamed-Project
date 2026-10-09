@@ -535,7 +535,6 @@ const eggs = (st, p) => mine(st, p).filter(c => CARDS[c.id].egg && !c.hatched).s
 const movedThisTurn = (st, p) => mine(st, p).filter(c => c.movedTurn === st.turn);
 const margin = (st, p, z) => zonePower(st, p, z) - zonePower(st, 1 - p, z);
 export const free = (st, p, z) => SLOTS - st.p[p].board[z].length;
-function allRevealed(st) { return [0, 1].flatMap(p => [0, 1, 2].flatMap(z => st.p[p].board[z].filter(c => c.revealed))); }
 
 // Coût actuel d'une carte (null pour un coût X).
 export function costOf(st, c) {
@@ -556,8 +555,12 @@ export function power(st, c) {
   const d = CARDS[c.id];
   let v = d.power + c.buff;
   if (d.self) v += d.self(c, st);
-  for (const s of allRevealed(st)) { const sd = CARDS[s.id]; if (sd.aura && isCreature(s)) v += sd.aura(s, c, st); }
-  for (const p of [0, 1]) {
+  // Auras des créatures révélées des deux joueurs (boucles simples : power() est appelée des milliers de fois par l'IA).
+  for (const P of st.p) for (const zone of P.board) for (const s of zone) {
+    if (!s.revealed) continue;
+    const sd = CARDS[s.id]; if (sd.aura && sd.type === 'C') v += sd.aura(s, c, st);
+  }
+  for (let p = 0; p < 2; p++) {
     const g = GENERALS[st.p[p].general]; if (g.aura) v += g.aura(p, c, st);
     const t = st.p[p].terrains[c.zone]; if (t && TERRAINS[t].aura) v += TERRAINS[t].aura(p, c, st);
   }
@@ -875,7 +878,16 @@ function finish(st) {
 }
 
 // ---- IA ----
-function clone(st) { const c = structuredClone(st); c.sim = true; c.log = []; return c; }
+// Copie profonde d'objets et de tableaux simples, en gardant les références partagées (une carte n'est copiée qu'une fois).
+function copy(v, seen) {
+  if (v === null || typeof v !== 'object') return v;
+  let c = seen.get(v); if (c) return c;
+  if (Array.isArray(v)) { c = new Array(v.length); seen.set(v, c); for (let i = 0; i < v.length; i++) c[i] = copy(v[i], seen); }
+  else { c = {}; seen.set(v, c); for (const k in v) c[k] = copy(v[k], seen); }
+  return c;
+}
+// État simulé par l'IA : sans le journal (inutile et coûteux à copier), plusieurs fois plus rapide que structuredClone.
+function clone(st) { const { log: _, ...rest } = st; const c = copy(rest, new Map()); c.sim = true; c.log = []; return c; }
 const deckHas = (P, fam) => [...P.hand, ...P.deck].some(c => hasKw(c, fam));
 function evalFor(st, p) {
   let s = 0;

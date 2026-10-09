@@ -6,13 +6,12 @@ import { DECKS, CARDS, GENERALS, TERRAINS, FAMILIES } from '@jeu/engine';
 import { STARTERS, OWNABLE } from '@jeu/engine/collection';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { statsTab } from './admin-stats.js';
+import { esc, famStyle } from './common.js';
 import { cardsTab } from './admin-cards.js';
 import { rewardsTab } from './admin-rewards.js';
 
 const app = document.getElementById('app');
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const KEY = 'jeu-admin-key';
-const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon', 'Mort-vivant': '--f-mortvivant', 'Vampire': '--f-vampire' };
 const famOf = id => (GENERALS[id] ? GENERALS[id].fam : CARDS[id].kw.find(k => FAMILIES.includes(k))) || 'Neutre';
 const nameOf = id => GENERALS[id] ? `${GENERALS[id].name} (général)` : CARDS[id].name;
 const st = {
@@ -93,7 +92,7 @@ function renderDetail() {
   for (const id of OWNABLE) (byFam[famOf(id)] ||= []).push(id);
   const collection = [...FAMILIES, 'Neutre'].filter(f => byFam[f]).map(f => {
     const ids = byFam[f], n = ids.filter(id => st.cards.has(id)).length;
-    return `<div class="famblock" style="--fam: var(${FAM[f] || '--f-neutre'})"><div class="row"><b style="margin-right:auto">${f}</b><small class="hint">${n}/${ids.length}</small>
+    return `<div class="famblock" style="${famStyle(f)}"><div class="row"><b style="margin-right:auto">${f}</b><small class="hint">${n}/${ids.length}</small>
       <button class="btn sm" type="button" data-fam-all="${f}">Tout</button><button class="btn sm" type="button" data-fam-none="${f}">Rien</button></div>
       <div class="chips">${ids.map(id => `<label class="pick ${st.cards.has(id) ? 'on' : ''} ${inDeck.has(id) ? 'lock' : ''}" title="${inDeck.has(id) ? 'Dans un deck du joueur' : ''}">
         <input type="checkbox" data-card="${id}" ${st.cards.has(id) ? 'checked' : ''} ${inDeck.has(id) ? 'disabled' : ''}>${esc(nameOf(id))}</label>`).join('')}</div></div>`;

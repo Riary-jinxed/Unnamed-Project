@@ -1,5 +1,6 @@
 // Onglet Stats de /admin : taux de victoire en JcJ et contre l'IA, par joueur et par général, et cartes les plus jouées.
-const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon', 'Mort-vivant': '--f-mortvivant', 'Vampire': '--f-vampire' };
+import { famStyle } from './common.js';
+
 const SORTS = { plays: 'Les plus jouées', best: 'Meilleur taux de victoire', worst: 'Pire taux de victoire', decks: 'Les plus mises en deck' };
 const MIN_SAMPLE = 5;
 
@@ -34,7 +35,7 @@ export function statsTab({ call, render, esc }) {
     const players = d.players.map(p => `<tr><td><b>${esc(p.name)}</b> <small class="hint">${esc(p.login)}</small></td>
       <td class="num">${p.pvp.games}</td><td class="num">${p.pvp.games ? wld(p.pvp) : '—'}</td><td class="num">${pct(p.pvp.rate, p.pvp.games)}</td>
       <td class="num">${p.pve.games}</td><td class="num">${p.pve.games ? wld(p.pve) : '—'}</td><td class="num">${pct(p.pve.rate, p.pve.games)}</td></tr>`).join('');
-    const generals = d.generals.map(g => `<tr><td><span class="fdot" style="--fam: var(${FAM[g.fam] || '--f-neutre'})"></span>${esc(g.name)}</td>
+    const generals = d.generals.map(g => `<tr><td><span class="fdot" style="${famStyle(g.fam)}"></span>${esc(g.name)}</td>
       <td class="num">${g.games}</td><td class="num">${wld(g)}</td><td class="num">${pct(g.rate, g.games)}</td></tr>`).join('');
     const cardRows = cards.map(c => `<tr><td>${esc(c.name)}</td><td class="num">${c.plays}</td><td class="num">${pct(c.playedRate, c.plays)}</td>
       <td class="num">${c.decks}</td><td class="num">${pct(c.deckRate, c.decks)}</td></tr>`).join('');

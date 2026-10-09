@@ -1,13 +1,16 @@
 // Comptes joueurs : pas d'inscription, l'administrateur crée les identifiants et les communique.
 // API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, boutique, administration.
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
+import { gzipSync } from 'node:zlib';
 import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers } from '@jeu/engine/collection';
 import { pick, CARDS, GENERALS } from '@jeu/engine';
 import { createProgress } from './progress.js';
 
 const MAX_SESSIONS = 10;
-const hashPass = (pass, salt = randomBytes(16).toString('hex')) => ({ salt, hash: scryptSync(pass, salt, 32).toString('hex') });
-const checkPass = (pass, p) => timingSafeEqual(Buffer.from(scryptSync(pass, p.salt, 32).toString('hex')), Buffer.from(p.hash));
+// scrypt en asynchrone : le calcul (volontairement lent) ne bloque pas les parties en cours pendant une connexion.
+const scryptHex = (pass, salt) => new Promise((ok, ko) => scrypt(pass, salt, 32, (e, key) => (e ? ko(e) : ok(key.toString('hex')))));
+const hashPass = async (pass, salt = randomBytes(16).toString('hex')) => ({ salt, hash: await scryptHex(pass, salt) });
+const checkPass = async (pass, p) => timingSafeEqual(Buffer.from(await scryptHex(pass, p.salt)), Buffer.from(p.hash));
 const cleanLogin = s => String(s || '').trim().toLowerCase();
 const LOGIN_RE = /^[a-z0-9._-]{2,24}$/;
 
@@ -82,11 +85,13 @@ export function createAccounts(store) {
 
   async function login({ login, password }) {
     const a = store.get(cleanLogin(login));
-    if (!a || !checkPass(String(password || ''), a.pass)) throw new HttpError(401, 'Identifiant ou mot de passe incorrect.');
+    if (!a || !(await checkPass(String(password || ''), a.pass))) throw new HttpError(401, 'Identifiant ou mot de passe incorrect.');
     if (a.disabled) throw new HttpError(403, 'Ce compte est désactivé.');
     const token = randomBytes(24).toString('hex');
-    a.tokens = [...(a.tokens || []), token].slice(-MAX_SESSIONS);
-    sessions.clear(); for (const x of store.all()) for (const t of x.tokens || []) sessions.set(t, x.login);
+    // Au-delà de MAX_SESSIONS, la plus ancienne session du compte est fermée.
+    const all = [...(a.tokens || []), token];
+    for (const t of all.slice(0, -MAX_SESSIONS)) sessions.delete(t);
+    a.tokens = all.slice(-MAX_SESSIONS); sessions.set(token, a.login);
     await store.put(a);
     return { token, account: me(a) };
   }
@@ -241,7 +246,7 @@ export function createAccounts(store) {
     if (old && create) throw new HttpError(409, 'Cet identifiant existe déjà : ouvrez le compte pour changer son mot de passe.');
     const a = old || { login, name: '', starter: null, cards: {}, shards: 0, decks: [], active: null, lastBooster: null, tokens: [], created: new Date().toISOString() };
     a.name = String(name || a.name || login).trim().slice(0, 20) || login;
-    a.pass = hashPass(String(password));
+    a.pass = await hashPass(String(password));
     if (old) { for (const t of a.tokens || []) sessions.delete(t); a.tokens = []; }
     await store.put(a);
     return { created: !old, account: adminView(a) };
@@ -374,7 +379,13 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
   return async (req, res, url) => {
     const key = `${req.method} ${url.pathname}`;
     if (!url.pathname.startsWith('/api/')) return false;
-    const json = (status, data) => { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(data)); };
+    // Les réponses un peu lourdes (catalogue, statistiques, comptes) sont compressées si le navigateur l'accepte.
+    const json = (status, data) => {
+      let body = Buffer.from(JSON.stringify(data));
+      const headers = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', vary: 'accept-encoding' };
+      if (body.length > 2048 && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) { body = gzipSync(body); headers['content-encoding'] = 'gzip'; }
+      res.writeHead(status, headers); res.end(body);
+    };
     try {
       const route = routes[key]; if (!route) throw new HttpError(404, 'Route inconnue.');
       const token = (req.headers.authorization || '').replace(/^Bearer /, '');

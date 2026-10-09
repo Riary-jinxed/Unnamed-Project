@@ -10,6 +10,7 @@
     "build": "npm run build -w @jeu/client",
     "start": "npm start -w @jeu/server",
     "sim": "node packages/engine/src/sim.js",
-    "eco": "node packages/engine/src/eco.js"
+    "eco": "node packages/engine/src/eco.js",
+    "empreinte": "node packages/engine/src/empreinte.js"
   }
 }
