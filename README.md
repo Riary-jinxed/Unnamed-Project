@@ -9,7 +9,7 @@ Cette version sert à tester le jeu entre amis : une appli web installable sur t
 | --- | --- |
 | `packages/engine` | Le moteur de règles et le set 1 (5 familles, 60 cartes, 12 généraux, 15 terrains, 5 decks de départ). `collection.js` : deck de départ, booster quotidien, règles de deck. Il ne dépend de rien. |
 | `server` | Le serveur de parties et des comptes : salons à code, règles appliquées côté serveur, cartes cachées jamais envoyées à l'adversaire, API des comptes. Il sert aussi l'appli compilée. |
-| `client` | L'appli web (PWA) : connexion, collection, deck, booster, salon, plateau, partie contre l'IA. Plus la page `/admin` des comptes. |
+| `client` | L'appli web (PWA) : connexion, collection, deck, booster, salon, plateau, partie contre l'IA. Plus la page `/admin` : comptes et réglages de la boutique. |
 
 Les cartes se modifient dans `packages/engine/src/engine.js` (objets `CARDS`, `GENERALS`, `TERRAINS`, `DECKS`).
 
@@ -24,7 +24,7 @@ npm run dev
 
 - Appli : http://localhost:5173 (sur le même Wi-Fi, un téléphone peut ouvrir `http://<ip-de-l-ordinateur>:5173`)
 - Serveur de parties : port 8787
-- Comptes : sans `DATABASE_URL`, ils sont rangés dans `server/data/comptes.json`. Lancez le serveur avec `ADMIN_KEY=un-secret npm run dev` pour ouvrir http://localhost:5173/admin.html et créer des comptes.
+- Comptes : sans `DATABASE_URL`, ils sont rangés dans `server/data/comptes.json` (et les réglages de la boutique dans `server/data/reglages.json`). Lancez le serveur avec `ADMIN_KEY=un-secret npm run dev` pour ouvrir http://localhost:5173/admin.html et créer des comptes.
 
 Version de production en local :
 
@@ -57,6 +57,10 @@ Le disque d'un service Render gratuit est effacé à chaque déploiement : les c
 1. Créez une base sur [Neon](https://neon.tech) (offre gratuite, sans expiration) et copiez sa chaîne de connexion (`postgresql://…?sslmode=require`). Supabase marche aussi. Évitez la base PostgreSQL gratuite de Render : elle est supprimée au bout de 30 jours.
 2. Sur Render, dans le service, onglet « Environment » : ajoutez `DATABASE_URL` avec cette chaîne. Vérifiez qu'`ADMIN_KEY` existe (sinon ajoutez-la avec un long mot de passe) et notez sa valeur.
 3. Ouvrez `https://<votre-adresse>/admin`, entrez `ADMIN_KEY`, puis créez un compte par joueur (identifiant, pseudo, mot de passe) et communiquez-leur.
+
+La page `/admin` permet aussi, en cliquant sur un compte : changer le pseudo, le mot de passe et les Éclats, cocher les cartes de la collection, changer le deck de départ, rendre le booster du jour, tirer de nouvelles cartes du jour en boutique, fermer les sessions, désactiver, remettre à zéro ou supprimer le compte. L'onglet « Boutique » règle les prix, le nombre de cartes par booster, les Éclats par doublon et le nombre de cartes du jour, et peut renouveler les offres de tous les joueurs. Ces réglages sont gardés dans la table `reglages` de la base.
+
+L'onglet « Stats » donne les taux de victoire en JcJ et contre l'IA (par joueur et par général) et les cartes les plus jouées ; les parties sont gardées dans la table `parties`. Les onglets « Cartes » et « Sets » modifient un brouillon : retoucher une carte (nom, coût, puissance, famille, texte), créer une carte qui reprend l'effet d'une carte existante, ranger les cartes dans des sets ouverts ou non en boutique et dans le booster quotidien. Rien ne change pour les joueurs avant « Publier dans le jeu ». Les effets restent du code dans `engine.js` : un effet vraiment nouveau se code là.
 
 La table `comptes` est créée toute seule au premier démarrage. Sans `DATABASE_URL`, le serveur écrit dans un fichier local et l'indique dans ses journaux.
 

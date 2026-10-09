@@ -4,9 +4,46 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>Administration des comptes</title>
+  <title>Administration</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&display=swap">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <style>
+    .hint { color: var(--muted); }
+    .ok { color: var(--up); }
+    .admin { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .admin th, .admin td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+    .admin th { color: var(--muted); font-weight: 500; }
+    .admin tbody tr[data-open] { cursor: pointer; }
+    .admin tbody tr[data-open]:hover, .admin tbody tr[data-open]:focus-visible { background: var(--sunk); outline: none; }
+    #app input[type=search], #app select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 7px 10px; min-width: 0; }
+    .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .btn.sm { padding: 3px 9px; font-size: 13px; }
+    .btn.bad { color: var(--down); border-color: var(--down); }
+    .chip.off { color: var(--down); border-color: var(--down); }
+    .card-box.danger { border-color: color-mix(in srgb, var(--down) 45%, var(--line)); }
+    .famblock { display: grid; gap: 6px; border-left: 4px solid var(--fam); padding-left: 10px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pick { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px 3px 6px; font-size: 13px; cursor: pointer; background: var(--surface); }
+    .pick.on { border-color: var(--fam); box-shadow: inset 0 0 0 1px var(--fam); }
+    .pick.lock { opacity: .6; cursor: default; }
+    .pick input { margin: 0; accent-color: var(--fam); }
+    #app textarea { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; resize: vertical; }
+    .seg.tabs { flex-wrap: wrap; } .top .seg.tabs { order: 3; width: 100%; } .seg.tabs button { flex: 1; }
+    .scroll { overflow-x: auto; }
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+    .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; display: grid; gap: 2px; }
+    .tile b { font-size: 26px; font-family: var(--display); }
+    .fdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--fam); margin-right: 6px; }
+    .games { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; }
+    .clist { display: grid; gap: 6px; }
+    .crow { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; text-align: left; border: 1px solid var(--line); border-left: 5px solid var(--fam); border-radius: var(--r); background: var(--surface); padding: 8px 10px; }
+    .crow:hover { background: var(--sunk); }
+    .crow .seal { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); font-weight: 700; }
+    .crow .tags { display: flex; flex-direction: column; gap: 4px; align-items: end; }
+    .chip.warn { color: var(--accent); border-color: var(--accent); }
+    .card-box.draft { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+    .check { display: inline-flex; gap: 6px; align-items: center; }
+  </style>
 </head>
 <body>
   <div id="app"></div>

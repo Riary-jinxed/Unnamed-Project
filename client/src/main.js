@@ -1,10 +1,11 @@
 // Appli web : connexion, collection et deck, accueil, salon en ligne, partie (en ligne ou contre l'IA).
 import './style.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
-import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, BOOSTER_POOL, SHARDS_PER_DUPLICATE, allowedGenerals, allowedTerrains, deckError } from '@jeu/engine/collection';
+import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, COLLECTIBLE, SHARDS_PER_DUPLICATE, allowedGenerals, allowedTerrains, deckError } from '@jeu/engine/collection';
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
+import { applyCatalog } from '@jeu/engine/catalog';
 import { hasArt, artVar } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 
@@ -45,6 +46,7 @@ const handlers = {
     render();
   },
   onError(msg) { ui.error = msg; render(); },
+  onSoloOver(result) { if (ui.auth) api('POST', '/api/games/solo', result, ui.auth).catch(() => {}); },
   onGone() { store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.error = 'La partie a expiré.'; ui.ctrl = null; render(); },
   onLeft() { store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.error = 'Votre adversaire a quitté la partie.'; ui.ctrl = null; render(); },
 };
@@ -71,6 +73,7 @@ const MENU = ['loading', 'login', 'starter'];
 const menuScreen = () => (ui.account ? (ui.account.starter ? 'home' : 'starter') : ui.auth ? 'loading' : 'login');
 function setAccount(a) {
   ui.account = a;
+  if (a.catalog !== catalogVersion) loadCatalog();
   if (MENU.includes(ui.screen)) ui.screen = a.starter ? 'home' : 'starter';
 }
 function signedOut(msg = '') {
@@ -83,7 +86,14 @@ async function call(method, path, body) {
   catch (e) { if (e.status === 401) signedOut(e.message); else ui.error = e.message; return null; }
   finally { ui.busy = false; render(); }
 }
+// Cartes et sets publiés depuis /admin : appliqués au moteur pour l'affichage et la partie contre l'IA.
+let catalogVersion = 0;
+async function loadCatalog() {
+  try { const { catalog } = await api('GET', '/api/catalog'); catalogVersion = applyCatalog(catalog); render(); }
+  catch { /* cartes d'origine en attendant */ }
+}
 async function boot() {
+  await loadCatalog();
   if (!ui.auth) { signedOut(); render(); return; }
   await call('GET', '/api/me');
 }
@@ -233,6 +243,8 @@ function renderGame() {
 // ---- Écrans du compte : connexion, deck de départ, accueil, collection, deck ----
 const errLine = () => (ui.error ? `<p class="err" role="alert">${esc(ui.error)}</p>` : '');
 const owned = id => (ui.account && ui.account.cards[id]) || 0;
+// Éclats gagnés par doublon : réglable depuis /admin, le serveur l'envoie avec le compte.
+const shardRate = () => ui.account?.shardRate ?? SHARDS_PER_DUPLICATE;
 const famOfCard = id => CARDS[id].kw.find(k => FAMILIES.includes(k)) || null;
 // Ordre d'affichage : famille du set, puis coût, puis nom.
 const byFamCost = (a, b) => [...FAMILIES, null].indexOf(famOfCard(a)) - [...FAMILIES, null].indexOf(famOfCard(b)) || CARDS[a].cost - CARDS[b].cost || CARDS[a].name.localeCompare(CARDS[b].name);
@@ -266,7 +278,7 @@ function renderStarter() {
 }
 function renderHome() {
   const a = ui.account, d = a.deck, g = GENERALS[d.general];
-  const total = BOOSTER_POOL.filter(owned).length;
+  const total = COLLECTIBLE.filter(owned).length;
   const deckErr = deckError(d, a);
   return `
   <div class="top"><span class="title">Jeu de cartes</span>${muteBtn()}<button class="btn" data-act="set">Voir les cartes</button><button class="btn" data-act="logout">Se déconnecter</button></div>
@@ -280,11 +292,11 @@ function renderHome() {
       <div><span class="eyebrow">Votre deck</span><h2 style="font-size:22px">${esc(d.name)}</h2></div>
       <p style="margin:0">Général : <button class="chip" data-zoom="general:${d.general}">${g.name}</button> · ${d.cards.length} cartes · ${d.terrains.length} terrains</p>
       ${deckErr ? `<p class="err" style="margin:0">${esc(deckErr)}</p>` : ''}
-      <div class="row"><button class="btn" data-act="edit">Modifier le deck</button><button class="btn" data-act="collection">Ma collection (${total}/${BOOSTER_POOL.length})</button></div>
+      <div class="row"><button class="btn" data-act="edit">Modifier le deck</button><button class="btn" data-act="collection">Ma collection (${total}/${COLLECTIBLE.length})</button></div>
     </div>
     <div class="card-box booster">
       <div><span class="eyebrow">Boutique</span><h2 style="font-size:22px"><span class="num">${a.shards}</span> Éclats</h2>
-        <small class="hint">Chaque doublon rapporte ${SHARDS_PER_DUPLICATE} Éclats.</small></div>
+        <small class="hint">Chaque doublon rapporte ${shardRate()} Éclats.</small></div>
       <button class="btn" data-act="shop">Ouvrir la boutique</button>
     </div>
     ${errLine()}
@@ -301,12 +313,12 @@ function renderHome() {
 }
 function renderCollection() {
   const a = ui.account, fams = [...FAMILIES, 'Neutre'];
-  const shown = BOOSTER_POOL.filter(id => !ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam).sort(byFamCost);
+  const shown = COLLECTIBLE.filter(id => !ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam).sort(byFamCost);
   const tile = id => { const n = owned(id);
     return `<button class="ccard ${n ? '' : 'locked'}" data-zoom="card:${id}" aria-label="${esc(CARDS[id].name)}${n ? `, ${n} exemplaire${n > 1 ? 's' : ''}` : ', pas encore obtenue'}">
       ${fullCard(id)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : '<span class="lock">Pas encore obtenue</span>'}</button>`; };
   return `<div class="top"><span class="title">Ma collection</span><button class="btn" data-act="edit">Modifier le deck</button><button class="btn" data-act="home">Retour</button></div>
-  <p class="hint" style="margin:0">${BOOSTER_POOL.filter(owned).length} cartes sur ${BOOSTER_POOL.length}. Touchez une carte pour la voir en grand.</p>
+  <p class="hint" style="margin:0">${COLLECTIBLE.filter(owned).length} cartes sur ${COLLECTIBLE.length}. Touchez une carte pour la voir en grand.</p>
   <div class="seg famseg" role="group" aria-label="Famille"><button data-fam="" class="${ui.colFam ? '' : 'on'}">Toutes</button>${fams.map(f => `<button data-fam="${f}" class="${ui.colFam === f ? 'on' : ''}">${f}</button>`).join('')}</div>
   <div class="gallery">${shown.map(tile).join('')}</div>
   <div class="gal-h">Vos généraux</div><div class="gallery">${allowedGenerals(a.starter).map(genCard).join('')}</div>
@@ -325,10 +337,10 @@ function renderShop() {
   };
   const section = set => set.open ? `<section class="card-box shopset">
       <div><span class="eyebrow">${set.size} cartes</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
-      <div class="gal-h">Cartes du jour</div><p class="hint" style="margin:0">Trois cartes choisies pour vous, renouvelées chaque jour à minuit.</p>
+      <div class="gal-h">Cartes du jour</div><p class="hint" style="margin:0">${set.offers.length > 1 ? `${set.offers.length} cartes choisies` : 'Une carte choisie'} pour vous, renouvelées chaque jour à minuit.</p>
       <div class="gallery">${set.offers.map(o => offer(set, o)).join('')}</div>
       <div class="gal-h">Booster du set</div>
-      <div class="row"><p class="hint" style="margin:0;flex:1">${P.boosterSize} cartes au hasard parmi les ${set.size} du set, toutes avec la même chance. Les doublons rapportent ${SHARDS_PER_DUPLICATE} Éclats chacun.</p>
+      <div class="row"><p class="hint" style="margin:0;flex:1">${P.boosterSize} cartes au hasard parmi les ${set.size} du set, toutes avec la même chance. Les doublons rapportent ${shardRate()} Éclats chacun.</p>
         <button class="btn primary" data-act="buy-booster" data-set="${set.id}" ${a.shards < P.boosterPrice || ui.busy ? 'disabled' : ''}>Acheter · ${P.boosterPrice} Éclats</button></div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
       <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`;
@@ -344,7 +356,7 @@ function renderDeck() {
       ${d.type === 'C' ? `<span class="p num">${d.power}</span>` : '<span class="p sm">Sort</span>'}</button>`; };
   const trow = k => { const t = TERRAINS[k], on = e.terrains.includes(k);
     return `<button class="pickrow ${on ? 'on' : ''}" data-tpick="${k}" style="${famVar([t.fam])}" aria-pressed="${on}"><span class="pn"><b>${t.name}</b><small>${t.fam || 'Neutre'} · ${t.text}</small></span></button>`; };
-  const cards = BOOSTER_POOL.filter(owned).sort(byFamCost);
+  const cards = COLLECTIBLE.filter(owned).sort(byFamCost);
   const gens = allowedGenerals(a.starter), cur = GENERALS[e.general];
   return `<div class="top"><span class="title">Modifier le deck</span><button class="btn" data-act="home">Annuler</button>
     <button class="btn primary" data-act="save-deck" ${err || ui.busy ? 'disabled' : ''}>Enregistrer</button></div>
@@ -458,7 +470,7 @@ function sheetHTML() {
     const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats gagnés avec les doublons` : ''].filter(Boolean).join(', ');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${esc(title)}</h2><button class="btn" data-act="close">Fermer</button></div>
       <p class="hint" style="margin:0">${sum}.</p>
-      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${SHARDS_PER_DUPLICATE} Éclats</span>`}${fullCard(id)}</div>`).join('')}</div></div></div>`;
+      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats</span>`}${fullCard(id)}</div>`).join('')}</div></div></div>`;
   }
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;

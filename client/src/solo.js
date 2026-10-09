@@ -15,6 +15,9 @@ export function startSolo(handlers, { name, deck }) {
       const ai = aiPlan(st, 1, 250);
       await runTurn(st, [plan, ai], emit, ms => new Promise(r => setTimeout(r, ms)));
       ready = false; emit(null);
+      // Fin de partie : résultat envoyé au serveur pour les statistiques.
+      if (st.over && !stopped && handlers.onSoloOver) handlers.onSoloOver({ winner: st.result.winner, reason: st.result.reason, played: st.p[0].played,
+        ai: { deckKey: st.p[1].deckKey, general: st.p[1].general, played: st.p[1].played } });
     },
     rematch: begin,
     leave() { stopped = true; },

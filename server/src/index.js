@@ -10,6 +10,8 @@ import { newGame, startTurn, runTurn, viewFor } from '@jeu/engine';
 import { deckError } from '@jeu/engine/collection';
 import { openStore } from './store.js';
 import { createAccounts, apiHandler } from './accounts.js';
+import { createGames } from './games.js';
+import { createCatalog } from './cards.js';
 
 const PORT = +process.env.PORT || 8787;
 const DIST = fileURLToPath(new URL('../../client/dist/', import.meta.url));
@@ -17,9 +19,11 @@ const ROOM_TTL_MS = 2 * 60 * 60 * 1000;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.ico': 'image/x-icon' };
 
-const accounts = createAccounts(await openStore());
+const store = await openStore();
+const accounts = createAccounts(store);
 await accounts.ready;
-const api = apiHandler(accounts, process.env.ADMIN_KEY || '');
+const catalog = createCatalog(store, accounts), games = createGames(store, accounts);
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
 const server = http.createServer(async (req, res) => {
@@ -58,6 +62,7 @@ function lobby(room) {
 // Chaque joueur joue le deck enregistré sur son compte au moment où la partie (ou la revanche) commence.
 function startMatch(room) {
   const decks = room.seats.map(s => accounts.byToken(s.auth)?.deck || s.deck);
+  room.decks = decks.map(d => d.cards);
   room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => d.general) });
   startTurn(room.st); room.st.phase = 'plan';
   room.plans = [null, null]; room.rematch = [false, false];
@@ -68,6 +73,7 @@ async function resolve(room) {
   const plans = room.plans; room.plans = [null, null];
   await runTurn(room.st, plans, flash => broadcast(room, flash), ms => new Promise(r => setTimeout(r, ms)));
   room.busy = false;
+  if (room.st.over && !room.st.recorded) { room.st.recorded = true; games.recordPvp(room.st, room.seats.map(s => s.login), room.decks); }
   broadcast(room);
 }
 
@@ -77,7 +83,7 @@ function seatFor(ws, msg) {
   if (!acc) { send(ws, { t: 'error', msg: 'Session expirée : reconnectez-vous.' }); return null; }
   const err = acc.deck ? deckError(acc.deck, acc) : 'Choisissez d\'abord votre deck de départ.';
   if (err) { send(ws, { t: 'error', msg: err }); return null; }
-  return { name: acc.name, auth: msg.auth, deck: acc.deck, token: randomBytes(12).toString('hex'), ws };
+  return { name: acc.name, login: acc.login, auth: msg.auth, deck: acc.deck, token: randomBytes(12).toString('hex'), ws };
 }
 function handle(ws, msg) {
   if (msg.t === 'create') {
