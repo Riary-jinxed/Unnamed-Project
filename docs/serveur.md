@@ -51,6 +51,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `achievements`, `completed` | Succès obtenus ; familles (`set:famille`) et sets complétés, avec leur date. |
 | `cosmetics`, `title`, `frame`, `back` | Titres, cadres et dos débloqués ; ceux qui sont portés. |
 | `inbox` | Récompenses gagnées à montrer au joueur (40 au plus), vidée quand il les a vues. |
+| `friends`, `friendsIn`, `friendsOut` | Identifiants des amis, des demandes reçues et des demandes envoyées (100 amis au plus). |
 
 Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDuplicates`, `migrateDecks`, `grantStarterGenerals`, `progress.init`) ; rien n'est jamais supprimé de la base par ces mises à niveau.
 
@@ -61,6 +62,7 @@ Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDu
 | `accounts.js` | `createAccounts(store)` : sessions, connexion, deck de départ, booster quotidien, boutique, decks, profil, administration des comptes et de la boutique. `apiHandler` : le routeur de l'API. |
 | `progress.js` | `createProgress(store)` : XP et niveaux, missions, succès, complétions, cosmétiques, réglages des récompenses. Appelé par `accounts.js` (nouvelles cartes, booster, fin de partie). |
 | `games.js` | `createGames(store, accounts)` : enregistre les parties (JcJ par le serveur, JcE envoyées par l'appli), calcule les stats de `/admin` et du profil. |
+| `friends.js` | `createFriends(store, accounts, salons)` : amis et demandes, présence (qui est connecté, qui est en partie), défis entre amis. |
 | `cards.js` | `createCatalog(store, accounts)` : brouillon du catalogue, publication (refusée si elle retire une carte qu'un joueur possède), catalogue public. |
 | `index.js` | Assemble le tout, sert les fichiers, gère les salons et les WebSockets. |
 
@@ -91,6 +93,10 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/rewards/seen` | Vide la boîte de récompenses. |
 | `PUT /api/cosmetics` | Change le titre, le cadre ou le dos de carte porté. |
 | `POST /api/games/solo` | Résultat d'une partie contre l'IA → récompenses. |
+| `GET /api/friends` | Amis (avec statut `online`, `game` ou `off`, niveau, titre, cadre, empreinte de l'image), demandes reçues et envoyées, défi en cours. |
+| `GET /api/friends/avatars` | Images de profil des amis et des demandes (l'appli ne les redemande que si leur empreinte change). |
+| `POST /api/friends/add` | Demande d'ami (`{ name }` : identifiant, ou pseudo s'il n'est porté que par un joueur). Si l'autre avait déjà demandé, vous devenez amis. |
+| `POST /api/friends/accept`, `/remove` | Accepte une demande ; refuse une demande, annule la sienne ou retire un ami (`{ login }`, des deux côtés). |
 
 **Administration** (en-tête `X-Admin-Key: <ADMIN_KEY>`, comparé en temps constant ; sans `ADMIN_KEY` sur le serveur, tout `/api/admin/` répond 503) :
 
@@ -111,7 +117,7 @@ Messages JSON, champ `t` pour le type.
 | De l'appli | Contenu | Réponse |
 | --- | --- | --- |
 | `create` | `{ auth }` (session) | `lobby` |
-| `join` | `{ room, auth }` | `lobby` aux deux, puis `state` (la partie démarre) |
+| `join` | `{ room, auth, deck? }` (`deck` : identifiant du deck à jouer, sinon le deck joué) | `lobby` aux deux, puis `state` (la partie démarre) |
 | `rejoin` | `{ room, token }` (jeton du `lobby`) | `state` ou `lobby` ; `gone` si le salon n'existe plus |
 | `plan` | `{ cards: [{ uid, zone }], moves: [{ uid, zone }], general }` | `state` (attente de l'autre, puis chaque étape de la révélation) |
 | `rematch` | | Nouvelle partie quand les deux l'ont demandée |
@@ -123,6 +129,18 @@ Messages JSON, champ `t` pour le type.
 | `state` | `{ room, view }` : `viewFor` + `flash` (carte à animer), `ready`, `names`, `connected`, `badges` (titre, cadre, dos, niveau), `avatars` (images de profil, seulement dans le premier message de la partie ou après une reconnexion), `reward` (fin de partie) |
 | `error` | `{ msg }` (session expirée, deck injouable, code inconnu, salon complet) |
 | `gone`, `left` | Salon expiré, adversaire parti |
+
+Présence et défis passent par la même adresse, sur une connexion que l'appli garde ouverte tant que le joueur est connecté :
+
+| De l'appli | Contenu | Effet |
+| --- | --- | --- |
+| `hello` | `{ auth }` | Le joueur est « en ligne » pour ses amis ; `hello` en retour, puis le défi reçu en attente s'il y en a un. `bye` si la session a expiré. |
+| `challenge` | `{ to }` (identifiant d'un ami) | `challenge` à l'ami, `challenge-sent` au joueur ; `challenge-error` si l'ami n'est pas connecté, est en partie ou a déjà un défi. |
+| `challenge-answer` | `{ id, accept }` | Refus : `challenge-gone` aux deux. Accord : salon réservé aux deux, `challenge-ready` `{ room, foe }` aux deux. |
+| `challenge-cancel` | `{ id }` | Celui qui a lancé le défi le retire. |
+| `challenge-abort` | `{ room }` | Un des deux renonce pendant le choix du deck : salon supprimé, l'autre reçoit `challenge-gone` (ou `left` s'il est déjà entré). |
+
+Le serveur envoie aussi `friends` (avec parfois `msg`) quand la liste d'un joueur change : demande reçue ou acceptée, ami qui se connecte, se déconnecte, entre en partie ou en sort. Un défi sans réponse expire au bout de 2 minutes. Un salon de défi (`invite`) garde une place à chacun des deux amis, qui y entrent avec `join` et le deck choisi ; la partie démarre quand les deux sont là, ensuite tout se passe comme dans un salon à code.
 
 Un salon (`rooms` dans `index.js`) garde ses deux sièges (compte, deck, jeton, socket), l'état de la partie `st`, les plans reçus et les demandes de revanche. Chaque joueur joue le deck enregistré sur son compte au début de chaque partie (revanche comprise). Les plans reçus sont nettoyés par `applyPlan` : une carte absente de la main, trop chère, ou posée dans une zone pleine est ignorée, de même qu'un déplacement impossible. Les salons inactifs depuis 2 heures sont supprimés chaque minute ; ils ne survivent pas à un redémarrage du serveur.
 
