@@ -7,3 +7,10 @@ services:
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /health
+    envVars:
+      # Base PostgreSQL qui garde les comptes et collections (le disque du service est effacé à chaque déploiement).
+      - key: DATABASE_URL
+        sync: false
+      # Clé de la page /admin qui sert à créer les comptes des joueurs.
+      - key: ADMIN_KEY
+        generateValue: true

@@ -4,5 +4,5 @@
   "private": true,
   "type": "module",
   "scripts": { "start": "node src/index.js", "dev": "node --watch src/index.js" },
-  "dependencies": { "@jeu/engine": "*", "ws": "^8.18.0" }
+  "dependencies": { "@jeu/engine": "*", "pg": "^8.23.1", "ws": "^8.18.0" }
 }
