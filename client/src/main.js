@@ -1,7 +1,7 @@
 // Appli web : connexion, collection et deck, accueil, salon en ligne, partie (en ligne ou contre l'IA).
 import './style.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
-import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, COLLECTIBLE, SHARDS_PER_DUPLICATE, allowedGenerals, allowedTerrains, deckError } from '@jeu/engine/collection';
+import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, SHARDS_PER_DUPLICATE, SETS, allowedGenerals, allowedTerrains, deckError } from '@jeu/engine/collection';
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
@@ -24,7 +24,7 @@ const store = {
 const params = new URLSearchParams(location.search);
 const ui = {
   screen: 'loading', auth: store.get('auth', null), account: null, loginId: '', loginPass: '', starterPick: null, busy: false,
-  booster: null, shop: null, edit: null, colFam: '', joinCode: (params.get('code') || '').toUpperCase(),
+  booster: null, shop: null, edit: null, deckStep: 0, renaming: null, profile: null, nameDraft: '', colFam: '', joinCode: (params.get('code') || '').toUpperCase(),
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, genMode: false, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
   drag: null, fx: null, zoom: null,
@@ -124,14 +124,66 @@ async function buy(path, body) {
   const r = await call('POST', path, body);
   if (r) { ui.shop = r.shop; showCards(r); }
 }
-function editDeck() {
-  const d = ui.account.deck;
-  ui.edit = { name: d.name, cards: d.cards.slice(), terrains: d.terrains.slice(), general: d.general };
+// Decks : jusqu'à MAX_DECKS. Création et modification en trois étapes : général, terrains, cartes.
+const deckById = id => ui.account.decks.find(d => d.id === id);
+const maxDecks = () => ui.account?.maxDecks ?? MAX_DECKS;
+// Étapes accessibles : les terrains une fois le général choisi, les cartes une fois les terrains choisis.
+const stepOpen = (e, i) => i === 0 || (i === 1 ? !!e.general : !!e.general && e.terrains.length === DECK_TERRAINS);
+function editDeck(id = ui.account.active, back = 'home') {
+  const d = id && deckById(id);
+  ui.edit = d ? { id: d.id, name: d.name, cards: d.cards.slice(), terrains: d.terrains.slice(), general: d.general, back }
+    : { id: null, name: `Deck ${ui.account.decks.length + 1}`, cards: [], terrains: [], general: null, back };
+  // Un deck commencé reprend à la dernière étape accessible.
+  ui.deckStep = [0, 1, 2].filter(i => stepOpen(ui.edit, i)).pop();
   ui.screen = 'deck'; ui.error = ''; ui.msg = '';
 }
 async function saveDeck() {
-  if (await call('PUT', '/api/deck', ui.edit)) { ui.edit = null; ui.screen = 'home'; render(); }
+  const e = ui.edit;
+  const r = await call('PUT', '/api/decks', { id: e.id, name: e.name, general: e.general, terrains: e.terrains, cards: e.cards });
+  if (r) { ui.screen = e.back; ui.edit = null; ui.msg = ''; render(); }
 }
+function openDecks() { ui.screen = 'decks'; ui.error = ''; ui.msg = ''; render(); }
+async function deckAction(act, id) {
+  const d = deckById(id); if (!d) return;
+  if (act === 'deck-play') call('POST', '/api/decks/play', { id });
+  else if (act === 'deck-reset' && confirm(`Remettre « ${d.name} » à zéro ? Son général, ses terrains et ses cartes seront retirés.`)) call('POST', '/api/decks/reset', { id });
+  else if (act === 'deck-delete' && confirm(`Supprimer « ${d.name} » ?`)) call('POST', '/api/decks/delete', { id });
+  else if (act === 'deck-rename') { ui.renaming = { id, name: d.name }; ui.sheet = 'rename'; render(); }
+  else if (act === 'deck-edit') { editDeck(id, 'decks'); render(); }
+}
+async function renameDeck() {
+  const r = ui.renaming; if (!r) return;
+  ui.sheet = null; ui.renaming = null;
+  await call('POST', '/api/decks/rename', r);
+}
+
+// ---- Profil ----
+function openProfile() {
+  ui.screen = 'profile'; ui.error = ''; ui.msg = ''; ui.nameDraft = ui.account.name; ui.profile = null; render();
+  call('GET', '/api/profile').then(r => { if (r) { ui.profile = r.stats; render(); } });
+}
+async function saveName() {
+  if (await call('PUT', '/api/profile', { name: ui.nameDraft })) { ui.msg = 'Pseudo enregistré.'; render(); }
+}
+// Image de profil : recadrée au centre en carré et réduite à 160 px avant l'envoi (affichée en cercle).
+const AVATAR_SIZE = 160;
+async function pickAvatar(file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { ui.error = 'Choisissez une image.'; render(); return; }
+  let url;
+  try {
+    const img = new Image(); url = URL.createObjectURL(file); img.src = url; await img.decode();
+    const side = Math.min(img.naturalWidth, img.naturalHeight), c = document.createElement('canvas');
+    c.width = c.height = AVATAR_SIZE;
+    c.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, AVATAR_SIZE, AVATAR_SIZE);
+    let data = c.toDataURL('image/webp', 0.85);
+    if (!data.startsWith('data:image/webp')) data = c.toDataURL('image/jpeg', 0.85);
+    if (await call('PUT', '/api/profile', { avatar: data })) { ui.msg = 'Image de profil changée.'; render(); }
+  } catch { ui.error = 'Impossible de lire cette image.'; render(); }
+  finally { if (url) URL.revokeObjectURL(url); }
+}
+const initials = name => (String(name || '?').trim().match(/\S/g) || ['?'])[0].toUpperCase();
+const avatarHTML = (a, cls = '') => (a.avatar ? `<img class="avatar ${cls}" src="${esc(a.avatar)}" alt="">` : `<span class="avatar initials ${cls}" aria-hidden="true">${esc(initials(a.name))}</span>`);
 
 // ---- Calculs locaux pendant la planification ----
 const me = () => ui.view.me;
@@ -277,11 +329,11 @@ function renderStarter() {
   </div>`;
 }
 function renderHome() {
-  const a = ui.account, d = a.deck, g = GENERALS[d.general];
+  const a = ui.account, d = a.deck, g = d && GENERALS[d.general];
   const total = COLLECTIBLE.filter(owned).length;
-  const deckErr = deckError(d, a);
+  const deckErr = d ? deckError(d, a) : 'Aucun deck.';
   return `
-  <div class="top"><span class="title">Jeu de cartes</span>${muteBtn()}<button class="btn" data-act="set">Voir les cartes</button><button class="btn" data-act="logout">Se déconnecter</button></div>
+  <div class="top"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button><span class="title">Jeu de cartes</span>${muteBtn()}<button class="btn" data-act="set">Voir les cartes</button><button class="btn" data-act="logout">Se déconnecter</button></div>
   <div class="setup">
     <div class="card-box booster ${a.boosterReady ? 'ready' : ''}">
       <div><span class="eyebrow">Bonjour ${esc(a.name)}</span><h2 style="font-size:22px">Booster du jour</h2></div>
@@ -289,10 +341,10 @@ function renderHome() {
         : '<p class="hint" style="margin:0">Déjà ouvert aujourd\'hui. Le prochain arrive demain à minuit.</p>'}
     </div>
     <div class="card-box">
-      <div><span class="eyebrow">Votre deck</span><h2 style="font-size:22px">${esc(d.name)}</h2></div>
-      <p style="margin:0">Général : <button class="chip" data-zoom="general:${d.general}">${g.name}</button> · ${d.cards.length} cartes · ${d.terrains.length} terrains</p>
+      <div><span class="eyebrow">Deck joué</span><h2 style="font-size:22px">${esc(d ? d.name : 'Aucun deck')}</h2></div>
+      ${d ? `<p style="margin:0">Général : ${g ? `<button class="chip" data-zoom="general:${d.general}">${g.name}</button>` : 'à choisir'} · ${d.cards.length} cartes · ${d.terrains.length} terrains</p>` : ''}
       ${deckErr ? `<p class="err" style="margin:0">${esc(deckErr)}</p>` : ''}
-      <div class="row"><button class="btn" data-act="edit">Modifier le deck</button><button class="btn" data-act="collection">Ma collection (${total}/${COLLECTIBLE.length})</button></div>
+      <div class="row"><button class="btn" data-act="decks">Mes decks (${a.decks.length}/${maxDecks()})</button><button class="btn" data-act="edit">Modifier ce deck</button><button class="btn" data-act="collection">Ma collection (${total}/${COLLECTIBLE.length})</button></div>
     </div>
     <div class="card-box booster">
       <div><span class="eyebrow">Boutique</span><h2 style="font-size:22px"><span class="num">${a.shards}</span> Éclats</h2>
@@ -347,28 +399,100 @@ function renderShop() {
   return `${top}${errLine()}${sh.sets.map(section).join('')}`;
 }
 
-// Constructeur de deck : on coche les cartes de la collection, les terrains et le général.
-function renderDeck() {
-  const a = ui.account, e = ui.edit, err = deckError(e, a);
-  const row = (id, on) => { const d = CARDS[id];
-    return `<button class="pickrow ${on ? 'on' : ''}" data-pick="${id}" style="${famVar(d.kw)}" aria-pressed="${on}">
-      <span class="seal">${d.x ? 'X' : d.cost}</span><span class="pn"><b>${esc(d.name)}</b><small>${kwLine(d)} · ${d.text || 'Pas d\'effet.'}</small></span>
-      ${d.type === 'C' ? `<span class="p num">${d.power}</span>` : '<span class="p sm">Sort</span>'}</button>`; };
-  const trow = k => { const t = TERRAINS[k], on = e.terrains.includes(k);
-    return `<button class="pickrow ${on ? 'on' : ''}" data-tpick="${k}" style="${famVar([t.fam])}" aria-pressed="${on}"><span class="pn"><b>${t.name}</b><small>${t.fam || 'Neutre'} · ${t.text}</small></span></button>`; };
-  const cards = COLLECTIBLE.filter(owned).sort(byFamCost);
-  const gens = allowedGenerals(a.starter), cur = GENERALS[e.general];
-  return `<div class="top"><span class="title">Modifier le deck</span><button class="btn" data-act="home">Annuler</button>
-    <button class="btn primary" data-act="save-deck" ${err || ui.busy ? 'disabled' : ''}>Enregistrer</button></div>
-  <div class="deckbar"><span class="num ${e.cards.length === DECK_SIZE ? 'ok' : ''}">Cartes ${e.cards.length}/${DECK_SIZE}</span><span class="num ${e.terrains.length === DECK_TERRAINS ? 'ok' : ''}">Terrains ${e.terrains.length}/${DECK_TERRAINS}</span>
-    <span class="hint">${esc(ui.msg || err || 'Deck prêt à jouer.')}</span></div>
+// Liste des decks du joueur : jouer, modifier, renommer, remettre à zéro, supprimer, créer.
+function renderDecks() {
+  const a = ui.account, full = a.decks.length >= maxDecks();
+  const item = d => {
+    const err = deckError(d, a), g = GENERALS[d.general], on = d.id === a.active;
+    return `<div class="card-box deckitem ${on ? 'active' : ''}" style="${famVar([g?.fam])}">
+      <div><span class="eyebrow">${on ? 'Deck joué' : err ? 'Incomplet' : 'Prêt à jouer'}</span><h2 style="font-size:22px">${esc(d.name)}</h2></div>
+      <p style="margin:0">${g ? esc(g.name) : 'Pas de général'} · <span class="num">${d.terrains.length}/${DECK_TERRAINS}</span> terrains · <span class="num">${d.cards.length}/${DECK_SIZE}</span> cartes</p>
+      ${err && (d.general || d.cards.length || d.terrains.length) ? `<p class="hint" style="margin:0">${esc(err)}</p>` : ''}
+      <div class="row">
+        ${on ? '' : `<button class="btn ${err ? '' : 'primary'}" data-act="deck-play" data-id="${d.id}" ${err || ui.busy ? 'disabled' : ''}>Jouer ce deck</button>`}
+        <button class="btn" data-act="deck-edit" data-id="${d.id}">Modifier</button>
+        <button class="btn" data-act="deck-rename" data-id="${d.id}">Renommer</button>
+        <button class="btn" data-act="deck-reset" data-id="${d.id}" ${ui.busy ? 'disabled' : ''}>Remettre à 0</button>
+        <button class="btn" data-act="deck-delete" data-id="${d.id}" ${a.decks.length <= 1 || ui.busy ? 'disabled' : ''}>Supprimer</button>
+      </div></div>`;
+  };
+  return `<div class="top"><span class="title">Mes decks</span><span class="chip num">${a.decks.length}/${maxDecks()}</span><button class="btn" data-act="home">Retour</button></div>
+  <p class="hint" style="margin:0">Jusqu'à ${maxDecks()} decks. Le deck joué sert en ligne et contre l'IA ; un deck incomplet est gardé mais ne peut pas être joué.</p>
   ${errLine()}
+  ${a.decks.map(item).join('')}
+  <div class="row"><button class="btn primary" data-act="deck-new" ${full ? 'disabled' : ''}>Nouveau deck</button>${full ? `<span class="hint">Supprimez un deck pour en créer un autre.</span>` : ''}</div>`;
+}
+
+// Constructeur de deck en trois étapes : le général, puis les terrains, puis les cartes de la collection.
+const STEPS = ['Général', 'Terrains', 'Cartes'];
+function renderDeck() {
+  const a = ui.account, e = ui.edit, err = deckError(e, a), step = ui.deckStep;
+  const counts = [e.general ? '1/1' : '0/1', `${e.terrains.length}/${DECK_TERRAINS}`, `${e.cards.length}/${DECK_SIZE}`];
+  const done = [!!e.general, e.terrains.length === DECK_TERRAINS, e.cards.length === DECK_SIZE];
+  const stepper = STEPS.map((n, i) => `<button class="step ${step === i ? 'on' : ''} ${done[i] ? 'done' : ''}" data-step="${i}" ${stepOpen(e, i) ? '' : 'disabled'} aria-current="${step === i ? 'step' : 'false'}">
+    <span class="sn">${i + 1}</span><span>${n}</span><span class="num sc">${counts[i]}</span></button>`).join('');
+  let body = '', help = '';
+  if (step === 0) {
+    help = 'Choisissez le général qui mènera ce deck : les neutres et ceux de votre famille.';
+    body = `<div class="gallery">${allowedGenerals(a.starter).map(k => `<button class="ccard pickcard ${e.general === k ? 'on' : ''}" data-gpick="${k}" aria-pressed="${e.general === k}">${genCard(k)}</button>`).join('')}</div>`;
+  } else if (step === 1) {
+    help = `Choisissez ${DECK_TERRAINS} terrains différents.`;
+    body = `<div class="gallery">${allowedTerrains(a.starter).map(k => `<button class="ccard pickcard ${e.terrains.includes(k) ? 'on' : ''}" data-tpick="${k}" aria-pressed="${e.terrains.includes(k)}">${terrainCard(k)}</button>`).join('')}</div>`;
+  } else {
+    help = `Choisissez ${DECK_SIZE} cartes différentes de votre collection.`;
+    const row = (id, on) => { const d = CARDS[id];
+      return `<button class="pickrow ${on ? 'on' : ''}" data-pick="${id}" style="${famVar(d.kw)}" aria-pressed="${on}">
+        <span class="seal">${d.x ? 'X' : d.cost}</span><span class="pn"><b>${esc(d.name)}</b><small>${kwLine(d)} · ${d.text || 'Pas d\'effet.'}</small></span>
+        ${d.type === 'C' ? `<span class="p num">${d.power}</span>` : '<span class="p sm">Sort</span>'}</button>`; };
+    body = `<div class="picklist">${COLLECTIBLE.filter(owned).sort(byFamCost).map(id => row(id, e.cards.includes(id))).join('')}</div>`;
+  }
+  const next = step < 2 && stepOpen(e, step + 1);
+  return `<div class="top"><span class="title">${e.id ? 'Modifier le deck' : 'Nouveau deck'}</span><button class="btn" data-act="deck-cancel">Annuler</button>
+    <button class="btn primary" data-act="save-deck" ${ui.busy ? 'disabled' : ''}>Enregistrer</button></div>
   <div class="field"><label class="eyebrow" for="deck-name">Nom du deck</label><input id="deck-name" maxlength="30" value="${esc(e.name)}"></div>
-  <div class="field genbox"><label class="eyebrow" for="deck-general">Général</label>
-    <select id="deck-general">${gens.map(k => `<option value="${k}" ${e.general === k ? 'selected' : ''}>${GENERALS[k].name} (${GENERALS[k].fam || 'neutre'})</option>`).join('')}</select>
-    <small>${cur ? `${cur.kind} : ${cur.text}` : ''}</small></div>
-  <div class="gal-h">Terrains</div><div class="picklist">${allowedTerrains(a.starter).map(trow).join('')}</div>
-  <div class="gal-h">Cartes de votre collection</div><div class="picklist">${cards.map(id => row(id, e.cards.includes(id))).join('')}</div>`;
+  <div class="deckbar steps" role="group" aria-label="Étapes">${stepper}</div>
+  <p class="hint" style="margin:0">${esc(ui.msg || help)}</p>
+  ${errLine()}
+  ${body}
+  <div class="row">${step > 0 ? '<button class="btn" data-act="step-prev">Étape précédente</button>' : ''}
+    ${step < 2 ? `<button class="btn primary" data-act="step-next" ${next ? '' : 'disabled'}>Étape suivante : ${STEPS[step + 1]}</button>` : ''}
+    <span class="hint">${err ? `Pas encore jouable : ${esc(err)} Vous pouvez enregistrer et finir plus tard.` : 'Deck complet, prêt à jouer.'}</span></div>`;
+}
+
+// Profil : image, pseudo, sets complétés et statistiques de victoire.
+function renderProfile() {
+  const a = ui.account, st = ui.profile;
+  const sets = SETS.filter(s => s.cards.length).map(s => { const n = s.cards.filter(owned).length, pct = Math.round(100 * n / s.cards.length);
+    return `<div class="setline ${n === s.cards.length ? 'done' : ''}"><div class="row" style="justify-content:space-between"><b>${esc(s.name)}</b>
+      <span class="num">${n === s.cards.length ? 'Complété · ' : ''}${n}/${s.cards.length}</span></div>
+      <div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(s.name)}"><span style="width:${pct}%"></span></div></div>`; }).join('');
+  const complete = SETS.filter(s => s.cards.length && s.cards.every(owned)).length;
+  const tile = (label, r) => `<div class="stat"><span class="eyebrow">${label}</span><b class="num">${r.rate === null ? '–' : `${r.rate} %`}</b>
+    <small class="hint num">${r.games} partie${r.games > 1 ? 's' : ''} · ${r.wins} V · ${r.losses} D${r.draws ? ` · ${r.draws} N` : ''}</small></div>`;
+  const RES = { wins: 'Victoire', losses: 'Défaite', draws: 'Match nul' };
+  const stats = !st ? '<p class="wait">Chargement…</p>' : `
+    <div class="stats">${tile('Toutes les parties', st.all)}${tile('En ligne', st.pvp)}${tile('Contre l\'IA', st.pve)}</div>
+    ${st.generals.length ? `<div class="gal-h">Par général</div><div class="statlist">${st.generals.map(g => `<div class="row"><span style="flex:1">${esc(g.name)}</span><span class="num hint">${g.games} partie${g.games > 1 ? 's' : ''}</span><b class="num">${g.rate} %</b></div>`).join('')}</div>` : ''}
+    ${st.recent.length ? `<div class="gal-h">Dernières parties</div><div class="statlist">${st.recent.map(r => `<div class="row"><b class="res ${r.result}">${RES[r.result]}</b><span style="flex:1">contre ${esc(r.foe)} <small class="hint">· ${esc(r.deck || '')}</small></span><small class="hint num">${new Date(r.at).toLocaleDateString('fr-FR')}</small></div>`).join('')}</div>`
+      : '<p class="hint" style="margin:0">Aucune partie jouée pour l\'instant.</p>'}`;
+  return `<div class="top"><span class="title">Mon profil</span><button class="btn" data-act="home">Retour</button></div>
+  ${errLine()}${ui.msg ? `<p class="hint" role="status" style="margin:0">${esc(ui.msg)}</p>` : ''}
+  <div class="card-box profile">
+    ${avatarHTML(a, 'big')}
+    <div style="display:grid;gap:8px">
+      <span class="eyebrow">Identifiant : ${esc(a.login)}</span>
+      <div class="row"><label class="btn" for="avatar-file">${a.avatar ? 'Changer l\'image' : 'Ajouter une image'}</label>
+        <input id="avatar-file" type="file" accept="image/*" hidden>
+        ${a.avatar ? `<button class="btn" data-act="avatar-remove" ${ui.busy ? 'disabled' : ''}>Retirer l'image</button>` : ''}</div>
+    </div>
+  </div>
+  <form class="card-box" id="name-form">
+    <div class="field"><label class="eyebrow" for="profile-name">Pseudo</label><input id="profile-name" maxlength="20" value="${esc(ui.nameDraft)}"></div>
+    <div class="row"><button class="btn primary" type="submit" ${ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === a.name ? 'disabled' : ''}>Enregistrer le pseudo</button></div>
+  </form>
+  <div class="card-box"><div><span class="eyebrow">Collection</span><h2 style="font-size:22px">${complete} set${complete > 1 ? 's' : ''} complété${complete > 1 ? 's' : ''}</h2></div>
+    <p class="hint" style="margin:0">${COLLECTIBLE.filter(owned).length} cartes sur ${COLLECTIBLE.length}.</p>${sets}</div>
+  <div class="card-box"><div><span class="eyebrow">Statistiques</span><h2 style="font-size:22px">Victoires</h2></div>${stats}</div>`;
 }
 function togglePick(id) {
   const e = ui.edit; ui.msg = '';
@@ -465,6 +589,11 @@ function sheetHTML() {
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Set 1</h2><button class="btn" data-act="close">Fermer</button></div>
       <p class="hint" style="margin:0">Un deck : ${DECK_SIZE} cartes différentes de votre collection, ${DECK_TERRAINS} terrains et un général. Généraux et terrains : les neutres et ceux de la famille de votre deck de départ.</p>${h}</div></div>`;
   }
+  if (ui.sheet === 'rename' && ui.renaming) {
+    return `<div class="sheet" data-act="close"><form class="panel" data-stop="1" id="rename-form"><div class="ph"><h2>Renommer le deck</h2><button class="btn" type="button" data-act="close">Fermer</button></div>
+      <div class="field"><label class="eyebrow" for="rename-input">Nom du deck</label><input id="rename-input" maxlength="30" value="${esc(ui.renaming.name)}"></div>
+      <div class="row"><button class="btn primary" type="submit">Renommer</button></div></form></div>`;
+  }
   if (ui.sheet === 'booster' && ui.booster) {
     const { title, cards, fresh, shards } = ui.booster, n = fresh.filter(Boolean).length;
     const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats gagnés avec les doublons` : ''].filter(Boolean).join(', ');
@@ -486,9 +615,10 @@ function sheetHTML() {
 }
 function render() {
   const h = document.getElementById('hand'); const sx = h ? h.scrollLeft : 0;
-  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, lobby: renderLobby, game: renderGame };
+  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, lobby: renderLobby, game: renderGame };
   const body = screens[ui.screen]();
   app.innerHTML = body + sheetHTML();
+  if (ui.sheet === 'rename') { const r = document.getElementById('rename-input'); if (r && document.activeElement !== r) { r.focus(); r.select(); } }
   const h2 = document.getElementById('hand'); if (h2) h2.scrollLeft = sx;
   const lb = document.getElementById('logbox'); if (lb) lb.parentElement.scrollTop = lb.scrollHeight;
   applyFx();
@@ -648,18 +778,26 @@ app.addEventListener('input', e => {
   if (e.target.id === 'login-id') ui.loginId = e.target.value;
   if (e.target.id === 'login-pass') ui.loginPass = e.target.value;
   if (e.target.id === 'deck-name' && ui.edit) ui.edit.name = e.target.value;
+  if (e.target.id === 'rename-input' && ui.renaming) ui.renaming.name = e.target.value;
+  if (e.target.id === 'profile-name') { ui.nameDraft = e.target.value; const b = e.target.form?.querySelector('[type=submit]');
+    if (b) b.disabled = ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === ui.account.name; }
   if (e.target.id === 'code') { ui.joinCode = e.target.value.toUpperCase(); e.target.value = ui.joinCode; }
 });
-app.addEventListener('change', e => { if (e.target.id === 'deck-general' && ui.edit) { ui.edit.general = e.target.value; render(); } });
-app.addEventListener('submit', e => { e.preventDefault(); if (e.target.id === 'login-form' && !ui.busy) doLogin(); });
+app.addEventListener('change', e => { if (e.target.id === 'avatar-file') { pickAvatar(e.target.files[0]); e.target.value = ''; } });
+app.addEventListener('submit', e => {
+  e.preventDefault(); if (ui.busy) return;
+  if (e.target.id === 'login-form') doLogin();
+  else if (e.target.id === 'name-form') saveName();
+  else if (e.target.id === 'rename-form') renameDeck();
+});
 app.addEventListener('click', e => {
-  const t = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-fam],[data-zoom],[data-stop]');
+  const t = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-stop]');
   if (!t) return;
   const ds = t.dataset;
   if (ds.stop && !e.target.closest('[data-act]')) return;
   if (ds.act) {
     const a = ds.act;
-    if (a === 'close') { ui.sheet = null; ui.zoom = null; render(); }
+    if (a === 'close') { ui.sheet = null; ui.zoom = null; ui.renaming = null; render(); }
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
       ui.genMode = false; tryPlace(+ds.zone); }
@@ -692,8 +830,16 @@ app.addEventListener('click', e => {
     else if (a === 'shop') openShop();
     else if (a === 'buy-card' && !ui.busy) buy('/api/shop/card', { set: ds.set, card: ds.id });
     else if (a === 'buy-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set });
-    else if (a === 'edit') { editDeck(); render(); }
+    else if (a === 'edit') { editDeck(ui.account.active, ui.screen === 'collection' ? 'collection' : 'home'); render(); }
     else if (a === 'home') { ui.screen = 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
+    else if (a === 'decks') openDecks();
+    else if (a === 'deck-new') { if (ui.account.decks.length < maxDecks()) { editDeck(null, 'decks'); render(); } }
+    else if (a.startsWith('deck-') && a !== 'deck-cancel' && !ui.busy) deckAction(a, ds.id);
+    else if (a === 'deck-cancel') { ui.screen = ui.edit?.back || 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
+    else if (a === 'step-next' && stepOpen(ui.edit, ui.deckStep + 1)) { ui.deckStep++; ui.msg = ''; render(); scrollTo(0, 0); }
+    else if (a === 'step-prev') { ui.deckStep = Math.max(0, ui.deckStep - 1); ui.msg = ''; render(); scrollTo(0, 0); }
+    else if (a === 'profile') openProfile();
+    else if (a === 'avatar-remove' && !ui.busy) call('PUT', '/api/profile', { avatar: null });
     else if (a === 'save-deck' && !ui.busy) saveDeck();
     return;
   }
@@ -702,6 +848,11 @@ app.addEventListener('click', e => {
   if (ds.zoom) { const [kind, id] = ds.zoom.split(':'); openZoom({ kind, id }); render(); return; }
   if (ds.pick) { togglePick(ds.pick); return; }
   if (ds.tpick) { toggleTerrain(ds.tpick); return; }
+  if (ds.gpick) { ui.edit.general = ds.gpick; ui.msg = '';
+    // Premier choix du général : on passe directement aux terrains.
+    if (ui.deckStep === 0 && !ui.edit.terrains.length) ui.deckStep = 1;
+    render(); scrollTo(0, 0); return; }
+  if (ds.step !== undefined) { const i = +ds.step; if (stepOpen(ui.edit, i)) { ui.deckStep = i; ui.msg = ''; render(); } return; }
   if (ds.hand) { const uid = +ds.hand; ui.focus = { kind: 'card', id: ds.id };
     // La carte s'affiche en grand ; en planification elle reste sélectionnée pour être posée en touchant une zone.
     if (canPlay()) { ui.sel = uid; ui.genMode = false; ui.moveSel = null; ui.msg = ''; play('pick'); }

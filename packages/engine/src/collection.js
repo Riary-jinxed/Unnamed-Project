@@ -36,6 +36,7 @@ export const today = (d = new Date()) => new Intl.DateTimeFormat('fr-CA', { time
 // Renvoie un message d'erreur, ou null si le deck est jouable avec cette collection.
 export function deckError(deck, { cards: owned, starter }) {
   if (!deck || !Array.isArray(deck.cards) || !Array.isArray(deck.terrains)) return 'Deck invalide.';
+  if (!deck.general) return 'Choisissez un général.';
   if (deck.cards.length !== DECK_SIZE) return `Le deck doit contenir ${DECK_SIZE} cartes (il en a ${deck.cards.length}).`;
   const count = {};
   for (const id of deck.cards) {
@@ -48,6 +49,23 @@ export function deckError(deck, { cards: owned, starter }) {
   const terrains = allowedTerrains(starter);
   if (deck.terrains.some(t => !terrains.includes(t))) return 'Ce terrain n\'est pas accessible avec votre deck de départ.';
   if (!allowedGenerals(starter).includes(deck.general)) return 'Ce général n\'est pas accessible avec votre deck de départ.';
+  return null;
+}
+
+// Plusieurs decks par joueur. Un deck en cours de création peut être incomplet : il n'est jouable qu'une fois complet.
+export const MAX_DECKS = 5;
+// Renvoie un message d'erreur, ou null si ce deck (complet ou non) respecte la collection et les règles.
+export function draftError(deck, { cards: owned, starter }) {
+  if (!deck || !Array.isArray(deck.cards) || !Array.isArray(deck.terrains)) return 'Deck invalide.';
+  if (deck.cards.length > DECK_SIZE) return `Le deck contient ${DECK_SIZE} cartes au plus.`;
+  if (new Set(deck.cards).size !== deck.cards.length) return 'Une carte ne peut être qu\'en un exemplaire.';
+  for (const id of deck.cards) {
+    if (!COLLECTIBLE.includes(id)) return 'Carte inconnue dans le deck.';
+    if (!owned[id]) return `Vous ne possédez pas ${CARDS[id].name}.`;
+  }
+  if (deck.terrains.length > DECK_TERRAINS || new Set(deck.terrains).size !== deck.terrains.length) return `Choisissez ${DECK_TERRAINS} terrains différents au plus.`;
+  if (deck.terrains.some(t => !allowedTerrains(starter).includes(t))) return 'Ce terrain n\'est pas accessible avec votre deck de départ.';
+  if (deck.general !== null && !allowedGenerals(starter).includes(deck.general)) return 'Ce général n\'est pas accessible avec votre deck de départ.';
   return null;
 }
 

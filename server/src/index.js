@@ -9,7 +9,7 @@ import { WebSocketServer } from 'ws';
 import { newGame, startTurn, runTurn, viewFor } from '@jeu/engine';
 import { deckError } from '@jeu/engine/collection';
 import { openStore } from './store.js';
-import { createAccounts, apiHandler } from './accounts.js';
+import { createAccounts, apiHandler, activeDeck } from './accounts.js';
 import { createGames } from './games.js';
 import { createCatalog } from './cards.js';
 
@@ -61,7 +61,7 @@ function lobby(room) {
 }
 // Chaque joueur joue le deck enregistré sur son compte au moment où la partie (ou la revanche) commence.
 function startMatch(room) {
-  const decks = room.seats.map(s => accounts.byToken(s.auth)?.deck || s.deck);
+  const decks = room.seats.map(s => { const acc = accounts.byToken(s.auth), d = acc && activeDeck(acc); return d && !deckError(d, acc) ? d : s.deck; });
   room.decks = decks.map(d => d.cards);
   room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => d.general) });
   startTurn(room.st); room.st.phase = 'plan';
@@ -81,9 +81,10 @@ async function resolve(room) {
 function seatFor(ws, msg) {
   const acc = accounts.byToken(msg.auth);
   if (!acc) { send(ws, { t: 'error', msg: 'Session expirée : reconnectez-vous.' }); return null; }
-  const err = acc.deck ? deckError(acc.deck, acc) : 'Choisissez d\'abord votre deck de départ.';
+  const deck = activeDeck(acc);
+  const err = deck ? deckError(deck, acc) : 'Choisissez d\'abord votre deck de départ.';
   if (err) { send(ws, { t: 'error', msg: err }); return null; }
-  return { name: acc.name, login: acc.login, auth: msg.auth, deck: acc.deck, token: randomBytes(12).toString('hex'), ws };
+  return { name: acc.name, login: acc.login, auth: msg.auth, deck, token: randomBytes(12).toString('hex'), ws };
 }
 function handle(ws, msg) {
   if (msg.t === 'create') {

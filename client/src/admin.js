@@ -86,18 +86,18 @@ function renderList() {
 }
 
 function renderDetail() {
-  const a = st.detail, inDeck = new Set(a.deck?.cards || []);
+  const a = st.detail, inDeck = new Set(a.inDecks || a.deck?.cards || []);
   const byFam = {};
   for (const id of COLLECTIBLE) (byFam[famOf(id)] ||= []).push(id);
   const collection = [...FAMILIES, 'Neutre'].filter(f => byFam[f]).map(f => {
     const ids = byFam[f], n = ids.filter(id => st.cards.has(id)).length;
     return `<div class="famblock" style="--fam: var(${FAM[f] || '--f-neutre'})"><div class="row"><b style="margin-right:auto">${f}</b><small class="hint">${n}/${ids.length}</small>
       <button class="btn sm" type="button" data-fam-all="${f}">Tout</button><button class="btn sm" type="button" data-fam-none="${f}">Rien</button></div>
-      <div class="chips">${ids.map(id => `<label class="pick ${st.cards.has(id) ? 'on' : ''} ${inDeck.has(id) ? 'lock' : ''}" title="${inDeck.has(id) ? 'Dans le deck du joueur' : ''}">
+      <div class="chips">${ids.map(id => `<label class="pick ${st.cards.has(id) ? 'on' : ''} ${inDeck.has(id) ? 'lock' : ''}" title="${inDeck.has(id) ? 'Dans un deck du joueur' : ''}">
         <input type="checkbox" data-card="${id}" ${st.cards.has(id) ? 'checked' : ''} ${inDeck.has(id) ? 'disabled' : ''}>${esc(CARDS[id].name)}</label>`).join('')}</div></div>`;
   }).join('');
   const changed = st.cards.size !== a.owned.length || a.owned.some(id => !st.cards.has(id));
-  const deck = a.deck ? `<p style="margin:0"><b>${esc(a.deck.name)}</b> · général ${esc(GENERALS[a.deck.general]?.name || a.deck.general)}</p>
+  const deck = a.deck ? `<p style="margin:0"><b>${esc(a.deck.name)}</b> · général ${esc(GENERALS[a.deck.general]?.name || a.deck.general || 'à choisir')}${a.decks > 1 ? ` <small class="hint">(deck joué, ${a.decks} decks en tout)</small>` : ''}</p>
     <p class="hint" style="margin:0">${a.deck.cards.map(id => esc(CARDS[id]?.name || id)).join(', ')}</p>
     <p class="hint" style="margin:0">Terrains : ${a.deck.terrains.map(id => esc(TERRAINS[id]?.name || id)).join(', ')}</p>
     ${a.deckError ? `<p class="err" style="margin:0">Deck injouable : ${esc(a.deckError)}</p>` : ''}` : '<p class="hint" style="margin:0">Pas encore de deck : le joueur choisira son deck de départ à sa prochaine connexion.</p>';
@@ -129,7 +129,7 @@ function renderDetail() {
   </div>
   <div class="card-box">
     <div class="row"><h3 style="margin-right:auto">Collection</h3><small class="hint">${st.cards.size}/${COLLECTIBLE.length} cartes</small></div>
-    <p class="hint" style="margin:0">Cochez les cartes que le joueur possède. Les cartes de son deck (grisées) ne peuvent pas être retirées.</p>
+    <p class="hint" style="margin:0">Cochez les cartes que le joueur possède. Les cartes de ses decks (grisées) ne peuvent pas être retirées.</p>
     ${collection}
     <div class="row"><button class="btn primary" data-act="cards" ${changed ? dis() : 'disabled'}>Enregistrer la collection</button>
       ${changed ? '<button class="btn" data-act="cards-undo">Annuler les changements</button>' : ''}</div>
@@ -240,7 +240,7 @@ app.addEventListener('click', e => {
   if (t.dataset.addShards) { const i = document.getElementById('p-shards'); i.value = (Number(i.value) || 0) + Number(t.dataset.addShards); return; }
   const fam = t.dataset.famAll || t.dataset.famNone;
   if (fam) {
-    const locked = new Set(st.detail.deck?.cards || []);
+    const locked = new Set(st.detail.inDecks || st.detail.deck?.cards || []);
     for (const id of COLLECTIBLE) if (famOf(id) === fam && !locked.has(id)) t.dataset.famAll ? st.cards.add(id) : st.cards.delete(id);
     render(); return;
   }

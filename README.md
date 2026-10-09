@@ -71,7 +71,8 @@ La table `comptes` est créée toute seule au premier démarrage. Sans `DATABASE
 - **Booster du jour** : 3 cartes tirées parmi les 60 du set, dont au moins une que le joueur n'a pas encore, une fois par jour (minuit, heure de Paris).
 - **Doublons** : un deck ne prend qu'un exemplaire de chaque carte, donc chaque doublon obtenu devient 10 Éclats.
 - **Boutique** : un espace par set, payé en Éclats. Pour le Set de base : 3 cartes du jour propres à chaque joueur (300 Éclats l'une) et un booster de 3 cartes au hasard (200 Éclats). Le prochain set y a déjà sa place, marquée « bientôt disponible ». Prix et sets se règlent dans `packages/engine/src/collection.js` (`SHOP`, `SETS`).
-- **Modifier le deck** : 15 cartes différentes de la collection, 5 terrains et un général. Généraux et terrains accessibles : les neutres et ceux de la famille de départ. C'est ce deck qui est joué, en ligne comme contre l'IA.
+- **Profil** : touchez votre image en haut de l'accueil. On y change son pseudo et son image de profil (recadrée en carré, réduite à 160 px et affichée en cercle), on voit les sets complétés et ses statistiques de victoire (en ligne, contre l'IA, par général, dernières parties).
+- **Mes decks** : jusqu'à 5 decks. Le deck de départ est le premier. Chaque deck se crée en trois étapes : le général, puis 5 terrains, puis 15 cartes différentes de la collection. Généraux et terrains accessibles : les neutres et ceux de la famille de départ. Un deck peut être renommé, modifié, remis à zéro ou supprimé (il en reste toujours un). Un deck incomplet est gardé mais pas jouable ; « Jouer ce deck » choisit celui qui est joué, en ligne comme contre l'IA.
 - **Créer une partie** donne un code de 4 lettres et un lien à envoyer.
 - **Rejoindre** avec ce code : la partie démarre aussitôt.
 - Pendant votre tour, une créature marquée ⇄ (Déplaçable) peut changer de zone : touchez-la, puis touchez la zone d'arrivée.
@@ -79,5 +80,5 @@ La table `comptes` est créée toute seule au premier démarrage. Sans `DATABASE
 
 ## Prochaines étapes prévues
 
-- Inscription libre, plusieurs decks par joueur, échanges ou recyclage des doublons.
+- Inscription libre, échanges ou recyclage des doublons.
 - Publication sur les stores avec Capacitor.
