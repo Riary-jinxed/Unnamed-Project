@@ -233,6 +233,8 @@ function renderGame() {
 // ---- Écrans du compte : connexion, deck de départ, accueil, collection, deck ----
 const errLine = () => (ui.error ? `<p class="err" role="alert">${esc(ui.error)}</p>` : '');
 const owned = id => (ui.account && ui.account.cards[id]) || 0;
+// Éclats gagnés par doublon : réglable depuis /admin, le serveur l'envoie avec le compte.
+const shardRate = () => ui.account?.shardRate ?? SHARDS_PER_DUPLICATE;
 const famOfCard = id => CARDS[id].kw.find(k => FAMILIES.includes(k)) || null;
 // Ordre d'affichage : famille du set, puis coût, puis nom.
 const byFamCost = (a, b) => [...FAMILIES, null].indexOf(famOfCard(a)) - [...FAMILIES, null].indexOf(famOfCard(b)) || CARDS[a].cost - CARDS[b].cost || CARDS[a].name.localeCompare(CARDS[b].name);
@@ -284,7 +286,7 @@ function renderHome() {
     </div>
     <div class="card-box booster">
       <div><span class="eyebrow">Boutique</span><h2 style="font-size:22px"><span class="num">${a.shards}</span> Éclats</h2>
-        <small class="hint">Chaque doublon rapporte ${SHARDS_PER_DUPLICATE} Éclats.</small></div>
+        <small class="hint">Chaque doublon rapporte ${shardRate()} Éclats.</small></div>
       <button class="btn" data-act="shop">Ouvrir la boutique</button>
     </div>
     ${errLine()}
@@ -325,10 +327,10 @@ function renderShop() {
   };
   const section = set => set.open ? `<section class="card-box shopset">
       <div><span class="eyebrow">${set.size} cartes</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
-      <div class="gal-h">Cartes du jour</div><p class="hint" style="margin:0">Trois cartes choisies pour vous, renouvelées chaque jour à minuit.</p>
+      <div class="gal-h">Cartes du jour</div><p class="hint" style="margin:0">${set.offers.length > 1 ? `${set.offers.length} cartes choisies` : 'Une carte choisie'} pour vous, renouvelées chaque jour à minuit.</p>
       <div class="gallery">${set.offers.map(o => offer(set, o)).join('')}</div>
       <div class="gal-h">Booster du set</div>
-      <div class="row"><p class="hint" style="margin:0;flex:1">${P.boosterSize} cartes au hasard parmi les ${set.size} du set, toutes avec la même chance. Les doublons rapportent ${SHARDS_PER_DUPLICATE} Éclats chacun.</p>
+      <div class="row"><p class="hint" style="margin:0;flex:1">${P.boosterSize} cartes au hasard parmi les ${set.size} du set, toutes avec la même chance. Les doublons rapportent ${shardRate()} Éclats chacun.</p>
         <button class="btn primary" data-act="buy-booster" data-set="${set.id}" ${a.shards < P.boosterPrice || ui.busy ? 'disabled' : ''}>Acheter · ${P.boosterPrice} Éclats</button></div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
       <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`;
@@ -458,7 +460,7 @@ function sheetHTML() {
     const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats gagnés avec les doublons` : ''].filter(Boolean).join(', ');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${esc(title)}</h2><button class="btn" data-act="close">Fermer</button></div>
       <p class="hint" style="margin:0">${sum}.</p>
-      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${SHARDS_PER_DUPLICATE} Éclats</span>`}${fullCard(id)}</div>`).join('')}</div></div></div>`;
+      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats</span>`}${fullCard(id)}</div>`).join('')}</div></div></div>`;
   }
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;

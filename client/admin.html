@@ -4,9 +4,30 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>Administration des comptes</title>
+  <title>Administration</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&display=swap">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <style>
+    .hint { color: var(--muted); }
+    .ok { color: var(--up); }
+    .admin { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .admin th, .admin td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+    .admin th { color: var(--muted); font-weight: 500; }
+    .admin tbody tr[data-open] { cursor: pointer; }
+    .admin tbody tr[data-open]:hover, .admin tbody tr[data-open]:focus-visible { background: var(--sunk); outline: none; }
+    #app input[type=search], #app select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 7px 10px; min-width: 0; }
+    .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .btn.sm { padding: 3px 9px; font-size: 13px; }
+    .btn.bad { color: var(--down); border-color: var(--down); }
+    .chip.off { color: var(--down); border-color: var(--down); }
+    .card-box.danger { border-color: color-mix(in srgb, var(--down) 45%, var(--line)); }
+    .famblock { display: grid; gap: 6px; border-left: 4px solid var(--fam); padding-left: 10px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pick { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px 3px 6px; font-size: 13px; cursor: pointer; background: var(--surface); }
+    .pick.on { border-color: var(--fam); box-shadow: inset 0 0 0 1px var(--fam); }
+    .pick.lock { opacity: .6; cursor: default; }
+    .pick input { margin: 0; accent-color: var(--fam); }
+  </style>
 </head>
 <body>
   <div id="app"></div>
