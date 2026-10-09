@@ -60,6 +60,8 @@ Le disque d'un service Render gratuit est effacé à chaque déploiement : les c
 
 La page `/admin` permet aussi, en cliquant sur un compte : changer le pseudo, le mot de passe et les Éclats, cocher les cartes de la collection, changer le deck de départ, rendre le booster du jour, tirer de nouvelles cartes du jour en boutique, fermer les sessions, désactiver, remettre à zéro ou supprimer le compte. L'onglet « Boutique » règle les prix, le nombre de cartes par booster, les Éclats par doublon et le nombre de cartes du jour, et peut renouveler les offres de tous les joueurs. Ces réglages sont gardés dans la table `reglages` de la base.
 
+L'onglet « Stats » donne les taux de victoire en JcJ et contre l'IA (par joueur et par général) et les cartes les plus jouées ; les parties sont gardées dans la table `parties`. Les onglets « Cartes » et « Sets » modifient un brouillon : retoucher une carte (nom, coût, puissance, famille, texte), créer une carte qui reprend l'effet d'une carte existante, ranger les cartes dans des sets ouverts ou non en boutique et dans le booster quotidien. Rien ne change pour les joueurs avant « Publier dans le jeu ». Les effets restent du code dans `engine.js` : un effet vraiment nouveau se code là.
+
 La table `comptes` est créée toute seule au premier démarrage. Sans `DATABASE_URL`, le serveur écrit dans un fichier local et l'indique dans ses journaux.
 
 ## Jouer
