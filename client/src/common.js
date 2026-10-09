@@ -2,7 +2,9 @@
 
 // Couleur de famille : variable CSS --fam, définie dans style.css (--f-neutre pour une carte sans famille).
 const FAM_VARS = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon', 'Mort-vivant': '--f-mortvivant', 'Vampire': '--f-vampire' };
-export const famStyle = fam => `--fam: var(${FAM_VARS[fam] || '--f-neutre'})`;
+// Police du nom de la carte sur son illustration : --famfont, une par famille (style.css).
+const FAM_FONTS = { 'Ange': '--ff-ange', 'Démon': '--ff-demon', 'Gobelin': '--ff-gobelin', 'Elfe': '--ff-elfe', 'Dragon': '--ff-dragon', 'Mort-vivant': '--ff-mortvivant', 'Vampire': '--ff-vampire' };
+export const famStyle = fam => `--fam: var(${FAM_VARS[fam] || '--f-neutre'}); --famfont: var(${FAM_FONTS[fam] || '--display'})`;
 
 // Échappe un texte avant de l'insérer dans du HTML.
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
