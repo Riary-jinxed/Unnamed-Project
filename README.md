@@ -64,7 +64,9 @@ La table `comptes` est créée toute seule au premier démarrage. Sans `DATABASE
 
 - **Se connecter** avec l'identifiant et le mot de passe donnés par l'administrateur (pas d'inscription).
 - À la première connexion, **choisir son deck de départ** : Grande Horde (Gobelin), Vents sylvestres (Elfe) ou Pacte infernal (Démon). Ses 15 cartes forment la collection. Le choix est définitif.
-- **Booster du jour** : 5 cartes tirées parmi les 60 du set, toutes avec la même chance, une fois par jour (minuit, heure de Paris).
+- **Booster du jour** : 3 cartes tirées parmi les 60 du set, dont au moins une que le joueur n'a pas encore, une fois par jour (minuit, heure de Paris).
+- **Doublons** : un deck ne prend qu'un exemplaire de chaque carte, donc chaque doublon obtenu devient 10 Éclats.
+- **Boutique** : un espace par set, payé en Éclats. Pour le Set de base : 3 cartes du jour propres à chaque joueur (300 Éclats l'une) et un booster de 3 cartes au hasard (200 Éclats). Le prochain set y a déjà sa place, marquée « bientôt disponible ». Prix et sets se règlent dans `packages/engine/src/collection.js` (`SHOP`, `SETS`).
 - **Modifier le deck** : 15 cartes différentes de la collection, 5 terrains et un général. Généraux et terrains accessibles : les neutres et ceux de la famille de départ. C'est ce deck qui est joué, en ligne comme contre l'IA.
 - **Créer une partie** donne un code de 4 lettres et un lien à envoyer.
 - **Rejoindre** avec ce code : la partie démarre aussitôt.

@@ -18,6 +18,7 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
   '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.ico': 'image/x-icon' };
 
 const accounts = createAccounts(await openStore());
+await accounts.ready;
 const api = apiHandler(accounts, process.env.ADMIN_KEY || '');
 
 // ---- API et fichiers statiques ----

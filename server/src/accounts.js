@@ -1,7 +1,7 @@
 // Comptes joueurs : pas d'inscription, l'administrateur crée les identifiants et les communique.
-// API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, administration.
+// API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, boutique, administration.
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { STARTERS, starterKit, openBooster, today, deckError } from '@jeu/engine/collection';
+import { STARTERS, starterKit, openBooster, today, deckError, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers, setBooster } from '@jeu/engine/collection';
 
 const MAX_SESSIONS = 10;
 const hashPass = (pass, salt = randomBytes(16).toString('hex')) => ({ salt, hash: scryptSync(pass, salt, 32).toString('hex') });
@@ -10,12 +10,27 @@ const cleanLogin = s => String(s || '').trim().toLowerCase();
 const LOGIN_RE = /^[a-z0-9._-]{2,24}$/;
 
 // Ce que le joueur voit de son compte (jamais le mot de passe ni les sessions).
-export const publicAccount = a => ({ login: a.login, name: a.name, starter: a.starter, cards: a.cards, deck: a.deck, boosterReady: a.starter !== null && a.lastBooster !== today() });
+export const publicAccount = a => ({ login: a.login, name: a.name, starter: a.starter, cards: a.cards, shards: a.shards || 0, deck: a.deck, boosterReady: a.starter !== null && a.lastBooster !== today() });
+
+// Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats.
+function addCards(a, ids) {
+  let shards = 0;
+  const fresh = ids.map(id => { if (!a.cards[id]) { a.cards[id] = 1; return true; } shards += SHARDS_PER_DUPLICATE; return false; });
+  a.shards = (a.shards || 0) + shards;
+  return { fresh, shards };
+}
+// Convertit en Éclats les doublons gardés avant la boutique. Renvoie true si le compte a changé.
+function convertDuplicates(a) {
+  let changed = false;
+  for (const [id, n] of Object.entries(a.cards || {})) if (n > 1) { a.shards = (a.shards || 0) + (n - 1) * SHARDS_PER_DUPLICATE; a.cards[id] = 1; changed = true; }
+  return changed;
+}
 
 export function createAccounts(store) {
   const sessions = new Map();
   for (const a of store.all()) for (const t of a.tokens || []) sessions.set(t, a.login);
   const byToken = token => { const login = sessions.get(String(token || '')); return login ? store.get(login) : null; };
+  const ready = Promise.all(store.all().filter(convertDuplicates).map(a => { console.log(`Doublons de ${a.login} convertis en Éclats.`); return store.put(a); }));
 
   async function login({ login, password }) {
     const a = store.get(cleanLogin(login));
@@ -39,12 +54,50 @@ export function createAccounts(store) {
   async function booster(a) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
     if (a.lastBooster === today()) throw new HttpError(409, 'Booster du jour déjà ouvert. Revenez demain.');
-    const cards = openBooster();
-    // « Nouvelle » : carte absente de la collection avant ce booster (un doublon du même booster ne compte qu'une fois).
-    const fresh = cards.map(id => { const isNew = !a.cards[id]; a.cards[id] = (a.cards[id] || 0) + 1; return isNew; });
+    const cards = openBooster(a.cards);
+    const got = addCards(a, cards);
     a.lastBooster = today();
     await store.put(a);
-    return { cards, fresh, account: publicAccount(a) };
+    return { title: 'Booster du jour', cards, ...got, account: publicAccount(a) };
+  }
+
+  // Boutique : pour chaque set ouvert, 3 cartes du jour propres au joueur et un booster du set, payés en Éclats.
+  function shopDay(a, set) {
+    a.shop = a.shop || {};
+    const day = a.shop[set.id];
+    if (day && day.date === today()) return day;
+    return (a.shop[set.id] = { date: today(), offers: dailyOffers(set, a.cards), bought: [] });
+  }
+  function shopView(a) {
+    return { shards: a.shards || 0, prices: SHOP, sets: SETS.map(set => ({ id: set.id, name: set.name, open: set.open, teaser: set.teaser || '', size: set.cards.length,
+      offers: set.open ? shopDay(a, set).offers.map(id => ({ id, bought: shopDay(a, set).bought.includes(id), owned: !!a.cards[id] })) : [] })) };
+  }
+  function openSet(a, id) {
+    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    const set = setById(id); if (!set || !set.open) throw new HttpError(400, 'Ce set n\'est pas encore en vente.');
+    return set;
+  }
+  function pay(a, price) {
+    if ((a.shards || 0) < price) throw new HttpError(409, `Il vous faut ${price} Éclats (vous en avez ${a.shards || 0}).`);
+    a.shards -= price;
+  }
+  async function shop(a) { const view = shopView(a); await store.put(a); return { shop: view, account: publicAccount(a) }; }
+  async function buyCard(a, { set: setId, card }) {
+    const set = openSet(a, setId), day = shopDay(a, set);
+    if (!day.offers.includes(card)) throw new HttpError(400, 'Cette carte n\'est plus en vente aujourd\'hui.');
+    if (day.bought.includes(card) || a.cards[card]) throw new HttpError(409, 'Vous possédez déjà cette carte.');
+    pay(a, SHOP.cardPrice);
+    day.bought.push(card);
+    const got = addCards(a, [card]);
+    await store.put(a);
+    return { title: 'Achat', cards: [card], ...got, shop: shopView(a), account: publicAccount(a) };
+  }
+  async function buyBooster(a, { set: setId }) {
+    const set = openSet(a, setId);
+    pay(a, SHOP.boosterPrice);
+    const cards = setBooster(set), got = addCards(a, cards);
+    await store.put(a);
+    return { title: `Booster ${set.name}`, cards, ...got, shop: shopView(a), account: publicAccount(a) };
   }
   async function saveDeck(a, deck) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
@@ -61,16 +114,16 @@ export function createAccounts(store) {
     if (!LOGIN_RE.test(login)) throw new HttpError(400, 'Identifiant : 2 à 24 caractères parmi a-z, 0-9, point, tiret, tiret bas.');
     if (String(password || '').length < 4) throw new HttpError(400, 'Mot de passe : 4 caractères au moins.');
     const old = store.get(login);
-    const a = old || { login, name: '', starter: null, cards: {}, deck: null, lastBooster: null, tokens: [], created: new Date().toISOString() };
+    const a = old || { login, name: '', starter: null, cards: {}, shards: 0, deck: null, lastBooster: null, tokens: [], created: new Date().toISOString() };
     a.name = String(name || a.name || login).trim().slice(0, 20) || login;
     a.pass = hashPass(String(password));
     if (old) { for (const t of a.tokens || []) sessions.delete(t); a.tokens = []; }
     await store.put(a);
     return { created: !old, account: adminView(a) };
   }
-  const adminView = a => ({ login: a.login, name: a.name, starter: a.starter, cards: Object.values(a.cards).reduce((s, n) => s + n, 0), lastBooster: a.lastBooster, created: a.created });
+  const adminView = a => ({ login: a.login, name: a.name, starter: a.starter, cards: Object.values(a.cards).reduce((s, n) => s + n, 0), shards: a.shards || 0, lastBooster: a.lastBooster, created: a.created });
 
-  return { byToken, login, logout, chooseStarter, booster, saveDeck, adminUpsert, adminList: () => store.all().map(adminView) };
+  return { ready, byToken, login, logout, chooseStarter, booster, saveDeck, shop, buyCard, buyBooster, adminUpsert, adminList: () => store.all().map(adminView) };
 }
 
 export class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
@@ -84,6 +137,9 @@ export function apiHandler(accounts, adminKey) {
     'POST /api/starter': (a, body) => accounts.chooseStarter(a, body),
     'POST /api/booster': a => accounts.booster(a),
     'PUT /api/deck': (a, body) => accounts.saveDeck(a, body),
+    'GET /api/shop': a => accounts.shop(a),
+    'POST /api/shop/card': (a, body) => accounts.buyCard(a, body),
+    'POST /api/shop/booster': (a, body) => accounts.buyBooster(a, body),
     'GET /api/admin/accounts': () => ({ accounts: accounts.adminList() }),
     'POST /api/admin/accounts': (_, body) => accounts.adminUpsert(body),
   };

@@ -1,9 +1,9 @@
 // Collection d'un joueur : deck de départ, booster quotidien et règles de construction de deck.
 // Partagé par le serveur (qui fait foi) et l'appli (qui affiche et prévient avant d'envoyer).
-import { CARDS, GENERALS, TERRAINS, DECKS, pick } from './engine.js';
+import { CARDS, GENERALS, TERRAINS, DECKS, pick, shuffle } from './engine.js';
 
 export const STARTERS = ['gobelin', 'elfe', 'demon'];
-export const DECK_SIZE = 15, DECK_TERRAINS = 5, MAX_COPIES = 1, BOOSTER_SIZE = 5;
+export const DECK_SIZE = 15, DECK_TERRAINS = 5, MAX_COPIES = 1, BOOSTER_SIZE = 3;
 // Toutes les cartes du set (hors jetons) ont la même chance de sortir d'un booster.
 export const BOOSTER_POOL = Object.keys(CARDS).filter(k => !CARDS[k].token);
 
@@ -21,7 +21,12 @@ export function starterKit(starter) {
   };
 }
 
-export function openBooster(rand = pick) { return Array.from({ length: BOOSTER_SIZE }, () => rand(BOOSTER_POOL)); }
+// Booster quotidien : 3 cartes au hasard, dont au moins une que le joueur n'a pas (tant qu'il lui en manque).
+export function openBooster(owned = {}, rand = pick) {
+  const missing = BOOSTER_POOL.filter(id => !owned[id]);
+  const cards = [missing.length ? rand(missing) : rand(BOOSTER_POOL), ...Array.from({ length: BOOSTER_SIZE - 1 }, () => rand(BOOSTER_POOL))];
+  return shuffle(cards);
+}
 
 // Jour courant à Paris (AAAA-MM-JJ) : le booster quotidien revient à minuit, heure française.
 export const today = (d = new Date()) => new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(d);
@@ -43,3 +48,21 @@ export function deckError(deck, { cards: owned, starter }) {
   if (!allowedGenerals(starter).includes(deck.general)) return 'Ce général n\'est pas accessible avec votre deck de départ.';
   return null;
 }
+
+// ---- Doublons, sets et boutique ----
+// Un deck ne prend qu'un exemplaire de chaque carte : chaque doublon obtenu devient des Éclats.
+export const SHARDS_PER_DUPLICATE = 10;
+export const SHOP = { dailyCards: 3, cardPrice: 300, boosterPrice: 200, boosterSize: 3 };
+// Chaque set a son espace dans la boutique. Un set fermé y apparaît comme « bientôt disponible ».
+export const SETS = [
+  { id: 'base', name: 'Set de base', cards: BOOSTER_POOL, open: true },
+  { id: 'set2', name: 'Prochain set', cards: [], open: false, teaser: 'Ses cartes arriveront d\'abord ici, en boosters et à l\'unité, avant de rejoindre le booster quotidien.' },
+];
+export const setById = id => SETS.find(s => s.id === id);
+
+// Cartes du jour d'un set : tirées au hasard, en priorité parmi celles que le joueur n'a pas.
+export function dailyOffers(set, owned, n = SHOP.dailyCards, rand = Math.random) {
+  const order = ids => ids.map(id => [rand(), id]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+  return [...order(set.cards.filter(id => !owned[id])), ...order(set.cards.filter(id => owned[id]))].slice(0, n);
+}
+export function setBooster(set, rand = pick) { return Array.from({ length: SHOP.boosterSize }, () => rand(set.cards)); }

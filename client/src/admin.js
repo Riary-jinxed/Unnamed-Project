@@ -22,7 +22,7 @@ async function refresh() {
 function render() {
   const rows = (st.accounts || []).sort((a, b) => a.login.localeCompare(b.login)).map(a => `<tr>
     <td><b>${esc(a.login)}</b></td><td>${esc(a.name)}</td><td>${a.starter ? esc(DECKS[a.starter].name) : '—'}</td>
-    <td class="num">${a.cards}</td><td>${a.lastBooster || '—'}</td></tr>`).join('');
+    <td class="num">${a.cards}</td><td class="num">${a.shards}</td><td>${a.lastBooster || '—'}</td></tr>`).join('');
   app.innerHTML = `<div class="top"><span class="title">Comptes des joueurs</span></div>
   ${st.accounts ? `
   <form class="card-box" id="create">
@@ -34,8 +34,8 @@ function render() {
     <div class="row"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" id="gen">Mot de passe au hasard</button></div>
     ${st.msg ? `<p style="margin:0">${st.msg}</p>` : ''}${st.err ? `<p class="err" style="margin:0">${esc(st.err)}</p>` : ''}
   </form>
-  <div class="card-box" style="overflow-x:auto"><table class="admin"><thead><tr><th>Identifiant</th><th>Pseudo</th><th>Deck de départ</th><th>Cartes</th><th>Dernier booster</th></tr></thead>
-    <tbody>${rows || '<tr><td colspan="5" class="hint">Aucun compte pour l\'instant.</td></tr>'}</tbody></table></div>`
+  <div class="card-box" style="overflow-x:auto"><table class="admin"><thead><tr><th>Identifiant</th><th>Pseudo</th><th>Deck de départ</th><th>Cartes</th><th>Éclats</th><th>Dernier booster</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="6" class="hint">Aucun compte pour l\'instant.</td></tr>'}</tbody></table></div>`
   : `<form class="card-box" id="unlock">
     <div class="field"><label class="eyebrow" for="key">Clé d'administration (ADMIN_KEY)</label><input id="key" type="password" value="${esc(st.key)}" required></div>
     ${st.err ? `<p class="err" style="margin:0">${esc(st.err)}</p>` : ''}
