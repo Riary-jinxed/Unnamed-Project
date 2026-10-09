@@ -36,16 +36,23 @@ const AVATAR_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, AVATAR
 // Ce que le joueur voit de son compte (jamais le mot de passe ni les sessions).
 export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, name: a.name, avatar: a.avatar || null, starter: a.starter, cards: a.cards, shards: a.shards || 0,
   deck: activeDeck(a), decks: (a.decks || []).map(cleanDeck), active: activeDeck(a)?.id || null, maxDecks: MAX_DECKS,
-  boosterReady: a.starter !== null && a.lastBooster !== today(), shardRate: cfg.shardsPerDuplicate });
+  boosterReady: a.starter !== null && a.lastBooster !== today(), shardRate: cfg.shardsPerDuplicate,
+  // Niveaux de carte (cosmétiques) : essence de chaque carte et niveau atteint (1 si absent).
+  essence: a.essence || {}, cardLevels: a.cardLevels || {} });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels'];
 
-// Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats.
-function addCards(a, ids, rate) {
-  let shards = 0;
-  const fresh = ids.map(id => { if (!a.cards[id]) { a.cards[id] = 1; return true; } shards += rate; return false; });
+// Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte.
+function addCards(a, ids, rate, essenceRate) {
+  let shards = 0, essence = 0;
+  const fresh = ids.map(id => {
+    if (!a.cards[id]) { a.cards[id] = 1; return true; }
+    shards += rate; essence += essenceRate;
+    if (essenceRate) { a.essence = a.essence || {}; a.essence[id] = (a.essence[id] || 0) + essenceRate; }
+    return false;
+  });
   a.shards = (a.shards || 0) + shards;
-  return { fresh, shards };
+  return { fresh, shards, essence };
 }
 // Convertit en Éclats les doublons gardés avant la boutique. Renvoie true si le compte a changé.
 function convertDuplicates(a, rate) {
@@ -65,7 +72,7 @@ export function createAccounts(store) {
   let catalogVersion = 0;
   const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a) });
   // Les nouvelles cartes rapportent de l'XP et peuvent compléter une famille ou un set.
-  const add = (a, ids) => { const got = addCards(a, ids, cfg().shardsPerDuplicate); return { ...got, xp: progress.onCards(a, got.fresh) }; };
+  const add = (a, ids) => { const got = addCards(a, ids, cfg().shardsPerDuplicate, progress.essenceRate()); return { ...got, xp: progress.onCards(a, got.fresh) }; };
   const ready = Promise.all(store.all().filter(a => {
     const dup = convertDuplicates(a, cfg().shardsPerDuplicate), decks = migrateDecks(a), gens = grantStarterGenerals(a), prog = progress.init(a);
     if (dup) console.log(`Doublons de ${a.login} convertis en Éclats.`);
@@ -236,6 +243,7 @@ export function createAccounts(store) {
   async function reroll(a, body) { await progress.reroll(a, body); await store.put(a); return { account: me(a) }; }
   async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
   async function equip(a, body) { await progress.equip(a, body || {}); await store.put(a); return { account: me(a) }; }
+  async function upgradeCard(a, body) { const level = await progress.upgradeCard(a, body || {}); await store.put(a); return { level, account: me(a) }; }
 
   // Administration : créer un compte, ou changer le mot de passe d'un compte existant.
   async function adminUpsert({ login, password, name, create }) {
@@ -327,7 +335,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, recordGame, reroll, seen, equip, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -359,6 +367,7 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/missions/reroll': (a, body) => accounts.reroll(a, body),
     'POST /api/rewards/seen': a => accounts.seen(a),
     'PUT /api/cosmetics': (a, body) => accounts.equip(a, body),
+    'POST /api/cards/upgrade': (a, body) => accounts.upgradeCard(a, body),
     'GET /api/admin/accounts': () => ({ accounts: accounts.adminList() }),
     'POST /api/admin/accounts': (_, body) => accounts.adminUpsert(body),
     'GET /api/admin/account': (_, __, ___, url) => accounts.adminGet(url.searchParams.get('login')),

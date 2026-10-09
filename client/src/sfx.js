@@ -45,6 +45,9 @@ const SOUNDS = {
   destroy: () => { noise({ dur: 0.3, freq: 400, to: 80, type: 'lowpass', vol: 0.5 }); tone(90, { to: 40, dur: 0.3, vol: 0.35 }); },
   terrain: () => { tone(110, { to: 70, dur: 0.5, vol: 0.3 }); noise({ dur: 0.4, freq: 250, type: 'lowpass', vol: 0.25 }); },
   general: () => { [392, 523, 659].forEach((f, i) => tone(f, { dur: 0.4, type: 'sawtooth', vol: 0.05, at: i * 0.06 })); },
+  // Niveau de carte gagné, et effet de mise en jeu d'une carte au niveau maximum.
+  levelup: () => { [523, 659, 784].forEach((f, i) => tone(f, { dur: 0.3, type: 'triangle', vol: 0.14, at: i * 0.08 })); noise({ dur: 0.3, freq: 3000, to: 6000, q: 2, vol: 0.06 }); },
+  astral: () => { [1047, 1319, 1568, 2093, 2637].forEach((f, i) => tone(f, { dur: 0.45, vol: 0.07, at: 0.05 + i * 0.05 })); tone(262, { to: 523, dur: 0.5, type: 'triangle', vol: 0.12 }); noise({ dur: 0.5, freq: 6000, q: 3, vol: 0.05 }); },
   win: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, { dur: i === 3 ? 0.7 : 0.18, type: 'triangle', vol: 0.18, at: i * 0.13 })); },
   lose: () => { [392, 349, 311, 262].forEach((f, i) => tone(f, { dur: i === 3 ? 0.7 : 0.22, type: 'triangle', vol: 0.15, at: i * 0.18 })); },
   tie: () => { [440, 440].forEach((f, i) => tone(f, { dur: 0.25, type: 'triangle', vol: 0.15, at: i * 0.2 })); },

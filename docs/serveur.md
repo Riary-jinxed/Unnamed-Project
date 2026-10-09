@@ -42,6 +42,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `starter` | Deck de départ choisi (`null` avant le premier choix). |
 | `cards` | Collection : `{ id: 1 }` (un exemplaire ; les doublons deviennent des Éclats). |
 | `shards` | Éclats. |
+| `essence`, `cardLevels` | Essence de chaque carte (gagnée avec ses doublons) et niveau cosmétique atteint (`{ id: 2..5 }`, 1 si absent). |
 | `decks`, `active` | Jusqu'à 5 decks `{ id, name, general, terrains, cards }` ; identifiant du deck joué. |
 | `lastBooster` | Jour du dernier booster quotidien ouvert. |
 | `shop` | Par set : `{ date, rotation, offers, bought }`, les cartes du jour du joueur. |
@@ -92,6 +93,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/missions/reroll` | Remplace une mission (`{ index }`). |
 | `POST /api/rewards/seen` | Vide la boîte de récompenses. |
 | `PUT /api/cosmetics` | Change le titre, le cadre ou le dos de carte porté. |
+| `POST /api/cards/upgrade` | `{ card }` : monte une carte possédée d'un niveau contre son essence et des Éclats (`progress.upgradeCard`). |
 | `POST /api/games/solo` | Résultat d'une partie contre l'IA → récompenses. |
 | `GET /api/friends` | Amis (avec statut `online`, `game` ou `off`, niveau, titre, cadre, empreinte de l'image), demandes reçues et envoyées, défi en cours. |
 | `GET /api/friends/avatars` | Images de profil des amis et des demandes (l'appli ne les redemande que si leur empreinte change). |
@@ -126,7 +128,7 @@ Messages JSON, champ `t` pour le type.
 | Du serveur | Contenu |
 | --- | --- |
 | `lobby` | `{ room, seat, token, names }` |
-| `state` | `{ room, view }` : `viewFor` + `flash` (carte à animer), `ready`, `names`, `connected`, `badges` (titre, cadre, dos, niveau), `avatars` (images de profil, seulement dans le premier message de la partie ou après une reconnexion), `reward` (fin de partie) |
+| `state` | `{ room, view }` : `viewFor` + `flash` (carte à animer), `ready`, `names`, `connected`, `badges` (titre, cadre, dos, niveau, et `looks` : niveau des cartes du deck joué ; pour l'adversaire, seulement son général et les cartes qu'il a déjà révélées, voir `shownBadge`), `avatars` (images de profil, seulement dans le premier message de la partie ou après une reconnexion), `reward` (fin de partie) |
 | `error` | `{ msg }` (session expirée, deck injouable, code inconnu, salon complet) |
 | `gone`, `left` | Salon expiré, adversaire parti |
 
@@ -149,6 +151,7 @@ Un salon (`rooms` dans `index.js`) garde ses deux sièges (compte, deck, jeton, 
 - **Fin de partie** (`progress.onGame`) : statistiques, XP et Éclats selon le mode et le résultat (pour les `gamesPerDay` premières parties du jour), avancement des missions, montée de niveau (Éclats à chaque niveau, booster offert tous les `boosterEvery` niveaux), succès.
 - **Nouvelles cartes** (`progress.onCards`) : XP par carte nouvelle, puis vérification des familles et sets complétés (carte unique, titre, dos ou cadre, Éclats, boosters offerts).
 - **Missions** : tirées chaque jour parmi celles activées, une peut être remplacée par jour.
+- **Niveaux de carte** (`progress.upgradeCard`) : chaque doublon donne `essencePerDuplicate` essence de la carte (`addCards`, `accounts.js`) ; passer au niveau n coûte `lvlNEssence` essence et `lvlNShards` Éclats. Les niveaux et leur aspect sont dans `CARD_LEVELS` (`rewards.js`).
 - Chaque récompense passe par `grant`, qui l'applique au compte et la range dans `inbox`.
 
 ## Sécurité

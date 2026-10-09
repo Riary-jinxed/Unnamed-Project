@@ -430,3 +430,46 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
 /* La barre du bas (tour, sceaux, Valider) ne doit pas cacher l'élément ramené à l'écran. */
 .coach-hl { scroll-margin-top: 12px; scroll-margin-bottom: 150px; }
 .hc.coach-hl { outline-offset: -3px; }
+
+/* Niveaux de carte (cosmétiques) : le métal remplace le cadre gris sur les côtés et en bas ; la barre de famille reste en haut.
+   Le dégradé est peint sous un cadre transparent (fond en deux couches), ce qui garde les coins arrondis de la carte. */
+.mc { --lvbg: var(--surface); } .hc { --lvbg: var(--surface); } .fc, .gencard { --lvbg: var(--bg); } .zoomcard { --lvbg: var(--surface); }
+.gencard.armed { --lvbg: color-mix(in srgb, var(--accent) 16%, var(--bg)); }
+.lv { border-left: 2px solid transparent; border-right: 2px solid transparent; border-bottom: 2px solid transparent;
+  background: linear-gradient(var(--lvbg), var(--lvbg)) padding-box, var(--lvg) border-box; }
+.fc.lv, .hc.lv, .zoomcard.lv { border-left-width: 3px; border-right-width: 3px; border-bottom-width: 3px; }
+.lv-bronze { --lvg: linear-gradient(135deg, #e7ad78, #8a4f22 55%, #d08b50); }
+.lv-argent { --lvg: linear-gradient(135deg, #ffffff, #8d96a2 55%, #e3e8ee); }
+.lv-or { --lvg: linear-gradient(135deg, #ffe7a0, #b07c0c 50%, #ffd45a); filter: drop-shadow(0 0 3px rgb(224 170 40 / .55)); }
+@property --lva { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.lv-astral { --lvg: conic-gradient(from var(--lva), #d0547f, #e2b93e, #4fbcad, #77a3e6, #a585e6, #d0547f); filter: drop-shadow(0 0 4px rgb(165 133 230 / .7)); animation: lvspin 4s linear infinite; }
+@keyframes lvspin { to { --lva: 360deg; } }
+.zoomcard.lv { filter: none; }
+.zoomcard.lv-astral { box-shadow: 0 0 16px 2px rgb(165 133 230 / .6); }
+/* Collection : niveau atteint et carte prête à monter. */
+.ccard .lvtag { position: absolute; left: 8px; bottom: 8px; z-index: 2; font-size: 11.5px; font-weight: 700; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+.ccard.tagged .fc { padding-bottom: 36px; }
+.ccard .lvtag.up { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.lvbox .lvladder { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.lvladder li { display: flex; align-items: center; gap: 8px; opacity: .7; }
+.lvladder li.done { opacity: 1; }
+.lvladder li > span:nth-child(2) { flex: 1; line-height: 1.25; }
+.lvladder .lvsw { flex: none; width: 22px; height: 28px; border-radius: 4px; border-top: 4px solid var(--fam, var(--f-neutre)); --lvbg: var(--bg); }
+.lvladder .ok { color: var(--up); font-weight: 700; }
+.zoomcard.lv-up { animation: lvup .7s cubic-bezier(.2,.8,.2,1); }
+@keyframes lvup { 40% { transform: scale(1.04); box-shadow: 0 0 0 3px var(--accent), 0 0 30px 6px var(--accent); } }
+/* Effet de mise en jeu (niveau maximum) : la carte s'illumine, un anneau de lumière et des étincelles s'en échappent. */
+.mc.astral-in { animation: reveal .55s cubic-bezier(.2,.8,.2,1), astralin 1.1s ease-out; }
+@keyframes astralin { 30% { box-shadow: 0 0 0 2px #fff, 0 0 26px 8px #a585e6; filter: brightness(1.35); } }
+.astralfx { position: fixed; pointer-events: none; z-index: 30; }
+.astralfx::before { content: ""; position: absolute; left: 50%; top: 50%; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%;
+  border: 3px solid rgb(255 255 255 / .9); box-shadow: 0 0 18px 6px #a585e6, inset 0 0 14px 4px #e2b93e; animation: astralring .9s ease-out forwards; }
+.astralfx::after { content: ""; position: absolute; left: 50%; top: 50%; width: calc(var(--s) * 2); height: calc(var(--s) * 2); margin: calc(var(--s) * -1) 0 0 calc(var(--s) * -1); border-radius: 50%;
+  background: repeating-conic-gradient(rgb(255 236 180 / .8) 0 5deg, transparent 5deg 30deg);
+  -webkit-mask: radial-gradient(circle, #000 15%, transparent 65%); mask: radial-gradient(circle, #000 15%, transparent 65%); animation: astralrays 1s ease-out forwards; }
+.astralfx i { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px 2px #e2b93e;
+  animation: astralspark .9s var(--d) ease-out both; }
+@keyframes astralring { from { transform: scale(.3); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+@keyframes astralrays { from { transform: rotate(0) scale(.4); opacity: 0; } 30% { opacity: 1; } to { transform: rotate(40deg) scale(1.1); opacity: 0; } }
+@keyframes astralspark { from { transform: rotate(var(--r)) translateY(0) scale(1); opacity: 1; } to { transform: rotate(var(--r)) translateY(calc(var(--s) * -.85)) scale(.3); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .lv-astral, .mc.astral-in, .zoomcard.lv-up { animation: none; } }

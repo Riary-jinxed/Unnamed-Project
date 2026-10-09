@@ -1,6 +1,6 @@
-// Onglet Récompenses de /admin : courbe d'XP, gains des parties et des niveaux, missions quotidiennes, complétions et succès.
+// Onglet Récompenses de /admin : courbe d'XP, gains des parties et des niveaux, missions quotidiennes, complétions, niveaux de carte et succès.
 // Tout est enregistré dans le document « recompenses » ; les valeurs vides reprennent les valeurs par défaut.
-import { MISSIONS, ACHIEVEMENTS, FAMILY_REWARDS, SET_REWARDS, FRAMES, xpToNext } from '@jeu/engine/rewards';
+import { MISSIONS, ACHIEVEMENTS, FAMILY_REWARDS, SET_REWARDS, FRAMES, CARD_LEVELS, xpToNext } from '@jeu/engine/rewards';
 import { CARDS } from '@jeu/engine';
 
 const GROUPS = [
@@ -17,6 +17,10 @@ const GROUPS = [
     ['missionsPerDay', 'Missions par jour', 'Entre 0 et 6.'], ['missionRerolls', 'Missions qu\'on peut changer par jour'],
     ['familyShards', 'Éclats : famille complétée dans un set'],
     ['setShards', 'Éclats : set complété'], ['setBoosters', 'Boosters offerts : set complété'],
+  ]],
+  ['Niveaux de carte', 'Purement cosmétiques. Chaque doublon donne de l\'essence de la carte (en plus des Éclats par doublon de l\'onglet Boutique) ; essence et Éclats font monter la carte : bronze, argent, or, puis astral avec un effet de mise en jeu.', [
+    ['essencePerDuplicate', 'Essence par doublon'],
+    ...[2, 3, 4, 5].flatMap(n => [[`lvl${n}Essence`, `Niveau ${n} (${CARD_LEVELS[n].name}) : essence`], [`lvl${n}Shards`, `Niveau ${n} (${CARD_LEVELS[n].name}) : Éclats`]]),
   ]],
 ];
 

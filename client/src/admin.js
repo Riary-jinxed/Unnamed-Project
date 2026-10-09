@@ -169,7 +169,7 @@ function renderShopSettings() {
       ${field('cardPrice', 'Prix d\'une carte du jour', 'En Éclats.')}
       ${field('boosterPrice', 'Prix d\'un booster du set', 'En Éclats.')}
       ${field('boosterSize', 'Cartes par booster acheté', 'Entre 1 et 10.')}
-      ${field('shardsPerDuplicate', 'Éclats par doublon', 'Gagnés pour chaque carte déjà possédée.')}
+      ${field('shardsPerDuplicate', 'Éclats par doublon', 'Gagnés pour chaque carte déjà possédée. L\'essence par doublon se règle dans l\'onglet Récompenses.')}
     </div>
     <div class="row"><button class="btn primary" type="submit">Enregistrer les prix</button><button class="btn" type="button" data-act="defaults">Revenir aux valeurs par défaut</button></div>
   </form>
