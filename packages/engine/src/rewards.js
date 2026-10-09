@@ -1,6 +1,7 @@
 // Récompenses du compte : niveau, missions quotidiennes, succès, complétion de famille et de set, titres, cadres et dos de carte.
 // Partagé par le serveur (qui fait foi) et l'appli (qui affiche). Les nombres se règlent depuis /admin (document « recompenses »).
 import { CARDS, GENERALS, FAMILIES } from './engine.js';
+import { TIERS } from './ranked.js';
 
 // ---- Réglages chiffrés ----
 // Les valeurs par défaut sont justifiées dans la proposition d'économie (recompenses/economie.md).
@@ -21,6 +22,8 @@ export const DEFAULT_REWARDS = {
   // Niveaux de carte : essence de la carte gagnée par doublon, puis essence et Éclats pour passer au niveau n (2 à 5).
   essencePerDuplicate: 10,
   lvl2Essence: 5, lvl2Shards: 50, lvl3Essence: 10, lvl3Shards: 100, lvl4Essence: 15, lvl4Shards: 200, lvl5Essence: 20, lvl5Shards: 400,
+  // Mode classé : Éclats de fin de saison selon le meilleur palier atteint (ranked.js).
+  rankShardsBronze: 50, rankShardsArgent: 100, rankShardsOr: 200, rankShardsPlatine: 350, rankShardsDiamant: 500, rankShardsMaitre: 800,
 };
 export const REWARD_LIMITS = {
   xpBase: [10, 100000], xpStep: [0, 100000], xpCap: [10, 1000000], levelShards: [0, 100000], boosterEvery: [0, 100],
@@ -31,6 +34,7 @@ export const REWARD_LIMITS = {
   essencePerDuplicate: [0, 1000],
   lvl2Essence: [0, 10000], lvl2Shards: [0, 100000], lvl3Essence: [0, 10000], lvl3Shards: [0, 100000],
   lvl4Essence: [0, 10000], lvl4Shards: [0, 100000], lvl5Essence: [0, 10000], lvl5Shards: [0, 100000],
+  rankShardsBronze: [0, 100000], rankShardsArgent: [0, 100000], rankShardsOr: [0, 100000], rankShardsPlatine: [0, 100000], rankShardsDiamant: [0, 100000], rankShardsMaitre: [0, 100000],
 };
 
 // XP pour passer du niveau `level` au suivant.
@@ -55,6 +59,7 @@ export const FRAMES = {
   bronze: 'Cadre de bronze', argent: 'Cadre d\'argent', or: 'Cadre d\'or', legende: 'Cadre légendaire',
   flamme: 'Cadre de flammes', duel: 'Cadre du duelliste', tresor: 'Cadre du trésor', etoile: 'Cadre étoilé',
   base: 'Couronne du Set de base', set2: 'Couronne du Crépuscule',
+  platine: 'Cadre de platine', diamant: 'Cadre de diamant', maitre: 'Cadre du grand maître',
 };
 const FAM_KEY = { 'Ange': 'ange', 'Démon': 'demon', 'Gobelin': 'gobelin', 'Elfe': 'elfe', 'Dragon': 'dragon', 'Mort-vivant': 'mortvivant', 'Vampire': 'vampire' };
 export const famKey = fam => FAM_KEY[fam] || 'neutre';
@@ -154,4 +159,5 @@ export const TITLES = Object.fromEntries([
   ...ACHIEVEMENTS.filter(a => a.title).map(a => [a.id, a.title]),
   ...FAMILY_REWARDS.map(r => [`fam:${r.set}:${r.fam}`, r.title]),
   ...Object.entries(SET_REWARDS).map(([set, r]) => [`set:${set}`, r.title]),
+  ...TIERS.filter(t => t.title).map(t => [`rang:${t.id}`, t.title]),
 ]);

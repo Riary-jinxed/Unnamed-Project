@@ -1,10 +1,12 @@
-// Progression du compte : XP et niveau, missions quotidiennes, succès, complétion de famille et de set, titres, cadres et dos de carte.
+// Progression du compte : XP et niveau, missions quotidiennes, succès, complétion de famille et de set, titres, cadres et dos de carte,
+// rang du mode classé et saisons.
 // Les nombres viennent du document « recompenses » (réglé depuis /admin), complété par les valeurs par défaut de rewards.js.
 // Chaque récompense gagnée est aussi rangée dans la boîte « inbox » du compte, que l'appli affiche puis vide.
 import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, ACHIEVEMENTS, familyReward, SET_REWARDS, TITLES, FRAMES, BACKS,
   xpToNext, familyOf, statValue, missionLabel, MAX_CARD_LEVEL, levelCost } from '@jeu/engine/rewards';
 import { SETS, STARTERS, OWNABLE, allowedGenerals, today } from '@jeu/engine/collection';
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
+import { TIERS, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonCosmetics } from '@jeu/engine/ranked';
 import { HttpError } from './accounts.js';
 
 const INBOX_MAX = 40;
@@ -173,6 +175,57 @@ export function createProgress(store) {
   }
   const onBooster = a => advance(a, m => (m.id === 'booster' ? 1 : 0));
 
+  // ---- Mode classé ----
+  // Compte : ranked = { season, r (étoiles, voir ranked.js), best (meilleur rang de la saison), games, wins, streak }.
+  // La saison change au premier passage après la fin du mois : récompenses du meilleur palier atteint, puis on redescend d'un palier.
+  function syncSeason(a) {
+    const season = seasonId(), R = a.ranked;
+    if (R && R.season === season) return;
+    if (!a.level) init(a);
+    if (R && R.games) {
+      const best = rankOf(R.best), t = TIERS[best.tier], c = cfg();
+      // Titres et cadres des paliers en dessous, débloqués sans bruit ; celui du palier atteint est annoncé avec les Éclats.
+      for (const x of seasonCosmetics(best.tier)) {
+        if (x.title && !a.cosmetics.titles.includes(x.title)) a.cosmetics.titles.push(x.title);
+        if (x.frame && !a.cosmetics.frames.includes(x.frame)) a.cosmetics.frames.push(x.frame);
+      }
+      grant(a, { kind: 'season', label: `Saison ${seasonName(R.season)} terminée : ${best.label}`, shards: c[seasonShardsKey(best.tier)] || 0,
+        title: t.title ? `rang:${t.id}` : undefined, frame: t.frame });
+    }
+    const r = R ? seasonReset(R.r) : 0;
+    a.ranked = { season, r, best: r, games: 0, wins: 0, streak: 0 };
+    store.put(a).catch(e => console.error('Saison non enregistrée :', e));
+  }
+  const ranked = a => { syncSeason(a); return a.ranked; };
+  // Partie classée terminée. foeR : rang de l'ami affronté avant la partie (null contre l'IA).
+  // Renvoie le rang avant et après, pour l'écran de fin de partie.
+  function onRanked(a, { result, foeR = null }) {
+    const R = ranked(a), before = rankOf(R.r);
+    R.games++;
+    if (result === 'win') { R.wins++; R.streak++; } else R.streak = 0;
+    const { r, bonus } = applyResult(R.r, { result, streak: R.streak, foeR });
+    R.r = r; R.best = Math.max(R.best, r);
+    const after = rankOf(r);
+    return { before, after, delta: after.r - before.r, bonus, promoted: after.tier > before.tier || (after.division !== before.division && after.r > before.r) };
+  }
+  // Ce que voit le joueur de son rang (accueil, écran classé).
+  function rankedView(a) {
+    const R = ranked(a);
+    return { season: R.season, seasonName: seasonName(R.season), daysLeft: seasonDaysLeft(), rank: rankOf(R.r), best: rankOf(R.best),
+      games: R.games, wins: R.wins, streak: R.streak, ai: TIERS[rankOf(R.r).tier].name };
+  }
+  // Classement de la saison : les joueurs qui y ont joué au moins une partie classée.
+  function ladder() {
+    const season = seasonId();
+    return store.all().filter(x => !x.disabled && x.ranked?.season === season && x.ranked.games)
+      .sort((x, y) => y.ranked.r - x.ranked.r || y.ranked.wins - x.ranked.wins || x.ranked.games - y.ranked.games)
+      .map((x, i) => ({ pos: i + 1, login: x.login, name: x.name, level: x.level || 1, title: x.title ? TITLES[x.title] || null : null, frame: x.frame || null,
+        rank: rankOf(x.ranked.r), games: x.ranked.games, wins: x.ranked.wins }));
+  }
+  // Récompenses de fin de saison de chaque palier, pour l'écran classé.
+  const seasonRewards = () => { const c = cfg();
+    return TIERS.map((t, i) => ({ id: t.id, name: t.name, ai: t.ai, shards: c[seasonShardsKey(i)] || 0, title: t.title || null, frame: t.frame ? FRAMES[t.frame] : null })); };
+
   // ---- Cosmétiques ----
   async function equip(a, { title, frame, back }) {
     if (title !== undefined) { if (title !== null && !a.cosmetics.titles.includes(title)) throw new HttpError(400, 'Titre non débloqué.'); a.title = title; }
@@ -209,7 +262,7 @@ export function createProgress(store) {
     const ms = missions(a), c = cfg();
     return { ...levelView(a), freeBoosters: a.freeBoosters || 0,
       missions: ms.list.map(m => ({ label: missionLabel(m), n: m.n, target: m.target, done: m.done, xp: m.xp, shards: m.shards })),
-      rerollsLeft: Math.max(0, c.missionRerolls - ms.rerolls), inbox: a.inbox || [], badge: badge(a), cardLevels: levelsView(),
+      rerollsLeft: Math.max(0, c.missionRerolls - ms.rerolls), inbox: a.inbox || [], badge: badge(a), cardLevels: levelsView(), ranked: rankedView(a),
       title: a.title, frame: a.frame, back: a.back,
       cosmetics: { titles: a.cosmetics.titles.map(id => ({ id, label: TITLES[id] || id })), frames: a.cosmetics.frames.map(id => ({ id, label: FRAMES[id] || id })),
         backs: a.cosmetics.backs.map(id => ({ id, label: BACKS[id] || id })) } };
@@ -251,6 +304,6 @@ export function createProgress(store) {
   const settings = () => ({ rewards: cfg(), defaults: { ...DEFAULT_REWARDS, missions: Object.fromEntries(Object.entries(MISSIONS).map(([id, m]) => [id, { target: m.target, xp: m.xp, shards: m.shards, on: true }])),
     achievements: Object.fromEntries(ACHIEVEMENTS.map(x => [x.id, x.shards])) } });
 
-  return { init, onCards, checkCollection, onGame, onBooster, reroll, equip, view, badge, essenceRate, upgradeCard, achievementsView, collectionView, saveSettings, settings,
+  return { init, onCards, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, essenceRate, upgradeCard, achievementsView, collectionView, saveSettings, settings,
     seen: a => { a.inbox = []; } };
 }

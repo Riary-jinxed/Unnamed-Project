@@ -13,7 +13,7 @@ const drop = (arr, x) => { const i = arr.indexOf(x); if (i >= 0) arr.splice(i, 1
 const send = (ws, msg) => { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); };
 
 // rooms : ce que index.js offre des salons. playing(login) : assis dans un salon et connecté ;
-// inviteRoom(logins) : crée un salon réservé à ces deux joueurs et renvoie son code ; abortInvite(code, login) : l'annule.
+// inviteRoom(logins, { ranked }) : crée un salon réservé à ces deux joueurs (partie classée si ranked) et renvoie son code ; abortInvite(code, login) : l'annule.
 export function createFriends(store, accounts, rooms) {
   const online = new Map(); // identifiant → connexions de présence ouvertes
   const challenges = new Map(); // id → { id, from, to, at }
@@ -27,7 +27,7 @@ export function createFriends(store, accounts, rooms) {
     return { login, name: a.name, level: b.level, title: b.title, frame: b.frame, avatar: avatarKey(a), status: status(login) };
   };
   const nameOf = login => store.get(login)?.name || login;
-  const challengeView = c => ({ id: c.id, from: { login: c.from, name: nameOf(c.from) }, to: { login: c.to, name: nameOf(c.to) } });
+  const challengeView = c => ({ id: c.id, ranked: !!c.ranked, from: { login: c.from, name: nameOf(c.from) }, to: { login: c.to, name: nameOf(c.to) } });
   function view(a) {
     const players = k => list(a, k).map(player).filter(Boolean);
     const friends = players('friends').sort((x, y) => STATUS_ORDER[x.status] - STATUS_ORDER[y.status] || x.name.localeCompare(y.name, 'fr'));
@@ -120,7 +120,8 @@ export function createFriends(store, accounts, rooms) {
     notify(c.to, { t: 'challenge-gone', id: c.id, ...(toTo ? { msg: toTo } : {}) });
   }
   const hasPlayableDeck = a => (a.decks || []).some(d => !deckError(d, a));
-  function challenge(ws, to) {
+  // ranked : défi classé, qui compte pour le rang des deux amis.
+  function challenge(ws, to, ranked) {
     const a = store.get(ws.presence); if (!a) return;
     const b = store.get(String(to || '')), pending = [...challenges.values()];
     const err = !b || !list(a, 'friends').includes(b.login) ? 'Ce joueur n\'est pas dans vos amis.'
@@ -132,7 +133,7 @@ export function createFriends(store, accounts, rooms) {
       : pending.some(c => c.to === b.login || c.from === b.login) ? `${b.name} a déjà un défi en cours.`
       : null;
     if (err) { send(ws, { t: 'challenge-error', msg: err }); return; }
-    const c = { id: randomBytes(6).toString('hex'), from: a.login, to: b.login, at: Date.now() };
+    const c = { id: randomBytes(6).toString('hex'), from: a.login, to: b.login, at: Date.now(), ranked: !!ranked };
     challenges.set(c.id, c);
     notify(b.login, { t: 'challenge', ...challengeView(c) });
     notify(a.login, { t: 'challenge-sent', ...challengeView(c) });
@@ -145,9 +146,9 @@ export function createFriends(store, accounts, rooms) {
     if (!a || !online.has(c.from) || rooms.playing(c.from)) { endChallenge(c, null, `${nameOf(c.from)} n'est plus disponible.`); return; }
     if (!hasPlayableDeck(b)) { send(ws, { t: 'challenge-error', msg: 'Aucun de vos decks n\'est jouable : complétez-en un d\'abord.' }); return; }
     challenges.delete(c.id);
-    const room = rooms.inviteRoom([c.from, c.to]);
-    notify(c.from, { t: 'challenge-ready', id: c.id, room, foe: b.name });
-    notify(c.to, { t: 'challenge-ready', id: c.id, room, foe: a.name });
+    const room = rooms.inviteRoom([c.from, c.to], { ranked: c.ranked });
+    notify(c.from, { t: 'challenge-ready', id: c.id, room, foe: b.name, ranked: c.ranked });
+    notify(c.to, { t: 'challenge-ready', id: c.id, room, foe: a.name, ranked: c.ranked });
   }
   function cancel(ws, { id }) {
     const c = challenges.get(id);
@@ -162,7 +163,7 @@ export function createFriends(store, accounts, rooms) {
   function handle(ws, msg) {
     if (msg.t === 'hello') hello(ws, msg.auth);
     else if (!ws.presence && String(msg.t).startsWith('challenge')) return true;
-    else if (msg.t === 'challenge') challenge(ws, msg.to);
+    else if (msg.t === 'challenge') challenge(ws, msg.to, msg.ranked);
     else if (msg.t === 'challenge-answer') answer(ws, msg);
     else if (msg.t === 'challenge-cancel') cancel(ws, msg);
     else if (msg.t === 'challenge-abort') rooms.abortInvite(String(msg.room || ''), ws.presence);

@@ -371,6 +371,30 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
 .frame-etoile { background: radial-gradient(circle, #fff 0 1px, transparent 2px) 0 0 / 7px 7px, linear-gradient(135deg, #1d2a5a, #4b3a8f); }
 .frame-base { background: linear-gradient(135deg, var(--f-ange), var(--f-demon), var(--f-gobelin), var(--f-elfe), var(--f-dragon)); }
 .frame-set2 { background: linear-gradient(135deg, #2b1d3a, var(--f-vampire) 45%, var(--f-mortvivant)); box-shadow: 0 0 8px rgb(140 35 80 / .5); }
+.frame-platine { background: linear-gradient(135deg, #e9f6f4, #7fb7b0 50%, #d4ece8); box-shadow: 0 0 8px rgb(127 183 176 / .6); }
+.frame-diamant { background: conic-gradient(#bfe9ff, #5aa8e6, #e4f6ff, #3a7fd0, #bfe9ff); box-shadow: 0 0 10px rgb(90 168 230 / .7); }
+.frame-maitre { background: conic-gradient(from 90deg, #6a2bd0, #e04aa0, #ffcf4a, #6a2bd0); box-shadow: 0 0 12px rgb(160 70 210 / .7); }
+
+/* ---- Mode classé : palier, étoiles, classement ---- */
+.rank { display: inline-block; padding: 1px 10px; border-radius: 999px; color: #1d1a16; font-weight: 600; line-height: 1.5; white-space: nowrap; }
+.rank-bronze { background: linear-gradient(135deg, #e0a36b, #b8763e); }
+.rank-argent { background: linear-gradient(135deg, #f4f6f9, #b4bcc6); }
+.rank-or { background: linear-gradient(135deg, #ffe08a, #d9a42a); }
+.rank-platine { background: linear-gradient(135deg, #e9f6f4, #8fc4bd); }
+.rank-diamant { background: linear-gradient(135deg, #e4f6ff, #7fbaf0); }
+.rank-maitre { background: linear-gradient(135deg, #f0c0ff, #ffb36b); }
+.rstars { color: var(--accent); letter-spacing: 2px; white-space: nowrap; }
+.rstars .off { opacity: .25; }
+.ladder { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.ladder li { display: grid; grid-template-columns: 2em minmax(0, 1fr) auto; align-items: center; gap: 4px 8px; padding: 8px 4px; border-top: 1px solid var(--line); }
+.ladder li:first-child { border-top: 0; }
+.ladder li.me { background: var(--bg); border-radius: var(--r); }
+.ladder .lpos { font-weight: 700; text-align: center; }
+.ladder .fname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ladder small.hint { grid-column: 2 / -1; }
+.tiers { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tiers li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 4px; border-radius: var(--r); }
+.tiers li.on { outline: 2px solid var(--accent); }
 
 /* Dos de carte : vu par l'adversaire sur les cartes cachées. */
 .mc.back.back-ange { background: radial-gradient(circle at 50% 40%, #fff6d6, transparent 60%), repeating-linear-gradient(0deg, #e2b93e 0 2px, #f8ecc6 2px 6px); border-top-color: #c99a1e; }

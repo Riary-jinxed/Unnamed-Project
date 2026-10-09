@@ -8,9 +8,10 @@ const MAX_CARDS = 40;
 const sideOf = (P, login, deckCards) => ({ login: login || null, name: P.name, general: P.general, deck: P.deckName, cards: deckCards.slice(), played: P.played.slice() });
 
 export function createGames(store, accounts) {
-  // Partie en ligne terminée : decks = listes de cartes jouées par chaque siège.
-  function recordPvp(st, logins, decks) {
-    return store.addGame({ mode: 'pvp', at: new Date().toISOString(), winner: st.result.winner, reason: st.result.reason,
+  // Partie jouée par le serveur terminée : decks = listes de cartes de chaque siège. mode « pve » pour une partie classée contre l'IA
+  // (siège sans compte) ; ranked : partie classée.
+  function recordPvp(st, logins, decks, { mode = 'pvp', ranked = false } = {}) {
+    return store.addGame({ mode, ...(ranked ? { ranked: true } : {}), at: new Date().toISOString(), winner: st.result.winner, reason: st.result.reason,
       players: [0, 1].map(p => sideOf(st.p[p], logins[p], decks[p])) }).catch(e => console.error('Partie non enregistrée :', e));
   }
   // Partie contre l'IA terminée dans l'appli. Le joueur joue toujours le deck enregistré sur son compte.
@@ -84,6 +85,8 @@ export function createGames(store, accounts) {
     routes: {
       'GET /api/profile': a => ({ stats: playerStats(a), achievements: accounts.progress.achievementsView(a), collection: accounts.progress.collectionView(a) }),
       'POST /api/games/solo': (a, body) => recordSolo(a, body),
+      // Mode classé : rang du joueur, classement de la saison, récompenses de fin de saison par palier.
+      'GET /api/ranked': a => ({ ranked: accounts.progress.rankedView(a), ladder: accounts.progress.ladder(), rewards: accounts.progress.seasonRewards() }),
       'GET /api/admin/stats': (_, __, ___, url) => stats({ mode: url.searchParams.get('mode') || 'all', days: +url.searchParams.get('days') || 0 }),
     },
   };
