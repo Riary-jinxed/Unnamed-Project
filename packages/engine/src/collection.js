@@ -6,19 +6,39 @@ export const STARTERS = ['gobelin', 'elfe', 'demon'];
 export const DECK_SIZE = 15, DECK_TERRAINS = 5, MAX_COPIES = 1, BOOSTER_SIZE = 3;
 // Cartes à collectionner (hors jetons). Le catalogue publié depuis /admin peut en ajouter : ces tableaux sont mis à jour sur place.
 export const COLLECTIBLE = Object.keys(CARDS).filter(k => !CARDS[k].token);
-// Booster quotidien : les cartes des sets marqués « daily », toutes avec la même chance de sortir.
-export const BOOSTER_POOL = COLLECTIBLE.slice();
+// Les généraux se collectionnent comme les cartes : même collection, mêmes boosters, mêmes doublons.
+export const GENERAL_IDS = Object.keys(GENERALS);
+export const isGeneral = id => !!GENERALS[id];
+// Tout ce qui peut sortir d'un booster : cartes et généraux.
+export const OWNABLE = [...COLLECTIBLE, ...GENERAL_IDS];
+// Booster quotidien : les cartes et généraux des sets marqués « daily », tous avec la même chance de sortir.
+export const BOOSTER_POOL = OWNABLE.slice();
+// Set d'origine d'une carte ou d'un général (« base » par défaut).
+export const setOf = id => (CARDS[id] || GENERALS[id])?.set || 'base';
 
-// Généraux et terrains accessibles : les neutres et ceux de la famille du deck de départ.
+// Généraux donnés par le deck de départ : les 2 de sa famille et les neutres du Set de base.
 const famOf = starter => (DECKS[starter] ? DECKS[starter].fam : undefined);
-export const allowedGenerals = starter => Object.keys(GENERALS).filter(k => GENERALS[k].fam === null || GENERALS[k].fam === famOf(starter));
-export const allowedTerrains = starter => Object.keys(TERRAINS).filter(k => TERRAINS[k].fam === null || TERRAINS[k].fam === famOf(starter));
+export const starterGenerals = starter => GENERAL_IDS.filter(k => setOf(k) === 'base' && (GENERALS[k].fam === null || GENERALS[k].fam === famOf(starter)));
+// Généraux jouables : ceux de la collection. Terrains jouables : les neutres et ceux des familles dont on possède un général.
+export const allowedGenerals = ({ cards = {} } = {}) => GENERAL_IDS.filter(k => cards[k]);
+export function allowedTerrains(account) {
+  const fams = new Set(allowedGenerals(account).map(k => GENERALS[k].fam).filter(Boolean));
+  return Object.keys(TERRAINS).filter(k => TERRAINS[k].fam === null || fams.has(TERRAINS[k].fam));
+}
+// Ajoute à un compte les généraux de son deck de départ qui lui manquent. Renvoie true si le compte a changé.
+export function grantStarterGenerals(a) {
+  if (!a.starter) return false;
+  const miss = starterGenerals(a.starter).filter(k => !a.cards?.[k]);
+  if (!miss.length) return false;
+  a.cards = a.cards || {}; for (const k of miss) a.cards[k] = 1;
+  return true;
+}
 
-// Collection et deck de départ : les 15 cartes du deck préconstruit choisi, une fois chacune.
+// Collection et deck de départ : les 15 cartes du deck préconstruit choisi et ses généraux, une fois chacun.
 export function starterKit(starter) {
   const d = DECKS[starter];
   return {
-    cards: Object.fromEntries(d.cards.map(id => [id, 1])),
+    cards: Object.fromEntries([...d.cards, ...starterGenerals(starter)].map(id => [id, 1])),
     deck: { name: d.name, cards: d.cards.slice(), terrains: d.terrains.slice(), general: d.general },
   };
 }
@@ -34,7 +54,8 @@ export function openBooster(owned = {}, rand = pick) {
 export const today = (d = new Date()) => new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(d);
 
 // Renvoie un message d'erreur, ou null si le deck est jouable avec cette collection.
-export function deckError(deck, { cards: owned, starter }) {
+export function deckError(deck, account) {
+  const owned = account.cards || {};
   if (!deck || !Array.isArray(deck.cards) || !Array.isArray(deck.terrains)) return 'Deck invalide.';
   if (!deck.general) return 'Choisissez un général.';
   if (deck.cards.length !== DECK_SIZE) return `Le deck doit contenir ${DECK_SIZE} cartes (il en a ${deck.cards.length}).`;
@@ -46,16 +67,17 @@ export function deckError(deck, { cards: owned, starter }) {
     if (count[id] > (owned[id] || 0)) return `Vous ne possédez pas ${CARDS[id].name}.`;
   }
   if (deck.terrains.length !== DECK_TERRAINS || new Set(deck.terrains).size !== DECK_TERRAINS) return `Choisissez ${DECK_TERRAINS} terrains différents.`;
-  const terrains = allowedTerrains(starter);
-  if (deck.terrains.some(t => !terrains.includes(t))) return 'Ce terrain n\'est pas accessible avec votre deck de départ.';
-  if (!allowedGenerals(starter).includes(deck.general)) return 'Ce général n\'est pas accessible avec votre deck de départ.';
+  if (!allowedGenerals(account).includes(deck.general)) return 'Vous ne possédez pas ce général.';
+  const terrains = allowedTerrains(account);
+  if (deck.terrains.some(t => !terrains.includes(t))) return 'Ce terrain demande un général de sa famille dans votre collection.';
   return null;
 }
 
 // Plusieurs decks par joueur. Un deck en cours de création peut être incomplet : il n'est jouable qu'une fois complet.
 export const MAX_DECKS = 5;
 // Renvoie un message d'erreur, ou null si ce deck (complet ou non) respecte la collection et les règles.
-export function draftError(deck, { cards: owned, starter }) {
+export function draftError(deck, account) {
+  const owned = account.cards || {};
   if (!deck || !Array.isArray(deck.cards) || !Array.isArray(deck.terrains)) return 'Deck invalide.';
   if (deck.cards.length > DECK_SIZE) return `Le deck contient ${DECK_SIZE} cartes au plus.`;
   if (new Set(deck.cards).size !== deck.cards.length) return 'Une carte ne peut être qu\'en un exemplaire.';
@@ -64,8 +86,8 @@ export function draftError(deck, { cards: owned, starter }) {
     if (!owned[id]) return `Vous ne possédez pas ${CARDS[id].name}.`;
   }
   if (deck.terrains.length > DECK_TERRAINS || new Set(deck.terrains).size !== deck.terrains.length) return `Choisissez ${DECK_TERRAINS} terrains différents au plus.`;
-  if (deck.terrains.some(t => !allowedTerrains(starter).includes(t))) return 'Ce terrain n\'est pas accessible avec votre deck de départ.';
-  if (deck.general !== null && !allowedGenerals(starter).includes(deck.general)) return 'Ce général n\'est pas accessible avec votre deck de départ.';
+  if (deck.terrains.some(t => !allowedTerrains(account).includes(t))) return 'Ce terrain demande un général de sa famille dans votre collection.';
+  if (deck.general !== null && deck.general !== undefined && !allowedGenerals(account).includes(deck.general)) return 'Vous ne possédez pas ce général.';
   return null;
 }
 
@@ -76,8 +98,9 @@ export const SHOP = { dailyCards: 3, cardPrice: 300, boosterPrice: 200, boosterS
 // Chaque set a son espace dans la boutique. Un set fermé (open: false) y apparaît comme « bientôt disponible ».
 // daily : ses cartes sortent aussi du booster quotidien.
 export const DEFAULT_SETS = [
-  { id: 'base', name: 'Set de base', cards: COLLECTIBLE.slice(), open: true, daily: true, teaser: '' },
-  { id: 'set2', name: 'Prochain set', cards: [], open: false, daily: false, teaser: 'Ses cartes arriveront d\'abord ici, en boosters et à l\'unité, avant de rejoindre le booster quotidien.' },
+  { id: 'base', name: 'Set de base', cards: OWNABLE.filter(id => setOf(id) === 'base'), open: true, daily: true, teaser: '' },
+  { id: 'set2', name: 'Crépuscule', cards: OWNABLE.filter(id => setOf(id) === 'set2'), open: false, daily: false,
+    teaser: 'Morts-vivants et Vampires rejoignent la bataille, avec de nouveaux généraux pour chaque famille. Ses cartes arriveront d\'abord ici, en boosters et à l\'unité, avant de rejoindre le booster quotidien.' },
 ];
 export const SETS = structuredClone(DEFAULT_SETS);
 export const setById = id => SETS.find(s => s.id === id);

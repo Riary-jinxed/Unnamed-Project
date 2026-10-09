@@ -1,5 +1,5 @@
 // Onglet Stats de /admin : taux de victoire en JcJ et contre l'IA, par joueur et par général, et cartes les plus jouées.
-const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon' };
+const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon', 'Mort-vivant': '--f-mortvivant', 'Vampire': '--f-vampire' };
 const SORTS = { plays: 'Les plus jouées', best: 'Meilleur taux de victoire', worst: 'Pire taux de victoire', decks: 'Les plus mises en deck' };
 const MIN_SAMPLE = 5;
 

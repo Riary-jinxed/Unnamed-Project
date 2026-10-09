@@ -1,13 +1,16 @@
 // Catalogue de cartes et de sets modifiable depuis /admin : un brouillon, puis une publication qui l'applique au jeu.
 // La version publiée est servie à l'appli (GET /api/catalog), qui l'applique aussi pour l'affichage et la partie contre l'IA.
-import { catalogError, applyCatalog, emptyCatalog, BASE_CARDS } from '@jeu/engine/catalog';
+import { catalogError, applyCatalog, emptyCatalog, BASE_CARDS, withNewcomers, knownIds } from '@jeu/engine/catalog';
 import { HttpError } from './accounts.js';
 
 export function createCatalog(store, accounts) {
+  // Les cartes et généraux arrivés depuis l'enregistrement d'un catalogue rejoignent leur set d'origine.
+  const upgrade = cat => ({ ...cat, sets: withNewcomers(cat), known: knownIds(cat) });
   let published = store.doc('catalogue') || emptyCatalog();
   if (catalogError(published)) { console.error('Catalogue publié invalide, cartes d\'origine utilisées :', catalogError(published)); published = emptyCatalog(); }
+  published = upgrade(published);
   accounts.setCatalogVersion(applyCatalog(published));
-  const draft = () => store.doc('brouillon') || published;
+  const draft = () => { const d = store.doc('brouillon'); return d ? upgrade(d) : published; };
 
   // Une carte créée puis publiée ne peut plus disparaître tant qu'un joueur la possède.
   function lostOwned(next) {
@@ -16,7 +19,7 @@ export function createCatalog(store, accounts) {
   }
   async function saveDraft({ draft: d }) {
     const err = catalogError(d); if (err) throw new HttpError(400, err);
-    const clean = { version: published.version, cards: d.cards, sets: d.sets.map(s => ({ id: s.id, name: s.name.trim(), open: !!s.open, daily: !!s.daily, teaser: s.teaser || '', cards: [...new Set(s.cards)] })) };
+    const clean = { version: published.version, known: knownIds(d), cards: d.cards, sets: d.sets.map(s => ({ id: s.id, name: s.name.trim(), open: !!s.open, daily: !!s.daily, teaser: s.teaser || '', cards: [...new Set(s.cards)] })) };
     await store.putDoc('brouillon', clean);
     return view();
   }

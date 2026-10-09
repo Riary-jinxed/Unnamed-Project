@@ -7,7 +7,7 @@ Cette version sert à tester le jeu entre amis : une appli web installable sur t
 
 | Dossier | Rôle |
 | --- | --- |
-| `packages/engine` | Le moteur de règles et le set 1 (5 familles, 60 cartes, 12 généraux, 15 terrains, 5 decks de départ). `collection.js` : deck de départ, booster quotidien, règles de deck. Il ne dépend de rien. |
+| `packages/engine` | Le moteur de règles, le Set de base (5 familles, 60 cartes, 12 généraux, 15 terrains) et le set 2 « Crépuscule » (Mort-vivant et Vampire, support des 5 familles : 57 cartes, 10 généraux, 11 terrains), plus 12 decks préconstruits. `collection.js` : deck de départ, boosters, règles de deck. Il ne dépend de rien. |
 | `server` | Le serveur de parties et des comptes : salons à code, règles appliquées côté serveur, cartes cachées jamais envoyées à l'adversaire, API des comptes. Il sert aussi l'appli compilée. |
 | `client` | L'appli web (PWA) : connexion, collection, deck, booster, salon, plateau, partie contre l'IA. Plus la page `/admin` : comptes et réglages de la boutique. |
 
@@ -67,10 +67,11 @@ La table `comptes` est créée toute seule au premier démarrage. Sans `DATABASE
 ## Jouer
 
 - **Se connecter** avec l'identifiant et le mot de passe donnés par l'administrateur (pas d'inscription).
-- À la première connexion, **choisir son deck de départ** : Grande Horde (Gobelin), Vents sylvestres (Elfe) ou Pacte infernal (Démon). Ses 15 cartes forment la collection. Le choix est définitif.
-- **Booster du jour** : 3 cartes tirées parmi les 60 du set, dont au moins une que le joueur n'a pas encore, une fois par jour (minuit, heure de Paris).
+- À la première connexion, **choisir son deck de départ** : Grande Horde (Gobelin), Vents sylvestres (Elfe) ou Pacte infernal (Démon). Ses 15 cartes, ses 2 généraux de famille et les 2 généraux neutres forment la collection. Le choix est définitif.
+- **Généraux** : ils se collectionnent comme les cartes et sortent des boosters (quotidien, de set, cartes du jour). Un deck prend un général de sa collection ; ses terrains sont les neutres et ceux des familles dont on possède un général.
+- **Booster du jour** : 3 cartes tirées parmi les cartes et généraux des sets du booster quotidien (72 pour le Set de base), dont au moins une que le joueur n'a pas encore, une fois par jour (minuit, heure de Paris).
 - **Doublons** : un deck ne prend qu'un exemplaire de chaque carte, donc chaque doublon obtenu devient 10 Éclats.
-- **Boutique** : un espace par set, payé en Éclats. Pour le Set de base : 3 cartes du jour propres à chaque joueur (300 Éclats l'une) et un booster de 3 cartes au hasard (200 Éclats). Le prochain set y a déjà sa place, marquée « bientôt disponible ». Prix et sets se règlent dans `packages/engine/src/collection.js` (`SHOP`, `SETS`).
+- **Boutique** : un espace par set, payé en Éclats. Pour le Set de base : 3 cartes du jour propres à chaque joueur (300 Éclats l'une) et un booster de 3 cartes au hasard (200 Éclats). Le set 2 « Crépuscule » y a déjà sa place, marquée « bientôt disponible » : il s'ouvre depuis l'onglet « Sets » de `/admin`. Prix et sets se règlent dans `packages/engine/src/collection.js` (`SHOP`, `SETS`).
 - **Profil** : touchez votre image en haut de l'accueil. On y change son pseudo et son image de profil (recadrée en carré, réduite à 160 px et affichée en cercle), on voit les sets complétés et ses statistiques de victoire (en ligne, contre l'IA, par général, dernières parties).
 - **Mes decks** : jusqu'à 5 decks. Le deck de départ est le premier. Chaque deck se crée en trois étapes : le général, puis 5 terrains, puis 15 cartes différentes de la collection. Généraux et terrains accessibles : les neutres et ceux de la famille de départ. Un deck peut être renommé, modifié, remis à zéro ou supprimé (il en reste toujours un). Un deck incomplet est gardé mais pas jouable ; « Jouer ce deck » choisit celui qui est joué, en ligne comme contre l'IA.
 - **Créer une partie** donne un code de 4 lettres et un lien à envoyer.
