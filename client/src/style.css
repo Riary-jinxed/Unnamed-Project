@@ -431,22 +431,21 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
 .coach-hl { scroll-margin-top: 12px; scroll-margin-bottom: 150px; }
 .hc.coach-hl { outline-offset: -3px; }
 
-/* Niveaux de carte (cosmétiques) : un anneau dégradé dessiné à l'intérieur du cadre, sans toucher aux ombres d'état (sélection, déplacement). */
-.lv { position: relative; }
-.lv::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 2px; background: var(--lvg); pointer-events: none; z-index: 1;
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
-.fc.lv::before, .hc.lv::before { padding: 3px; }
-.lv-bronze { --lvg: linear-gradient(135deg, #e7ad78, #8a4f22 55%, #d08b50); --lvc: #b8743f; }
-.lv-argent { --lvg: linear-gradient(135deg, #ffffff, #8d96a2 55%, #e3e8ee); --lvc: #a9b2bd; }
-.lv-or { --lvg: linear-gradient(135deg, #ffe7a0, #b07c0c 50%, #ffd45a); --lvc: #d6a43a; filter: drop-shadow(0 0 3px rgb(224 170 40 / .55)); }
-.lv-astral { --lvc: #a585e6; filter: drop-shadow(0 0 4px rgb(165 133 230 / .7)); }
-/* La carte en grand défile : un anneau dessiné par-dessus partirait avec le défilement, on colore son cadre à la place. */
-.zoomcard.lv { border: 3px solid var(--lvc); filter: none; }
-.zoomcard.lv::before { display: none; }
-.zoomcard.lv-astral { box-shadow: 0 0 16px 2px rgb(165 133 230 / .6); }
+/* Niveaux de carte (cosmétiques) : le métal remplace le cadre gris sur les côtés et en bas ; la barre de famille reste en haut.
+   Le dégradé est peint sous un cadre transparent (fond en deux couches), ce qui garde les coins arrondis de la carte. */
+.mc { --lvbg: var(--surface); } .hc { --lvbg: var(--surface); } .fc, .gencard { --lvbg: var(--bg); } .zoomcard { --lvbg: var(--surface); }
+.gencard.armed { --lvbg: color-mix(in srgb, var(--accent) 16%, var(--bg)); }
+.lv { border-left: 2px solid transparent; border-right: 2px solid transparent; border-bottom: 2px solid transparent;
+  background: linear-gradient(var(--lvbg), var(--lvbg)) padding-box, var(--lvg) border-box; }
+.fc.lv, .hc.lv, .zoomcard.lv { border-left-width: 3px; border-right-width: 3px; border-bottom-width: 3px; }
+.lv-bronze { --lvg: linear-gradient(135deg, #e7ad78, #8a4f22 55%, #d08b50); }
+.lv-argent { --lvg: linear-gradient(135deg, #ffffff, #8d96a2 55%, #e3e8ee); }
+.lv-or { --lvg: linear-gradient(135deg, #ffe7a0, #b07c0c 50%, #ffd45a); filter: drop-shadow(0 0 3px rgb(224 170 40 / .55)); }
 @property --lva { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-.lv-astral::before { background: conic-gradient(from var(--lva), #d0547f, #e2b93e, #4fbcad, #77a3e6, #a585e6, #d0547f); animation: lvspin 4s linear infinite; }
+.lv-astral { --lvg: conic-gradient(from var(--lva), #d0547f, #e2b93e, #4fbcad, #77a3e6, #a585e6, #d0547f); filter: drop-shadow(0 0 4px rgb(165 133 230 / .7)); animation: lvspin 4s linear infinite; }
 @keyframes lvspin { to { --lva: 360deg; } }
+.zoomcard.lv { filter: none; }
+.zoomcard.lv-astral { box-shadow: 0 0 16px 2px rgb(165 133 230 / .6); }
 /* Collection : niveau atteint et carte prête à monter. */
 .ccard .lvtag { position: absolute; left: 8px; bottom: 8px; z-index: 2; font-size: 11.5px; font-weight: 700; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
 .ccard.tagged .fc { padding-bottom: 36px; }
@@ -455,7 +454,7 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
 .lvladder li { display: flex; align-items: center; gap: 8px; opacity: .7; }
 .lvladder li.done { opacity: 1; }
 .lvladder li > span:nth-child(2) { flex: 1; line-height: 1.25; }
-.lvladder .lvsw { flex: none; width: 22px; height: 28px; border-radius: 4px; background: var(--bg); }
+.lvladder .lvsw { flex: none; width: 22px; height: 28px; border-radius: 4px; border-top: 4px solid var(--fam, var(--f-neutre)); --lvbg: var(--bg); }
 .lvladder .ok { color: var(--up); font-weight: 700; }
 .zoomcard.lv-up { animation: lvup .7s cubic-bezier(.2,.8,.2,1); }
 @keyframes lvup { 40% { transform: scale(1.04); box-shadow: 0 0 0 3px var(--accent), 0 0 30px 6px var(--accent); } }
@@ -473,4 +472,4 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
 @keyframes astralring { from { transform: scale(.3); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
 @keyframes astralrays { from { transform: rotate(0) scale(.4); opacity: 0; } 30% { opacity: 1; } to { transform: rotate(40deg) scale(1.1); opacity: 0; } }
 @keyframes astralspark { from { transform: rotate(var(--r)) translateY(0) scale(1); opacity: 1; } to { transform: rotate(var(--r)) translateY(calc(var(--s) * -.85)) scale(.3); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .lv-astral::before, .mc.astral-in, .zoomcard.lv-up { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .lv-astral, .mc.astral-in, .zoomcard.lv-up { animation: none; } }
