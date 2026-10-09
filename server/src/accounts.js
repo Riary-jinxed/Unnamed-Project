@@ -1,7 +1,7 @@
 // Comptes joueurs : pas d'inscription, l'administrateur crée les identifiants et les communique.
 // API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, boutique, administration.
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { STARTERS, COLLECTIBLE, starterKit, openBooster, today, deckError, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers } from '@jeu/engine/collection';
+import { STARTERS, COLLECTIBLE, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers } from '@jeu/engine/collection';
 import { pick, CARDS } from '@jeu/engine';
 
 const MAX_SESSIONS = 10;
@@ -14,8 +14,24 @@ const LOGIN_RE = /^[a-z0-9._-]{2,24}$/;
 export const DEFAULT_SETTINGS = { cardPrice: SHOP.cardPrice, boosterPrice: SHOP.boosterPrice, dailyCards: SHOP.dailyCards, boosterSize: SHOP.boosterSize, shardsPerDuplicate: SHARDS_PER_DUPLICATE, rotation: 0 };
 const SETTING_LIMITS = { cardPrice: [0, 100000], boosterPrice: [0, 100000], dailyCards: [1, 10], boosterSize: [1, 10], shardsPerDuplicate: [0, 10000] };
 
+// Decks du joueur : jusqu'à MAX_DECKS, chacun avec un identifiant ; « active » désigne celui qui est joué.
+const newDeckId = () => randomBytes(4).toString('hex');
+export const activeDeck = a => (a.decks || []).find(d => d.id === a.active) || (a.decks || [])[0] || null;
+const cleanDeck = d => ({ id: d.id, name: d.name, general: d.general || null, terrains: d.terrains.slice(), cards: d.cards.slice() });
+// Anciens comptes : le deck unique devient le premier des decks. Renvoie true si le compte a changé.
+function migrateDecks(a) {
+  if (Array.isArray(a.decks)) return false;
+  a.decks = a.deck ? [{ id: newDeckId(), ...a.deck }] : [];
+  a.active = a.decks[0]?.id || null;
+  delete a.deck;
+  return true;
+}
+// Image de profil : petite image (data URL) déjà redimensionnée par l'appli.
+const AVATAR_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, AVATAR_MAX = 60_000;
+
 // Ce que le joueur voit de son compte (jamais le mot de passe ni les sessions).
-export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, name: a.name, starter: a.starter, cards: a.cards, shards: a.shards || 0, deck: a.deck,
+export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, name: a.name, avatar: a.avatar || null, starter: a.starter, cards: a.cards, shards: a.shards || 0,
+  deck: activeDeck(a), decks: (a.decks || []).map(cleanDeck), active: activeDeck(a)?.id || null, maxDecks: MAX_DECKS,
   boosterReady: a.starter !== null && a.lastBooster !== today(), shardRate: cfg.shardsPerDuplicate });
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats.
@@ -42,7 +58,12 @@ export function createAccounts(store) {
   let catalogVersion = 0;
   const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion });
   const add = (a, ids) => addCards(a, ids, cfg().shardsPerDuplicate);
-  const ready = Promise.all(store.all().filter(a => convertDuplicates(a, cfg().shardsPerDuplicate)).map(a => { console.log(`Doublons de ${a.login} convertis en Éclats.`); return store.put(a); }));
+  const ready = Promise.all(store.all().filter(a => {
+    const dup = convertDuplicates(a, cfg().shardsPerDuplicate), decks = migrateDecks(a);
+    if (dup) console.log(`Doublons de ${a.login} convertis en Éclats.`);
+    if (decks) console.log(`Deck de ${a.login} rangé dans ses decks.`);
+    return dup || decks;
+  }).map(a => store.put(a)));
 
   async function login({ login, password }) {
     const a = store.get(cleanLogin(login));
@@ -60,7 +81,8 @@ export function createAccounts(store) {
     if (a.starter) throw new HttpError(409, 'Le deck de départ est déjà choisi.');
     if (!STARTERS.includes(starter)) throw new HttpError(400, 'Deck de départ inconnu.');
     const kit = starterKit(starter);
-    Object.assign(a, { starter, cards: kit.cards, deck: kit.deck });
+    const deck = { id: newDeckId(), ...kit.deck };
+    Object.assign(a, { starter, cards: kit.cards, decks: [deck], active: deck.id });
     await store.put(a);
     return { account: me(a) };
   }
@@ -115,11 +137,70 @@ export function createAccounts(store) {
     await store.put(a);
     return { title: `Booster ${set.name}`, cards, ...got, shop: shopView(a), account: me(a) };
   }
-  async function saveDeck(a, deck) {
+  // Decks : créer (sans id) ou enregistrer un deck, même incomplet ; seul un deck complet peut être joué.
+  const deckName = (name, fallback) => String(name ?? '').trim().slice(0, 30) || fallback;
+  function ownDeck(a, id) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
-    const d = { name: String(deck?.name || 'Mon deck').trim().slice(0, 30) || 'Mon deck', cards: deck?.cards, terrains: deck?.terrains, general: deck?.general };
-    const err = deckError(d, a); if (err) throw new HttpError(400, err);
-    a.deck = { name: d.name, cards: d.cards.slice(), terrains: d.terrains.slice(), general: d.general };
+    const d = (a.decks || []).find(x => x.id === id); if (!d) throw new HttpError(404, 'Deck introuvable.');
+    return d;
+  }
+  async function saveDeck(a, body) {
+    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    const old = body?.id ? ownDeck(a, body.id) : null;
+    if (!old && a.decks.length >= MAX_DECKS) throw new HttpError(409, `${MAX_DECKS} decks au plus : supprimez-en un d'abord.`);
+    const d = { id: old ? old.id : newDeckId(), name: deckName(body?.name, old?.name || `Deck ${a.decks.length + 1}`),
+      general: body?.general || null, terrains: body?.terrains, cards: body?.cards };
+    const err = draftError(d, a); if (err) throw new HttpError(400, err);
+    const deck = cleanDeck(d);
+    if (old) a.decks[a.decks.indexOf(old)] = deck; else a.decks.push(deck);
+    // Le deck joué reste jouable : un nouveau deck complet ne le remplace que si on le demande.
+    if (body?.play && !deckError(deck, a)) a.active = deck.id;
+    if (!a.active) a.active = deck.id;
+    keepPlayable(a);
+    await store.put(a);
+    return { id: deck.id, account: me(a) };
+  }
+  async function renameDeck(a, { id, name }) {
+    const d = ownDeck(a, id); d.name = deckName(name, d.name);
+    await store.put(a); return { account: me(a) };
+  }
+  async function playDeck(a, { id }) {
+    const d = ownDeck(a, id), err = deckError(d, a);
+    if (err) throw new HttpError(409, `Ce deck n'est pas jouable : ${err}`);
+    a.active = d.id; await store.put(a); return { account: me(a) };
+  }
+  // Remet un deck à zéro : il garde son nom, sans général, terrain ni carte.
+  async function resetDeck(a, { id }) {
+    const d = ownDeck(a, id); Object.assign(d, { general: null, terrains: [], cards: [] });
+    keepPlayable(a);
+    await store.put(a); return { account: me(a) };
+  }
+  async function deleteDeck(a, { id }) {
+    const d = ownDeck(a, id);
+    if (a.decks.length <= 1) throw new HttpError(409, 'Gardez au moins un deck : remettez-le à zéro plutôt.');
+    a.decks = a.decks.filter(x => x !== d);
+    if (a.active === d.id) a.active = (a.decks.find(x => !deckError(x, a)) || a.decks[0]).id;
+    await store.put(a); return { account: me(a) };
+  }
+  // Si le deck joué n'est plus jouable, un autre deck complet prend sa place.
+  function keepPlayable(a) {
+    const cur = activeDeck(a); if (cur && !deckError(cur, a)) return;
+    const ok = a.decks.find(d => !deckError(d, a)); if (ok) a.active = ok.id;
+  }
+  // Ancienne route : enregistre le deck joué.
+  const saveActiveDeck = (a, body) => saveDeck(a, { ...body, id: activeDeck(a)?.id });
+
+  // Profil : pseudo et image de profil (null pour la retirer). Seuls les champs présents changent.
+  async function saveProfile(a, { name, avatar }) {
+    if (name !== undefined) {
+      const n = String(name).trim();
+      if (!n || n.length > 20) throw new HttpError(400, 'Pseudo : 1 à 20 caractères.');
+      a.name = n;
+    }
+    if (avatar !== undefined) {
+      if (avatar !== null && (typeof avatar !== 'string' || avatar.length > AVATAR_MAX || !AVATAR_RE.test(avatar))) throw new HttpError(400, 'Image de profil invalide ou trop lourde.');
+      a.avatar = avatar || null;
+    }
     await store.put(a);
     return { account: me(a) };
   }
@@ -131,7 +212,7 @@ export function createAccounts(store) {
     if (String(password || '').length < 4) throw new HttpError(400, 'Mot de passe : 4 caractères au moins.');
     const old = store.get(login);
     if (old && create) throw new HttpError(409, 'Cet identifiant existe déjà : ouvrez le compte pour changer son mot de passe.');
-    const a = old || { login, name: '', starter: null, cards: {}, shards: 0, deck: null, lastBooster: null, tokens: [], created: new Date().toISOString() };
+    const a = old || { login, name: '', starter: null, cards: {}, shards: 0, decks: [], active: null, lastBooster: null, tokens: [], created: new Date().toISOString() };
     a.name = String(name || a.name || login).trim().slice(0, 20) || login;
     a.pass = hashPass(String(password));
     if (old) { for (const t of a.tokens || []) sessions.delete(t); a.tokens = []; }
@@ -139,9 +220,11 @@ export function createAccounts(store) {
     return { created: !old, account: adminView(a) };
   }
   const adminView = a => ({ login: a.login, name: a.name, starter: a.starter, cards: Object.values(a.cards).reduce((s, n) => s + n, 0), shards: a.shards || 0,
-    lastBooster: a.lastBooster, created: a.created, disabled: !!a.disabled, sessions: (a.tokens || []).length, deckName: a.deck?.name || null });
-  const adminDetail = a => ({ ...adminView(a), owned: Object.keys(a.cards).filter(id => a.cards[id]), deck: a.deck,
-    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: a.deck ? deckError(a.deck, a) : null });
+    lastBooster: a.lastBooster, created: a.created, disabled: !!a.disabled, sessions: (a.tokens || []).length, deckName: activeDeck(a)?.name || null });
+  // inDecks : cartes présentes dans au moins un deck du joueur (elles ne peuvent pas être retirées de sa collection).
+  const adminDetail = a => ({ ...adminView(a), owned: Object.keys(a.cards).filter(id => a.cards[id]), deck: activeDeck(a), decks: (a.decks || []).length,
+    inDecks: [...new Set((a.decks || []).flatMap(d => d.cards))],
+    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? deckError(activeDeck(a), a) : null });
   const target = login => { const a = store.get(cleanLogin(login)); if (!a) throw new HttpError(404, 'Compte introuvable.'); return a; };
   const closeSessions = a => { for (const t of a.tokens || []) sessions.delete(t); a.tokens = []; };
   const done = async a => { await store.put(a); return { account: adminDetail(a) }; };
@@ -162,23 +245,27 @@ export function createAccounts(store) {
   async function adminCards({ login, cards }) {
     const a = target(login);
     if (!Array.isArray(cards) || cards.some(id => !COLLECTIBLE.includes(id))) throw new HttpError(400, 'Carte inconnue.');
-    const keep = new Set(cards), lost = (a.deck?.cards || []).filter(id => !keep.has(id));
-    if (lost.length) throw new HttpError(409, `Ces cartes sont dans le deck du joueur et ne peuvent pas être retirées : ${lost.slice(0, 3).map(id => CARDS[id].name).join(', ')}${lost.length > 3 ? ` et ${lost.length - 3} autres` : ''}.`);
+    const keep = new Set(cards), lost = [...new Set((a.decks || []).flatMap(d => d.cards))].filter(id => !keep.has(id));
+    if (lost.length) throw new HttpError(409, `Ces cartes sont dans un deck du joueur et ne peuvent pas être retirées : ${lost.slice(0, 3).map(id => CARDS[id].name).join(', ')}${lost.length > 3 ? ` et ${lost.length - 3} autres` : ''}.`);
     a.cards = Object.fromEntries([...keep].map(id => [id, 1]));
     return done(a);
   }
   // Change le deck de départ : la collection est gardée, les cartes du nouveau deck y sont ajoutées et il devient le deck joué.
+  // Il remplace le deck joué ; les autres decks qui ne respectent plus la nouvelle famille sont remis à zéro.
   async function adminStarter({ login, starter }) {
     const a = target(login);
     if (!STARTERS.includes(starter)) throw new HttpError(400, 'Deck de départ inconnu.');
-    const kit = starterKit(starter);
-    a.starter = starter; a.cards = { ...a.cards, ...kit.cards }; a.deck = kit.deck;
+    const kit = starterKit(starter), cur = activeDeck(a), deck = { id: cur?.id || newDeckId(), ...kit.deck };
+    a.starter = starter; a.cards = { ...a.cards, ...kit.cards };
+    a.decks = cur ? a.decks.map(d => (d === cur ? deck : d)) : [deck];
+    for (const d of a.decks) if (draftError(d, a)) Object.assign(d, { general: null, terrains: [], cards: [] });
+    a.active = deck.id;
     return done(a);
   }
   // Remet le compte comme neuf (collection, Éclats, deck, boutique) ; l'identifiant et le mot de passe restent.
   async function adminReset({ login }) {
     const a = target(login);
-    Object.assign(a, { starter: null, cards: {}, shards: 0, deck: null, lastBooster: null, shop: {} });
+    Object.assign(a, { starter: null, cards: {}, shards: 0, decks: [], active: null, lastBooster: null, shop: {} });
     return done(a);
   }
   async function adminBooster({ login }) { const a = target(login); a.lastBooster = null; return done(a); }
@@ -204,7 +291,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, byToken, me, login, logout, chooseStarter, booster, saveDeck, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -223,7 +310,13 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/logout': (a, _, token) => accounts.logout(a, token),
     'POST /api/starter': (a, body) => accounts.chooseStarter(a, body),
     'POST /api/booster': a => accounts.booster(a),
-    'PUT /api/deck': (a, body) => accounts.saveDeck(a, body),
+    'PUT /api/deck': (a, body) => accounts.saveActiveDeck(a, body),
+    'PUT /api/decks': (a, body) => accounts.saveDeck(a, body),
+    'POST /api/decks/rename': (a, body) => accounts.renameDeck(a, body),
+    'POST /api/decks/play': (a, body) => accounts.playDeck(a, body),
+    'POST /api/decks/reset': (a, body) => accounts.resetDeck(a, body),
+    'POST /api/decks/delete': (a, body) => accounts.deleteDeck(a, body),
+    'PUT /api/profile': (a, body) => accounts.saveProfile(a, body),
     'GET /api/shop': a => accounts.shop(a),
     'POST /api/shop/card': (a, body) => accounts.buyCard(a, body),
     'POST /api/shop/booster': (a, body) => accounts.buyBooster(a, body),
@@ -259,7 +352,7 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
       }
       let body = {};
       if (req.method !== 'GET') {
-        let raw = ''; for await (const chunk of req) { raw += chunk; if (raw.length > 20_000) throw new HttpError(413, 'Requête trop grande.'); }
+        let raw = ''; for await (const chunk of req) { raw += chunk; if (raw.length > 100_000) throw new HttpError(413, 'Requête trop grande.'); }
         try { body = raw ? JSON.parse(raw) : {}; } catch { throw new HttpError(400, 'JSON invalide.'); }
       }
       json(200, await route(acc, body, token, url));
