@@ -1,10 +1,9 @@
 // Onglets Cartes et Sets de /admin : retoucher les cartes, en créer, ranger les cartes dans des sets.
 // Tout s'enregistre dans un brouillon côté serveur ; « Publier » l'applique au jeu.
 import { FAMILIES, GENERALS } from '@jeu/engine';
+import { famStyle } from './common.js';
 import { BASE_CARDS, CARD_FIELDS, EFFECT_SOURCES, editable, applyCatalog } from '@jeu/engine/catalog';
 
-const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon', 'Mort-vivant': '--f-mortvivant', 'Vampire': '--f-vampire' };
-const famVar = fam => `--fam: var(${FAM[fam] || '--f-neutre'})`;
 const BASE_IDS = Object.keys(BASE_CARDS).filter(id => !BASE_CARDS[id].token);
 const TYPES = { C: 'Créature', S: 'Sort' };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -67,7 +66,7 @@ export function cardsTab({ call, render, say, esc, notice, onPublished }) {
       else if (draft().cards[id]) tags.push('retouchée');
       if (changed.has(id)) tags.push('non publiée');
       const sets = draft().sets.filter(s => s.cards.includes(id)).map(s => s.name);
-      return `<button class="crow" data-cat-edit="${id}" style="${famVar(c.fam)}">
+      return `<button class="crow" data-cat-edit="${id}" style="${famStyle(c.fam)}">
         <span class="seal">${c.x ? 'X' : c.cost}</span>
         <span><b>${esc(c.name)}</b> <small class="hint">${TYPES[c.type]}${c.type === 'C' ? ` · ${c.power}` : ''} · ${esc(sets.join(', ') || 'hors set')}</small><br><small class="hint">${esc(c.text)}</small></span>
         <span class="tags">${tags.map(t => `<span class="chip ${t === 'non publiée' ? 'warn' : ''}">${t}</span>`).join('')}</span></button>`;
@@ -163,7 +162,7 @@ export function cardsTab({ call, render, say, esc, notice, onPublished }) {
     const s = S.set, isNew = S.set.index === null;
     const byFam = {};
     for (const id of setIds(draft())) (byFam[setEntry(draft(), id).fam || 'Neutre'] ||= []).push(id);
-    const chips = [...FAMILIES, 'Neutre'].filter(f => byFam[f]).map(f => `<div class="famblock" style="${famVar(f)}"><div class="row"><b style="margin-right:auto">${f}</b>
+    const chips = [...FAMILIES, 'Neutre'].filter(f => byFam[f]).map(f => `<div class="famblock" style="${famStyle(f)}"><div class="row"><b style="margin-right:auto">${f}</b>
       <small class="hint">${byFam[f].filter(id => s.cards.includes(id)).length}/${byFam[f].length}</small>
       <button class="btn sm" type="button" data-set-all="${f}">Tout</button><button class="btn sm" type="button" data-set-none="${f}">Rien</button></div>
       <div class="chips">${byFam[f].map(id => `<label class="pick ${s.cards.includes(id) ? 'on' : ''}"><input type="checkbox" data-set-card="${id}" ${s.cards.includes(id) ? 'checked' : ''}>${esc(setEntry(draft(), id).name)}</label>`).join('')}</div></div>`).join('');

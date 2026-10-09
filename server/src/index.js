@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
+import { gzipSync } from 'node:zlib';
 import { WebSocketServer } from 'ws';
 import { newGame, startTurn, runTurn, viewFor } from '@jeu/engine';
 import { deckError } from '@jeu/engine/collection';
@@ -27,21 +28,34 @@ await accounts.syncAll();
 const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
+// Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.
+// Les fichiers de /assets/ portent une empreinte dans leur nom (Vite) : le navigateur peut les garder un an.
+const files = new Map();
+const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.json', '.webmanifest', '.svg']);
+async function staticFile(path) {
+  if (files.has(path)) return files.get(path);
+  let body;
+  try { body = await readFile(join(DIST, path)); } catch { return null; }
+  const ext = extname(path);
+  const file = { body, gz: COMPRESSIBLE.has(ext) && body.length > 1024 ? gzipSync(body) : null, type: MIME[ext] || 'application/octet-stream',
+    cache: path.startsWith('assets/') ? 'public, max-age=31536000, immutable' : path.startsWith('art/') ? 'public, max-age=86400' : 'no-cache' };
+  files.set(path, file);
+  return file;
+}
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/health') { res.end('ok'); return; }
   if (await api(req, res, url)) return;
   if (url.pathname === '/admin') url.pathname = '/admin.html';
-  let path = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, '');
+  let path;
+  try { path = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, ''); } catch { path = '..'; }
   if (path.includes('..')) { res.writeHead(400); res.end(); return; }
-  for (const candidate of [path || 'index.html', 'index.html']) {
-    try {
-      const body = await readFile(join(DIST, candidate));
-      res.writeHead(200, { 'content-type': MIME[extname(candidate)] || 'application/octet-stream' });
-      res.end(body); return;
-    } catch { /* essai suivant */ }
-  }
-  res.writeHead(404); res.end('Appli non compilée : lancez « npm run build ».');
+  // Adresse inconnue : l'appli (index.html) s'en charge.
+  const file = await staticFile(path || 'index.html') || await staticFile('index.html');
+  if (!file) { res.writeHead(404); res.end('Appli non compilée : lancez « npm run build ».'); return; }
+  const gz = file.gz && /\bgzip\b/.test(req.headers['accept-encoding'] || '');
+  res.writeHead(200, { 'content-type': file.type, 'cache-control': file.cache, vary: 'accept-encoding', ...(gz ? { 'content-encoding': 'gzip' } : {}) });
+  res.end(gz ? file.gz : file.body);
 });
 
 // ---- Salons ----

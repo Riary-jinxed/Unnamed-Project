@@ -7,16 +7,15 @@ import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { hasArt, artVar } from './art.js';
+import { esc, famStyle } from './common.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { FRAMES, BACKS, rewardSourceOf, REWARD_CARDS } from '@jeu/engine/rewards';
 
-const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon', 'Mort-vivant': '--f-mortvivant', 'Vampire': '--f-vampire' };
-const famVar = kw => `--fam: var(${FAM[kw[0]] || '--f-neutre'})`;
+const famVar = kw => famStyle(kw[0]);
 const kwLine = d => (d.token ? 'Jeton · ' : '') + (d.kw.join(' · ') || 'Neutre');
 const typeName = d => d.type === 'C' ? 'Créature' : 'Sort';
 const costLabel = (d, cost) => d.x ? 'X' : cost ?? d.cost;
 const genLine = g => `${g.fam || 'Générique'} · ${g.kind}`;
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const store = {
   get(k, d) { try { const v = localStorage.getItem('jeu-' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('jeu-' + k, JSON.stringify(v)); } catch { /* stockage indisponible */ } },
@@ -344,7 +343,8 @@ const famOfCard = id => GENERALS[id] ? GENERALS[id].fam : CARDS[id].kw.find(k =>
 const nameOf = id => (CARDS[id] || GENERALS[id]).name;
 // Ordre d'affichage : famille, généraux d'abord, puis coût, puis nom.
 const costKey = id => GENERALS[id] ? -1 : CARDS[id].cost;
-const byFamCost = (a, b) => [...FAMILIES, null].indexOf(famOfCard(a)) - [...FAMILIES, null].indexOf(famOfCard(b)) || costKey(a) - costKey(b) || nameOf(a).localeCompare(nameOf(b));
+const famRank = id => { const i = FAMILIES.indexOf(famOfCard(id)); return i < 0 ? FAMILIES.length : i; };
+const byFamCost = (a, b) => famRank(a) - famRank(b) || costKey(a) - costKey(b) || nameOf(a).localeCompare(nameOf(b));
 // Carte ou général, tel qu'il sort d'un booster ou s'affiche dans la collection.
 const anyCard = id => GENERALS[id] ? genCard(id) : fullCard(id);
 const zoomKey = id => `${GENERALS[id] ? 'general' : 'card'}:${id}`;
@@ -542,7 +542,7 @@ function customizeHTML() {
 function familiesHTML() {
   const info = ui.progressInfo?.collection; if (!info) return '';
   return info.map(set => `<div class="gal-h">${esc(set.name)} : familles</div><div class="famlist">${set.families.map(f => `
-    <div class="famrow ${f.done ? 'done' : ''}" style="--fam: var(${FAM[f.fam] || '--f-neutre'})"><span class="fdot"></span><b>${esc(f.fam)}</b><span class="num hint">${f.owned}/${f.total}</span>
+    <div class="famrow ${f.done ? 'done' : ''}" style="${famStyle(f.fam)}"><span class="fdot"></span><b>${esc(f.fam)}</b><span class="num hint">${f.owned}/${f.total}</span>
       ${f.card ? `<button class="chip" data-zoom="${zoomKey(f.card)}">${esc(nameOf(f.card))}</button>` : ''}${f.done ? '<span class="ok">✓</span>' : ''}</div>`).join('')}
     ${set.reward ? `<div class="famrow ${set.done ? 'done' : ''}"><b>Set complet</b><button class="chip" data-zoom="${zoomKey(set.reward.card)}">${esc(nameOf(set.reward.card))}</button>${set.done ? '<span class="ok">✓</span>' : ''}</div>` : ''}</div>`).join('');
 }

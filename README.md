@@ -13,6 +13,8 @@ Cette version sert à tester le jeu entre amis : une appli web installable sur t
 
 Les cartes se modifient dans `packages/engine/src/engine.js` (objets `CARDS`, `GENERALS`, `TERRAINS`, `DECKS`).
 
+La documentation du code (architecture, moteur, serveur et API, appli, recettes pour ajouter une carte ou un set) est dans [`docs/`](docs/README.md).
+
 ## Lancer en local
 
 Il faut Node 20 ou plus.
@@ -39,6 +41,7 @@ npm start   # tout sur http://localhost:8787
 npm run sim -- 60            # 60 parties IA contre IA par duel de decks
 npm run sim -- 20 generaux   # chaque général avec le deck de sa famille, contre tous les decks
 npm run eco                  # jours pour compléter un set selon la façon de jouer
+npm run empreinte            # empreinte de parties à hasard fixé : identique avant et après un nettoyage du moteur
 ```
 
 ## Mettre en ligne pour jouer entre amis
