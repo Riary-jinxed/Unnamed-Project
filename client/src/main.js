@@ -331,8 +331,8 @@ function infoHTML() {
   if (ui.msg) return `<div class="hint">${esc(ui.msg)}</div>`;
   if (ui.moveSel !== null) return `<div class="hint">Touchez la zone vers laquelle déplacer ${esc(CARDS[me().board.flat().find(c => c.uid === ui.moveSel)?.id]?.name || 'cette créature')}. Le déplacement se fait à la révélation.</div>`;
   if (v.phase === 'plan' && v.ready.me) return `<div class="wait">Tour validé. En attente de ${esc(v.foe.name)}…</div>`;
-  if (ui.sel !== null && canPlay()) return `<div class="hint">Touchez une de vos zones pour poser ${esc(CARDS[me().hand.find(c => c.uid === ui.sel)?.id]?.name || 'cette carte')}.</div>`;
-  if (!f) return `<div class="hint">Touchez une carte pour la jouer, ou glissez-la vers une zone.${canPlay() && me().board.flat().some(c => c.mobile) ? ' Une créature marquée ⇄ peut changer de zone.' : ''}</div>`;
+  if (ui.sel !== null && canPlay()) return `<div class="hint">Touchez une de vos zones pour poser ${esc(CARDS[me().hand.find(c => c.uid === ui.sel)?.id]?.name || 'cette carte')}, ou retouchez-la pour la reposer.</div>`;
+  if (!f) return `<div class="hint">Touchez une carte pour la jouer, ou glissez-la vers une zone. Touchez-la deux fois pour la voir en grand.${canPlay() && me().board.flat().some(c => c.mobile) ? ' Une créature marquée ⇄ peut changer de zone.' : ''}</div>`;
   if (f.kind === 'card') { const d = CARDS[f.id];
     return `<div class="h"><b>${esc(d.name)}</b><span class="meta">${typeName(d)} · coût ${d.x ? 'X' : d.cost}${d.type === 'C' ? ` · puissance ${d.power}` : ''} · ${kwLine(d)}</span></div><div>${d.text ? rich(d.text) : 'Pas d\'effet.'}</div>`; }
   if (f.kind === 'terrain') { const t = TERRAINS[f.id]; return `<div class="h"><b>${t.name}</b><span class="meta">Terrain</span></div><div>${rich(t.text)}</div>`; }
@@ -803,8 +803,8 @@ function sheetHTML() {
       const cards = ids(CARDS).filter(k => !CARDS[k].token && (CARDS[k].kw[0] || null) === fam);
       const tokens = fam === null ? ids(CARDS).filter(k => CARDS[k].token) : [];
       h += `<div class="gal-h">${fam || 'Neutres et jetons'}</div><div class="gallery">
-        ${ids(GENERALS).filter(k => GENERALS[k].fam === fam).map(genCard).join('')}
-        ${cards.map(fullCard).join('')}${ids(TERRAINS).filter(k => TERRAINS[k].fam === fam).map(terrainCard).join('')}${tokens.map(fullCard).join('')}</div>`;
+        ${ids(GENERALS).filter(k => GENERALS[k].fam === fam).map(k => genCard(k)).join('')}
+        ${cards.map(k => fullCard(k)).join('')}${ids(TERRAINS).filter(k => TERRAINS[k].fam === fam).map(terrainCard).join('')}${tokens.map(k => fullCard(k)).join('')}</div>`;
     }
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Toutes les cartes</h2><div class="row"><button class="btn" data-act="codex">Mots-clés</button><button class="btn" data-act="close">Fermer</button></div></div>
       <p class="hint" style="margin:0">Un deck : ${DECK_SIZE} cartes différentes de votre collection, ${DECK_TERRAINS} terrains et un général de votre collection. Terrains : les neutres et ceux des familles de vos généraux.</p>${h}</div></div>`;
@@ -1014,6 +1014,13 @@ window.addEventListener('pointercancel', e => endDrag(e, true));
 app.addEventListener('click', e => { if (swallowClick) { e.stopPropagation(); e.preventDefault(); } }, true);
 
 // ---- Interactions ----
+// Double touche (souris ou doigt) : deux touches sur la même carte à moins de DOUBLE_TAP_MS. Le rendu remplace les éléments entre les deux, d'où une clé plutôt que l'élément.
+const DOUBLE_TAP_MS = 350;
+let lastTap = null, pendingTap = null;
+function doubleTap(key) {
+  const now = Date.now(), dbl = lastTap && lastTap.key === key && now - lastTap.t < DOUBLE_TAP_MS;
+  lastTap = dbl ? null : { key, t: now }; return dbl;
+}
 function tryPlace(z) {
   if (!canPlay()) return;
   if (ui.moveSel !== null) {
@@ -1134,21 +1141,31 @@ app.addEventListener('click', e => {
     if (ui.deckStep === 0 && !ui.edit.terrains.length) ui.deckStep = 1;
     render(); scrollTo(0, 0); return; }
   if (ds.step !== undefined) { const i = +ds.step; if (stepOpen(ui.edit, i)) { ui.deckStep = i; ui.msg = ''; render(); } return; }
-  if (ds.hand) { const uid = +ds.hand; ui.focus = { kind: 'card', id: ds.id };
-    // La carte s'affiche en grand ; en planification elle reste sélectionnée pour être posée en touchant une zone.
-    if (canPlay()) { ui.sel = uid; ui.moveSel = null; ui.msg = ''; play('pick'); }
-    openZoom({ kind: 'card', id: ds.id, uid }); render(); return; }
-  if (ds.card) {
-    if (ds.pending && canPlay() && ui.sel === null && ui.moveSel === null) { ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; openZoom({ kind: 'card', id: ds.id, uid: +ds.card }); render(); return; }
-    if (ds.mobile && canPlay() && ui.sel === null && (ui.moveSel === null || ui.moveSel === +ds.card)) {
-      const uid = +ds.card; ui.focus = { kind: 'card', id: ds.id }; ui.msg = '';
-      // Sélectionnée pour un déplacement : toucher ensuite une zone la déplace, comme avant.
-      if (!moveOf(uid)) { ui.moveSel = uid; play('pick'); }
-      openZoom({ kind: 'card', id: ds.id, uid }); render(); return; }
-    if (ds.id && ui.sel === null && ui.moveSel === null) { ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; openZoom({ kind: 'card', id: ds.id, uid: +ds.card }); render(); return; }
+  // En partie : une touche sélectionne la carte (une deuxième la désélectionne), une double touche l'affiche en grand.
+  if (ds.hand) { const uid = +ds.hand; ui.focus = { kind: 'card', id: ds.id }; ui.msg = '';
+    if (doubleTap(`hand:${uid}`)) { if (canPlay()) { ui.sel = uid; ui.moveSel = null; } openZoom({ kind: 'card', id: ds.id, uid }); render(); return; }
+    if (canPlay()) { ui.moveSel = null; ui.sel = ui.sel === uid ? null : uid; play(ui.sel === null ? 'unplace' : 'pick'); }
+    render(); return; }
+  if (ds.card) { const uid = +ds.card;
+    // Une carte posée ce tour : une touche la reprend en main, sélectionnée pour être reposée ailleurs.
+    // On attend un instant pour ne pas la reprendre si c'est une double touche.
+    if (ds.pending && pendingTap?.uid === uid) { clearTimeout(pendingTap.timer); pendingTap = null; openZoom({ kind: 'card', id: ds.id, uid }); render(); return; }
+    if (ds.pending && canPlay() && ui.sel === null && ui.moveSel === null) {
+      ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; clearTimeout(pendingTap?.timer);
+      pendingTap = { uid, timer: setTimeout(() => { pendingTap = null;
+        if (!canPlay() || ui.sheet || !ui.pending.some(p => p.uid === uid)) return;
+        ui.pending = ui.pending.filter(p => p.uid !== uid); ui.sel = uid; play('unplace'); render(); }, DOUBLE_TAP_MS) };
+      return; }
+    if (ds.mobile && canPlay() && ui.sel === null && (ui.moveSel === null || ui.moveSel === uid)) {
+      ui.focus = { kind: 'card', id: ds.id }; ui.msg = '';
+      // Sélectionnée pour un déplacement : toucher ensuite une zone la déplace ; la retoucher la désélectionne.
+      if (doubleTap(`card:${uid}`)) { if (!moveOf(uid)) ui.moveSel = uid; openZoom({ kind: 'card', id: ds.id, uid }); render(); return; }
+      if (!moveOf(uid)) { ui.moveSel = ui.moveSel === uid ? null : uid; play(ui.moveSel === null ? 'unplace' : 'pick'); }
+      render(); return; }
+    if (ds.id && ui.sel === null && ui.moveSel === null) { if (doubleTap(`card:${uid}`)) { ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; openZoom({ kind: 'card', id: ds.id, uid }); render(); } return; }
   }
-  if (ds.terrain && ui.sel === null && ui.moveSel === null) { ui.focus = { kind: 'terrain', id: ds.terrain }; ui.msg = ''; openZoom({ kind: 'terrain', id: ds.terrain }); render(); return; }
-  if (ds.general) { ui.focus = { kind: 'general', id: ds.general }; ui.msg = ''; openZoom({ kind: 'general', id: ds.general, mine: ds.side === 'me', side: ds.side }); render(); return; }
+  if (ds.terrain && ui.sel === null && ui.moveSel === null) { if (doubleTap(`terrain:${ds.terrain}`)) { ui.focus = { kind: 'terrain', id: ds.terrain }; ui.msg = ''; openZoom({ kind: 'terrain', id: ds.terrain }); render(); } return; }
+  if (ds.general) { if (doubleTap(`general:${ds.side}`)) { ui.focus = { kind: 'general', id: ds.general }; ui.msg = ''; openZoom({ kind: 'general', id: ds.general, mine: ds.side === 'me', side: ds.side }); render(); } return; }
   const zone = t.closest('[data-z]'); if (zone) tryPlace(+zone.dataset.z);
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.sheet && ui.sheet !== 'tuto-offer' && ui.sheet !== 'friend-deck') closeSheet(); });

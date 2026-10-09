@@ -48,7 +48,7 @@ const NAME = id => CARDS[id].name;
 const STEPS = [
   { info: true, hl: '.board', text: 'Bienvenue ! Une partie dure 7 tours, sur 3 zones : Gauche, Centre et Droite. Pour gagner, remportez au moins 2 zones sur 3 à la fin du tour 7.' },
   { info: true, hl: '.score', text: 'Dans chaque zone, l\'adversaire joue en haut et vous en bas. Les deux chiffres au milieu sont la puissance totale de chaque camp : le plus fort gagne la zone.' },
-  { info: true, hl: '.terrain.set.me', text: 'Aux tours 1, 2 et 3, chacun révèle un terrain. Le vôtre, le Sanctuaire, donne +2 à votre zone Centre. Touchez un terrain pour lire son effet.' },
+  { info: true, hl: '.terrain.set.me', text: 'Aux tours 1, 2 et 3, chacun révèle un terrain. Le vôtre, le Sanctuaire, donne +2 à votre zone Centre. Touchez deux fois un terrain pour lire son effet.' },
   { info: true, hl: '.tseals', text: 'Chaque tour vous donne des sceaux pour poser des cartes : 1 au tour 1, 2 au tour 2, et ainsi de suite. Vos sceaux sont en bas de l\'écran.' },
   { hl: '[data-hand][data-id="cherubin"]', done: t => t.sel('cherubin') || t.pend('cherubin'),
     text: 'Touchez le Chérubin dans votre main. Son coût, 1 sceau, est en haut à gauche ; sa puissance, 1, en haut à droite.' },
@@ -81,7 +81,7 @@ const STEPS = [
     text: t => (t.ui.moveSel !== null ? 'Touchez maintenant la zone où l\'envoyer.'
       : 'Tour 5. Vos créatures marquées ⇄ peuvent changer de zone. Touchez-en une, puis une autre zone : elle s\'y déplacera à la révélation, avant vos nouvelles cartes.') },
   { info: true, hl: '.pbar.me .gencard',
-    text: 'Votre général est à droite de votre bandeau : touchez-le pour lire son effet. L\'Érudit vous a fait piocher une carte de plus en début de partie ; d\'autres s\'activent une fois par partie.' },
+    text: 'Votre général est à droite de votre bandeau : touchez-le deux fois pour lire son effet. L\'Érudit vous a fait piocher une carte de plus en début de partie ; d\'autres s\'activent une fois par partie.' },
   { free: true, text: 'À vous de jouer : posez d\'autres cartes si vous voulez, puis validez. Le Journal raconte tout ce qui s\'est passé.' },
   { free: true, turn: 6, text: 'Plus que deux tours. Regardez où vous perdez et renforcez les zones que vous pouvez encore gagner.' },
   { free: true, turn: 7, text: 'Dernier tour : à la fin, celui qui gagne 2 zones sur 3 remporte la partie.' },

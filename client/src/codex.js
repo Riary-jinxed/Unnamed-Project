@@ -23,7 +23,7 @@ export const CODEX = [
     { name: 'Fin de tour', text: 'Se déclenche à la fin de chaque tour, après toutes les révélations.', ex: ['chaman', 'canopee'] },
     { name: 'Début de partie', text: 'Se déclenche une fois, avant le premier tour. Surtout chez les généraux.' },
     { name: 'Fin de partie', text: 'Se déclenche une fois, à la fin du tour 7, juste avant de compter les zones.' },
-    { name: 'Activable', text: 'Effet de général à déclencher une fois par partie : pendant la préparation, touchez votre général pour l\'activer (certains coûtent un sceau ou demandent une zone). Il agit au début de votre révélation.' },
+    { name: 'Activable', text: 'Effet de général à déclencher une fois par partie : pendant la préparation, touchez deux fois votre général pour l\'activer (certains coûtent un sceau ou demandent une zone). Il agit au début de votre révélation.' },
     { name: 'Destruction', text: 'Se déclenche quand la créature est détruite, par l\'adversaire ou par un sacrifice.', ex: ['diablotin', 'bombardier'] },
   ] },
   { id: 'base', title: 'Mots-clés du Set de base', items: [
