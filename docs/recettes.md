@@ -29,6 +29,8 @@ Les données locales sont dans `server/data/` : supprimez ce dossier pour repart
 
 Une carte qui reprend simplement l'effet d'une carte existante avec d'autres chiffres peut aussi se créer depuis `/admin` (onglet Cartes), sans toucher au code.
 
+Une nouvelle mécanique se décrit aussi dans le codex (`client/src/codex.js`) et dans `KEYWORDS` (`client/src/common.js`).
+
 Une carte ne doit jamais être retirée du code tant que des joueurs la possèdent : leurs collections et leurs decks la référencent par son identifiant.
 
 ## Ajouter un général ou un terrain

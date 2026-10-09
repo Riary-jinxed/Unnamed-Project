@@ -5,6 +5,8 @@ import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE,
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
+import { startTutorial } from './tutorial.js';
+import { codexHTML } from './codex.js';
 import { createFriends } from './friends.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
@@ -28,6 +30,7 @@ const ui = {
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
   drag: null, fx: null, zoom: null, soloReward: null, avatars: null, friendFoe: null,
+  codexQuery: '', zoomBack: null, coach: null, coachShown: null,
 };
 const app = document.getElementById('app');
 // Amis et défis (friends.js) : écran, bandeau de défi, choix du deck pour une partie entre amis.
@@ -82,6 +85,14 @@ function goSolo() {
   if (!deckReady()) return;
   ui.mode = 'solo'; ui.sheet = null; ui.lastTurn = 0; ui.soloReward = null;
   ui.ctrl = startSolo(handlers, { name: ui.account.name, deck: ui.account.deck });
+}
+// Tutoriel : partie guidée contre l'IA avec un deck fixé, sans deck du joueur ni récompense. Proposé une fois par compte et par appareil.
+const tutoKey = () => `tuto-${ui.account?.login || ''}`;
+function goTutorial() {
+  store.set(tutoKey(), true);
+  ui.mode = 'tuto'; ui.sheet = null; ui.lastTurn = 0; ui.error = '';
+  ui.ctrl = startTutorial(handlers, { name: ui.account?.name || 'Vous' });
+  render();
 }
 
 // ---- Compte ----
@@ -366,17 +377,20 @@ function renderGame() {
   const canGen = play && g.activate && !m.generalUsed && m.seals >= (g.activateCost || 0);
   const goLabel = v.phase === 'reveal' ? 'Révélation…' : v.ready.me ? 'En attente…' : v.turn === v.turns ? 'Valider le dernier tour' : 'Valider le tour';
   return `
-  <div class="top"><span class="title">${ui.mode === 'online' ? `Partie ${esc(ui.room || '')}` : 'Contre l\'IA'}</span>
+  <div class="top"><span class="title">${ui.mode === 'online' ? `Partie ${esc(ui.room || '')}` : ui.mode === 'tuto' ? 'Tutoriel' : 'Contre l\'IA'}</span>
     ${muteBtn()}<button class="btn" data-act="log">Journal</button><button class="btn" data-act="set">Cartes</button></div>
   ${pbar(f, false, v.connected[1 - v.seat])}
   <div class="board">${board}</div>
   ${pbar(m, true, true, canGen)}
-  <div class="info" aria-live="polite">${infoHTML()}</div>
+  ${ui.coach ? coachHTML(ui.coach) : `<div class="info" aria-live="polite">${infoHTML()}</div>`}
   <div class="hand" id="hand">${hand || '<span class="empty">Main vide.</span>'}</div>
   <div class="dock">${tempoHTML(seals)}
     <div class="actions"><button class="btn" data-act="quit">Quitter</button>
-      <button class="btn primary grow" data-act="go" ${play ? '' : 'disabled'}>${goLabel}</button></div></div>`;
+      <button class="btn primary grow" data-act="go" ${play && (ui.mode !== 'tuto' || ui.ctrl?.canSubmit(ui)) ? '' : 'disabled'}>${goLabel}</button></div></div>`;
 }
+// Bulle du tutoriel : à la place de l'encadré d'info, ou en haut de l'écran par-dessus une carte ouverte en grand.
+const coachHTML = (c, float = false) => `<div class="coach ${float ? 'float' : ''}" role="status" aria-live="polite"><span class="eyebrow">Tutoriel</span><p>${rich(c.text)}</p>
+  ${c.info ? '<div class="row"><button class="btn primary sm" data-act="tuto-next">Suivant</button></div>' : ''}</div>`;
 // ---- Écrans du compte : connexion, deck de départ, accueil, collection, deck ----
 const errLine = () => (ui.error ? `<p class="err" role="alert">${esc(ui.error)}</p>` : '');
 const owned = id => (ui.account && ui.account.cards[id]) || 0;
@@ -411,7 +425,7 @@ function renderStarter() {
     const gens = starterGenerals(k).filter(g => GENERALS[g].fam).map(g => GENERALS[g].name).join(', ');
     return `<button class="deckopt ${ui.starterPick === k ? 'sel' : ''}" data-starter="${k}" style="${famVar([d.fam])}" aria-pressed="${ui.starterPick === k}">
       <span class="eyebrow">${d.fam}</span><h3>${d.name}</h3><small>Généraux : ${gens}, plus les généraux neutres.</small></button>`; }).join('');
-  return `<div class="top"><span class="title">Bienvenue, ${esc(ui.account.name)}</span><button class="btn" data-act="set">Voir les cartes</button><button class="btn" data-act="logout">Se déconnecter</button></div>
+  return `<div class="top"><span class="title">Bienvenue, ${esc(ui.account.name)}</span><button class="btn" data-act="tuto">Tutoriel</button><button class="btn" data-act="set">Voir les cartes</button><button class="btn" data-act="logout">Se déconnecter</button></div>
   <div class="setup">
     <p>Choisissez votre deck de départ. Ses ${DECK_SIZE} cartes et ses généraux forment votre collection ; les boosters l'agrandissent ensuite, généraux compris. Ce choix est définitif.</p>
     <div class="decks starters">${opts}</div>
@@ -458,6 +472,11 @@ function renderHome() {
         <button class="btn" data-act="join" style="align-self:end">Rejoindre</button></div>
     </div>
     <div class="row"><button class="btn" data-act="solo">Jouer contre l'IA</button></div>
+    <div class="card-box">
+      <div><span class="eyebrow">Apprendre</span><h2 style="font-size:22px">Règles et mots-clés</h2></div>
+      <p class="hint" style="margin:0">Le tutoriel vous guide pendant une partie contre l'IA. Le codex explique chaque mot-clé des cartes.</p>
+      <div class="row"><button class="btn" data-act="tuto">Tutoriel</button><button class="btn" data-act="codex">Codex des mots-clés</button></div>
+    </div>
   </div>`;
 }
 // Cartes de récompense : on dit comment les obtenir.
@@ -724,7 +743,12 @@ function zoomHTML() {
   return `<div class="sheet zoom" data-act="close"><div class="panel zoomcard" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
     <button class="btn" data-act="close">Fermer</button></div></div>`;
 }
-function openZoom(zoom) { ui.zoom = zoom; ui.sheet = 'zoom'; ui.fx = { list: [['.zoomcard', 'zoom-in']] }; }
+function openZoom(zoom) { ui.zoom = zoom; ui.sheet = 'zoom'; ui.zoomBack = null; ui.fx = { list: [['.zoomcard', 'zoom-in']] }; }
+// Ferme le panneau ouvert ; une carte ouverte depuis le codex y ramène.
+function closeSheet() {
+  if (ui.sheet === 'inbox') closeInbox();
+  ui.sheet = ui.sheet === 'zoom' && ui.zoomBack ? ui.zoomBack : null; ui.zoom = null; ui.zoomBack = null; ui.renaming = null; render();
+}
 function sheetHTML() {
   if (ui.sheet === 'zoom' && ui.zoom) return zoomHTML();
   if (ui.sheet === 'friend-deck') return friends.deckSheet();
@@ -744,8 +768,18 @@ function sheetHTML() {
         ${ids(GENERALS).filter(k => GENERALS[k].fam === fam).map(genCard).join('')}
         ${cards.map(fullCard).join('')}${ids(TERRAINS).filter(k => TERRAINS[k].fam === fam).map(terrainCard).join('')}${tokens.map(fullCard).join('')}</div>`;
     }
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Toutes les cartes</h2><button class="btn" data-act="close">Fermer</button></div>
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Toutes les cartes</h2><div class="row"><button class="btn" data-act="codex">Mots-clés</button><button class="btn" data-act="close">Fermer</button></div></div>
       <p class="hint" style="margin:0">Un deck : ${DECK_SIZE} cartes différentes de votre collection, ${DECK_TERRAINS} terrains et un général de votre collection. Terrains : les neutres et ceux des familles de vos généraux.</p>${h}</div></div>`;
+  }
+  if (ui.sheet === 'codex') {
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Codex</h2><button class="btn" data-act="close">Fermer</button></div>
+      <div class="field"><label class="eyebrow" for="codex-q">Chercher un mot-clé</label><input id="codex-q" type="search" autocomplete="off" value="${esc(ui.codexQuery)}" placeholder="Horde, Grâce, sceaux…"></div>
+      <div id="codex-list">${codexHTML(ui.codexQuery)}</div></div></div>`;
+  }
+  if (ui.sheet === 'tuto-offer') {
+    return `<div class="sheet"><div class="panel" role="dialog" aria-label="Tutoriel"><h2>Première partie ?</h2>
+      <p style="margin:0">Le tutoriel vous apprend les règles en quelques tours contre l'IA, avec un deck prêt à jouer. Vous pourrez le relancer depuis l'accueil.</p>
+      <div class="row"><button class="btn primary" data-act="tuto">Lancer le tutoriel</button><button class="btn" data-act="tuto-later">Plus tard</button></div></div></div>`;
   }
   if (ui.sheet === 'rename' && ui.renaming) {
     return `<div class="sheet" data-act="close"><form class="panel" data-stop="1" id="rename-form"><div class="ph"><h2>Renommer le deck</h2><button class="btn" type="button" data-act="close">Fermer</button></div>
@@ -769,6 +803,9 @@ function sheetHTML() {
     const t = r.winner === s ? 'Victoire' : r.winner < 0 ? 'Match nul' : 'Défaite';
     const reason = renderLog(r.reason, s, ui.view.names);
     const zs = [0, 1, 2].map(z => `<div><div class="eyebrow">${ZONE_NAMES[z]}</div><b>${ui.view.me.zonePower[z]}</b> contre ${ui.view.foe.zonePower[z]}</div>`).join('');
+    if (ui.mode === 'tuto') return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p><div class="zs">${zs}</div>
+      <p style="margin:0">Tutoriel terminé : vous connaissez les bases. Le codex, sur l'accueil, explique tous les autres mots-clés.</p><div class="row">
+      <button class="btn primary" data-act="quit">Retour à l'accueil</button><button class="btn" data-act="again">Rejouer le tutoriel</button><button class="btn" data-act="codex">Ouvrir le codex</button></div></div></div>`;
     return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p>
       <div class="zs">${zs}</div>${endRewardHTML()}<div class="row">
       <button class="btn primary" data-act="again" ${ui.rematchAsked ? 'disabled' : ''}>${ui.rematchAsked ? 'Revanche demandée…' : 'Revanche'}</button>
@@ -781,12 +818,19 @@ function render() {
   const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, lobby: renderLobby, game: renderGame, friends: friends.screen };
   // Récompenses gagnées (niveau, missions, succès, familles et sets complétés) : affichées en revenant à l'accueil.
   if (ui.screen === 'home' && !ui.sheet && prog().inbox.length) ui.sheet = 'inbox';
+  // Première connexion sur cet appareil : le tutoriel est proposé une fois.
+  if ((ui.screen === 'home' || ui.screen === 'starter') && !ui.sheet && ui.account && !store.get(tutoKey(), false)) ui.sheet = 'tuto-offer';
+  ui.coach = ui.screen === 'game' && ui.mode === 'tuto' && ui.ctrl ? ui.ctrl.coach(ui) : null;
   const body = screens[ui.screen]();
-  app.innerHTML = body + friends.banner() + sheetHTML();
+  app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
   if (ui.sheet === 'rename') { const r = document.getElementById('rename-input'); if (r && document.activeElement !== r) { r.focus(); r.select(); } }
   const h2 = document.getElementById('hand'); if (h2) h2.scrollLeft = sx;
   const lb = document.getElementById('logbox'); if (lb) lb.parentElement.scrollTop = lb.scrollHeight;
   applyFx();
+  // Tutoriel : l'élément à toucher est mis en valeur, et amené à l'écran quand l'étape change.
+  const hl = ui.coach?.hl ? [...app.querySelectorAll(ui.coach.hl)] : [];
+  hl.forEach(el => el.classList.add('coach-hl'));
+  if (ui.coach && ui.coach.text !== ui.coachShown) { ui.coachShown = ui.coach.text; if (hl[0] && !ui.sheet) hl[0].scrollIntoView({ block: 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' }); }
 }
 
 // ---- Animations et bruitages ----
@@ -948,6 +992,7 @@ app.addEventListener('input', e => {
   if (e.target.id === 'rename-input' && ui.renaming) ui.renaming.name = e.target.value;
   if (e.target.id === 'profile-name') { ui.nameDraft = e.target.value; const b = e.target.form?.querySelector('[type=submit]');
     if (b) b.disabled = ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === ui.account.name; }
+  if (e.target.id === 'codex-q') { ui.codexQuery = e.target.value; document.getElementById('codex-list').innerHTML = codexHTML(ui.codexQuery); }
   if (e.target.id === 'code') { ui.joinCode = e.target.value.toUpperCase(); e.target.value = ui.joinCode; }
 });
 app.addEventListener('change', e => {
@@ -969,7 +1014,7 @@ app.addEventListener('click', e => {
   if (ds.act) {
     const a = ds.act;
     if (friends.click(a, ds)) return;
-    if (a === 'close') { if (ui.sheet === 'inbox') closeInbox(); ui.sheet = null; ui.zoom = null; ui.renaming = null; render(); }
+    if (a === 'close') closeSheet();
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
       tryPlace(+ds.zone); }
@@ -979,6 +1024,10 @@ app.addEventListener('click', e => {
     else if (a === 'create') goOnline('create');
     else if (a === 'join') { if (ui.joinCode.length !== 4) { ui.error = 'Le code fait 4 lettres.'; render(); } else goOnline('join'); }
     else if (a === 'solo') goSolo();
+    else if (a === 'tuto') goTutorial();
+    else if (a === 'tuto-later') { store.set(tutoKey(), true); ui.sheet = null; render(); }
+    else if (a === 'tuto-next') { ui.ctrl?.next(); render(); }
+    else if (a === 'codex') { ui.sheet = 'codex'; ui.zoom = null; render(); }
     else if (a === 'copy') { const link = document.getElementById('link');
       navigator.clipboard.writeText(link.value).then(() => { t.textContent = 'Lien copié'; }).catch(() => { link.select(); }); }
     else if (a === 'go') { if (!canPlay()) return; play('validate');
@@ -1021,7 +1070,7 @@ app.addEventListener('click', e => {
   if (ds.frame !== undefined && !ui.busy) { equip({ frame: ds.frame || null }, 'Cadre changé.'); return; }
   if (ds.back && !ui.busy) { equip({ back: ds.back }, 'Dos de carte changé.'); return; }
   if (ds.fam !== undefined) { ui.colFam = ds.fam; render(); return; }
-  if (ds.zoom) { const [kind, id] = ds.zoom.split(':'); openZoom({ kind, id }); render(); return; }
+  if (ds.zoom) { const [kind, id] = ds.zoom.split(':'); const back = ui.sheet === 'codex' ? 'codex' : null; openZoom({ kind, id }); ui.zoomBack = back; render(); return; }
   if (ds.pick) { togglePick(ds.pick); return; }
   if (ds.tpick) { toggleTerrain(ds.tpick); return; }
   if (ds.gpick) { ui.edit.general = ds.gpick; ui.msg = '';
@@ -1046,7 +1095,7 @@ app.addEventListener('click', e => {
   if (ds.general) { ui.focus = { kind: 'general', id: ds.general }; ui.msg = ''; openZoom({ kind: 'general', id: ds.general, mine: ds.side === 'me', side: ds.side }); render(); return; }
   const zone = t.closest('[data-z]'); if (zone) tryPlace(+zone.dataset.z);
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.sheet && ui.sheet !== 'friend-deck') { if (ui.sheet === 'inbox') closeInbox(); ui.sheet = null; ui.zoom = null; render(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.sheet && ui.sheet !== 'tuto-offer' && ui.sheet !== 'friend-deck') closeSheet(); });
 app.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.zone.target')) { e.preventDefault(); tryPlace(+e.target.dataset.z); } });
 
 // Reprise d'une partie en ligne après rechargement de la page
