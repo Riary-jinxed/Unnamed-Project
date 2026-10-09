@@ -25,6 +25,15 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 | `profile` | `renderProfile` | Pseudo, image, titre, cadre, dos, stats, succès, familles. |
 | `lobby`, `game` | `renderLobby`, `renderGame` | Attente de l'adversaire ; plateau. |
 
+### Plateau (`renderGame`)
+
+De haut en bas : bandeau de l'adversaire, les trois zones, votre bandeau, l'encadré d'info, la main, puis une barre collée en bas de l'écran (`.dock`) avec le tour, les sceaux et le bouton Valider.
+
+- Bandeau d'un joueur (`pbar`) : image de profil dans son cadre, nom, niveau, titre, compteurs (sceaux de l'adversaire, main, deck, Trésor, Grâce), et à droite l'emplacement de la carte du général (`genSlot`). Toucher le général l'ouvre en grand ; le sien s'y active (zone à choisir s'il en demande une) et s'y annule. Il brille quand il peut être activé.
+- Images de profil en ligne : le serveur les envoie dans `view.avatars` une seule fois par connexion et par partie, l'appli les garde dans `ui.avatars`. Contre l'IA, seule la vôtre s'affiche.
+- Tour et sceaux (`tempoHTML`) : un point par tour, un jeton par sceau ; les jetons déjà engagés sont vides, ceux que coûterait la carte sélectionnée clignotent.
+- Les cartes de la main montrent leur effet (trois lignes). Dans tous les textes d'effet, `rich(texte)` (`common.js`) échappe le texte et met les mots-clés en gras ; la liste des mots-clés est `KEYWORDS`, à compléter quand une nouvelle mécanique apparaît.
+
 ## Parties
 
 Une partie est pilotée par un « contrôleur » qui offre `submit(plan)`, `rematch()` et `leave()`, et appelle les `handlers` de `main.js` (`onView`, `onLobby`, `onError`…) :
@@ -62,4 +71,4 @@ Chaque onglet séparé est une fonction (`statsTab`, `cardsTab`, `rewardsTab`) q
 
 ## Utilitaires partagés
 
-`common.js` : `famStyle(famille)` (variable CSS de couleur de la famille) et `esc(texte)` (échappement HTML, à utiliser pour tout texte venant d'un joueur ou de l'administration : pseudo, nom de deck, carte retouchée).
+`common.js` : `famStyle(famille)` (variable CSS de couleur de la famille), `rich(texte)` (texte d'effet avec les mots-clés en gras) et `esc(texte)` (échappement HTML, à utiliser pour tout texte venant d'un joueur ou de l'administration : pseudo, nom de deck, carte retouchée).

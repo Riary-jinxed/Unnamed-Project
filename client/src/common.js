@@ -7,3 +7,12 @@ export const famStyle = fam => `--fam: var(${FAM_VARS[fam] || '--f-neutre'})`;
 // Échappe un texte avant de l'insérer dans du HTML.
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
 export const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ESC[c]);
+
+// Mots-clés des effets, mis en gras dans les textes de cartes, de généraux et de terrains (avec leur nombre : « Horde 2 », « Drain 1 »).
+const KEYWORDS = ['Révélation', 'Persistant', 'Grâce', 'Destruction', 'Déplacement', 'Déplaçables?', 'Sortilège', 'Inspiration', 'Éclosion', 'Œufs?',
+  'Relève', 'Exhumation', 'Échange', 'Jeton', 'Activable', 'Trésor', 'Magot', 'Coût X',
+  'Fin de tour', 'Début de tour', 'Début du tour \\d+', 'Début de partie', 'Fin de partie',
+  'Sacrifice(?: \\d+)?', 'Hordes?(?: (?:\\d+|X))?', 'Drain(?: \\d+)?', 'Festins?(?: \\d+)?', 'Défausse(?: \\d+)?'];
+const KW_RE = new RegExp(`(?<!\\p{L})(?:${KEYWORDS.join('|')})(?!\\p{L})`, 'gu');
+// Texte d'effet échappé, mots-clés en gras.
+export const rich = s => esc(s).replace(KW_RE, '<b class="kw">$&</b>');
