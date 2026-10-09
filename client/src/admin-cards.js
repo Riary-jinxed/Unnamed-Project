@@ -1,9 +1,9 @@
 // Onglets Cartes et Sets de /admin : retoucher les cartes, en créer, ranger les cartes dans des sets.
 // Tout s'enregistre dans un brouillon côté serveur ; « Publier » l'applique au jeu.
-import { FAMILIES } from '@jeu/engine';
+import { FAMILIES, GENERALS } from '@jeu/engine';
 import { BASE_CARDS, CARD_FIELDS, EFFECT_SOURCES, editable, applyCatalog } from '@jeu/engine/catalog';
 
-const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon' };
+const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon', 'Mort-vivant': '--f-mortvivant', 'Vampire': '--f-vampire' };
 const famVar = fam => `--fam: var(${FAM[fam] || '--f-neutre'})`;
 const BASE_IDS = Object.keys(BASE_CARDS).filter(id => !BASE_CARDS[id].token);
 const TYPES = { C: 'Créature', S: 'Sort' };
@@ -20,6 +20,9 @@ function eff(cat, id) {
   return out;
 }
 const allIds = cat => [...BASE_IDS, ...Object.keys(cat.cards).filter(id => !BASE_CARDS[id])];
+// Les sets rangent aussi les généraux : ils sortent des boosters comme les cartes, mais ne se retouchent pas ici.
+const setIds = cat => [...allIds(cat), ...Object.keys(GENERALS)];
+const setEntry = (cat, id) => GENERALS[id] ? { name: `${GENERALS[id].name} (général)`, fam: GENERALS[id].fam || '' } : eff(cat, id);
 
 export function cardsTab({ call, render, say, esc, notice, onPublished }) {
   const S = { cat: null, err: '', q: '', fam: 'all', edit: null, form: null, set: null, busy: false };
@@ -149,21 +152,21 @@ export function cardsTab({ call, render, say, esc, notice, onPublished }) {
       <div class="row"><h3 style="margin-right:auto">${esc(s.name)}</h3><small class="hint">${s.cards.length} cartes</small><button class="btn" data-set-edit="${i}">Modifier</button></div>
       <div class="row">${s.open ? '<span class="chip">En boutique</span>' : '<span class="chip">Bientôt disponible</span>'}${s.daily ? '<span class="chip">Booster quotidien</span>' : ''}</div>
       ${s.teaser ? `<p class="hint" style="margin:0">${esc(s.teaser)}</p>` : ''}</div>`).join('');
-    const loose = allIds(draft()).filter(id => !draft().sets.some(s => s.cards.includes(id)));
+    const loose = setIds(draft()).filter(id => !draft().sets.some(s => s.cards.includes(id)));
     return `${notice()}${banner()}
     <div class="card-box"><p class="hint" style="margin:0">Un set ouvert a sa section en boutique (cartes du jour et booster du set). Un set fermé y apparaît comme « bientôt disponible ». Les sets « booster quotidien » alimentent le booster gratuit du jour.</p>
       <div class="row"><button class="btn primary" data-cat="new-set">Nouveau set</button></div>
-      ${loose.length ? `<p class="hint" style="margin:0">Hors de tout set : ${loose.map(id => esc(eff(draft(), id).name)).join(', ')}.</p>` : ''}</div>
+      ${loose.length ? `<p class="hint" style="margin:0">Hors de tout set : ${loose.map(id => esc(setEntry(draft(), id).name)).join(', ')}.</p>` : ''}</div>
     ${list}`;
   }
   function renderSetEditor() {
     const s = S.set, isNew = S.set.index === null;
     const byFam = {};
-    for (const id of allIds(draft())) (byFam[eff(draft(), id).fam || 'Neutre'] ||= []).push(id);
+    for (const id of setIds(draft())) (byFam[setEntry(draft(), id).fam || 'Neutre'] ||= []).push(id);
     const chips = [...FAMILIES, 'Neutre'].filter(f => byFam[f]).map(f => `<div class="famblock" style="${famVar(f)}"><div class="row"><b style="margin-right:auto">${f}</b>
       <small class="hint">${byFam[f].filter(id => s.cards.includes(id)).length}/${byFam[f].length}</small>
       <button class="btn sm" type="button" data-set-all="${f}">Tout</button><button class="btn sm" type="button" data-set-none="${f}">Rien</button></div>
-      <div class="chips">${byFam[f].map(id => `<label class="pick ${s.cards.includes(id) ? 'on' : ''}"><input type="checkbox" data-set-card="${id}" ${s.cards.includes(id) ? 'checked' : ''}>${esc(eff(draft(), id).name)}</label>`).join('')}</div></div>`).join('');
+      <div class="chips">${byFam[f].map(id => `<label class="pick ${s.cards.includes(id) ? 'on' : ''}"><input type="checkbox" data-set-card="${id}" ${s.cards.includes(id) ? 'checked' : ''}>${esc(setEntry(draft(), id).name)}</label>`).join('')}</div></div>`).join('');
     return `<form class="card-box" id="set-form">
       <h2 style="font-size:22px">${isNew ? 'Nouveau set' : esc(s.name)}</h2>
       <div class="grid2">
@@ -211,7 +214,7 @@ export function cardsTab({ call, render, say, esc, notice, onPublished }) {
     const fam = t.dataset.setAll || t.dataset.setNone;
     if (fam) {
       readSet();
-      const ids = allIds(draft()).filter(id => (eff(draft(), id).fam || 'Neutre') === fam);
+      const ids = setIds(draft()).filter(id => (setEntry(draft(), id).fam || 'Neutre') === fam);
       S.set.cards = t.dataset.setAll ? [...new Set([...S.set.cards, ...ids])] : S.set.cards.filter(id => !ids.includes(id));
       render(); return true;
     }

@@ -3,7 +3,7 @@
 // Protégée par la clé ADMIN_KEY du serveur, gardée dans ce navigateur seulement.
 import './style.css';
 import { DECKS, CARDS, GENERALS, TERRAINS, FAMILIES } from '@jeu/engine';
-import { STARTERS, COLLECTIBLE } from '@jeu/engine/collection';
+import { STARTERS, OWNABLE } from '@jeu/engine/collection';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { statsTab } from './admin-stats.js';
 import { cardsTab } from './admin-cards.js';
@@ -11,8 +11,9 @@ import { cardsTab } from './admin-cards.js';
 const app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const KEY = 'jeu-admin-key';
-const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon' };
-const famOf = id => CARDS[id].kw.find(k => FAMILIES.includes(k)) || 'Neutre';
+const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon', 'Mort-vivant': '--f-mortvivant', 'Vampire': '--f-vampire' };
+const famOf = id => (GENERALS[id] ? GENERALS[id].fam : CARDS[id].kw.find(k => FAMILIES.includes(k))) || 'Neutre';
+const nameOf = id => GENERALS[id] ? `${GENERALS[id].name} (général)` : CARDS[id].name;
 const st = {
   key: (() => { try { return sessionStorage.getItem(KEY) || ''; } catch { return ''; } })(),
   tab: 'accounts', accounts: null, q: '', sel: null, detail: null, cards: null, settings: null, defaults: null, msg: '', err: '', busy: false,
@@ -88,13 +89,13 @@ function renderList() {
 function renderDetail() {
   const a = st.detail, inDeck = new Set(a.inDecks || a.deck?.cards || []);
   const byFam = {};
-  for (const id of COLLECTIBLE) (byFam[famOf(id)] ||= []).push(id);
+  for (const id of OWNABLE) (byFam[famOf(id)] ||= []).push(id);
   const collection = [...FAMILIES, 'Neutre'].filter(f => byFam[f]).map(f => {
     const ids = byFam[f], n = ids.filter(id => st.cards.has(id)).length;
     return `<div class="famblock" style="--fam: var(${FAM[f] || '--f-neutre'})"><div class="row"><b style="margin-right:auto">${f}</b><small class="hint">${n}/${ids.length}</small>
       <button class="btn sm" type="button" data-fam-all="${f}">Tout</button><button class="btn sm" type="button" data-fam-none="${f}">Rien</button></div>
       <div class="chips">${ids.map(id => `<label class="pick ${st.cards.has(id) ? 'on' : ''} ${inDeck.has(id) ? 'lock' : ''}" title="${inDeck.has(id) ? 'Dans un deck du joueur' : ''}">
-        <input type="checkbox" data-card="${id}" ${st.cards.has(id) ? 'checked' : ''} ${inDeck.has(id) ? 'disabled' : ''}>${esc(CARDS[id].name)}</label>`).join('')}</div></div>`;
+        <input type="checkbox" data-card="${id}" ${st.cards.has(id) ? 'checked' : ''} ${inDeck.has(id) ? 'disabled' : ''}>${esc(nameOf(id))}</label>`).join('')}</div></div>`;
   }).join('');
   const changed = st.cards.size !== a.owned.length || a.owned.some(id => !st.cards.has(id));
   const deck = a.deck ? `<p style="margin:0"><b>${esc(a.deck.name)}</b> · général ${esc(GENERALS[a.deck.general]?.name || a.deck.general || 'à choisir')}${a.decks > 1 ? ` <small class="hint">(deck joué, ${a.decks} decks en tout)</small>` : ''}</p>
@@ -128,7 +129,7 @@ function renderDetail() {
     </div>
   </div>
   <div class="card-box">
-    <div class="row"><h3 style="margin-right:auto">Collection</h3><small class="hint">${st.cards.size}/${COLLECTIBLE.length} cartes</small></div>
+    <div class="row"><h3 style="margin-right:auto">Collection</h3><small class="hint">${st.cards.size}/${OWNABLE.length} cartes</small></div>
     <p class="hint" style="margin:0">Cochez les cartes que le joueur possède. Les cartes de ses decks (grisées) ne peuvent pas être retirées.</p>
     ${collection}
     <div class="row"><button class="btn primary" data-act="cards" ${changed ? dis() : 'disabled'}>Enregistrer la collection</button>
@@ -241,7 +242,7 @@ app.addEventListener('click', e => {
   const fam = t.dataset.famAll || t.dataset.famNone;
   if (fam) {
     const locked = new Set(st.detail.inDecks || st.detail.deck?.cards || []);
-    for (const id of COLLECTIBLE) if (famOf(id) === fam && !locked.has(id)) t.dataset.famAll ? st.cards.add(id) : st.cards.delete(id);
+    for (const id of OWNABLE) if (famOf(id) === fam && !locked.has(id)) t.dataset.famAll ? st.cards.add(id) : st.cards.delete(id);
     render(); return;
   }
   const a = st.detail;

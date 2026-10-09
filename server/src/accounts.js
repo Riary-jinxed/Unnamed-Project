@@ -1,8 +1,8 @@
 // Comptes joueurs : pas d'inscription, l'administrateur crée les identifiants et les communique.
 // API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, boutique, administration.
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { STARTERS, COLLECTIBLE, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers } from '@jeu/engine/collection';
-import { pick, CARDS } from '@jeu/engine';
+import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers } from '@jeu/engine/collection';
+import { pick, CARDS, GENERALS } from '@jeu/engine';
 
 const MAX_SESSIONS = 10;
 const hashPass = (pass, salt = randomBytes(16).toString('hex')) => ({ salt, hash: scryptSync(pass, salt, 32).toString('hex') });
@@ -59,10 +59,11 @@ export function createAccounts(store) {
   const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion });
   const add = (a, ids) => addCards(a, ids, cfg().shardsPerDuplicate);
   const ready = Promise.all(store.all().filter(a => {
-    const dup = convertDuplicates(a, cfg().shardsPerDuplicate), decks = migrateDecks(a);
+    const dup = convertDuplicates(a, cfg().shardsPerDuplicate), decks = migrateDecks(a), gens = grantStarterGenerals(a);
     if (dup) console.log(`Doublons de ${a.login} convertis en Éclats.`);
     if (decks) console.log(`Deck de ${a.login} rangé dans ses decks.`);
-    return dup || decks;
+    if (gens) console.log(`Généraux du deck de départ ajoutés à la collection de ${a.login}.`);
+    return dup || decks || gens;
   }).map(a => store.put(a)));
 
   async function login({ login, password }) {
@@ -223,7 +224,7 @@ export function createAccounts(store) {
     lastBooster: a.lastBooster, created: a.created, disabled: !!a.disabled, sessions: (a.tokens || []).length, deckName: activeDeck(a)?.name || null });
   // inDecks : cartes présentes dans au moins un deck du joueur (elles ne peuvent pas être retirées de sa collection).
   const adminDetail = a => ({ ...adminView(a), owned: Object.keys(a.cards).filter(id => a.cards[id]), deck: activeDeck(a), decks: (a.decks || []).length,
-    inDecks: [...new Set((a.decks || []).flatMap(d => d.cards))],
+    inDecks: [...new Set((a.decks || []).flatMap(d => [...d.cards, d.general].filter(Boolean)))],
     boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? deckError(activeDeck(a), a) : null });
   const target = login => { const a = store.get(cleanLogin(login)); if (!a) throw new HttpError(404, 'Compte introuvable.'); return a; };
   const closeSessions = a => { for (const t of a.tokens || []) sessions.delete(t); a.tokens = []; };
@@ -244,9 +245,9 @@ export function createAccounts(store) {
   // Remplace la collection. Une carte du deck enregistré ne peut pas être retirée.
   async function adminCards({ login, cards }) {
     const a = target(login);
-    if (!Array.isArray(cards) || cards.some(id => !COLLECTIBLE.includes(id))) throw new HttpError(400, 'Carte inconnue.');
-    const keep = new Set(cards), lost = [...new Set((a.decks || []).flatMap(d => d.cards))].filter(id => !keep.has(id));
-    if (lost.length) throw new HttpError(409, `Ces cartes sont dans un deck du joueur et ne peuvent pas être retirées : ${lost.slice(0, 3).map(id => CARDS[id].name).join(', ')}${lost.length > 3 ? ` et ${lost.length - 3} autres` : ''}.`);
+    if (!Array.isArray(cards) || cards.some(id => !OWNABLE.includes(id))) throw new HttpError(400, 'Carte inconnue.');
+    const keep = new Set(cards), lost = [...new Set((a.decks || []).flatMap(d => [...d.cards, d.general].filter(Boolean)))].filter(id => !keep.has(id));
+    if (lost.length) throw new HttpError(409, `Ces cartes sont dans un deck du joueur et ne peuvent pas être retirées : ${lost.slice(0, 3).map(id => (CARDS[id] || GENERALS[id]).name).join(', ')}${lost.length > 3 ? ` et ${lost.length - 3} autres` : ''}.`);
     a.cards = Object.fromEntries([...keep].map(id => [id, 1]));
     return done(a);
   }

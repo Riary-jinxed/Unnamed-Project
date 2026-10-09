@@ -1,7 +1,7 @@
 // Appli web : connexion, collection et deck, accueil, salon en ligne, partie (en ligne ou contre l'IA).
 import './style.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
-import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, SHARDS_PER_DUPLICATE, SETS, allowedGenerals, allowedTerrains, deckError } from '@jeu/engine/collection';
+import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, allowedGenerals, allowedTerrains, starterGenerals, deckError } from '@jeu/engine/collection';
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
@@ -9,7 +9,7 @@ import { applyCatalog } from '@jeu/engine/catalog';
 import { hasArt, artVar } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 
-const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon' };
+const FAM = { 'Ange': '--f-ange', 'Démon': '--f-demon', 'Gobelin': '--f-gobelin', 'Elfe': '--f-elfe', 'Dragon': '--f-dragon', 'Mort-vivant': '--f-mortvivant', 'Vampire': '--f-vampire' };
 const famVar = kw => `--fam: var(${FAM[kw[0]] || '--f-neutre'})`;
 const kwLine = d => (d.token ? 'Jeton · ' : '') + (d.kw.join(' · ') || 'Neutre');
 const typeName = d => d.type === 'C' ? 'Créature' : 'Sort';
@@ -297,9 +297,14 @@ const errLine = () => (ui.error ? `<p class="err" role="alert">${esc(ui.error)}<
 const owned = id => (ui.account && ui.account.cards[id]) || 0;
 // Éclats gagnés par doublon : réglable depuis /admin, le serveur l'envoie avec le compte.
 const shardRate = () => ui.account?.shardRate ?? SHARDS_PER_DUPLICATE;
-const famOfCard = id => CARDS[id].kw.find(k => FAMILIES.includes(k)) || null;
-// Ordre d'affichage : famille du set, puis coût, puis nom.
-const byFamCost = (a, b) => [...FAMILIES, null].indexOf(famOfCard(a)) - [...FAMILIES, null].indexOf(famOfCard(b)) || CARDS[a].cost - CARDS[b].cost || CARDS[a].name.localeCompare(CARDS[b].name);
+const famOfCard = id => GENERALS[id] ? GENERALS[id].fam : CARDS[id].kw.find(k => FAMILIES.includes(k)) || null;
+const nameOf = id => (CARDS[id] || GENERALS[id]).name;
+// Ordre d'affichage : famille, généraux d'abord, puis coût, puis nom.
+const costKey = id => GENERALS[id] ? -1 : CARDS[id].cost;
+const byFamCost = (a, b) => [...FAMILIES, null].indexOf(famOfCard(a)) - [...FAMILIES, null].indexOf(famOfCard(b)) || costKey(a) - costKey(b) || nameOf(a).localeCompare(nameOf(b));
+// Carte ou général, tel qu'il sort d'un booster ou s'affiche dans la collection.
+const anyCard = id => GENERALS[id] ? genCard(id) : fullCard(id);
+const zoomKey = id => `${GENERALS[id] ? 'general' : 'card'}:${id}`;
 function renderLoading() {
   return `<div class="top"><span class="title">Jeu de cartes</span></div>
   <div class="card-box">${ui.error ? `${errLine()}<div class="row"><button class="btn primary" data-act="retry">Réessayer</button><button class="btn" data-act="logout">Changer de compte</button></div>` : '<p class="wait">Connexion…</p>'}</div>`;
@@ -317,12 +322,12 @@ function renderLogin() {
 }
 function renderStarter() {
   const opts = STARTERS.map(k => { const d = DECKS[k];
-    const gens = allowedGenerals(k).filter(g => GENERALS[g].fam).map(g => GENERALS[g].name).join(', ');
+    const gens = starterGenerals(k).filter(g => GENERALS[g].fam).map(g => GENERALS[g].name).join(', ');
     return `<button class="deckopt ${ui.starterPick === k ? 'sel' : ''}" data-starter="${k}" style="${famVar([d.fam])}" aria-pressed="${ui.starterPick === k}">
       <span class="eyebrow">${d.fam}</span><h3>${d.name}</h3><small>Généraux : ${gens}, plus les généraux neutres.</small></button>`; }).join('');
   return `<div class="top"><span class="title">Bienvenue, ${esc(ui.account.name)}</span><button class="btn" data-act="set">Voir les cartes</button><button class="btn" data-act="logout">Se déconnecter</button></div>
   <div class="setup">
-    <p>Choisissez votre deck de départ. Ses ${DECK_SIZE} cartes forment votre collection ; le booster quotidien l'agrandit ensuite. Vos généraux et terrains sont les neutres et ceux de cette famille. Ce choix est définitif.</p>
+    <p>Choisissez votre deck de départ. Ses ${DECK_SIZE} cartes et ses généraux forment votre collection ; les boosters l'agrandissent ensuite, généraux compris. Ce choix est définitif.</p>
     <div class="decks starters">${opts}</div>
     ${errLine()}
     <div class="row"><button class="btn primary" data-act="starter" ${ui.starterPick && !ui.busy ? '' : 'disabled'}>${ui.starterPick ? `Prendre ${DECKS[ui.starterPick].name}` : 'Choisissez un deck'}</button></div>
@@ -330,7 +335,7 @@ function renderStarter() {
 }
 function renderHome() {
   const a = ui.account, d = a.deck, g = d && GENERALS[d.general];
-  const total = COLLECTIBLE.filter(owned).length;
+  const total = OWNABLE.filter(owned).length;
   const deckErr = d ? deckError(d, a) : 'Aucun deck.';
   return `
   <div class="top"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button><span class="title">Jeu de cartes</span>${muteBtn()}<button class="btn" data-act="set">Voir les cartes</button><button class="btn" data-act="logout">Se déconnecter</button></div>
@@ -344,7 +349,7 @@ function renderHome() {
       <div><span class="eyebrow">Deck joué</span><h2 style="font-size:22px">${esc(d ? d.name : 'Aucun deck')}</h2></div>
       ${d ? `<p style="margin:0">Général : ${g ? `<button class="chip" data-zoom="general:${d.general}">${g.name}</button>` : 'à choisir'} · ${d.cards.length} cartes · ${d.terrains.length} terrains</p>` : ''}
       ${deckErr ? `<p class="err" style="margin:0">${esc(deckErr)}</p>` : ''}
-      <div class="row"><button class="btn" data-act="decks">Mes decks (${a.decks.length}/${maxDecks()})</button><button class="btn" data-act="edit">Modifier ce deck</button><button class="btn" data-act="collection">Ma collection (${total}/${COLLECTIBLE.length})</button></div>
+      <div class="row"><button class="btn" data-act="decks">Mes decks (${a.decks.length}/${maxDecks()})</button><button class="btn" data-act="edit">Modifier ce deck</button><button class="btn" data-act="collection">Ma collection (${total}/${OWNABLE.length})</button></div>
     </div>
     <div class="card-box booster">
       <div><span class="eyebrow">Boutique</span><h2 style="font-size:22px"><span class="num">${a.shards}</span> Éclats</h2>
@@ -365,16 +370,16 @@ function renderHome() {
 }
 function renderCollection() {
   const a = ui.account, fams = [...FAMILIES, 'Neutre'];
-  const shown = COLLECTIBLE.filter(id => !ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam).sort(byFamCost);
+  const shown = OWNABLE.filter(id => !ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam).sort(byFamCost);
   const tile = id => { const n = owned(id);
-    return `<button class="ccard ${n ? '' : 'locked'}" data-zoom="card:${id}" aria-label="${esc(CARDS[id].name)}${n ? `, ${n} exemplaire${n > 1 ? 's' : ''}` : ', pas encore obtenue'}">
-      ${fullCard(id)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : '<span class="lock">Pas encore obtenue</span>'}</button>`; };
+    return `<button class="ccard ${n ? '' : 'locked'}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? `, ${n} exemplaire${n > 1 ? 's' : ''}` : ', pas encore obtenue'}">
+      ${anyCard(id)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : '<span class="lock">Pas encore obtenue</span>'}</button>`; };
   return `<div class="top"><span class="title">Ma collection</span><button class="btn" data-act="edit">Modifier le deck</button><button class="btn" data-act="home">Retour</button></div>
-  <p class="hint" style="margin:0">${COLLECTIBLE.filter(owned).length} cartes sur ${COLLECTIBLE.length}. Touchez une carte pour la voir en grand.</p>
+  <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.length}, généraux compris. Touchez une carte pour la voir en grand.</p>
   <div class="seg famseg" role="group" aria-label="Famille"><button data-fam="" class="${ui.colFam ? '' : 'on'}">Toutes</button>${fams.map(f => `<button data-fam="${f}" class="${ui.colFam === f ? 'on' : ''}">${f}</button>`).join('')}</div>
   <div class="gallery">${shown.map(tile).join('')}</div>
-  <div class="gal-h">Vos généraux</div><div class="gallery">${allowedGenerals(a.starter).map(genCard).join('')}</div>
-  <div class="gal-h">Vos terrains</div><div class="gallery">${allowedTerrains(a.starter).map(terrainCard).join('')}</div>`;
+  <div class="gal-h">Vos terrains</div><p class="hint" style="margin:0">Les terrains neutres, et ceux des familles dont vous possédez un général.</p>
+  <div class="gallery">${allowedTerrains(a).map(terrainCard).join('')}</div>`;
 }
 // Boutique : un espace par set ; les sets à venir y ont déjà leur place.
 function renderShop() {
@@ -384,7 +389,7 @@ function renderShop() {
   const P = sh.prices;
   const offer = (set, o) => {
     const label = o.bought ? 'Achetée' : o.owned ? 'Déjà dans votre collection' : `Acheter · ${P.cardPrice} Éclats`;
-    return `<div class="offer"><button class="ccard" data-zoom="card:${o.id}">${fullCard(o.id)}</button>
+    return `<div class="offer"><button class="ccard" data-zoom="${zoomKey(o.id)}">${anyCard(o.id)}</button>
       <button class="btn ${o.bought || o.owned ? '' : 'primary'}" data-act="buy-card" data-set="${set.id}" data-id="${o.id}" ${o.bought || o.owned || a.shards < P.cardPrice || ui.busy ? 'disabled' : ''}>${label}</button></div>`;
   };
   const section = set => set.open ? `<section class="card-box shopset">
@@ -433,11 +438,11 @@ function renderDeck() {
     <span class="sn">${i + 1}</span><span>${n}</span><span class="num sc">${counts[i]}</span></button>`).join('');
   let body = '', help = '';
   if (step === 0) {
-    help = 'Choisissez le général qui mènera ce deck : les neutres et ceux de votre famille.';
-    body = `<div class="gallery">${allowedGenerals(a.starter).map(k => `<button class="ccard pickcard ${e.general === k ? 'on' : ''}" data-gpick="${k}" aria-pressed="${e.general === k}">${genCard(k)}</button>`).join('')}</div>`;
+    help = 'Choisissez le général qui mènera ce deck parmi ceux de votre collection. Les boosters en donnent d\'autres.';
+    body = `<div class="gallery">${allowedGenerals(a).sort(byFamCost).map(k => `<button class="ccard pickcard ${e.general === k ? 'on' : ''}" data-gpick="${k}" aria-pressed="${e.general === k}">${genCard(k)}</button>`).join('')}</div>`;
   } else if (step === 1) {
-    help = `Choisissez ${DECK_TERRAINS} terrains différents.`;
-    body = `<div class="gallery">${allowedTerrains(a.starter).map(k => `<button class="ccard pickcard ${e.terrains.includes(k) ? 'on' : ''}" data-tpick="${k}" aria-pressed="${e.terrains.includes(k)}">${terrainCard(k)}</button>`).join('')}</div>`;
+    help = `Choisissez ${DECK_TERRAINS} terrains différents : les neutres et ceux des familles de vos généraux.`;
+    body = `<div class="gallery">${allowedTerrains(a).map(k => `<button class="ccard pickcard ${e.terrains.includes(k) ? 'on' : ''}" data-tpick="${k}" aria-pressed="${e.terrains.includes(k)}">${terrainCard(k)}</button>`).join('')}</div>`;
   } else {
     help = `Choisissez ${DECK_SIZE} cartes différentes de votre collection.`;
     const row = (id, on) => { const d = CARDS[id];
@@ -491,7 +496,7 @@ function renderProfile() {
     <div class="row"><button class="btn primary" type="submit" ${ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === a.name ? 'disabled' : ''}>Enregistrer le pseudo</button></div>
   </form>
   <div class="card-box"><div><span class="eyebrow">Collection</span><h2 style="font-size:22px">${complete} set${complete > 1 ? 's' : ''} complété${complete > 1 ? 's' : ''}</h2></div>
-    <p class="hint" style="margin:0">${COLLECTIBLE.filter(owned).length} cartes sur ${COLLECTIBLE.length}.</p>${sets}</div>
+    <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.length}, généraux compris.</p>${sets}</div>
   <div class="card-box"><div><span class="eyebrow">Statistiques</span><h2 style="font-size:22px">Victoires</h2></div>${stats}</div>`;
 }
 function togglePick(id) {
@@ -586,8 +591,8 @@ function sheetHTML() {
         ${ids(GENERALS).filter(k => GENERALS[k].fam === fam).map(genCard).join('')}
         ${cards.map(fullCard).join('')}${ids(TERRAINS).filter(k => TERRAINS[k].fam === fam).map(terrainCard).join('')}${tokens.map(fullCard).join('')}</div>`;
     }
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Set 1</h2><button class="btn" data-act="close">Fermer</button></div>
-      <p class="hint" style="margin:0">Un deck : ${DECK_SIZE} cartes différentes de votre collection, ${DECK_TERRAINS} terrains et un général. Généraux et terrains : les neutres et ceux de la famille de votre deck de départ.</p>${h}</div></div>`;
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Toutes les cartes</h2><button class="btn" data-act="close">Fermer</button></div>
+      <p class="hint" style="margin:0">Un deck : ${DECK_SIZE} cartes différentes de votre collection, ${DECK_TERRAINS} terrains et un général de votre collection. Terrains : les neutres et ceux des familles de vos généraux.</p>${h}</div></div>`;
   }
   if (ui.sheet === 'rename' && ui.renaming) {
     return `<div class="sheet" data-act="close"><form class="panel" data-stop="1" id="rename-form"><div class="ph"><h2>Renommer le deck</h2><button class="btn" type="button" data-act="close">Fermer</button></div>
@@ -599,7 +604,7 @@ function sheetHTML() {
     const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats gagnés avec les doublons` : ''].filter(Boolean).join(', ');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${esc(title)}</h2><button class="btn" data-act="close">Fermer</button></div>
       <p class="hint" style="margin:0">${sum}.</p>
-      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats</span>`}${fullCard(id)}</div>`).join('')}</div></div></div>`;
+      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats</span>`}${anyCard(id)}</div>`).join('')}</div></div></div>`;
   }
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;

@@ -1,7 +1,7 @@
 // Moteur de règles : pur, sans DOM ni réseau. Partagé par le serveur (parties en ligne) et l'appli (partie contre l'IA).
 export const TURNS = 7, SLOTS = 4, HAND_MAX = 7, START_HAND = 3;
 export const ZONE_NAMES = ['Gauche', 'Centre', 'Droite'];
-export const FAMILIES = ['Ange', 'Démon', 'Gobelin', 'Elfe', 'Dragon'];
+export const FAMILIES = ['Ange', 'Démon', 'Gobelin', 'Elfe', 'Dragon', 'Mort-vivant', 'Vampire'];
 
 const isCreature = c => CARDS[c.id].type === 'C';
 const hasKw = (c, k) => CARDS[c.id].kw.includes(k);
@@ -9,8 +9,10 @@ const half = n => Math.floor(n / 2);
 
 // ---- Cartes du set 1 ----
 // Crochets : onReveal, self (bonus persistant sur soi), aura (bonus persistant sur les autres), onStartTurn, onEndTurn,
-// grace (fin de tour si tous les sceaux sont dépensés), onDestroyed, onAllyDestroyed, onMove, costFn (réduction de coût).
-// Mots-clés : x (coût X), sacrifice (nombre de créatures à sacrifier), mobile (Déplaçable), token (jeton).
+// grace (fin de tour si tous les sceaux sont dépensés), onDestroyed, onAllyDestroyed, onMove, costFn (réduction de coût),
+// onInspire (pioche hors début de tour), onSpell (sort révélé), onSwitch (changement de camp).
+// Mots-clés : x (coût X), sacrifice (nombre de créatures à sacrifier), mobile (Déplaçable), token (jeton),
+// raise (Relève), egg (Œuf), set (set d'origine, « base » si absent).
 export const CARDS = {
   // ANGE : Grâce
   cherubin:    { name: 'Chérubin', type: 'C', cost: 1, power: 1, kw: ['Ange'], text: 'Grâce : +1.',
@@ -137,12 +139,141 @@ export const CARDS = {
   golem:       { name: 'Golem de pierre', type: 'C', cost: 4, power: 6, kw: [], text: '' },
   colosse:     { name: 'Colosse', type: 'C', cost: 6, power: 9, kw: [], text: '' },
 
+  // ---- Set 2 : Crépuscule ----
+  // MORT-VIVANT : Défausse, Relève et Exhumation
+  squelette:   { set: 'set2', name: 'Squelette', type: 'C', cost: 1, power: 1, kw: ['Mort-vivant'], raise: true, text: 'Relève.' },
+  goule:       { set: 'set2', name: 'Goule affamée', type: 'C', cost: 1, power: 2, kw: ['Mort-vivant'], raise: true, text: 'Relève. Révélation : Défausse 1.',
+                 onReveal: (c, st) => discardFromHand(st, c.owner, 1) },
+  fossoyeur:   { set: 'set2', name: 'Fossoyeur', type: 'C', cost: 2, power: 3, kw: ['Mort-vivant'], text: 'Révélation : Défausse 1, puis piochez 1 carte.',
+                 onReveal: (c, st) => { discardFromHand(st, c.owner, 1); draw(st, c.owner, 1, true); } },
+  zombie:      { set: 'set2', name: 'Zombie', type: 'C', cost: 2, power: 4, kw: ['Mort-vivant'], raise: true, text: 'Relève.' },
+  spectre:     { set: 'set2', name: 'Spectre hurlant', type: 'C', cost: 3, power: 4, kw: ['Mort-vivant'], raise: true, text: 'Relève. Révélation : la créature adverse la plus puissante ici perd 2.',
+                 onReveal: (c, st) => { const s = strongest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (s) buff(st, s, -2); } },
+  necromancien:{ set: 'set2', name: 'Nécromancien', type: 'C', cost: 3, power: 3, kw: ['Mort-vivant'], text: 'Révélation : Exhumation ici de la créature la plus puissante de votre défausse qui coûte 4 ou moins.',
+                 onReveal: (c, st) => exhume(st, c.owner, c.zone, 4) },
+  chevalier_mort:{ set: 'set2', name: 'Chevalier de la mort', type: 'C', cost: 4, power: 6, kw: ['Mort-vivant'], raise: true, text: 'Relève. Révélation : Défausse 1.',
+                 onReveal: (c, st) => discardFromHand(st, c.owner, 1) },
+  liche:       { set: 'set2', name: 'Liche', type: 'C', cost: 5, power: 5, kw: ['Mort-vivant'], text: 'Persistant : +1 par tranche de 2 cartes dans votre défausse.',
+                 self: (c, st) => half(st.p[c.owner].discard.length) },
+  seigneur_os: { set: 'set2', name: 'Seigneur des os', type: 'C', cost: 6, power: 8, kw: ['Mort-vivant'], text: 'Révélation : Défausse 2, puis vos autres Morts-vivants en jeu gagnent +2.',
+                 onReveal: (c, st) => { discardFromHand(st, c.owner, 2); mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Mort-vivant')).forEach(x => buff(st, x, 2)); } },
+  danse_macabre:{ set: 'set2', name: 'Danse macabre', type: 'S', cost: 1, power: 0, kw: ['Mort-vivant'], text: 'Défausse 2, puis piochez 2 cartes.',
+                 onReveal: (c, st) => { discardFromHand(st, c.owner, 2); draw(st, c.owner, 2, true); } },
+  reanimation: { set: 'set2', name: 'Réanimation', type: 'S', cost: 2, power: 0, kw: ['Mort-vivant'], text: 'Exhumation ici de la créature la plus puissante de votre défausse.',
+                 onReveal: (c, st) => exhume(st, c.owner, c.zone) },
+
+  // VAMPIRE : Drain
+  chauve_souris:{ set: 'set2', name: 'Chauve-souris', type: 'C', cost: 1, power: 0, kw: ['Vampire'], text: 'Révélation : Drain 1 sur une créature au hasard de la main adverse.',
+                 onReveal: (c, st) => drainHand(st, c, 1, 1) },
+  novice:      { set: 'set2', name: 'Vampire novice', type: 'C', cost: 1, power: 0, kw: ['Vampire'], text: 'Révélation : Drain 1 sur la créature adverse la plus faible ici.',
+                 onReveal: (c, st) => drain(st, c, weakest(st, creaturesAt(st, 1 - c.owner, c.zone)), 1) },
+  servante:    { set: 'set2', name: 'Servante de sang', type: 'C', cost: 2, power: 0, kw: ['Vampire'], text: 'Révélation : Drain 1 sur la créature adverse la plus puissante ici, et Drain 1 sur une créature de la main adverse.',
+                 onReveal: (c, st) => { drain(st, c, strongest(st, creaturesAt(st, 1 - c.owner, c.zone)), 1); drainHand(st, c, 1, 1); } },
+  rodeur_nuit: { set: 'set2', name: 'Rôdeur nocturne', type: 'C', cost: 2, power: 1, kw: ['Vampire'], text: 'Révélation : Drain 1 sur la première créature du deck adverse.',
+                 onReveal: (c, st) => st.p[1 - c.owner].deck.filter(isCreature).slice(0, 1).forEach(x => drain(st, c, x, 1, 'deck')) },
+  noble:       { set: 'set2', name: 'Noble vampire', type: 'C', cost: 4, power: 1, kw: ['Vampire'], text: 'Fin de tour : Drain 1 sur la créature adverse la plus puissante ici.',
+                 onEndTurn: (c, st) => { const s = strongest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (s) drain(st, c, s, 1); else return false; } },
+  buveuse:     { set: 'set2', name: 'Buveuse d\'âmes', type: 'C', cost: 3, power: 2, kw: ['Vampire'], text: 'Révélation : Drain 2 sur une créature au hasard de la main adverse.',
+                 onReveal: (c, st) => drainHand(st, c, 1, 2) },
+  comtesse:    { set: 'set2', name: 'Comtesse sanglante', type: 'C', cost: 5, power: 3, kw: ['Vampire'], text: 'Révélation : Drain 1 sur chaque créature adverse ici.',
+                 onReveal: (c, st) => creaturesAt(st, 1 - c.owner, c.zone).forEach(x => drain(st, c, x, 1)) },
+  seigneur_vampire:{ set: 'set2', name: 'Seigneur vampire', type: 'C', cost: 5, power: 3, kw: ['Vampire'], text: 'Persistant : +1 par tranche de 2 de puissance que vous avez volée cette partie.',
+                 self: (c, st) => half(st.p[c.owner].stolen || 0) },
+  prince_nuit: { set: 'set2', name: 'Prince de la nuit', type: 'C', cost: 6, power: 3, kw: ['Vampire'], text: 'Révélation : Drain 2 sur la créature adverse la plus puissante en jeu, puis Drain 1 sur une créature de la main adverse.',
+                 onReveal: (c, st) => { drain(st, c, strongest(st, mine(st, 1 - c.owner)), 2); drainHand(st, c, 1, 1); } },
+  saignee:     { set: 'set2', name: 'Saignée', type: 'S', cost: 2, power: 0, kw: ['Vampire'], text: 'La créature adverse la plus puissante ici perd 2 ; votre créature la plus faible ici gagne +2.',
+                 onReveal: (c, st) => drain(st, weakest(st, creaturesAt(st, c.owner, c.zone)), strongest(st, creaturesAt(st, 1 - c.owner, c.zone)), 2) },
+  nuit_rouge:  { set: 'set2', name: 'Nuit rouge', type: 'S', cost: 4, power: 0, kw: ['Vampire'], text: 'Les créatures adverses ici perdent 1. Vos Vampires en jeu gagnent +1.',
+                 onReveal: (c, st) => { creaturesAt(st, 1 - c.owner, c.zone).forEach(x => buff(st, x, -1)); mine(st, c.owner).filter(x => hasKw(x, 'Vampire')).forEach(x => buff(st, x, 1)); } },
+
+  // GOBELIN : Festin
+  marmiton:    { set: 'set2', name: 'Marmiton', type: 'C', cost: 1, power: 1, kw: ['Gobelin'], text: 'Révélation : Festin 1.',
+                 onReveal: (c, st) => feast(st, c.owner, c.zone, 1) },
+  cuistot:     { set: 'set2', name: 'Cuistot de la horde', type: 'C', cost: 2, power: 0, kw: ['Gobelin'], text: 'Révélation : Festin 2.',
+                 onReveal: (c, st) => feast(st, c.owner, c.zone, 2) },
+  goinfre:     { set: 'set2', name: 'Goinfre', type: 'C', cost: 2, power: 2, kw: ['Gobelin'], text: 'Quand il dévore un Festin, il gagne +2 de plus.' },
+  grand_banquet:{ set: 'set2', name: 'Grand banquet', type: 'S', cost: 2, power: 0, kw: ['Gobelin'], text: 'Festin 1 dans chacune de vos zones.',
+                 onReveal: (c, st) => [0, 1, 2].forEach(z => feast(st, c.owner, z, 1)) },
+  panse_fer:   { set: 'set2', name: 'Panse-de-fer', type: 'C', cost: 4, power: 4, kw: ['Gobelin'], text: 'Fin de tour : dévore les Festins de vos autres zones.',
+                 onEndTurn: (c, st) => { const f = [0, 1, 2].filter(z => z !== c.zone).map(z => feastAt(st, c.owner, z)).filter(Boolean);
+                   f.forEach(x => devour(st, c, x)); if (!f.length) return false; } },
+  roi_glouton: { set: 'set2', name: 'Roi glouton', type: 'C', cost: 5, power: 5, kw: ['Gobelin'], text: 'Persistant : +1 par Festin dévoré par vos Gobelins cette partie.',
+                 self: (c, st) => st.p[c.owner].feasts || 0 },
+
+  // ANGE : Inspiration (pioche hors début de tour)
+  scribe:      { set: 'set2', name: 'Scribe céleste', type: 'C', cost: 2, power: 1, kw: ['Ange'], text: 'Inspiration : +1.',
+                 onInspire: (c, st) => buff(st, c, 1) },
+  oracle:      { set: 'set2', name: 'Oracle', type: 'C', cost: 2, power: 0, kw: ['Ange'], text: 'Révélation : piochez 1 carte.',
+                 onReveal: (c, st) => draw(st, c.owner, 1, true) },
+  ecritures:   { set: 'set2', name: 'Écritures saintes', type: 'S', cost: 3, power: 0, kw: ['Ange'], text: 'Piochez 2 cartes.',
+                 onReveal: (c, st) => draw(st, c.owner, 2, true) },
+  archiviste:  { set: 'set2', name: 'Gardienne des archives', type: 'C', cost: 4, power: 3, kw: ['Ange'], text: 'Inspiration : vos autres Anges ici gagnent +1.',
+                 onInspire: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => x !== c && hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)) },
+  muse:        { set: 'set2', name: 'Muse ailée', type: 'C', cost: 4, power: 2, kw: ['Ange'], text: 'Révélation : piochez 1 carte ; si c\'est un Ange, il gagne +1.',
+                 onReveal: (c, st) => draw(st, c.owner, 1, true).filter(x => hasKw(x, 'Ange')).forEach(x => { x.buff += 1; log(st, `${who(st, c.owner)} : l'Ange pioché gagne +1.`, 'up'); }) },
+  choeur:      { set: 'set2', name: 'Chœur céleste', type: 'C', cost: 6, power: 4, kw: ['Ange'], text: 'Révélation : les Anges de votre main gagnent +1.',
+                 onReveal: (c, st) => { const a = st.p[c.owner].hand.filter(x => hasKw(x, 'Ange')); a.forEach(x => { x.buff++; }); if (a.length) log(st, `${who(st, c.owner)} : Anges en main +1.`, 'up'); } },
+
+  // DRAGON : Œufs
+  oeuf_braise: { set: 'set2', name: 'Œuf de braise', type: 'C', cost: 1, power: 0, kw: ['Dragon'], egg: true, text: 'Œuf. Éclosion : au début du 3e tour après sa pose.',
+                 onStartTurn: (c, st) => { if (st.turn >= c.enteredTurn + 3) hatch(st, c); } },
+  oeuf_or:     { set: 'set2', name: 'Œuf doré', type: 'C', cost: 2, power: 0, kw: ['Dragon'], egg: true, text: 'Œuf. Éclosion : en fin de tour, si votre Trésor est de 6 ou plus.',
+                 onEndTurn: (c, st) => { if (st.p[c.owner].treasure >= 6) hatch(st, c); else return false; } },
+  oeuf_tempete:{ set: 'set2', name: 'Œuf de tempête', type: 'C', cost: 2, power: 1, kw: ['Dragon'], egg: true, text: 'Œuf. Éclosion : quand une autre de vos créatures ici est détruite.',
+                 onAllyDestroyed: (c, st, dead, z) => { if (z === c.zone) hatch(st, c); } },
+  couveuse:    { set: 'set2', name: 'Dragonne couveuse', type: 'C', cost: 3, power: 3, kw: ['Dragon'], text: 'Révélation : un de vos Œufs en jeu éclot.',
+                 onReveal: (c, st) => { const e = eggs(st, c.owner); if (e.length) hatch(st, e[0]); } },
+  couvaison:   { set: 'set2', name: 'Couvaison', type: 'S', cost: 2, power: 0, kw: ['Dragon'], text: 'Vos Œufs ici éclosent.',
+                 onReveal: (c, st) => eggs(st, c.owner).filter(x => x.zone === c.zone).forEach(x => hatch(st, x)) },
+  matriarche:  { set: 'set2', name: 'Matriarche des couvées', type: 'C', cost: 5, power: 5, kw: ['Dragon'], text: 'Persistant : vos créatures écloses ont +2.',
+                 aura: (s, t) => t.owner === s.owner && t.hatched ? 2 : 0 },
+
+  // DÉMON : Échange (contrôle)
+  ame_damnee:  { set: 'set2', name: 'Âme damnée', type: 'C', cost: 1, power: -2, kw: ['Démon'], text: 'Révélation : piochez 1 carte.',
+                 onReveal: (c, st) => draw(st, c.owner, 1, true) },
+  possede:     { set: 'set2', name: 'Possédé', type: 'C', cost: 1, power: -3, kw: ['Démon'], text: 'Quand il change de camp, les créatures de son nouveau camp ici perdent 1.',
+                 onSwitch: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => x !== c).forEach(x => buff(st, x, -1)) },
+  tentateur:   { set: 'set2', name: 'Tentateur', type: 'C', cost: 2, power: 2, kw: ['Démon'], text: 'Révélation : créez une Chèvre ici, puis Échange avec la créature adverse la plus faible ici.',
+                 onReveal: (c, st) => { summon(st, c.owner, c.zone, 'chevre'); swap(st, c.owner, c.zone, l => weakest(st, l)); } },
+  corrupteur:  { set: 'set2', name: 'Corrupteur', type: 'C', cost: 3, power: 2, kw: ['Démon'], text: 'Révélation : Échange avec la créature adverse la plus puissante ici dont la puissance est 4 ou moins.',
+                 onReveal: (c, st) => swap(st, c.owner, c.zone, l => strongest(st, l.filter(x => power(st, x) <= 4))) },
+  marche_dupes:{ set: 'set2', name: 'Marché de dupes', type: 'S', cost: 3, power: 0, kw: ['Démon'], text: 'Échange avec la créature adverse la plus puissante ici.',
+                 onReveal: (c, st) => swap(st, c.owner, c.zone, l => strongest(st, l)) },
+  archidiable: { set: 'set2', name: 'Archidiable', type: 'C', cost: 6, power: 6, kw: ['Démon'], text: 'Révélation : Échange dans chacune de vos zones, avec la créature adverse la plus faible.',
+                 onReveal: (c, st) => [0, 1, 2].forEach(z => swap(st, c.owner, z, l => weakest(st, l))) },
+
+  // ELFE : Sortilège
+  apprentie:   { set: 'set2', name: 'Apprentie arcaniste', type: 'C', cost: 1, power: 2, kw: ['Elfe'], text: 'Sortilège : +1.',
+                 onSpell: (c, st) => buff(st, c, 1) },
+  lueur:       { set: 'set2', name: 'Lueur des sylves', type: 'S', cost: 1, power: 0, kw: ['Elfe'], text: 'Votre zone ici gagne +3.',
+                 onReveal: (c, st) => addZone(st, c.owner, c.zone, 3) },
+  ronces:      { set: 'set2', name: 'Ronces', type: 'S', cost: 2, power: 0, kw: ['Elfe'], text: 'La zone adverse ici perd 3.',
+                 onReveal: (c, st) => addZone(st, 1 - c.owner, c.zone, -3) },
+  mage_bois:   { set: 'set2', name: 'Mage des bois', type: 'C', cost: 3, power: 5, kw: ['Elfe'], text: 'Sortilège : la créature adverse la plus puissante dans la zone du sort perd 1.',
+                 onSpell: (c, st, z) => { const s = strongest(st, creaturesAt(st, 1 - c.owner, z)); if (s) buff(st, s, -1); } },
+  chant:       { set: 'set2', name: 'Chant des étoiles', type: 'S', cost: 2, power: 0, kw: ['Elfe'], text: 'Votre zone ici gagne +1 par sort que vous avez révélé cette partie, celui-ci compris.',
+                 onReveal: (c, st) => addZone(st, c.owner, c.zone, st.p[c.owner].spells || 1) },
+  grand_druide:{ set: 'set2', name: 'Grand druide', type: 'C', cost: 5, power: 6, kw: ['Elfe'], text: 'Persistant : vos sorts coûtent 1 de moins.' },
+
+  // NEUTRES
+  pilleur:     { set: 'set2', name: 'Pilleur de tombes', type: 'C', cost: 2, power: 2, kw: [], text: 'Révélation : reprenez en main la dernière carte de votre défausse.',
+                 onReveal: (c, st) => { const P = st.p[c.owner], x = P.discard.at(-1); if (!x || P.hand.length >= HAND_MAX) return;
+                   P.discard.pop(); P.hand.push(fresh(x)); log(st, `${who(st, c.owner)} ${vb(c.owner, 'reprend', 'reprenez')} ${nm(x.id)} en main.`, 'up'); } },
+  alchimiste:  { set: 'set2', name: 'Alchimiste', type: 'C', cost: 2, power: 1, kw: [], text: 'Révélation : les sorts de votre main coûtent 1 de moins.',
+                 onReveal: (c, st) => { const s = st.p[c.owner].hand.filter(x => CARDS[x.id].type === 'S' && !CARDS[x.id].x); s.forEach(x => { x.discount = (x.discount || 0) - 1; });
+                   if (s.length) log(st, `${who(st, c.owner)} : sorts en main -1 sceau.`, 'up'); } },
+  garde_pont:  { set: 'set2', name: 'Garde du pont', type: 'C', cost: 3, power: 3, kw: [], text: 'Persistant : +2 si l\'adversaire a plus de créatures que vous ici.',
+                 self: (c, st) => creaturesAt(st, 1 - c.owner, c.zone).length > creaturesAt(st, c.owner, c.zone).length ? 2 : 0 },
+  chevalier:   { set: 'set2', name: 'Chevalier errant', type: 'C', cost: 3, power: 4, kw: [], text: '' },
+  titan:       { set: 'set2', name: 'Titan des plaines', type: 'C', cost: 7, power: 11, kw: [], text: '' },
+
   // JETONS
   horde:       { name: 'Horde', type: 'C', cost: 0, power: 0, kw: ['Gobelin'], token: true, text: 'Jeton. Une seule Horde par zone : les effets Horde la font grandir.' },
   chevre:      { name: 'Chèvre', type: 'C', cost: 0, power: -1, kw: [], token: true, text: 'Jeton. Si elle est sacrifiée, +1 sceau au tour suivant.',
                  onDestroyed: (c, st, z, sacrificed) => { if (sacrificed) { st.p[c.owner].bonusSeals++; log(st, `${who(st, c.owner)} : +1 sceau au tour suivant.`, 'up'); } } },
   magot:       { name: 'Magot de dragon', type: 'C', cost: 0, power: 0, kw: [], token: true, text: 'Jeton. Fin de tour : gagne autant de puissance que vos sceaux non dépensés.',
                  onEndTurn: (c, st) => { const n = st.p[c.owner].seals; if (n > 0) buff(st, c, n); else return false; } },
+  festin:      { set: 'set2', name: 'Festin', type: 'C', cost: 0, power: 0, kw: [], token: true, text: 'Jeton. Un seul Festin par zone. En fin de tour, votre Gobelin le plus faible ici le dévore : il gagne sa puissance et le Festin disparaît.' },
 };
 
 // ---- Généraux : rattachés à une famille pour le thème, sans restreindre le deck ----
@@ -190,6 +321,40 @@ export const GENERALS = {
   erudit:    { name: 'L\'Érudit', fam: null, kind: 'Début de partie',
                text: 'Début de partie : piochez une carte.',
                onStart: (p, st) => draw(st, p, 1) },
+
+  // ---- Set 2 ----
+  mordrek:   { set: 'set2', name: 'Mordrek, Roi-liche', fam: 'Mort-vivant', kind: 'Persistant',
+               text: 'Quand une carte est défaussée de votre main, votre zone la plus faible gagne +1.',
+               onDiscard: (p, st) => addZone(st, p, [0, 1, 2].reduce((a, b) => margin(st, p, b) < margin(st, p, a) ? b : a), 1) },
+  ossa:      { set: 'set2', name: 'Ossa la Nécromancienne', fam: 'Mort-vivant', kind: 'Activable', needsZone: true,
+               text: 'Activable, une fois par partie : Exhumation, dans la zone choisie, de la créature la plus puissante de votre défausse ; elle gagne +2.',
+               activate: (p, st, z) => { const c = exhume(st, p, z); if (c) buff(st, c, 2); } },
+  valdric:   { set: 'set2', name: 'Comte Valdric', fam: 'Vampire', kind: 'Fin de tour',
+               text: 'Fin de tour : si vous avez révélé un Vampire ce tour, Drain 1 sur une créature au hasard de la main adverse, au profit de votre Vampire le plus faible.',
+               onEndTurn: (p, st) => { const v = mine(st, p).filter(x => hasKw(x, 'Vampire')); if (v.some(x => x.enteredTurn === st.turn)) drainHand(st, weakest(st, v), 1, 1); } },
+  carmilla:  { set: 'set2', name: 'Dame Carmilla', fam: 'Vampire', kind: 'Activable', needsZone: true,
+               text: 'Activable, une fois par partie : Drain 1 sur chaque créature adverse de la zone choisie, au profit de votre Vampire le plus faible de cette zone.',
+               activate: (p, st, z) => { const v = weakest(st, creaturesAt(st, p, z).filter(x => hasKw(x, 'Vampire')));
+                 creaturesAt(st, 1 - p, z).forEach(x => drain(st, v, x, 1)); } },
+  gorbag:    { set: 'set2', name: 'Gorbag le Ripailleur', fam: 'Gobelin', kind: 'Début de tour',
+               text: 'Début de tour : Festin 1 dans la zone où vous êtes le plus en retard.',
+               onStartTurn: (p, st) => { const zs = [0, 1, 2].filter(z => free(st, p, z) > 0 || feastAt(st, p, z)); if (!zs.length) return;
+                 feast(st, p, zs.reduce((a, b) => margin(st, p, b) < margin(st, p, a) ? b : a), 1); } },
+  ophaniel:  { set: 'set2', name: 'Ophaniel, Voix des Cieux', fam: 'Ange', kind: 'Persistant',
+               text: 'Quand vous piochez un Ange en dehors de la pioche du début de tour, il gagne +1.',
+               onDraw: (p, st, c) => { if (hasKw(c, 'Ange') && isCreature(c)) { c.buff++; log(st, `${who(st, p)} : l'Ange pioché gagne +1.`, 'up'); } } },
+  ysmera:    { set: 'set2', name: 'Ysmera, Mère des couvées', fam: 'Dragon', kind: 'Début de partie',
+               text: 'Début de partie : un Œuf de braise rejoint votre main.',
+               onStart: (p, st) => { const P = st.p[p]; if (P.hand.length < HAND_MAX) P.hand.push({ uid: st.nextUid++, id: 'oeuf_braise', owner: p, zone: -1, buff: 0, revealed: false }); } },
+  belzharoth:{ set: 'set2', name: 'Belzharoth, Marchand d\'âmes', fam: 'Démon', kind: 'Activable', needsZone: true,
+               text: 'Activable, une fois par partie : Échange dans la zone choisie, avec la créature adverse la plus puissante.',
+               activate: (p, st, z) => swap(st, p, z, l => strongest(st, l)) },
+  elyndra:   { set: 'set2', name: 'Elyndra, Tisseuse de sorts', fam: 'Elfe', kind: 'Persistant',
+               text: 'Quand vous révélez un sort, votre zone où il est joué gagne +2.',
+               onSpell: (p, st, z) => addZone(st, p, z, 2) },
+  intendant: { set: 'set2', name: 'L\'Intendant', fam: null, kind: 'Début de partie',
+               text: 'Début de partie : +1 sceau au premier tour.',
+               onStart: (p, st) => { st.p[p].bonusSeals++; } },
 };
 
 // ---- Terrains ----
@@ -222,6 +387,29 @@ export const TERRAINS = {
   sanctuaire:{ name: 'Sanctuaire', fam: null, text: 'Votre zone ici gagne +2.', flat: 2 },
   ruines:    { name: 'Ruines maudites', fam: null, text: 'Les créatures adverses ici ont -1.', aura: (p, t) => t.owner !== p ? -1 : 0 },
   champ:     { name: 'Champ de bataille', fam: null, text: 'Affecte les deux joueurs : toutes les créatures ici ont +1.', aura: () => 1, shared: true },
+
+  // ---- Set 2 ----
+  cimetiere: { set: 'set2', name: 'Cimetière', fam: 'Mort-vivant', text: 'Vos cartes qui se relèvent arrivent ici si un emplacement est libre, et gagnent +1 de plus.' },
+  crypte:    { set: 'set2', name: 'Crypte', fam: 'Mort-vivant', text: 'Fin de tour : si vous avez une créature ici, la carte avec Relève la moins chère de votre main est défaussée (elle se relève).',
+               onEndTurn: (p, st, z) => { if (!creaturesAt(st, p, z).length) return; const r = st.p[p].hand.filter(c => CARDS[c.id].raise).sort((a, b) => CARDS[a.id].cost - CARDS[b.id].cost)[0];
+                 if (r) discardCard(st, p, r); } },
+  chateau:   { set: 'set2', name: 'Château de la nuit', fam: 'Vampire', text: 'Vos Vampires ici ont +1.', aura: (p, t) => t.owner === p && hasKw(t, 'Vampire') ? 1 : 0 },
+  bassin:    { set: 'set2', name: 'Bassin de sang', fam: 'Vampire', text: 'Fin de tour : Drain 1 sur la créature adverse la plus puissante ici, au profit de votre Vampire le plus faible ici.',
+               onEndTurn: (p, st, z) => { const v = weakest(st, creaturesAt(st, p, z).filter(x => hasKw(x, 'Vampire'))); if (v) drain(st, v, strongest(st, creaturesAt(st, 1 - p, z)), 1); } },
+  table:     { set: 'set2', name: 'Table du festin', fam: 'Gobelin', text: 'Début de tour : si vous avez un Gobelin ici, Festin 1 ici.',
+               onStartTurn: (p, st, z) => { if (creaturesAt(st, p, z).some(c => hasKw(c, 'Gobelin'))) feast(st, p, z, 1); } },
+  bibliotheque:{ set: 'set2', name: 'Bibliothèque céleste', fam: 'Ange', text: 'Fin de tour : si vous avez dépensé tous vos sceaux et avez un Ange ici, piochez 1 carte.',
+               onEndTurn: (p, st, z) => { if (st.p[p].seals === 0 && creaturesAt(st, p, z).some(c => hasKw(c, 'Ange'))) draw(st, p, 1, true); } },
+  couvoir:   { set: 'set2', name: 'Couvoir volcanique', fam: 'Dragon', text: 'Début de tour : vos Œufs ici éclosent.',
+               onStartTurn: (p, st, z) => eggs(st, p).filter(c => c.zone === z).forEach(c => hatch(st, c)) },
+  foire:     { set: 'set2', name: 'Foire aux âmes', fam: 'Démon', text: 'Fin de tour : Échange ici avec la créature adverse la plus faible.',
+               onEndTurn: (p, st, z) => swap(st, p, z, l => weakest(st, l)) },
+  cercle:    { set: 'set2', name: 'Cercle de pierres levées', fam: 'Elfe', text: 'Quand vous révélez un sort ici, la zone adverse ici perd 1.',
+               onSpellHere: (p, st, z) => addZone(st, 1 - p, z, -1) },
+  source:    { set: 'set2', name: 'Source de mana', fam: null, text: 'Fin de tour : si vous avez 3 créatures ou plus ici, +1 sceau au tour suivant.',
+               onEndTurn: (p, st, z) => { if (creaturesAt(st, p, z).length >= 3) { st.p[p].bonusSeals++; log(st, `${who(st, p)} : +1 sceau au tour suivant.`, 'up'); } } },
+  guet:      { set: 'set2', name: 'Tour de guet', fam: null, text: 'Votre créature la plus puissante ici gagne +2.',
+               aura: (p, t, st) => t.owner === p && t === topRaw(creaturesAt(st, p, t.zone)) ? 2 : 0 },
 };
 
 // ---- Decks préconstruits : la construction est libre, ces listes servent à tester ----
@@ -241,6 +429,28 @@ export const DECKS = {
   dragon:  { name: 'Trésor du dragon', fam: 'Dragon', general: 'vaelthar',
              cards: ['dragonnet', 'gardien_magot', 'thesauriser', 'oeuf', 'drake', 'souffle', 'wyverne', 'cavernes', 'rouge', 'ancien', 'dragon_or', 'potion', 'mercenaire', 'barde', 'golem'],
              terrains: ['nid', 'aire', 'sanctuaire', 'ruines', 'champ'] },
+  // Set 2 : les deux nouvelles familles, puis chaque famille du set 1 avec son support.
+  mortvivant:{ name: 'Marche des morts', fam: 'Mort-vivant', general: 'mordrek',
+             cards: ['squelette', 'goule', 'fossoyeur', 'zombie', 'spectre', 'necromancien', 'chevalier_mort', 'liche', 'seigneur_os', 'danse_macabre', 'reanimation', 'pilleur', 'mercenaire', 'chevalier', 'golem'],
+             terrains: ['cimetiere', 'crypte', 'sanctuaire', 'ruines', 'duel'] },
+  vampire: { name: 'Soif éternelle', fam: 'Vampire', general: 'valdric',
+             cards: ['chauve_souris', 'novice', 'servante', 'rodeur_nuit', 'noble', 'buveuse', 'comtesse', 'seigneur_vampire', 'prince_nuit', 'saignee', 'nuit_rouge', 'potion', 'mercenaire', 'chevalier', 'golem'],
+             terrains: ['chateau', 'bassin', 'sanctuaire', 'ruines', 'champ'] },
+  festin:  { name: 'Grande ripaille', fam: 'Gobelin', general: 'gorbag',
+             cards: ['marmiton', 'cuistot', 'goinfre', 'grand_banquet', 'panse_fer', 'roi_glouton', 'eclaireur', 'appel', 'recruteur', 'chaman', 'chef', 'porte_etendard', 'grand_chef', 'seigneur_guerre', 'golem'],
+             terrains: ['table', 'terrier', 'sanctuaire', 'champ', 'forteresse'] },
+  oracle:  { name: 'Parole céleste', fam: 'Ange', general: 'ophaniel',
+             cards: ['scribe', 'oracle', 'ecritures', 'archiviste', 'muse', 'choeur', 'cherubin', 'benediction', 'gardien', 'messagere', 'heraut', 'juge', 'dominion', 'archange', 'barde'],
+             terrains: ['bibliotheque', 'prairie', 'sanctuaire', 'champ', 'forteresse'] },
+  couvee:  { name: 'Couvée ardente', fam: 'Dragon', general: 'ysmera',
+             cards: ['oeuf_braise', 'oeuf_or', 'oeuf_tempete', 'couveuse', 'couvaison', 'matriarche', 'dragonnet', 'gardien_magot', 'thesauriser', 'drake', 'wyverne', 'rouge', 'ancien', 'dragon_or', 'titan'],
+             terrains: ['couvoir', 'nid', 'sanctuaire', 'ruines', 'champ'] },
+  contrat: { name: 'Contrats infernaux', fam: 'Démon', general: 'belzharoth',
+             cards: ['ame_damnee', 'possede', 'tentateur', 'corrupteur', 'marche_dupes', 'archidiable', 'cultiste', 'diablotin', 'pacte', 'bourreau', 'molosse', 'demon_majeur', 'moissonneur', 'seigneur', 'golem'],
+             terrains: ['foire', 'bergerie', 'sanctuaire', 'ruines', 'duel'] },
+  arcanes: { name: 'Arcanes sylvestres', fam: 'Elfe', general: 'elyndra',
+             cards: ['apprentie', 'lueur', 'ronces', 'mage_bois', 'chant', 'grand_druide', 'vent', 'sentier', 'eclaireuse', 'feu_follet', 'rodeuse', 'archere', 'cerf', 'sylvain', 'alchimiste'],
+             terrains: ['cercle', 'bois', 'sanctuaire', 'ruines', 'duel'] },
 };
 
 // ---- Utilitaires ----
@@ -268,6 +478,7 @@ export function newGame(deck0, deck1, names = ['Joueur 1', 'Joueur 2'], opts = {
       hand: [], discard: [], terrainPlan: pool.slice(0, 3).map((t, i) => ({ t, z: zones[i], turn: i + 1 })),
       terrains: [null, null, null], board: [[], [], []], zoneBonus: [0, 0, 0],
       seals: 0, bonusSeals: 0, treasure: 0, lastUnspent: 0, perfectTurns: 0, lost: 0, moves: [], played: [],
+      stolen: 0, feasts: 0, spells: 0,
     };
   };
   const st = { turn: 0, p: [mk(0, deck0), mk(1, deck1)], log: [], nextUid: 1000, order: 0, leader: 0, over: false, sim: false };
@@ -280,6 +491,8 @@ const creaturesAt = (st, p, z) => st.p[p].board[z].filter(c => c.revealed && isC
 const mine = (st, p) => [0, 1, 2].flatMap(z => creaturesAt(st, p, z));
 const hordeAt = (st, p, z) => creaturesAt(st, p, z).find(c => c.id === 'horde');
 const hordes = (st, p) => mine(st, p).filter(c => c.id === 'horde');
+const feastAt = (st, p, z) => creaturesAt(st, p, z).find(c => c.id === 'festin');
+const eggs = (st, p) => mine(st, p).filter(c => CARDS[c.id].egg && !c.hatched).sort((a, b) => a.order - b.order);
 const movedThisTurn = (st, p) => mine(st, p).filter(c => c.movedTurn === st.turn);
 const margin = (st, p, z) => zonePower(st, p, z) - zonePower(st, 1 - p, z);
 export const free = (st, p, z) => SLOTS - st.p[p].board[z].length;
@@ -290,7 +503,8 @@ export function costOf(st, c) {
   const d = CARDS[c.id]; if (d.x) return null;
   let v = d.cost + (c.costMod || 0) + (d.costFn ? d.costFn(st, c.owner) : 0);
   if (d.cost >= 1) v = Math.max(1, v);
-  return Math.max(0, v + (c.discount || 0));
+  const druid = d.type === 'S' && c.owner >= 0 && mine(st, c.owner).some(x => x.id === 'grand_druide') ? -1 : 0;
+  return Math.max(0, v + (c.discount || 0) + druid);
 }
 export function isMobile(st, c) {
   if (!c.revealed || !isCreature(c) || CARDS[c.id].token) return false;
@@ -328,6 +542,8 @@ function computeLeader(st) {
 }
 function weakest(st, list) { let b = null, bv = Infinity; for (const c of list) { const v = power(st, c); if (v < bv) { bv = v; b = c; } } return b; }
 function strongest(st, list) { let b = null, bv = -Infinity; for (const c of list) { const v = power(st, c); if (v > bv) { bv = v; b = c; } } return b; }
+// Plus forte selon la puissance imprimée et les bonus reçus, sans les effets persistants (sert aux effets persistants eux-mêmes).
+function topRaw(list) { let b = null, bv = -Infinity; for (const c of list) { const v = CARDS[c.id].power + c.buff; if (v > bv) { bv = v; b = c; } } return b; }
 // Zone d'arrivée choisie par un effet de déplacement : celle où l'on est le plus en retard, avec un emplacement libre.
 function bestZone(st, p, from) {
   const zs = [0, 1, 2].filter(z => z !== from && free(st, p, z) > 0);
@@ -336,16 +552,117 @@ function bestZone(st, p, from) {
 }
 
 // ---- Actions ----
-function draw(st, p, n) {
-  const P = st.p[p];
+// extra : pioche due à un effet (hors pioche du début de tour), qui déclenche Inspiration. Renvoie les cartes piochées en main.
+function draw(st, p, n, extra = false) {
+  const P = st.p[p], got = [];
   for (let i = 0; i < n; i++) {
-    const c = P.deck.shift(); if (!c) { log(st, `${who(st, p)} : deck vide, pas de pioche.`); return; }
-    if (P.hand.length >= HAND_MAX) { P.discard.push(c); log(st, `${who(st, p)} : main pleine, ${nm(c.id)} part à la défausse.`); }
-    else P.hand.push(c);
+    const c = P.deck.shift(); if (!c) { log(st, `${who(st, p)} : deck vide, pas de pioche.`); break; }
+    if (P.hand.length >= HAND_MAX) { log(st, `${who(st, p)} : main pleine, ${nm(c.id)} part à la défausse.`); P.hand.push(c); discardCard(st, p, c, true); continue; }
+    P.hand.push(c); got.push(c);
+    if (!extra) continue;
+    const g = GENERALS[P.general]; if (g.onDraw) g.onDraw(p, st, c);
+    for (const x of mine(st, p)) { const xd = CARDS[x.id]; if (xd.onInspire && stillThere(st, x)) xd.onInspire(x, st, c); }
   }
+  return got;
 }
 function buff(st, c, n) { c.buff += n; log(st, `${nm(c.id)} ${n >= 0 ? '+' : ''}${n}.`, n >= 0 ? 'up' : 'down'); }
-function addZone(st, p, z, n) { st.p[p].zoneBonus[z] += n; log(st, `${who(st, p)} : zone ${ZONE_NAMES[z]} +${n}.`, 'up'); }
+function addZone(st, p, z, n) { st.p[p].zoneBonus[z] += n; log(st, `${who(st, p)} : zone ${ZONE_NAMES[z]} ${n >= 0 ? '+' : ''}${n}.`, n >= 0 ? 'up' : 'down'); }
+// Carte qui revient en main ou en jeu depuis la défausse : elle repart de zéro.
+function fresh(c) {
+  for (const k of ['pending', 'movedTurn', 'playerMoved', 'turnStartZone', 'mobile', 'xPaid', 'hatched', 'enteredTurn', 'discount', 'costMod']) delete c[k];
+  c.buff = 0; c.revealed = false; c.zone = -1; return c;
+}
+
+// Défausse : une carte quitte la main. Une carte avec Relève entre alors en jeu.
+function discardCard(st, p, c, silent) {
+  const P = st.p[p]; const i = P.hand.indexOf(c); if (i < 0) return;
+  P.hand.splice(i, 1); P.discard.push(c);
+  if (!silent) log(st, `${who(st, p)} ${vb(p, 'défausse', 'défaussez')} ${nm(c.id)}.`, 'down');
+  const g = GENERALS[P.general]; if (g.onDiscard) g.onDiscard(p, st, c);
+  if (CARDS[c.id].raise) raise(st, p, c);
+}
+// Défausse N : défausse jusqu'à N cartes avec Relève de votre main, les plus chères d'abord. Les autres cartes restent en main.
+function discardFromHand(st, p, n) {
+  for (let i = 0; i < n; i++) {
+    const c = st.p[p].hand.filter(x => CARDS[x.id].raise).sort((a, b) => CARDS[b.id].cost - CARDS[a.id].cost)[0];
+    if (!c) return; discardCard(st, p, c);
+  }
+}
+// Relève : la carte défaussée entre en jeu avec +1, dans la zone où l'on est le plus en retard (le Cimetière l'attire et donne +1 de plus).
+function raise(st, p, c) {
+  const P = st.p[p];
+  const cim = P.terrains.findIndex((t, z) => t === 'cimetiere' && free(st, p, z) > 0);
+  const z = cim >= 0 ? cim : bestZone(st, p, -1);
+  if (z === null || z === undefined) return;
+  P.discard.splice(P.discard.indexOf(c), 1); fresh(c);
+  log(st, `${nm(c.id)} se relève.`, 'up');
+  c.buff = cim >= 0 ? 2 : 1;
+  enter(st, c, z);
+}
+// Exhumation : la créature la plus puissante de la défausse (coût max éventuel) revient en jeu dans la zone z.
+function exhume(st, p, z, maxCost = Infinity) {
+  const P = st.p[p]; if (free(st, p, z) <= 0) return null;
+  const c = P.discard.filter(x => isCreature(x) && CARDS[x.id].cost <= maxCost).sort((a, b) => CARDS[b.id].power - CARDS[a.id].power)[0];
+  if (!c) return null;
+  P.discard.splice(P.discard.indexOf(c), 1); fresh(c);
+  log(st, `${who(st, p)} ${vb(p, 'exhume', 'exhumez')} ${nm(c.id)}.`, 'up');
+  enter(st, c, z); return c;
+}
+
+// Drain : la cible perd n, la source gagne n (la source peut manquer : la cible perd quand même).
+// where : 'board' (en jeu, défaut), 'hand' ou 'deck' (la perte s'applique quand la carte sera jouée).
+function drain(st, src, target, n, where = 'board') {
+  if (!target || n <= 0) return;
+  if (where === 'board') buff(st, target, -n);
+  else { target.buff -= n; log(st, `Une carte ${where === 'hand' ? 'de la main' : 'du deck'} de ${who(st, target.owner)} perd ${n}.`, 'down'); }
+  if (src && stillThere(st, src)) { buff(st, src, n); st.p[src.owner].stolen += n; }
+}
+// Drain sur k créatures au hasard de la main adverse.
+function drainHand(st, src, k, n) {
+  const foe = 1 - src.owner;
+  shuffle(st.p[foe].hand.filter(isCreature)).slice(0, k).forEach(x => drain(st, src, x, n, 'hand'));
+}
+
+// Festin X : crée un Festin de puissance X ici, ou fait grandir celui qui y est déjà.
+function feast(st, p, z, x) {
+  if (x <= 0) return;
+  const f = feastAt(st, p, z);
+  if (f) { buff(st, f, x); return; }
+  const n = summon(st, p, z, 'festin'); if (n) n.buff = x;
+}
+// Un Gobelin dévore un Festin : il gagne sa puissance (Goinfre : +2 de plus), le Festin disparaît.
+function devour(st, g, f) {
+  const v = Math.max(0, power(st, f)) + (g.id === 'goinfre' ? 2 : 0);
+  removeToken(st, f); st.p[g.owner].feasts++;
+  log(st, `${nm(g.id)} dévore le Festin.`, 'up'); buff(st, g, v);
+}
+
+// Éclosion : l'Œuf laisse place à une créature au hasard du deck qui coûte 5 ou plus ; sinon il gagne +3.
+function hatch(st, egg) {
+  const P = st.p[egg.owner]; if (!stillThere(st, egg) || egg.hatched) return;
+  const pool = P.deck.filter(c => isCreature(c) && CARDS[c.id].cost >= 5);
+  if (!pool.length) { egg.hatched = true; log(st, `${nm(egg.id)} éclot, mais le deck n'a pas de créature à 5 sceaux ou plus.`); buff(st, egg, 3); return; }
+  const z = egg.zone, c = pick(pool);
+  P.board[z] = P.board[z].filter(x => x !== egg); P.discard.push(egg);
+  P.deck.splice(P.deck.indexOf(c), 1);
+  log(st, `${nm(egg.id)} éclot !`, 'reveal');
+  c.hatched = true; enter(st, c, z);
+}
+
+// Échange : votre créature de puissance négative la plus faible ici passe chez l'adversaire, et vous prenez la créature adverse choisie ici
+// (jamais une Horde ni un Festin, qui restent uniques dans leur zone).
+function swap(st, p, z, choose) {
+  const neg = creaturesAt(st, p, z).filter(c => power(st, c) < 0);
+  if (!neg.length) return false;
+  const give = weakest(st, neg), take = choose(creaturesAt(st, 1 - p, z).filter(c => c.id !== 'horde' && c.id !== 'festin'));
+  if (!take) return false;
+  const P = st.p[p], F = st.p[1 - p];
+  P.board[z] = P.board[z].filter(x => x !== give); F.board[z] = F.board[z].filter(x => x !== take);
+  give.owner = 1 - p; take.owner = p; F.board[z].push(give); P.board[z].push(take);
+  log(st, `${who(st, p)} ${vb(p, 'échange', 'échangez')} ${nm(give.id)} contre ${nm(take.id)} (${ZONE_NAMES[z]}).`, 'reveal');
+  for (const c of [give, take]) { const d = CARDS[c.id]; if (d.onSwitch) d.onSwitch(c, st); }
+  return true;
+}
 function summon(st, p, z, id) {
   if (free(st, p, z) <= 0) return null;
   const c = { uid: st.nextUid++, id, owner: p, zone: z, buff: 0, revealed: true, order: st.order++ };
@@ -362,7 +679,7 @@ function removeToken(st, c) { const P = st.p[c.owner]; P.board[c.zone] = P.board
 // Fait entrer une carte en jeu face visible et résout son effet Révélation.
 function enter(st, c, z) {
   const P = st.p[c.owner];
-  c.zone = z; c.revealed = true; c.pending = false; c.order = st.order++; P.board[z].push(c);
+  c.zone = z; c.revealed = true; c.pending = false; c.order = st.order++; c.enteredTurn = st.turn; P.board[z].push(c);
   log(st, `${who(st, c.owner)} ${vb(c.owner, 'invoque', 'invoquez')} ${nm(c.id)} (${ZONE_NAMES[z]}).`, 'reveal');
   const d = CARDS[c.id]; if (d.onReveal) d.onReveal(c, st);
 }
@@ -416,7 +733,10 @@ export function startTurn(st) {
   }
   st.leader = computeLeader(st);
   for (const c of ordered(st)) { const d = CARDS[c.id]; if (d.onStartTurn && stillThere(st, c)) d.onStartTurn(c, st); }
-  for (const p of [st.leader, 1 - st.leader]) st.p[p].terrains.forEach((t, z) => { if (t && TERRAINS[t].onStartTurn) TERRAINS[t].onStartTurn(p, st, z); });
+  for (const p of [st.leader, 1 - st.leader]) {
+    st.p[p].terrains.forEach((t, z) => { if (t && TERRAINS[t].onStartTurn) TERRAINS[t].onStartTurn(p, st, z); });
+    const g = GENERALS[st.p[p].general]; if (g.onStartTurn) g.onStartTurn(p, st);
+  }
 }
 
 export function placeHidden(st, p, uid, z) {
@@ -453,7 +773,7 @@ export function doStep(st, s) {
     c.playerMoved = st.turn; move(st, c, s.zone); return c;
   }
   const c = [0, 1, 2].flatMap(z => P.board[z]).find(x => x.uid === s.uid); if (!c) return null;
-  c.pending = false; c.revealed = true; P.played.push(c.id);
+  c.pending = false; c.revealed = true; c.enteredTurn = st.turn; P.played.push(c.id);
   const d = CARDS[c.id];
   log(st, `${who(st, s.p)} ${vb(s.p, 'révèle', 'révélez')} ${d.name} (${ZONE_NAMES[c.zone]}).`, 'reveal');
   if (d.sacrifice) {
@@ -461,9 +781,17 @@ export function doStep(st, s) {
     if (others.length < d.sacrifice) { log(st, `Pas assez de créatures à sacrifier pour ${d.name}.`, 'down'); destroy(st, c, null); return c; }
     for (let i = 0; i < d.sacrifice; i++) { const w = weakest(st, creaturesAt(st, s.p, c.zone).filter(x => x !== c)); if (w) destroy(st, w, s.p); }
   }
+  if (d.type === 'S') P.spells++;
   if (d.onReveal) d.onReveal(c, st);
   if (stillThere(st, c)) { const t = P.terrains[c.zone]; if (t && TERRAINS[t].onCardReveal) TERRAINS[t].onCardReveal(s.p, st, c, c.zone); }
-  if (d.type === 'S') { P.board[c.zone] = P.board[c.zone].filter(x => x !== c); P.discard.push(c); }
+  if (d.type === 'S') {
+    // Sortilège : créatures, général et terrain réagissent au sort révélé.
+    const z = c.zone;
+    for (const x of mine(st, s.p)) { const xd = CARDS[x.id]; if (xd.onSpell && stillThere(st, x)) xd.onSpell(x, st, z, c); }
+    const g = GENERALS[P.general]; if (g.onSpell) g.onSpell(s.p, st, z, c);
+    const t = P.terrains[z]; if (t && TERRAINS[t].onSpellHere) TERRAINS[t].onSpellHere(s.p, st, z, c);
+    P.board[z] = P.board[z].filter(x => x !== c); P.discard.push(c);
+  }
   return c;
 }
 export function endTurn(st) {
@@ -472,6 +800,12 @@ export function endTurn(st) {
     const d = CARDS[c.id]; if (!stillThere(st, c)) continue;
     if (d.onEndTurn && d.onEndTurn(c, st) !== false) fired.add(c);
     if (d.grace && st.p[c.owner].seals === 0 && stillThere(st, c)) { d.grace(c, st); fired.add(c); }
+  }
+  // Festins : votre Gobelin le plus faible de la zone dévore le Festin.
+  for (const p of [st.leader, 1 - st.leader]) for (const z of [0, 1, 2]) {
+    const f = feastAt(st, p, z); if (!f) continue;
+    const g = weakest(st, creaturesAt(st, p, z).filter(c => c !== f && hasKw(c, 'Gobelin')));
+    if (g) devour(st, g, f);
   }
   for (const p of [st.leader, 1 - st.leader]) {
     const P = st.p[p];
