@@ -49,8 +49,8 @@ export function createFriends(app) {
   }
   function onMsg(m) {
     if (m.t === 'hello' || m.t === 'friends') { if (m.msg) f.note = m.msg; refresh(); return; }
-    if (m.t === 'challenge') { f.challengeIn = { id: m.id, from: m.from }; app.play('reveal'); }
-    else if (m.t === 'challenge-sent') f.challengeOut = { id: m.id, to: m.to };
+    if (m.t === 'challenge') { f.challengeIn = { id: m.id, from: m.from, ranked: m.ranked }; app.play('reveal'); }
+    else if (m.t === 'challenge-sent') f.challengeOut = { id: m.id, to: m.to, ranked: m.ranked };
     else if (m.t === 'challenge-error') f.note = m.msg;
     else if (m.t === 'challenge-gone') {
       if (f.challengeIn?.id === m.id) f.challengeIn = null;
@@ -61,7 +61,7 @@ export function createFriends(app) {
     } else if (m.t === 'challenge-ready') {
       f.challengeIn = null; f.challengeOut = null;
       const playable = ui.account.decks.filter(d => !app.deckError(d, ui.account));
-      f.match = { room: m.room, foe: m.foe };
+      f.match = { room: m.room, foe: m.foe, ranked: !!m.ranked };
       f.deck = (playable.find(d => d.id === ui.account.active) || playable[0])?.id || null;
       ui.sheet = 'friend-deck';
     } else return;
@@ -81,7 +81,8 @@ export function createFriends(app) {
   function friendRow(p) {
     const out = f.challengeOut, busy = !!out || !!f.challengeIn;
     const btn = out && out.to.login === p.login ? '<button class="btn sm" data-act="friend-cancel">Annuler le défi</button>'
-      : `<button class="btn sm ${p.status === 'online' ? 'primary' : ''}" data-act="friend-challenge" data-login="${esc(p.login)}" ${p.status === 'online' && !busy ? '' : 'disabled'}>Défier</button>`;
+      : `<button class="btn sm ${p.status === 'online' ? 'primary' : ''}" data-act="friend-challenge" data-login="${esc(p.login)}" ${p.status === 'online' && !busy ? '' : 'disabled'}>Défier</button>
+        <button class="btn sm" data-act="friend-challenge" data-ranked="1" data-login="${esc(p.login)}" ${p.status === 'online' && !busy ? '' : 'disabled'}>Défi classé</button>`;
     const confirm = f.removing === p.login;
     return `<div class="frow"><span class="fstatus ${p.status}" title="${STATUS[p.status]}"></span>${who(p)}
       <small class="fstate ${p.status}">${STATUS[p.status]}</small>
@@ -106,7 +107,7 @@ export function createFriends(app) {
       <button class="btn sm primary" data-act="friend-accept" data-login="${esc(p.login)}" ${ui.busy ? 'disabled' : ''}>Accepter</button>
       <button class="btn sm" data-act="friend-remove" data-login="${esc(p.login)}" ${ui.busy ? 'disabled' : ''}>Refuser</button></div></div>`).join('')}</div>`) : ''}
     ${block(`Amis${L.friends.length ? ` · ${online} connecté${online > 1 ? 's' : ''} sur ${L.friends.length}` : ''}`, L.friends.length
-      ? `<div class="flist">${L.friends.map(friendRow).join('')}</div><p class="hint" style="margin:0">Défiez un ami connecté : s'il accepte, chacun choisit son deck et la partie commence.</p>`
+      ? `<div class="flist">${L.friends.map(friendRow).join('')}</div><p class="hint" style="margin:0">Défiez un ami connecté : s'il accepte, chacun choisit son deck et la partie commence. Un défi classé compte pour le rang des deux.</p>`
       : '<p class="hint" style="margin:0">Pas encore d\'amis. Demandez-leur leur pseudo et envoyez une demande.</p>')}
     ${L.outgoing.length ? block('Demandes envoyées', `<div class="flist">${L.outgoing.map(p => `<div class="frow">${who(p)}<div class="row fbtns">
       <button class="btn sm" data-act="friend-remove" data-login="${esc(p.login)}" ${ui.busy ? 'disabled' : ''}>Annuler</button></div></div>`).join('')}</div>`) : ''}`}`;
@@ -115,9 +116,9 @@ export function createFriends(app) {
   // Bandeau de défi, par-dessus tous les écrans hors partie.
   function banner() {
     if (['game', 'lobby', 'login', 'loading'].includes(ui.screen) || ui.sheet === 'friend-deck') return '';
-    if (f.challengeIn) return `<div class="fbanner" role="alertdialog" aria-label="Défi reçu"><span><b>${esc(f.challengeIn.from.name)}</b> vous défie !</span>
+    if (f.challengeIn) return `<div class="fbanner" role="alertdialog" aria-label="Défi reçu"><span><b>${esc(f.challengeIn.from.name)}</b> vous défie${f.challengeIn.ranked ? ' en classé' : ''} !</span>
       <div class="row"><button class="btn primary" data-act="friend-yes">Accepter</button><button class="btn" data-act="friend-no">Refuser</button></div></div>`;
-    if (f.challengeOut) return `<div class="fbanner" role="status"><span class="wait">Défi envoyé à <b>${esc(f.challengeOut.to.name)}</b>, en attente de sa réponse…</span>
+    if (f.challengeOut) return `<div class="fbanner" role="status"><span class="wait">Défi${f.challengeOut.ranked ? ' classé' : ''} envoyé à <b>${esc(f.challengeOut.to.name)}</b>, en attente de sa réponse…</span>
       <div class="row"><button class="btn" data-act="friend-cancel">Annuler</button></div></div>`;
     if (f.note && ui.screen !== 'friends') return `<div class="fbanner" role="status"><span>${esc(f.note)}</span>
       <div class="row">${/demande|accepté/.test(f.note) ? '<button class="btn" data-act="friends">Voir mes amis</button>' : ''}<button class="btn" data-act="friend-ok">OK</button></div></div>`;
@@ -127,7 +128,7 @@ export function createFriends(app) {
   // Défi accepté : choix du deck avant d'entrer dans le salon.
   function deckSheet() {
     const a = ui.account, decks = a.decks.filter(d => !app.deckError(d, a));
-    return `<div class="sheet"><div class="panel" role="dialog" aria-label="Choix du deck"><div class="ph"><h2>Partie contre ${esc(f.match.foe)}</h2></div>
+    return `<div class="sheet"><div class="panel" role="dialog" aria-label="Choix du deck"><div class="ph"><h2>Partie${f.match.ranked ? ' classée' : ''} contre ${esc(f.match.foe)}</h2></div>
       <span class="eyebrow">Choisissez votre deck</span>
       <div class="decks">${decks.map(d => `<button class="deckopt ${f.deck === d.id ? 'sel' : ''}" data-act="friend-deck" data-id="${d.id}" aria-pressed="${f.deck === d.id}">
         <b>${esc(d.name)}</b><small>${esc(app.generalName(d.general))} · ${d.cards.length} cartes</small></button>`).join('')}</div>
@@ -142,7 +143,7 @@ export function createFriends(app) {
     else if (a === 'friend-remove' && !ui.busy) { f.removing = null; act('/api/friends/remove', { login: ds.login }); }
     else if (a === 'friend-ask-remove') { f.removing = ds.login; app.render(); }
     else if (a === 'friend-keep') { f.removing = null; app.render(); }
-    else if (a === 'friend-challenge') { f.note = ''; link?.send({ t: 'challenge', to: ds.login }); }
+    else if (a === 'friend-challenge') { f.note = ''; link?.send({ t: 'challenge', to: ds.login, ranked: !!ds.ranked }); }
     else if (a === 'friend-cancel' && f.challengeOut) link?.send({ t: 'challenge-cancel', id: f.challengeOut.id });
     else if ((a === 'friend-yes' || a === 'friend-no') && f.challengeIn) { link?.send({ t: 'challenge-answer', id: f.challengeIn.id, accept: a === 'friend-yes' }); f.challengeIn = null; app.render(); }
     else if (a === 'friend-ok') { f.note = ''; app.render(); }

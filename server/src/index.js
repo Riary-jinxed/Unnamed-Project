@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { WebSocketServer } from 'ws';
-import { newGame, startTurn, runTurn, viewFor } from '@jeu/engine';
+import { DECKS, newGame, startTurn, runTurn, viewFor, aiPlan, pick } from '@jeu/engine';
+import { tierOf } from '@jeu/engine/ranked';
 import { deckError } from '@jeu/engine/collection';
 import { openStore } from './store.js';
 import { createAccounts, apiHandler, activeDeck } from './accounts.js';
@@ -77,8 +78,8 @@ function broadcast(room, flash = null) {
     if (!s || !room.st) return;
     const ready = room.plans.map(Boolean);
     send(s.ws, { t: 'state', room: room.code, view: viewFor(room.st, i, { flash, ready: { me: ready[i], foe: ready[1 - i] },
-      names: room.seats.map(x => x && x.name), connected: room.seats.map(x => !!(x && x.ws && x.ws.readyState === 1)),
-      badges: room.seats.map((x, j) => x && (j === i ? x.badge : shownBadge(x.badge, room.st.p[j]))), reward: room.rewards ? room.rewards[i] : null,
+      names: room.seats.map(x => x && x.name), connected: room.seats.map(x => !!(x && (x.ai || (x.ws && x.ws.readyState === 1)))),
+      badges: room.seats.map((x, j) => x && (j === i ? x.badge : shownBadge(x.badge, room.st.p[j]))), reward: room.rewards ? room.rewards[i] : null, ranked: room.ranked || null,
       // Images de profil : lourdes, envoyées une seule fois par connexion et par partie.
       avatars: s.avatarsSent ? undefined : room.seats.map(x => (x && x.avatar) || null) }) });
     if (s.ws && s.ws.readyState === 1) s.avatarsSent = true;
@@ -88,10 +89,13 @@ function lobby(room) {
   room.seats.forEach((s, i) => s && send(s.ws, { t: 'lobby', room: room.code, seat: i, token: s.token, names: room.seats.map(x => x && x.name) }));
 }
 // Chaque joueur joue le deck choisi en entrant (son deck joué par défaut), relu sur son compte quand la partie (ou la revanche) commence.
+// L'IA d'une partie classée prend un deck préconstruit au hasard, et sa force suit le rang actuel du joueur.
 function startMatch(room) {
-  const decks = room.seats.map(s => { const acc = accounts.byToken(s.auth), d = acc && deckOf(acc, s.deckId); return d && !deckError(d, acc) ? d : s.deck; });
-  room.decks = decks.map(d => d.cards);
-  room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => d.general) });
+  if (room.ranked === 'ai') { const acc = accounts.byToken(room.seats[0].auth); if (acc) room.seats[1] = aiSeat(acc); }
+  const decks = room.seats.map(s => { if (s.ai) return pick(Object.keys(DECKS));
+    const acc = accounts.byToken(s.auth), d = acc && deckOf(acc, s.deckId); return d && !deckError(d, acc) ? d : s.deck; });
+  room.decks = decks.map(d => (typeof d === 'string' ? DECKS[d].cards : d.cards));
+  room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => (typeof d === 'string' ? null : d.general)) });
   startTurn(room.st); room.st.phase = 'plan';
   room.plans = [null, null]; room.rematch = [false, false]; room.rewards = null;
   room.seats.forEach((s, i) => { const acc = accounts.byToken(s.auth); if (acc) { s.badge = accounts.progress.badge(acc, decks[i]); s.avatar = acc.avatar || null; } s.avatarsSent = false; });
@@ -103,16 +107,41 @@ async function resolve(room) {
   await runTurn(room.st, plans, flash => broadcast(room, flash), ms => new Promise(r => setTimeout(r, ms)));
   room.busy = false;
   if (room.st.over && !room.st.recorded) {
-    room.st.recorded = true; games.recordPvp(room.st, room.seats.map(s => s.login), room.decks);
-    // Récompenses de fin de partie, affichées à chacun sur l'écran de fin.
+    room.st.recorded = true;
+    const mode = room.ranked === 'ai' ? 'pve' : 'pvp';
+    games.recordPvp(room.st, room.seats.map(s => s.login), room.decks, { mode, ranked: !!room.ranked });
+    // Récompenses de fin de partie (et rang en classé), affichées à chacun sur l'écran de fin.
     const { winner, zones } = room.st.result;
+    const result = i => (winner === i ? 'win' : winner < 0 ? 'draw' : 'loss');
+    const ranks = room.ranked ? rankedResults(room, result) : [null, null];
     room.rewards = await Promise.all(room.seats.map(async (s, i) => {
       const acc = accounts.byToken(s.auth); if (!acc) return null;
-      return accounts.recordGame(acc, { mode: 'pvp', result: winner === i ? 'win' : winner < 0 ? 'draw' : 'loss', played: room.st.p[i].played,
+      const reward = await accounts.recordGame(acc, { mode, result: result(i), played: room.st.p[i].played,
         general: room.st.p[i].general, sweep: winner === i && zones.every(z => z === i) }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
+      return reward && ranks[i] ? { ...reward, ranked: ranks[i] } : reward;
     }));
   }
   broadcast(room);
+}
+
+// ---- Mode classé ----
+// Partie classée contre l'IA : le serveur joue l'IA, dont la force dépend du palier du joueur. Défi classé : salon d'un défi marqué « friend ».
+function aiSeat(acc) {
+  const t = tierOf(accounts.progress.ranked(acc).r);
+  return { ai: true, tries: t.ai, name: `IA ${t.name}`, login: null };
+}
+// Rangs après la partie, pour chaque siège ; chaque ami est comparé au rang de l'autre avant la partie.
+function rankedResults(room, result) {
+  const accs = room.seats.map(s => (s.ai ? null : accounts.byToken(s.auth)));
+  const before = accs.map(a => (a ? accounts.progress.ranked(a).r : null));
+  return accs.map((a, i) => (a ? accounts.progress.onRanked(a, { result: result(i), foeR: room.ranked === 'friend' ? before[1 - i] : null }) : null));
+}
+// Quitter une partie classée en cours, ou la laisser expirer, compte comme une défaite (et une victoire pour l'ami resté).
+function forfeit(room, seat) {
+  if (!room.ranked || !room.st || room.st.over || room.forfeited) return;
+  room.forfeited = true;
+  rankedResults(room, i => (i === seat ? 'loss' : 'win'));
+  room.seats.forEach(s => { const acc = !s.ai && accounts.byToken(s.auth); if (acc) store.put(acc).catch(e => console.error('Rang non enregistré :', e)); });
 }
 
 // Un joueur entre dans un salon avec son compte et le deck demandé (msg.deck), ou à défaut son deck joué.
@@ -132,8 +161,8 @@ function playing(login) {
 }
 const seatsChanged = room => room.seats.forEach(s => s && friends.changed(s.login));
 // Défi accepté : salon réservé aux deux amis, chacun prend la place qui lui est gardée en entrant.
-function inviteRoom(logins) {
-  const room = { code: newCode(), seats: [null, null], plans: [null, null], st: null, busy: false, lastActive: Date.now(), invite: logins.slice() };
+function inviteRoom(logins, { ranked = false } = {}) {
+  const room = { code: newCode(), seats: [null, null], plans: [null, null], st: null, busy: false, lastActive: Date.now(), invite: logins.slice(), ranked: ranked ? 'friend' : null };
   rooms.set(room.code, room);
   return room.code;
 }
@@ -155,6 +184,12 @@ function handle(ws, msg) {
     const room = { code: newCode(), seats: [null, null], plans: [null, null], st: null, busy: false, lastActive: Date.now() };
     room.seats[0] = seat;
     rooms.set(room.code, room); ws.room = room; ws.seat = 0; lobby(room); friends.changed(seat.login); return;
+  }
+  if (msg.t === 'ranked') {
+    const seat = seatFor(ws, msg); if (!seat) return;
+    const room = { code: newCode(), seats: [seat, aiSeat(accounts.byToken(msg.auth))], plans: [null, null], st: null, busy: false, lastActive: Date.now(), ranked: 'ai' };
+    rooms.set(room.code, room); ws.room = room; ws.seat = 0;
+    lobby(room); startMatch(room); friends.changed(seat.login); return;
   }
   if (msg.t === 'join') {
     const room = rooms.get(String(msg.room || '').toUpperCase());
@@ -183,18 +218,22 @@ function handle(ws, msg) {
   if (msg.t === 'plan') {
     if (!room.st || room.busy || room.st.over || room.plans[ws.seat]) return;
     room.plans[ws.seat] = { cards: Array.isArray(msg.cards) ? msg.cards.slice(0, 12) : [], moves: Array.isArray(msg.moves) ? msg.moves.slice(0, 12) : [], general: msg.general ?? null };
+    const ai = room.seats.findIndex(s => s && s.ai);
+    if (ai >= 0) room.plans[ai] = aiPlan(room.st, ai, room.seats[ai].tries);
     if (room.plans[0] && room.plans[1]) resolve(room); else broadcast(room);
     return;
   }
   if (msg.t === 'rematch') {
     if (!room.st || !room.st.over) return;
     room.rematch[ws.seat] = true;
+    room.seats.forEach((s, i) => { if (s.ai) room.rematch[i] = true; });
     if (room.rematch[0] && room.rematch[1]) startMatch(room); else broadcast(room);
     return;
   }
   if (msg.t === 'leave') {
     ws.room = null;
     if (room.invite && !room.st) return closeInvite(room, room.seats[ws.seat].login);
+    forfeit(room, ws.seat);
     room.seats.forEach((s, i) => i !== ws.seat && s && send(s.ws, { t: 'left' }));
     rooms.delete(room.code); seatsChanged(room);
   }
@@ -210,6 +249,16 @@ wss.on('connection', ws => {
     if (rooms.has(room.code)) friends.changed(room.seats[ws.seat]?.login);
   });
 });
-setInterval(() => { const now = Date.now(); for (const [code, r] of rooms) if (now - r.lastActive > ROOM_TTL_MS) rooms.delete(code); }, 60_000);
+// Partie classée abandonnée sans « leave » : celui qui n'est plus connecté perd (contre l'IA, le joueur ; entre amis, seulement si l'autre est resté).
+const away = s => s && !s.ai && !(s.ws && s.ws.readyState === 1);
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, r] of rooms) {
+    if (now - r.lastActive <= ROOM_TTL_MS) continue;
+    const gone = r.seats.map(away);
+    if (gone[0] !== gone[1]) forfeit(r, gone[0] ? 0 : 1);
+    rooms.delete(code);
+  }
+}, 60_000);
 
 server.listen(PORT, () => console.log(`Serveur de parties sur http://localhost:${PORT}`));

@@ -107,7 +107,7 @@ Les messages du journal sont écrits une fois pour les deux joueurs avec des mar
 
 `aiPlan(st, p, essais)` tire au hasard `essais` plans possibles (cartes jouables, zones, déplacements, général parfois), simule chacun sur une copie de l'état (ses propres révélations puis la fin de tour) et garde le plan le mieux noté par `evalFor` : avance dans chaque zone (lissée par `tanh`), plus la valeur future du Trésor (Dragon) et des tours parfaits (Ange). Le plan de l'adversaire n'est pas deviné.
 
-Réglages : 250 essais contre un joueur (`client/src/solo.js`), 80 dans `npm run sim`, 60 dans `npm run empreinte`. La copie de l'état (`clone`) laisse de côté le journal ; c'est la partie la plus coûteuse de l'IA.
+Réglages : 250 essais contre un joueur (`client/src/solo.js`), de 15 (Bronze) à 500 (Maître) en partie classée (`TIERS`, `ranked.js`), 80 dans `npm run sim`, 60 dans `npm run empreinte`. La copie de l'état (`clone`) laisse de côté le journal ; c'est la partie la plus coûteuse de l'IA.
 
 ## Collection (`collection.js`)
 
@@ -126,6 +126,14 @@ Le catalogue publié depuis `/admin` retouche des cartes (nom, coût, puissance,
 ## Récompenses (`rewards.js`)
 
 Données partagées par le serveur (qui calcule) et l'appli (qui affiche) : réglages chiffrés par défaut (`DEFAULT_REWARDS`, bornes dans `REWARD_LIMITS`), courbe d'XP (`xpToNext`), missions (`MISSIONS`), succès (`ACHIEVEMENTS`), récompenses de famille et de set (`FAMILY_REWARDS`, `SET_REWARDS`), titres, cadres et dos de carte, niveaux de carte (`CARD_LEVELS` : nom, bordure `look`, effet `fx` ; `levelCost(n)` lit les coûts dans les réglages). Les choix chiffrés sont justifiés dans la proposition d'économie (`recompenses/economie.md`, dans les fichiers du projet Claude, pas dans ce dépôt).
+
+## Mode classé (`ranked.js`)
+
+Le rang d'un joueur tient en un nombre d'étoiles `r` : 3 étoiles par division, 3 divisions par palier (III, II, I), paliers `TIERS` Bronze, Argent, Or, Platine, Diamant, puis Maître où les étoiles deviennent des points sans plafond (`MASTER`). `rankOf(r)` donne palier, division, étoiles, plancher et libellé.
+
+- `applyResult(r, { result, streak, foeR })` : victoire +1 étoile, plus 1 pour une série de 3 victoires ou plus (jusqu'au Diamant) et plus 1 pour avoir battu un ami mieux classé ; défaite −1, jamais sous le début du palier ; nul sans effet.
+- Chaque palier règle la force de l'IA (`ai` : essais d'`aiPlan`) et ses récompenses de fin de saison (`title`, `frame` ; Éclats dans les réglages `rankShards…` de `rewards.js`, voir `seasonShardsKey`).
+- Saisons : une par mois, heure de Paris (`seasonId`, `seasonName`, `seasonDaysLeft`) ; `seasonReset(r)` fait redescendre d'un palier au début de la suivante.
 
 ## Outils
 

@@ -1,7 +1,8 @@
-// Onglet Récompenses de /admin : courbe d'XP, gains des parties et des niveaux, missions quotidiennes, complétions, niveaux de carte et succès.
+// Onglet Récompenses de /admin : courbe d'XP, gains des parties et des niveaux, missions quotidiennes, complétions, niveaux de carte, saisons classées et succès.
 // Tout est enregistré dans le document « recompenses » ; les valeurs vides reprennent les valeurs par défaut.
 import { MISSIONS, ACHIEVEMENTS, FAMILY_REWARDS, SET_REWARDS, FRAMES, CARD_LEVELS, xpToNext } from '@jeu/engine/rewards';
 import { CARDS } from '@jeu/engine';
+import { TIERS, seasonShardsKey } from '@jeu/engine/ranked';
 
 const GROUPS = [
   ['Niveau du compte', 'XP pour passer du niveau n au suivant : le plus petit entre « plafond » et « base + pas × (n − 1) ».', [
@@ -22,6 +23,7 @@ const GROUPS = [
     ['essencePerDuplicate', 'Essence par doublon'],
     ...[2, 3, 4, 5].flatMap(n => [[`lvl${n}Essence`, `Niveau ${n} (${CARD_LEVELS[n].name}) : essence`], [`lvl${n}Shards`, `Niveau ${n} (${CARD_LEVELS[n].name}) : Éclats`]]),
   ]],
+  ['Mode classé', 'Éclats reçus à la fin de chaque saison (un mois) selon le meilleur palier atteint. Les titres et cadres des paliers sont fixes.', TIERS.map((t, i) => [seasonShardsKey(i), `Éclats : saison finie en ${t.name}`])],
 ];
 
 export function rewardsTab({ call, render, say, esc, notice }) {

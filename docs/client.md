@@ -18,12 +18,13 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 | --- | --- | --- |
 | `loading`, `login` | `renderLoading`, `renderLogin` | Démarrage, connexion. |
 | `starter` | `renderStarter` | Choix du deck de départ (première connexion). |
-| `home` | `renderHome` | Booster du jour, niveau et missions, deck joué, boutique, parties, tutoriel et codex. |
+| `home` | `renderHome` | Booster du jour, niveau et missions, deck joué, boutique, rang classé, parties, tutoriel et codex. |
 | `collection` | `renderCollection` | Toutes les cartes, par famille, celles qui manquent grisées ; niveau de chaque carte. Une carte ouverte en grand y monte de niveau (`upgradeHTML`). |
 | `shop` | `renderShop` | Cartes du jour et boosters de chaque set. |
 | `decks`, `deck` | `renderDecks`, `renderDeck` | Liste des decks ; création en trois étapes (général, terrains, cartes). |
 | `profile` | `renderProfile` | Pseudo, image, titre, cadre, dos, stats, succès, familles. |
-| `friends` | `friends.screen` (`friends.js`) | Ajouter un ami, demandes reçues et envoyées, amis avec leur statut, défier, retirer. |
+| `friends` | `friends.screen` (`friends.js`) | Ajouter un ami, demandes reçues et envoyées, amis avec leur statut, défier (normal ou classé), retirer. |
+| `ranked` | `renderRanked` | Mode classé : rang et saison, partie classée contre l'IA, classement de la saison (`GET /api/ranked`), récompenses de fin de saison, règles. |
 | `lobby`, `game` | `renderLobby`, `renderGame` | Attente de l'adversaire (code à donner, ou ami qui choisit son deck) ; plateau. |
 
 ### Plateau (`renderGame`)
@@ -40,6 +41,7 @@ De haut en bas : bandeau de l'adversaire, les trois zones, votre bandeau, l'enca
 Une partie est pilotée par un « contrôleur » qui offre `submit(plan)`, `rematch()` et `leave()`, et appelle les `handlers` de `main.js` (`onView`, `onLobby`, `onError`…) :
 
 - `net.js` (`connectOnline`) : partie en ligne. Ouvre le WebSocket, envoie le premier message (`create`, `join` ou `rejoin`) et se reconnecte seul après une coupure (`rejoin` avec le jeton de siège).
+- `goRanked` : partie classée contre l'IA, par `connectOnline` avec le message `ranked` ; le serveur joue l'IA. Pas d'écran d'attente (`ui.rankedAi`). En partie classée, `view.ranked` vaut `ai` ou `friend` : le titre l'indique, quitter demande confirmation (c'est une défaite) et l'écran de fin montre le nouveau rang (`reward.ranked`).
 - `solo.js` (`startSolo`) : partie contre l'IA dans la page, avec le même moteur ; l'IA (`aiPlan`, 250 essais) prépare son tour quand le joueur valide le sien.
 
 Pendant la préparation, l'appli refait les calculs simples pour guider le joueur (sceaux restants, emplacements libres) ; le serveur refait tout de son côté.

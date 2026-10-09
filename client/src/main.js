@@ -13,6 +13,7 @@ import { esc, famStyle, rich } from './common.js';
 import { artHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { FRAMES, BACKS, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
+import { STREAK_BONUS } from '@jeu/engine/ranked';
 
 const famVar = kw => famStyle(kw[0]);
 const kwLine = d => (d.token ? 'Jeton · ' : '') + (d.kw.join(' · ') || 'Neutre');
@@ -30,7 +31,7 @@ const ui = {
   booster: null, shop: null, edit: null, deckStep: 0, renaming: null, profile: null, nameDraft: '', colFam: '', joinCode: (params.get('code') || '').toUpperCase(),
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
-  drag: null, fx: null, zoom: null, soloReward: null, avatars: null, friendFoe: null,
+  drag: null, fx: null, zoom: null, soloReward: null, avatars: null, friendFoe: null, rankedAi: false, rankedData: null,
   codexQuery: '', zoomBack: null, coach: null, coachShown: null,
 };
 const app = document.getElementById('app');
@@ -40,7 +41,9 @@ const friends = createFriends({ ui, render: () => render(), call: (...x) => call
 
 // ---- Contrôleurs (en ligne / IA) ----
 const handlers = {
-  onLobby(m) { ui.screen = 'lobby'; ui.room = m.room; ui.lobbyNames = m.names; ui.error = ''; store.set('session', { room: m.room, token: m.token, foe: ui.friendFoe }); render(); },
+  // Partie classée contre l'IA : le salon démarre aussitôt, pas d'écran d'attente.
+  onLobby(m) { if (ui.rankedAi) { store.set('session', { room: m.room, token: m.token }); return; }
+    ui.screen = 'lobby'; ui.room = m.room; ui.lobbyNames = m.names; ui.error = ''; store.set('session', { room: m.room, token: m.token, foe: ui.friendFoe }); render(); },
   onView(view, room) {
     if (room) ui.room = room;
     if (view.avatars) ui.avatars = view.avatars;
@@ -62,7 +65,8 @@ const handlers = {
   onGone() { store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.error = 'La partie a expiré.'; ui.ctrl = null; ui.friendFoe = null; render(); },
   onLeft() {
     // Défi : l'ami a renoncé avant le début de la partie.
-    ui.error = ui.friendFoe && ui.screen === 'lobby' ? `${ui.friendFoe} a annulé la partie.` : 'Votre adversaire a quitté la partie.';
+    ui.error = ui.friendFoe && ui.screen === 'lobby' ? `${ui.friendFoe} a annulé la partie.`
+      : ui.view?.ranked && ui.view.phase !== 'over' ? 'Votre adversaire a quitté la partie classée : la victoire vous revient.' : 'Votre adversaire a quitté la partie.';
     store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.ctrl = null; ui.friendFoe = null; render();
   },
 };
@@ -74,13 +78,19 @@ function deckReady() {
 }
 function goOnline(action) {
   if (!deckReady()) return;
-  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null;
+  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = false;
   ui.ctrl = connectOnline(handlers, action === 'create' ? { t: 'create', auth: ui.auth } : { t: 'join', room: ui.joinCode, auth: ui.auth });
 }
 // Défi accepté : on entre dans le salon réservé avec le deck choisi.
 function startFriendMatch(room, deck, foe) {
-  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = foe;
+  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = foe; ui.rankedAi = false;
   ui.ctrl = connectOnline(handlers, { t: 'join', room, auth: ui.auth, deck });
+}
+// Partie classée contre l'IA : jouée par le serveur, l'IA est plus forte à chaque palier.
+function goRanked() {
+  if (!deckReady()) return;
+  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = true; ui.sheet = null; ui.lastTurn = 0;
+  ui.ctrl = connectOnline(handlers, { t: 'ranked', auth: ui.auth });
 }
 function goSolo() {
   if (!deckReady()) return;
@@ -243,12 +253,50 @@ function closeInbox() {
   ui.sheet = null; ui.account.progress.inbox = [];
   api('POST', '/api/rewards/seen', {}, ui.auth).then(r => { if (r.account) { ui.account = r.account; render(); } }).catch(() => {});
 }
+// ---- Mode classé ----
+const rankHTML = k => `<span class="rank rank-${k.id}">${esc(k.label)}</span>${k.max ? ` <span class="rstars" role="img" aria-label="${k.stars} étoile${k.stars > 1 ? 's' : ''} sur ${k.max}">${'★'.repeat(k.stars)}<span class="off">${'★'.repeat(k.max - k.stars)}</span></span>` : ''}`;
+function rankedLine(k) {
+  const d = k.delta > 0 ? `+${k.delta} étoile${k.delta > 1 ? 's' : ''}${k.bonus ? ' (bonus compris)' : ''}` : k.delta < 0 ? `${k.delta} étoile` : 'rang inchangé';
+  return `<p style="margin:0">Classé : ${rankHTML(k.after)} · ${d}${k.promoted ? ' · <b>Promotion !</b>' : ''}</p>`;
+}
+async function openRanked() {
+  ui.screen = 'ranked'; ui.error = ''; ui.rankedData = null; render();
+  try { ui.rankedData = await api('GET', '/api/ranked', undefined, ui.auth); } catch (e) { ui.error = e.message; }
+  render();
+}
+function renderRanked() {
+  const D = ui.rankedData, R = D ? D.ranked : prog().ranked;
+  const head = `<div class="top"><span class="title">Mode classé</span><button class="btn" data-act="home">Retour</button></div>${errLine()}`;
+  if (!R) return `${head}<p class="wait">Chargement…</p>`;
+  const ladder = !D ? '<p class="wait">Chargement…</p>' : D.ladder.length ? `<ol class="ladder">${D.ladder.map(p => `<li class="${p.login === ui.account.login ? 'me' : ''}">
+      <span class="lpos num">${p.pos}</span><span class="fname"><b>${esc(p.name)}</b>${p.title ? ` <small class="ptitle">${esc(p.title)}</small>` : ''}</span>
+      <span class="lrank">${rankHTML(p.rank)}</span><small class="hint num">${p.wins} V · ${p.games - p.wins} D/N</small></li>`).join('')}</ol>`
+    : '<p class="hint" style="margin:0">Personne n\'a encore joué en classé cette saison. Soyez le premier !</p>';
+  const rewards = !D ? '' : `<div class="card-box"><span class="eyebrow">Récompenses de fin de saison</span>
+    <p class="hint" style="margin:0">Selon le meilleur palier atteint pendant la saison. Les titres et cadres des paliers en dessous sont aussi débloqués.</p>
+    <ul class="tiers">${D.rewards.map(t => `<li class="${R.best.id === t.id ? 'on' : ''}"><span class="rank rank-${t.id}">${esc(t.name)}</span>
+      <span>${[t.shards ? `${t.shards} Éclats` : '', t.title ? `titre « ${esc(t.title)} »` : '', t.frame ? esc(t.frame) : ''].filter(Boolean).join(' · ') || '–'}</span></li>`).join('')}</ul></div>`;
+  return `${head}
+  <div class="card-box">
+    <span class="eyebrow">Saison ${esc(R.seasonName)} · encore ${R.daysLeft} jour${R.daysLeft > 1 ? 's' : ''}</span>
+    <h2 style="font-size:24px">${rankHTML(R.rank)}</h2>
+    <p class="hint" style="margin:0">${R.games} partie${R.games > 1 ? 's' : ''} classée${R.games > 1 ? 's' : ''} · ${R.wins} victoire${R.wins > 1 ? 's' : ''}${R.streak > 1 ? ` · série de ${R.streak}` : ''} · meilleur rang : ${esc(R.best.label)}</p>
+    <div class="row"><button class="btn primary" data-act="ranked-play">Partie classée contre l'IA ${esc(R.ai)}</button><button class="btn" data-act="friends">Défier un ami en classé</button></div>
+    <p class="hint" style="margin:0">Une victoire donne une étoile, une défaite en retire une, sans jamais redescendre sous le début de votre palier.
+      ${STREAK_BONUS} victoires d'affilée ou plus donnent une étoile de plus, jusqu'au Diamant. L'IA devient plus forte à chaque palier.
+      En défi classé, battre un ami mieux classé que vous donne une étoile de plus. Quitter une partie classée en cours compte comme une défaite.
+      À la fin du mois, vous recevez les récompenses de votre meilleur palier, puis vous redescendez d'un palier.</p>
+  </div>
+  <div class="card-box"><span class="eyebrow">Classement de la saison</span>${ladder}</div>
+  ${rewards}`;
+}
+
 // Fin de partie : XP, Éclats et niveau gagnés.
 function endRewardHTML() {
   const r = ui.mode === 'online' ? ui.view.reward : ui.soloReward;
   if (!r) return `<p class="hint" style="margin:0">${ui.auth ? 'Calcul des récompenses…' : ''}</p>`;
   return `<div class="endreward">${levelBar(r.progress)}
-    <p style="margin:0">${r.rewarded ? (gains(r) || 'Pas de gain pour cette partie.') : 'Plus de récompense de partie aujourd\'hui ; les missions avancent toujours.'}${r.levelUp ? ` · <b>Niveau ${r.progress.level} !</b>` : ''}${r.missions ? ` · ${r.missions} mission${r.missions > 1 ? 's' : ''} accomplie${r.missions > 1 ? 's' : ''}` : ''}</p></div>`;
+    <p style="margin:0">${r.rewarded ? (gains(r) || 'Pas de gain pour cette partie.') : 'Plus de récompense de partie aujourd\'hui ; les missions avancent toujours.'}${r.levelUp ? ` · <b>Niveau ${r.progress.level} !</b>` : ''}${r.missions ? ` · ${r.missions} mission${r.missions > 1 ? 's' : ''} accomplie${r.missions > 1 ? 's' : ''}` : ''}</p>${r.ranked ? rankedLine(r.ranked) : ''}</div>`;
 }
 async function equip(body, okMsg) { if (await call('PUT', '/api/cosmetics', body)) { ui.msg = okMsg; render(); } }
 
@@ -413,7 +461,7 @@ function renderGame() {
   const canGen = play && g.activate && !m.generalUsed && m.seals >= (g.activateCost || 0);
   const goLabel = v.phase === 'reveal' ? 'Révélation…' : v.ready.me ? 'En attente…' : v.turn === v.turns ? 'Valider le dernier tour' : 'Valider le tour';
   return `
-  <div class="top"><span class="title">${ui.mode === 'online' ? `Partie ${esc(ui.room || '')}` : ui.mode === 'tuto' ? 'Tutoriel' : 'Contre l\'IA'}</span>
+  <div class="top"><span class="title">${ui.mode === 'online' ? (v.ranked ? 'Partie classée' : `Partie ${esc(ui.room || '')}`) : ui.mode === 'tuto' ? 'Tutoriel' : 'Contre l\'IA'}</span>
     ${muteBtn()}<button class="btn" data-act="log">Journal</button><button class="btn" data-act="set">Cartes</button></div>
   ${pbar(f, false, v.connected[1 - v.seat])}
   <div class="board">${board}</div>
@@ -499,6 +547,11 @@ function renderHome() {
       <button class="btn" data-act="shop">Ouvrir la boutique</button>
     </div>
     ${errLine()}
+    ${p.ranked ? `<div class="card-box">
+      <div class="row" style="justify-content:space-between"><span class="eyebrow">Mode classé · saison ${esc(p.ranked.seasonName)}</span><button class="btn sm" data-act="ranked">Classement</button></div>
+      <h2 style="font-size:22px">${rankHTML(p.ranked.rank)}</h2>
+      <div class="row"><button class="btn primary" data-act="ranked-play">Partie classée contre l'IA ${esc(p.ranked.ai)}</button></div>
+    </div>` : ''}
     <div class="card-box">
       <h2 style="font-size:22px">Jouer avec un ami</h2>
       <div class="row"><button class="btn primary" data-act="create">Créer une partie</button><button class="btn" data-act="friends">Mes amis${friends.pending() ? ` · ${friends.pending()} demande${friends.pending() > 1 ? 's' : ''}` : ''}</button></div>
@@ -855,7 +908,7 @@ function sheetHTML() {
 }
 function render() {
   const h = document.getElementById('hand'); const sx = h ? h.scrollLeft : 0;
-  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, lobby: renderLobby, game: renderGame, friends: friends.screen };
+  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, lobby: renderLobby, game: renderGame, friends: friends.screen };
   // Récompenses gagnées (niveau, missions, succès, familles et sets complétés) : affichées en revenant à l'accueil.
   if (ui.screen === 'home' && !ui.sheet && prog().inbox.length) ui.sheet = 'inbox';
   // Première connexion sur cet appareil : le tutoriel est proposé une fois.
@@ -1044,7 +1097,7 @@ function tryPlace(z) {
 function quit() {
   if (ui.ctrl) ui.ctrl.leave();
   store.set('session', null);
-  ui.ctrl = null; ui.view = null; ui.friendFoe = null; ui.screen = menuScreen(); ui.sheet = null; ui.pending = []; ui.lastTurn = 0; ui.soloReward = null; render();
+  ui.ctrl = null; ui.view = null; ui.friendFoe = null; ui.rankedAi = false; ui.screen = menuScreen(); ui.sheet = null; ui.pending = []; ui.lastTurn = 0; ui.soloReward = null; render();
   // Le compte a pu changer pendant la partie (XP, Éclats, missions, succès).
   if (ui.auth) api('GET', '/api/me', undefined, ui.auth).then(r => { setAccount(r.account); render(); }).catch(() => {});
 }
@@ -1105,7 +1158,11 @@ app.addEventListener('click', e => {
       while (ui.genZone !== null && sealsLeft() < 0 && ui.pending.length) ui.pending.pop();
       play(ui.genZone === null ? 'unplace' : 'place'); render(); }
     else if (a === 'again') { ui.rematchAsked = true; ui.soloReward = null; ui.ctrl.rematch(); render(); }
-    else if (a === 'quit') quit();
+    else if (a === 'quit') {
+      if (ui.screen === 'game' && ui.view?.ranked && ui.view.phase !== 'over' && !confirm('Quitter une partie classée en cours compte comme une défaite. Quitter quand même ?')) return;
+      quit(); }
+    else if (a === 'ranked') openRanked();
+    else if (a === 'ranked-play') goRanked();
     else if (a === 'mute') { setMuted(!isMuted()); render(); }
     else if (a === 'logout') doLogout();
     else if (a === 'retry') boot();
