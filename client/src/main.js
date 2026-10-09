@@ -1,7 +1,7 @@
 // Appli web : connexion, collection et deck, accueil, salon en ligne, partie (en ligne ou contre l'IA).
 import './style.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
-import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, BOOSTER_POOL, allowedGenerals, allowedTerrains, deckError } from '@jeu/engine/collection';
+import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, BOOSTER_POOL, SHARDS_PER_DUPLICATE, allowedGenerals, allowedTerrains, deckError } from '@jeu/engine/collection';
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
@@ -23,7 +23,7 @@ const store = {
 const params = new URLSearchParams(location.search);
 const ui = {
   screen: 'loading', auth: store.get('auth', null), account: null, loginId: '', loginPass: '', starterPick: null, busy: false,
-  booster: null, edit: null, colFam: '', joinCode: (params.get('code') || '').toUpperCase(),
+  booster: null, shop: null, edit: null, colFam: '', joinCode: (params.get('code') || '').toUpperCase(),
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, genMode: false, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
   drag: null, fx: null, zoom: null,
@@ -99,9 +99,20 @@ function doLogout() {
   const token = ui.auth; signedOut(); render();
   api('POST', '/api/logout', {}, token).catch(() => {});
 }
+// Affiche les cartes reçues (booster du jour, booster ou carte achetés en boutique).
+function showCards(r) { ui.booster = r; ui.sheet = 'booster'; play('reveal'); render(); }
 async function openBoosterNow() {
   const r = await call('POST', '/api/booster');
-  if (r) { ui.booster = r; ui.sheet = 'booster'; play('reveal'); render(); }
+  if (r) showCards(r);
+}
+async function openShop() {
+  ui.screen = 'shop'; ui.error = ''; render();
+  const r = await call('GET', '/api/shop');
+  if (r) { ui.shop = r.shop; render(); }
+}
+async function buy(path, body) {
+  const r = await call('POST', path, body);
+  if (r) { ui.shop = r.shop; showCards(r); }
 }
 function editDeck() {
   const d = ui.account.deck;
@@ -271,6 +282,11 @@ function renderHome() {
       ${deckErr ? `<p class="err" style="margin:0">${esc(deckErr)}</p>` : ''}
       <div class="row"><button class="btn" data-act="edit">Modifier le deck</button><button class="btn" data-act="collection">Ma collection (${total}/${BOOSTER_POOL.length})</button></div>
     </div>
+    <div class="card-box booster">
+      <div><span class="eyebrow">Boutique</span><h2 style="font-size:22px"><span class="num">${a.shards}</span> Éclats</h2>
+        <small class="hint">Chaque doublon rapporte ${SHARDS_PER_DUPLICATE} Éclats.</small></div>
+      <button class="btn" data-act="shop">Ouvrir la boutique</button>
+    </div>
     ${errLine()}
     <div class="card-box">
       <h2 style="font-size:22px">Jouer avec un ami</h2>
@@ -296,6 +312,29 @@ function renderCollection() {
   <div class="gal-h">Vos généraux</div><div class="gallery">${allowedGenerals(a.starter).map(genCard).join('')}</div>
   <div class="gal-h">Vos terrains</div><div class="gallery">${allowedTerrains(a.starter).map(terrainCard).join('')}</div>`;
 }
+// Boutique : un espace par set ; les sets à venir y ont déjà leur place.
+function renderShop() {
+  const sh = ui.shop, a = ui.account;
+  const top = `<div class="top"><span class="title">Boutique</span><span class="chip num">${a.shards} Éclats</span><button class="btn" data-act="home">Retour</button></div>`;
+  if (!sh) return `${top}${errLine()}<p class="wait">Chargement…</p>`;
+  const P = sh.prices;
+  const offer = (set, o) => {
+    const label = o.bought ? 'Achetée' : o.owned ? 'Déjà dans votre collection' : `Acheter · ${P.cardPrice} Éclats`;
+    return `<div class="offer"><button class="ccard" data-zoom="card:${o.id}">${fullCard(o.id)}</button>
+      <button class="btn ${o.bought || o.owned ? '' : 'primary'}" data-act="buy-card" data-set="${set.id}" data-id="${o.id}" ${o.bought || o.owned || a.shards < P.cardPrice || ui.busy ? 'disabled' : ''}>${label}</button></div>`;
+  };
+  const section = set => set.open ? `<section class="card-box shopset">
+      <div><span class="eyebrow">${set.size} cartes</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
+      <div class="gal-h">Cartes du jour</div><p class="hint" style="margin:0">Trois cartes choisies pour vous, renouvelées chaque jour à minuit.</p>
+      <div class="gallery">${set.offers.map(o => offer(set, o)).join('')}</div>
+      <div class="gal-h">Booster du set</div>
+      <div class="row"><p class="hint" style="margin:0;flex:1">${P.boosterSize} cartes au hasard parmi les ${set.size} du set, toutes avec la même chance. Les doublons rapportent ${SHARDS_PER_DUPLICATE} Éclats chacun.</p>
+        <button class="btn primary" data-act="buy-booster" data-set="${set.id}" ${a.shards < P.boosterPrice || ui.busy ? 'disabled' : ''}>Acheter · ${P.boosterPrice} Éclats</button></div>
+    </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
+      <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`;
+  return `${top}${errLine()}${sh.sets.map(section).join('')}`;
+}
+
 // Constructeur de deck : on coche les cartes de la collection, les terrains et le général.
 function renderDeck() {
   const a = ui.account, e = ui.edit, err = deckError(e, a);
@@ -415,10 +454,11 @@ function sheetHTML() {
       <p class="hint" style="margin:0">Un deck : ${DECK_SIZE} cartes différentes de votre collection, ${DECK_TERRAINS} terrains et un général. Généraux et terrains : les neutres et ceux de la famille de votre deck de départ.</p>${h}</div></div>`;
   }
   if (ui.sheet === 'booster' && ui.booster) {
-    const { cards, fresh } = ui.booster;
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Booster du jour</h2><button class="btn" data-act="close">Fermer</button></div>
-      <p class="hint" style="margin:0">${cards.length} cartes ajoutées à votre collection.</p>
-      <div class="gallery">${cards.map((id, i) => `<div class="bcard" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : ''}${fullCard(id)}</div>`).join('')}</div></div></div>`;
+    const { title, cards, fresh, shards } = ui.booster, n = fresh.filter(Boolean).length;
+    const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats gagnés avec les doublons` : ''].filter(Boolean).join(', ');
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${esc(title)}</h2><button class="btn" data-act="close">Fermer</button></div>
+      <p class="hint" style="margin:0">${sum}.</p>
+      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${SHARDS_PER_DUPLICATE} Éclats</span>`}${fullCard(id)}</div>`).join('')}</div></div></div>`;
   }
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;
@@ -434,7 +474,7 @@ function sheetHTML() {
 }
 function render() {
   const h = document.getElementById('hand'); const sx = h ? h.scrollLeft : 0;
-  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, deck: renderDeck, lobby: renderLobby, game: renderGame };
+  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, lobby: renderLobby, game: renderGame };
   const body = screens[ui.screen]();
   app.innerHTML = body + sheetHTML();
   const h2 = document.getElementById('hand'); if (h2) h2.scrollLeft = sx;
@@ -637,6 +677,9 @@ app.addEventListener('click', e => {
     else if (a === 'starter' && ui.starterPick && !ui.busy) call('POST', '/api/starter', { starter: ui.starterPick });
     else if (a === 'booster' && !ui.busy) openBoosterNow();
     else if (a === 'collection') { ui.screen = 'collection'; ui.error = ''; render(); }
+    else if (a === 'shop') openShop();
+    else if (a === 'buy-card' && !ui.busy) buy('/api/shop/card', { set: ds.set, card: ds.id });
+    else if (a === 'buy-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set });
     else if (a === 'edit') { editDeck(); render(); }
     else if (a === 'home') { ui.screen = 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
     else if (a === 'save-deck' && !ui.busy) saveDeck();

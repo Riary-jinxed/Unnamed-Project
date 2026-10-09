@@ -43,3 +43,21 @@ export function deckError(deck, { cards: owned, starter }) {
   if (!allowedGenerals(starter).includes(deck.general)) return 'Ce général n\'est pas accessible avec votre deck de départ.';
   return null;
 }
+
+// ---- Doublons, sets et boutique ----
+// Un deck ne prend qu'un exemplaire de chaque carte : chaque doublon obtenu devient des Éclats.
+export const SHARDS_PER_DUPLICATE = 10;
+export const SHOP = { dailyCards: 3, cardPrice: 300, boosterPrice: 200, boosterSize: 3 };
+// Chaque set a son espace dans la boutique. Un set fermé y apparaît comme « bientôt disponible ».
+export const SETS = [
+  { id: 'base', name: 'Set de base', cards: BOOSTER_POOL, open: true },
+  { id: 'set2', name: 'Prochain set', cards: [], open: false, teaser: 'Ses cartes arriveront d\'abord ici, en boosters et à l\'unité, avant de rejoindre le booster quotidien.' },
+];
+export const setById = id => SETS.find(s => s.id === id);
+
+// Cartes du jour d'un set : tirées au hasard, en priorité parmi celles que le joueur n'a pas.
+export function dailyOffers(set, owned, n = SHOP.dailyCards, rand = Math.random) {
+  const order = ids => ids.map(id => [rand(), id]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+  return [...order(set.cards.filter(id => !owned[id])), ...order(set.cards.filter(id => owned[id]))].slice(0, n);
+}
+export function setBooster(set, rand = pick) { return Array.from({ length: SHOP.boosterSize }, () => rand(set.cards)); }
