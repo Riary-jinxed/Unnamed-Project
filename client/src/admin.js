@@ -1,8 +1,12 @@
-// Page d'administration : comptes des joueurs (création, profil, Éclats, collection, deck, accès) et réglages de la boutique.
+// Page d'administration : comptes des joueurs (création, profil, Éclats, collection, deck, accès), statistiques des parties,
+// éditeur de cartes et de sets (brouillon puis publication) et réglages de la boutique.
 // Protégée par la clé ADMIN_KEY du serveur, gardée dans ce navigateur seulement.
 import './style.css';
 import { DECKS, CARDS, GENERALS, TERRAINS, FAMILIES } from '@jeu/engine';
-import { STARTERS, BOOSTER_POOL } from '@jeu/engine/collection';
+import { STARTERS, COLLECTIBLE } from '@jeu/engine/collection';
+import { applyCatalog } from '@jeu/engine/catalog';
+import { statsTab } from './admin-stats.js';
+import { cardsTab } from './admin-cards.js';
 
 const app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -21,9 +25,15 @@ async function adminCall(method, path, body) {
   return data;
 }
 const say = (msg, err = '') => { st.msg = msg; st.err = err; };
+const TABS = { accounts: 'Comptes', stats: 'Stats', cards: 'Cartes', sets: 'Sets', shop: 'Boutique' };
+const tabCtx = { call: adminCall, render: () => render(), say, esc: s => esc(s), notice: () => notice() };
+const stats = statsTab(tabCtx);
+// Après une publication, la liste des comptes et les collections tiennent compte des nouvelles cartes.
+const cards = cardsTab({ ...tabCtx, onPublished: () => refresh() });
 async function refresh() {
   try {
-    const [list, conf] = await Promise.all([adminCall('GET', '/api/admin/accounts'), adminCall('GET', '/api/admin/settings')]);
+    const [list, conf, cat] = await Promise.all([adminCall('GET', '/api/admin/accounts'), adminCall('GET', '/api/admin/settings'), adminCall('GET', '/api/catalog')]);
+    applyCatalog(cat.catalog);
     st.accounts = list.accounts; st.settings = conf.settings; st.defaults = conf.defaults; st.err = '';
     try { sessionStorage.setItem(KEY, st.key); } catch { /* stockage indisponible */ }
   } catch (e) { st.accounts = null; st.err = e.message; }
@@ -78,7 +88,7 @@ function renderList() {
 function renderDetail() {
   const a = st.detail, inDeck = new Set(a.deck?.cards || []);
   const byFam = {};
-  for (const id of BOOSTER_POOL) (byFam[famOf(id)] ||= []).push(id);
+  for (const id of COLLECTIBLE) (byFam[famOf(id)] ||= []).push(id);
   const collection = [...FAMILIES, 'Neutre'].filter(f => byFam[f]).map(f => {
     const ids = byFam[f], n = ids.filter(id => st.cards.has(id)).length;
     return `<div class="famblock" style="--fam: var(${FAM[f] || '--f-neutre'})"><div class="row"><b style="margin-right:auto">${f}</b><small class="hint">${n}/${ids.length}</small>
@@ -118,7 +128,7 @@ function renderDetail() {
     </div>
   </div>
   <div class="card-box">
-    <div class="row"><h3 style="margin-right:auto">Collection</h3><small class="hint">${st.cards.size}/${BOOSTER_POOL.length} cartes</small></div>
+    <div class="row"><h3 style="margin-right:auto">Collection</h3><small class="hint">${st.cards.size}/${COLLECTIBLE.length} cartes</small></div>
     <p class="hint" style="margin:0">Cochez les cartes que le joueur possède. Les cartes de son deck (grisées) ne peuvent pas être retirées.</p>
     ${collection}
     <div class="row"><button class="btn primary" data-act="cards" ${changed ? dis() : 'disabled'}>Enregistrer la collection</button>
@@ -170,13 +180,14 @@ function renderShopSettings() {
 
 function render() {
   const unlocked = !!st.accounts;
-  const tabs = unlocked ? `<div class="seg"><button class="${st.tab === 'accounts' ? 'on' : ''}" data-tab="accounts">Comptes</button><button class="${st.tab === 'shop' ? 'on' : ''}" data-tab="shop">Boutique</button></div>
-    <button class="btn" data-act="lock">Verrouiller</button>` : '';
+  const tabs = unlocked ? `<button class="btn" data-act="lock">Verrouiller</button>
+    <div class="seg tabs">${Object.entries(TABS).map(([k, l]) => `<button class="${st.tab === k ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>` : '';
   const body = !unlocked ? `<form class="card-box" id="unlock">
       <div class="field"><label class="eyebrow" for="key">Clé d'administration (ADMIN_KEY)</label><input id="key" type="password" value="${esc(st.key)}" required></div>
       ${st.err ? `<p class="err" style="margin:0">${esc(st.err)}</p>` : ''}
       <div class="row"><button class="btn primary" type="submit">Ouvrir</button></div></form>`
-    : st.tab === 'shop' ? renderShopSettings() : st.sel && st.detail ? renderDetail() : renderList();
+    : st.tab === 'shop' ? renderShopSettings() : st.tab === 'stats' ? stats.render() : st.tab === 'cards' ? cards.renderCards()
+    : st.tab === 'sets' ? cards.renderSets() : st.sel && st.detail ? renderDetail() : renderList();
   app.innerHTML = `<div class="top"><span class="title">Administration</span>${tabs}</div>${body}`;
 }
 
@@ -185,6 +196,7 @@ app.addEventListener('submit', async e => {
   const v = id => document.getElementById(id).value;
   const id = e.target.id;
   if (id === 'unlock') { st.key = v('key'); refresh(); return; }
+  if (cards.onSubmit(id)) return;
   if (id === 'create') {
     const password = v('password');
     try {
@@ -219,12 +231,17 @@ app.addEventListener('click', e => {
   const t = e.target.closest('button, tr[data-open]');
   if (!t) return;
   if (t.dataset.open) { openAccount(t.dataset.open); return; }
-  if (t.dataset.tab) { st.tab = t.dataset.tab; st.sel = null; st.detail = null; say(''); render(); return; }
+  if (t.dataset.tab) {
+    st.tab = t.dataset.tab; st.sel = null; st.detail = null; say('');
+    if (st.tab === 'stats') stats.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
+    render(); return;
+  }
+  if (stats.onClick(t) || cards.onClick(t)) return;
   if (t.dataset.addShards) { const i = document.getElementById('p-shards'); i.value = (Number(i.value) || 0) + Number(t.dataset.addShards); return; }
   const fam = t.dataset.famAll || t.dataset.famNone;
   if (fam) {
     const locked = new Set(st.detail.deck?.cards || []);
-    for (const id of BOOSTER_POOL) if (famOf(id) === fam && !locked.has(id)) t.dataset.famAll ? st.cards.add(id) : st.cards.delete(id);
+    for (const id of COLLECTIBLE) if (famOf(id) === fam && !locked.has(id)) t.dataset.famAll ? st.cards.add(id) : st.cards.delete(id);
     render(); return;
   }
   const a = st.detail;
@@ -268,9 +285,11 @@ app.addEventListener('click', e => {
 });
 app.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset?.open) openAccount(e.target.dataset.open); });
 app.addEventListener('input', e => {
+  if (cards.onInput(e)) return;
   if (e.target.id === 'q') { st.q = e.target.value; const pos = e.target.selectionStart; render(); const q = document.getElementById('q'); q.focus(); q.setSelectionRange(pos, pos); }
 });
 app.addEventListener('change', e => {
+  if (stats.onChange(e) || cards.onChange(e)) return;
   const id = e.target.dataset?.card; if (!id) return;
   e.target.checked ? st.cards.add(id) : st.cards.delete(id);
   render();

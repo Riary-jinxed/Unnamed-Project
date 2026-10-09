@@ -1,7 +1,7 @@
 // Comptes joueurs : pas d'inscription, l'administrateur crée les identifiants et les communique.
 // API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, boutique, administration.
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { STARTERS, BOOSTER_POOL, starterKit, openBooster, today, deckError, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers } from '@jeu/engine/collection';
+import { STARTERS, COLLECTIBLE, starterKit, openBooster, today, deckError, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers } from '@jeu/engine/collection';
 import { pick, CARDS } from '@jeu/engine';
 
 const MAX_SESSIONS = 10;
@@ -37,8 +37,10 @@ export function createAccounts(store) {
   for (const a of store.all()) for (const t of a.tokens || []) sessions.set(t, a.login);
   // Un compte désactivé n'a plus de session valable.
   const byToken = token => { const login = sessions.get(String(token || '')); const a = login && store.get(login); return a && !a.disabled ? a : null; };
-  const cfg = () => ({ ...DEFAULT_SETTINGS, ...store.settings() });
-  const me = a => publicAccount(a, cfg());
+  const cfg = () => ({ ...DEFAULT_SETTINGS, ...store.doc('jeu') });
+  // Version du catalogue de cartes publié : l'appli recharge les cartes quand elle change.
+  let catalogVersion = 0;
+  const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion });
   const add = (a, ids) => addCards(a, ids, cfg().shardsPerDuplicate);
   const ready = Promise.all(store.all().filter(a => convertDuplicates(a, cfg().shardsPerDuplicate)).map(a => { console.log(`Doublons de ${a.login} convertis en Éclats.`); return store.put(a); }));
 
@@ -77,7 +79,7 @@ export function createAccounts(store) {
   function shopDay(a, set) {
     a.shop = a.shop || {};
     const day = a.shop[set.id], c = cfg();
-    if (day && day.date === today() && (day.rotation || 0) === c.rotation) return day;
+    if (day && day.date === today() && (day.rotation || 0) === c.rotation && day.offers.every(id => set.cards.includes(id))) return day;
     return (a.shop[set.id] = { date: today(), rotation: c.rotation, offers: dailyOffers(set, a.cards, c.dailyCards), bought: [] });
   }
   function shopView(a) {
@@ -159,7 +161,7 @@ export function createAccounts(store) {
   // Remplace la collection. Une carte du deck enregistré ne peut pas être retirée.
   async function adminCards({ login, cards }) {
     const a = target(login);
-    if (!Array.isArray(cards) || cards.some(id => !BOOSTER_POOL.includes(id))) throw new HttpError(400, 'Carte inconnue.');
+    if (!Array.isArray(cards) || cards.some(id => !COLLECTIBLE.includes(id))) throw new HttpError(400, 'Carte inconnue.');
     const keep = new Set(cards), lost = (a.deck?.cards || []).filter(id => !keep.has(id));
     if (lost.length) throw new HttpError(409, `Ces cartes sont dans le deck du joueur et ne peuvent pas être retirées : ${lost.slice(0, 3).map(id => CARDS[id].name).join(', ')}${lost.length > 3 ? ` et ${lost.length - 3} autres` : ''}.`);
     a.cards = Object.fromEntries([...keep].map(id => [id, 1]));
@@ -198,20 +200,23 @@ export function createAccounts(store) {
       next[k] = n;
     }
     if (body.renew || next.dailyCards !== c.dailyCards) next.rotation = c.rotation + 1;
-    await store.putSettings(next);
+    await store.putDoc('jeu', next);
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
   return { ready, byToken, me, login, logout, chooseStarter, booster, saveDeck, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
-    adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }) };
+    adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
+    nameOf: login => store.get(login)?.name, ownersOf: id => store.all().filter(a => a.cards[id]).map(a => a.login),
+    setCatalogVersion: v => { catalogVersion = v; } };
 }
 
 export class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
 
 // Routeur de l'API. Renvoie false si l'adresse n'est pas une route de l'API.
-export function apiHandler(accounts, adminKey) {
+// extra : routes d'autres modules ; open : routes accessibles sans session.
+export function apiHandler(accounts, adminKey, extra = {}, open = []) {
   const routes = {
     'POST /api/login': (_, body) => accounts.login(body),
     'GET /api/me': a => ({ account: accounts.me(a) }),
@@ -235,6 +240,7 @@ export function apiHandler(accounts, adminKey) {
     'POST /api/admin/account/delete': (_, body) => accounts.adminDelete(body),
     'GET /api/admin/settings': () => accounts.settings(),
     'POST /api/admin/settings': (_, body) => accounts.adminSettings(body),
+    ...extra,
   };
   return async (req, res, url) => {
     const key = `${req.method} ${url.pathname}`;
@@ -248,7 +254,7 @@ export function apiHandler(accounts, adminKey) {
         if (!adminKey) throw new HttpError(503, 'Administration désactivée : définissez ADMIN_KEY sur le serveur.');
         const given = Buffer.from(String(req.headers['x-admin-key'] || '')), want = Buffer.from(adminKey);
         if (given.length !== want.length || !timingSafeEqual(given, want)) throw new HttpError(401, 'Clé d\'administration incorrecte.');
-      } else if (key !== 'POST /api/login') {
+      } else if (key !== 'POST /api/login' && !open.includes(key)) {
         acc = accounts.byToken(token); if (!acc) throw new HttpError(401, 'Session expirée : reconnectez-vous.');
       }
       let body = {};
