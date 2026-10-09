@@ -23,6 +23,7 @@ const store = await openStore();
 const accounts = createAccounts(store);
 await accounts.ready;
 const catalog = createCatalog(store, accounts), games = createGames(store, accounts);
+await accounts.syncAll();
 const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
@@ -53,7 +54,8 @@ function broadcast(room, flash = null) {
     if (!s || !room.st) return;
     const ready = room.plans.map(Boolean);
     send(s.ws, { t: 'state', room: room.code, view: viewFor(room.st, i, { flash, ready: { me: ready[i], foe: ready[1 - i] },
-      names: room.seats.map(x => x && x.name), connected: room.seats.map(x => !!(x && x.ws && x.ws.readyState === 1)) }) });
+      names: room.seats.map(x => x && x.name), connected: room.seats.map(x => !!(x && x.ws && x.ws.readyState === 1)),
+      badges: room.seats.map(x => x && x.badge), reward: room.rewards ? room.rewards[i] : null }) });
   });
 }
 function lobby(room) {
@@ -65,7 +67,8 @@ function startMatch(room) {
   room.decks = decks.map(d => d.cards);
   room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => d.general) });
   startTurn(room.st); room.st.phase = 'plan';
-  room.plans = [null, null]; room.rematch = [false, false];
+  room.plans = [null, null]; room.rematch = [false, false]; room.rewards = null;
+  room.seats.forEach(s => { const acc = accounts.byToken(s.auth); if (acc) s.badge = accounts.progress.badge(acc); });
   broadcast(room);
 }
 async function resolve(room) {
@@ -73,7 +76,16 @@ async function resolve(room) {
   const plans = room.plans; room.plans = [null, null];
   await runTurn(room.st, plans, flash => broadcast(room, flash), ms => new Promise(r => setTimeout(r, ms)));
   room.busy = false;
-  if (room.st.over && !room.st.recorded) { room.st.recorded = true; games.recordPvp(room.st, room.seats.map(s => s.login), room.decks); }
+  if (room.st.over && !room.st.recorded) {
+    room.st.recorded = true; games.recordPvp(room.st, room.seats.map(s => s.login), room.decks);
+    // Récompenses de fin de partie, affichées à chacun sur l'écran de fin.
+    const { winner, zones } = room.st.result;
+    room.rewards = await Promise.all(room.seats.map(async (s, i) => {
+      const acc = accounts.byToken(s.auth); if (!acc) return null;
+      return accounts.recordGame(acc, { mode: 'pvp', result: winner === i ? 'win' : winner < 0 ? 'draw' : 'loss', played: room.st.p[i].played,
+        general: room.st.p[i].general, sweep: winner === i && zones.every(z => z === i) }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
+    }));
+  }
   broadcast(room);
 }
 

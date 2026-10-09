@@ -7,6 +7,7 @@ import { STARTERS, OWNABLE } from '@jeu/engine/collection';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { statsTab } from './admin-stats.js';
 import { cardsTab } from './admin-cards.js';
+import { rewardsTab } from './admin-rewards.js';
 
 const app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -26,9 +27,9 @@ async function adminCall(method, path, body) {
   return data;
 }
 const say = (msg, err = '') => { st.msg = msg; st.err = err; };
-const TABS = { accounts: 'Comptes', stats: 'Stats', cards: 'Cartes', sets: 'Sets', shop: 'Boutique' };
+const TABS = { accounts: 'Comptes', stats: 'Stats', cards: 'Cartes', sets: 'Sets', shop: 'Boutique', rewards: 'Récompenses' };
 const tabCtx = { call: adminCall, render: () => render(), say, esc: s => esc(s), notice: () => notice() };
-const stats = statsTab(tabCtx);
+const stats = statsTab(tabCtx), rewards = rewardsTab(tabCtx);
 // Après une publication, la liste des comptes et les collections tiennent compte des nouvelles cartes.
 const cards = cardsTab({ ...tabCtx, onPublished: () => refresh() });
 async function refresh() {
@@ -66,13 +67,13 @@ function renderList() {
   const list = st.accounts.slice().sort((a, b) => a.login.localeCompare(b.login)).filter(a => !q || a.login.includes(q) || a.name.toLowerCase().includes(q));
   const rows = list.map(a => `<tr data-open="${esc(a.login)}" tabindex="0">
     <td><b>${esc(a.login)}</b>${a.disabled ? ' <span class="chip off">désactivé</span>' : ''}</td><td>${esc(a.name)}</td><td>${a.starter ? esc(DECKS[a.starter].name) : '—'}</td>
-    <td class="num">${a.cards}</td><td class="num">${a.shards}</td><td>${a.lastBooster || '—'}</td><td class="num">${a.sessions}</td></tr>`).join('');
+    <td class="num">${a.level}</td><td class="num">${a.cards}</td><td class="num">${a.shards}</td><td>${a.lastBooster || '—'}</td><td class="num">${a.sessions}</td></tr>`).join('');
   return `${notice()}
   <div class="card-box" style="overflow-x:auto">
     <div class="row"><h2 style="font-size:20px;margin-right:auto">${st.accounts.length} compte${st.accounts.length > 1 ? 's' : ''}</h2>
       <input id="q" type="search" placeholder="Chercher un joueur" value="${esc(st.q)}" style="max-width:220px"></div>
-    <table class="admin"><thead><tr><th>Identifiant</th><th>Pseudo</th><th>Deck de départ</th><th>Cartes</th><th>Éclats</th><th>Dernier booster</th><th>Sessions</th></tr></thead>
-    <tbody>${rows || `<tr><td colspan="7" class="hint">${q ? 'Aucun compte ne correspond.' : 'Aucun compte pour l\'instant.'}</td></tr>`}</tbody></table>
+    <table class="admin"><thead><tr><th>Identifiant</th><th>Pseudo</th><th>Deck de départ</th><th>Niveau</th><th>Cartes</th><th>Éclats</th><th>Dernier booster</th><th>Sessions</th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="8" class="hint">${q ? 'Aucun compte ne correspond.' : 'Aucun compte pour l\'instant.'}</td></tr>`}</tbody></table>
     <p class="hint" style="margin:0">Cliquez sur un compte pour le modifier.</p>
   </div>
   <form class="card-box" id="create">
@@ -109,10 +110,13 @@ function renderDetail() {
     ${notice()}
   </div>
   <form class="card-box" id="profile">
-    <h3>Profil et Éclats</h3>
+    <h3>Profil, Éclats et niveau</h3>
     <div class="grid2">
       <div class="field"><label class="eyebrow" for="p-name">Pseudo</label><input id="p-name" maxlength="20" value="${esc(a.name)}"></div>
       <div class="field"><label class="eyebrow" for="p-shards">Éclats</label><input id="p-shards" type="number" min="0" step="1" value="${a.shards}"></div>
+      <div class="field"><label class="eyebrow" for="p-level">Niveau</label><input id="p-level" type="number" min="1" step="1" value="${a.level}">
+        <small class="hint">${a.xp} XP dans ce niveau. Changer le niveau ne donne pas les récompenses des niveaux sautés.</small></div>
+      <div class="field"><label class="eyebrow" for="p-free">Boosters offerts à ouvrir</label><input id="p-free" type="number" min="0" step="1" value="${a.freeBoosters}"></div>
     </div>
     <div class="row"><button class="btn primary" type="submit" ${dis()}>Enregistrer</button>
       <span class="hint">Ajouter :</span>${[100, 300, 1000].map(n => `<button class="btn sm" type="button" data-add-shards="${n}">+${n}</button>`).join('')}</div>
@@ -187,7 +191,7 @@ function render() {
       <div class="field"><label class="eyebrow" for="key">Clé d'administration (ADMIN_KEY)</label><input id="key" type="password" value="${esc(st.key)}" required></div>
       ${st.err ? `<p class="err" style="margin:0">${esc(st.err)}</p>` : ''}
       <div class="row"><button class="btn primary" type="submit">Ouvrir</button></div></form>`
-    : st.tab === 'shop' ? renderShopSettings() : st.tab === 'stats' ? stats.render() : st.tab === 'cards' ? cards.renderCards()
+    : st.tab === 'shop' ? renderShopSettings() : st.tab === 'rewards' ? rewards.render() : st.tab === 'stats' ? stats.render() : st.tab === 'cards' ? cards.renderCards()
     : st.tab === 'sets' ? cards.renderSets() : st.sel && st.detail ? renderDetail() : renderList();
   app.innerHTML = `<div class="top"><span class="title">Administration</span>${tabs}</div>${body}`;
 }
@@ -197,7 +201,7 @@ app.addEventListener('submit', async e => {
   const v = id => document.getElementById(id).value;
   const id = e.target.id;
   if (id === 'unlock') { st.key = v('key'); refresh(); return; }
-  if (cards.onSubmit(id)) return;
+  if (cards.onSubmit(id) || rewards.onSubmit(id)) return;
   if (id === 'create') {
     const password = v('password');
     try {
@@ -207,7 +211,7 @@ app.addEventListener('submit', async e => {
     } catch (err) { say('', err.message); render(); }
     return;
   }
-  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')) }, 'Profil enregistré.'); return; }
+  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')) }, 'Profil enregistré.'); return; }
   if (id === 'pass') {
     const password = v('p-pass');
     try {
@@ -234,10 +238,10 @@ app.addEventListener('click', e => {
   if (t.dataset.open) { openAccount(t.dataset.open); return; }
   if (t.dataset.tab) {
     st.tab = t.dataset.tab; st.sel = null; st.detail = null; say('');
-    if (st.tab === 'stats') stats.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
+    if (st.tab === 'stats') stats.load(); else if (st.tab === 'rewards') rewards.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
     render(); return;
   }
-  if (stats.onClick(t) || cards.onClick(t)) return;
+  if (stats.onClick(t) || cards.onClick(t) || rewards.onClick(t)) return;
   if (t.dataset.addShards) { const i = document.getElementById('p-shards'); i.value = (Number(i.value) || 0) + Number(t.dataset.addShards); return; }
   const fam = t.dataset.famAll || t.dataset.famNone;
   if (fam) {

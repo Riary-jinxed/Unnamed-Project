@@ -38,6 +38,7 @@ npm start   # tout sur http://localhost:8787
 ```bash
 npm run sim -- 60            # 60 parties IA contre IA par duel de decks
 npm run sim -- 20 generaux   # chaque général avec le deck de sa famille, contre tous les decks
+npm run eco                  # jours pour compléter un set selon la façon de jouer
 ```
 
 ## Mettre en ligne pour jouer entre amis
@@ -74,6 +75,10 @@ La table `comptes` est créée toute seule au premier démarrage. Sans `DATABASE
 - **Boutique** : un espace par set, payé en Éclats. Pour le Set de base : 3 cartes du jour propres à chaque joueur (300 Éclats l'une) et un booster de 3 cartes au hasard (200 Éclats). Le set 2 « Crépuscule » y a déjà sa place, marquée « bientôt disponible » : il s'ouvre depuis l'onglet « Sets » de `/admin`. Prix et sets se règlent dans `packages/engine/src/collection.js` (`SHOP`, `SETS`).
 - **Profil** : touchez votre image en haut de l'accueil. On y change son pseudo et son image de profil (recadrée en carré, réduite à 160 px et affichée en cercle), on voit les sets complétés et ses statistiques de victoire (en ligne, contre l'IA, par général, dernières parties).
 - **Mes decks** : jusqu'à 5 decks. Le deck de départ est le premier. Chaque deck se crée en trois étapes : le général, puis 5 terrains, puis 15 cartes différentes de la collection. Généraux et terrains accessibles : les neutres et ceux de la famille de départ. Un deck peut être renommé, modifié, remis à zéro ou supprimé (il en reste toujours un). Un deck incomplet est gardé mais pas jouable ; « Jouer ce deck » choisit celui qui est joué, en ligne comme contre l'IA.
+- **Niveau de compte** : les parties (10 premières du jour), les nouvelles cartes et les missions donnent de l'XP. Chaque niveau rapporte des Éclats, et tous les 5 niveaux un booster offert à ouvrir en boutique dans le set de son choix.
+- **Missions du jour** : 3 missions sur l'accueil, renouvelées à minuit ; une peut être changée par jour.
+- **Succès** (page profil) : des Éclats, des titres à afficher sous son pseudo et des cadres autour de son image.
+- **Familles et sets complétés** : une famille complète dans son set d'origine donne une carte unique, un titre et un dos de carte (vu par l'adversaire sur vos cartes cachées) ; un set complet donne des Éclats, des boosters offerts et une carte Dieu. Tout se règle dans l'onglet « Récompenses » de `/admin` ; `npm run eco` estime le temps pour compléter un set avec les réglages par défaut.
 - **Créer une partie** donne un code de 4 lettres et un lien à envoyer.
 - **Rejoindre** avec ce code : la partie démarre aussitôt.
 - Pendant votre tour, une créature marquée ⇄ (Déplaçable) peut changer de zone : touchez-la, puis touchez la zone d'arrivée.

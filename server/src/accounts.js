@@ -3,6 +3,7 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers } from '@jeu/engine/collection';
 import { pick, CARDS, GENERALS } from '@jeu/engine';
+import { createProgress } from './progress.js';
 
 const MAX_SESSIONS = 10;
 const hashPass = (pass, salt = randomBytes(16).toString('hex')) => ({ salt, hash: scryptSync(pass, salt, 32).toString('hex') });
@@ -33,6 +34,8 @@ const AVATAR_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, AVATAR
 export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, name: a.name, avatar: a.avatar || null, starter: a.starter, cards: a.cards, shards: a.shards || 0,
   deck: activeDeck(a), decks: (a.decks || []).map(cleanDeck), active: activeDeck(a)?.id || null, maxDecks: MAX_DECKS,
   boosterReady: a.starter !== null && a.lastBooster !== today(), shardRate: cfg.shardsPerDuplicate });
+// Champs de progression remis à zéro avec le compte.
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats.
 function addCards(a, ids, rate) {
@@ -54,17 +57,28 @@ export function createAccounts(store) {
   // Un compte désactivé n'a plus de session valable.
   const byToken = token => { const login = sessions.get(String(token || '')); const a = login && store.get(login); return a && !a.disabled ? a : null; };
   const cfg = () => ({ ...DEFAULT_SETTINGS, ...store.doc('jeu') });
+  const progress = createProgress(store);
   // Version du catalogue de cartes publié : l'appli recharge les cartes quand elle change.
   let catalogVersion = 0;
-  const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion });
-  const add = (a, ids) => addCards(a, ids, cfg().shardsPerDuplicate);
+  const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a) });
+  // Les nouvelles cartes rapportent de l'XP et peuvent compléter une famille ou un set.
+  const add = (a, ids) => { const got = addCards(a, ids, cfg().shardsPerDuplicate); return { ...got, xp: progress.onCards(a, got.fresh) }; };
   const ready = Promise.all(store.all().filter(a => {
-    const dup = convertDuplicates(a, cfg().shardsPerDuplicate), decks = migrateDecks(a), gens = grantStarterGenerals(a);
+    const dup = convertDuplicates(a, cfg().shardsPerDuplicate), decks = migrateDecks(a), gens = grantStarterGenerals(a), prog = progress.init(a);
     if (dup) console.log(`Doublons de ${a.login} convertis en Éclats.`);
     if (decks) console.log(`Deck de ${a.login} rangé dans ses decks.`);
     if (gens) console.log(`Généraux du deck de départ ajoutés à la collection de ${a.login}.`);
-    return dup || decks || gens;
+    if (prog) console.log(`Progression de ${a.login} créée (niveau ${a.level}).`);
+    return dup || decks || gens || prog;
   }).map(a => store.put(a)));
+  // Une fois le catalogue appliqué : familles et sets déjà complétés, succès déjà atteints.
+  async function syncAll() {
+    for (const a of store.all()) {
+      const before = JSON.stringify([a.completed, a.achievements]);
+      progress.checkCollection(a);
+      if (JSON.stringify([a.completed, a.achievements]) !== before) await store.put(a);
+    }
+  }
 
   async function login({ login, password }) {
     const a = store.get(cleanLogin(login));
@@ -84,6 +98,7 @@ export function createAccounts(store) {
     const kit = starterKit(starter);
     const deck = { id: newDeckId(), ...kit.deck };
     Object.assign(a, { starter, cards: kit.cards, decks: [deck], active: deck.id });
+    progress.init(a);
     await store.put(a);
     return { account: me(a) };
   }
@@ -93,6 +108,7 @@ export function createAccounts(store) {
     const cards = openBooster(a.cards);
     const got = add(a, cards);
     a.lastBooster = today();
+    progress.onBooster(a);
     await store.put(a);
     return { title: 'Booster du jour', cards, ...got, account: me(a) };
   }
@@ -107,7 +123,7 @@ export function createAccounts(store) {
   }
   function shopView(a) {
     const c = cfg();
-    return { shards: a.shards || 0, prices: { dailyCards: c.dailyCards, cardPrice: c.cardPrice, boosterPrice: c.boosterPrice, boosterSize: c.boosterSize, shardsPerDuplicate: c.shardsPerDuplicate }, sets: SETS.map(set => ({ id: set.id, name: set.name, open: set.open, teaser: set.teaser || '', size: set.cards.length,
+    return { shards: a.shards || 0, freeBoosters: a.freeBoosters || 0, prices: { dailyCards: c.dailyCards, cardPrice: c.cardPrice, boosterPrice: c.boosterPrice, boosterSize: c.boosterSize, shardsPerDuplicate: c.shardsPerDuplicate }, sets: SETS.map(set => ({ id: set.id, name: set.name, open: set.open, teaser: set.teaser || '', size: set.cards.length,
       offers: set.open ? shopDay(a, set).offers.map(id => ({ id, bought: shopDay(a, set).bought.includes(id), owned: !!a.cards[id] })) : [] })) };
   }
   function openSet(a, id) {
@@ -130,13 +146,17 @@ export function createAccounts(store) {
     await store.put(a);
     return { title: 'Achat', cards: [card], ...got, shop: shopView(a), account: me(a) };
   }
-  async function buyBooster(a, { set: setId }) {
+  // free : booster offert (niveau, set complété), ouvert dans le set choisi.
+  async function buyBooster(a, { set: setId, free }) {
     const set = openSet(a, setId);
     const c = cfg();
-    pay(a, c.boosterPrice);
+    if (free) {
+      if (!(a.freeBoosters > 0)) throw new HttpError(409, 'Aucun booster offert à ouvrir.');
+      a.freeBoosters--;
+    } else pay(a, c.boosterPrice);
     const cards = Array.from({ length: c.boosterSize }, () => pick(set.cards)), got = add(a, cards);
     await store.put(a);
-    return { title: `Booster ${set.name}`, cards, ...got, shop: shopView(a), account: me(a) };
+    return { title: `${free ? 'Booster offert' : 'Booster'} ${set.name}`, cards, ...got, shop: shopView(a), account: me(a) };
   }
   // Decks : créer (sans id) ou enregistrer un deck, même incomplet ; seul un deck complet peut être joué.
   const deckName = (name, fallback) => String(name ?? '').trim().slice(0, 30) || fallback;
@@ -206,6 +226,12 @@ export function createAccounts(store) {
     return { account: me(a) };
   }
 
+  // Progression : partie terminée, missions, boîte de récompenses, titre, cadre et dos de carte.
+  async function recordGame(a, info) { const reward = progress.onGame(a, info); await store.put(a); return reward; }
+  async function reroll(a, body) { await progress.reroll(a, body); await store.put(a); return { account: me(a) }; }
+  async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
+  async function equip(a, body) { await progress.equip(a, body || {}); await store.put(a); return { account: me(a) }; }
+
   // Administration : créer un compte, ou changer le mot de passe d'un compte existant.
   async function adminUpsert({ login, password, name, create }) {
     login = cleanLogin(login);
@@ -220,7 +246,8 @@ export function createAccounts(store) {
     await store.put(a);
     return { created: !old, account: adminView(a) };
   }
-  const adminView = a => ({ login: a.login, name: a.name, starter: a.starter, cards: Object.values(a.cards).reduce((s, n) => s + n, 0), shards: a.shards || 0,
+  const adminView = a => ({ login: a.login, name: a.name, starter: a.starter, cards: Object.values(a.cards).reduce((s, n) => s + n, 0), shards: a.shards || 0, level: a.level || 1,
+    xp: a.xp || 0, freeBoosters: a.freeBoosters || 0,
     lastBooster: a.lastBooster, created: a.created, disabled: !!a.disabled, sessions: (a.tokens || []).length, deckName: activeDeck(a)?.name || null });
   // inDecks : cartes présentes dans au moins un deck du joueur (elles ne peuvent pas être retirées de sa collection).
   const adminDetail = a => ({ ...adminView(a), owned: Object.keys(a.cards).filter(id => a.cards[id]), deck: activeDeck(a), decks: (a.decks || []).length,
@@ -231,14 +258,14 @@ export function createAccounts(store) {
   const done = async a => { await store.put(a); return { account: adminDetail(a) }; };
 
   // Modifie un compte : pseudo, Éclats, désactivation. Seuls les champs présents changent.
-  async function adminUpdate({ login, name, shards, disabled }) {
+  async function adminUpdate({ login, name, shards, level, freeBoosters, disabled }) {
     const a = target(login);
     if (name !== undefined) a.name = String(name).trim().slice(0, 20) || a.login;
-    if (shards !== undefined) {
-      const n = Number(shards);
-      if (!Number.isInteger(n) || n < 0 || n > 10_000_000) throw new HttpError(400, 'Éclats : un nombre entier positif.');
-      a.shards = n;
-    }
+    const int = (v, max, label) => { const n = Number(v); if (!Number.isInteger(n) || n < 0 || n > max) throw new HttpError(400, `${label} : un nombre entier positif.`); return n; };
+    if (shards !== undefined) a.shards = int(shards, 10_000_000, 'Éclats');
+    if (freeBoosters !== undefined) a.freeBoosters = int(freeBoosters, 1000, 'Boosters offerts');
+    // Changer le niveau ne donne pas les récompenses des niveaux sautés ; les succès de niveau, si.
+    if (level !== undefined && a.level) { const n = int(level, 1000, 'Niveau'); if (n !== a.level) { a.level = Math.max(1, n); a.xp = 0; progress.checkCollection(a); } }
     if (disabled !== undefined) { a.disabled = !!disabled; if (a.disabled) closeSessions(a); }
     return done(a);
   }
@@ -249,6 +276,7 @@ export function createAccounts(store) {
     const keep = new Set(cards), lost = [...new Set((a.decks || []).flatMap(d => [...d.cards, d.general].filter(Boolean)))].filter(id => !keep.has(id));
     if (lost.length) throw new HttpError(409, `Ces cartes sont dans un deck du joueur et ne peuvent pas être retirées : ${lost.slice(0, 3).map(id => (CARDS[id] || GENERALS[id]).name).join(', ')}${lost.length > 3 ? ` et ${lost.length - 3} autres` : ''}.`);
     a.cards = Object.fromEntries([...keep].map(id => [id, 1]));
+    progress.checkCollection(a);
     return done(a);
   }
   // Change le deck de départ : la collection est gardée, les cartes du nouveau deck y sont ajoutées et il devient le deck joué.
@@ -267,6 +295,8 @@ export function createAccounts(store) {
   async function adminReset({ login }) {
     const a = target(login);
     Object.assign(a, { starter: null, cards: {}, shards: 0, decks: [], active: null, lastBooster: null, shop: {} });
+    for (const k of PROGRESS_FIELDS) delete a[k];
+    progress.init(a);
     return done(a);
   }
   async function adminBooster({ login }) { const a = target(login); a.lastBooster = null; return done(a); }
@@ -292,7 +322,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, recordGame, reroll, seen, equip, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -321,6 +351,9 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'GET /api/shop': a => accounts.shop(a),
     'POST /api/shop/card': (a, body) => accounts.buyCard(a, body),
     'POST /api/shop/booster': (a, body) => accounts.buyBooster(a, body),
+    'POST /api/missions/reroll': (a, body) => accounts.reroll(a, body),
+    'POST /api/rewards/seen': a => accounts.seen(a),
+    'PUT /api/cosmetics': (a, body) => accounts.equip(a, body),
     'GET /api/admin/accounts': () => ({ accounts: accounts.adminList() }),
     'POST /api/admin/accounts': (_, body) => accounts.adminUpsert(body),
     'GET /api/admin/account': (_, __, ___, url) => accounts.adminGet(url.searchParams.get('login')),
@@ -334,6 +367,8 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/admin/account/delete': (_, body) => accounts.adminDelete(body),
     'GET /api/admin/settings': () => accounts.settings(),
     'POST /api/admin/settings': (_, body) => accounts.adminSettings(body),
+    'GET /api/admin/rewards': () => accounts.progress.settings(),
+    'POST /api/admin/rewards': (_, body) => accounts.progress.saveSettings(body || {}),
     ...extra,
   };
   return async (req, res, url) => {

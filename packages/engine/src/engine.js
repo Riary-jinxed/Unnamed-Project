@@ -267,6 +267,32 @@ export const CARDS = {
   chevalier:   { set: 'set2', name: 'Chevalier errant', type: 'C', cost: 3, power: 4, kw: [], text: '' },
   titan:       { set: 'set2', name: 'Titan des plaines', type: 'C', cost: 7, power: 11, kw: [], text: '' },
 
+  // ---- Récompenses : jamais dans les boosters (voir rewards.js) ----
+  // Une carte par famille complétée dans son set d'origine, et une carte Dieu par set complété.
+  voix_aube:   { set: 'recompense', name: 'Voix de l\'Aube', type: 'C', cost: 4, power: 4, kw: ['Ange'], text: 'Révélation : +1 sceau au tour suivant. Grâce : vos autres créatures ici gagnent +1.',
+                 onReveal: (c, st) => { st.p[c.owner].bonusSeals++; log(st, `${who(st, c.owner)} : +1 sceau au tour suivant.`, 'up'); },
+                 grace: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => x !== c).forEach(x => buff(st, x, 1)) },
+  heritier_abysses:{ set: 'recompense', name: 'Héritier des abysses', type: 'C', cost: 4, power: 7, kw: ['Démon'], sacrifice: 1, text: 'Sacrifice. Quand une de vos autres créatures est détruite, votre zone ici gagne +1.',
+                 onAllyDestroyed: (c, st) => addZone(st, c.owner, c.zone, 1) },
+  boss_horde:  { set: 'recompense', name: 'Boss de la Horde', type: 'C', cost: 4, power: 4, kw: ['Gobelin'], text: 'Révélation : Horde 2 dans chacune de vos zones.',
+                 onReveal: (c, st) => [0, 1, 2].forEach(z => horde(st, c.owner, z, 2)) },
+  gardienne_sentiers:{ set: 'recompense', name: 'Gardienne des sentiers', type: 'C', cost: 4, power: 5, kw: ['Elfe'], mobile: true, text: 'Déplaçable. Déplacement : vos autres créatures de la zone d\'arrivée gagnent +1.',
+                 onMove: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => x !== c).forEach(x => buff(st, x, 1)) },
+  wyrm_tresor: { set: 'recompense', name: 'Wyrm du trésor', type: 'C', cost: 5, power: 7, kw: ['Dragon'], text: 'Coûte 1 de moins par tranche de 3 de votre Trésor. Révélation : votre Trésor gagne +2.',
+                 costFn: (st, p) => -Math.floor(st.p[p].treasure / 3),
+                 onReveal: (c, st) => { st.p[c.owner].treasure += 2; log(st, `${who(st, c.owner)} : Trésor +2.`, 'up'); } },
+  faucheur:    { set: 'recompense', name: 'Faucheur éternel', type: 'C', cost: 4, power: 5, kw: ['Mort-vivant'], raise: true, text: 'Relève. Révélation : exhumez ici la créature la plus puissante de votre défausse qui coûte 3 ou moins.',
+                 onReveal: (c, st) => exhume(st, c.owner, c.zone, 3) },
+  reine_ecarlate:{ set: 'recompense', name: 'Reine écarlate', type: 'C', cost: 5, power: 5, kw: ['Vampire'], text: 'Révélation : Drain 1 sur chaque créature adverse ici, et Drain 1 sur une créature de la main adverse.',
+                 onReveal: (c, st) => { creaturesAt(st, 1 - c.owner, c.zone).forEach(x => drain(st, c, x, 1)); drainHand(st, c, 1, 1); } },
+  // Dieux : un coup de pouce au deck le plus faible du moment (set de base : Dragon), puis au 2e plus faible (Crépuscule : Ange).
+  dieu_base:   { set: 'recompense', name: 'Aurvax, Dieu des trésors', type: 'C', cost: 6, power: 8, kw: ['Dragon'], text: 'Coûte 1 de moins par tranche de 3 de votre Trésor. Révélation : vos autres Dragons gagnent +2.',
+                 costFn: (st, p) => -Math.floor(st.p[p].treasure / 3),
+                 onReveal: (c, st) => mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Dragon')).forEach(x => buff(st, x, 2)) },
+  dieu_set2:   { set: 'recompense', name: 'Solenne, Déesse de l\'Aube', type: 'C', cost: 6, power: 7, kw: ['Ange'], text: 'Révélation : +2 sceaux au tour suivant. Grâce : vos Anges gagnent +1.',
+                 onReveal: (c, st) => { st.p[c.owner].bonusSeals += 2; log(st, `${who(st, c.owner)} : +2 sceaux au tour suivant.`, 'up'); },
+                 grace: (c, st) => mine(st, c.owner).filter(x => hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)) },
+
   // JETONS
   horde:       { name: 'Horde', type: 'C', cost: 0, power: 0, kw: ['Gobelin'], token: true, text: 'Jeton. Une seule Horde par zone : les effets Horde la font grandir.' },
   chevre:      { name: 'Chèvre', type: 'C', cost: 0, power: -1, kw: [], token: true, text: 'Jeton. Si elle est sacrifiée, +1 sceau au tour suivant.',

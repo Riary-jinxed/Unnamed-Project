@@ -25,7 +25,9 @@ export function createGames(store, accounts) {
       { login: null, name: 'IA', general: GENERALS[body.ai?.general] ? body.ai.general : (ai && DECKS[ai].general), deck: ai ? DECKS[ai].name : 'IA',
         cards: ai ? DECKS[ai].cards.slice() : [], played: ids(body.ai?.played) },
     ] });
-    return { ok: true };
+    const sweep = winner === 0 && Array.isArray(body.zones) && body.zones.length === 3 && body.zones.every(z => z === 0);
+    const reward = await accounts.recordGame(a, { mode: 'pve', result: winner === 0 ? 'win' : winner < 0 ? 'draw' : 'loss', played: ids(body.played), general: deck.general, sweep });
+    return { ok: true, reward, account: accounts.me(a) };
   }
 
   // Statistiques : mode « all », « pvp » ou « pve », sur les `days` derniers jours (0 = tout l'historique).
@@ -80,7 +82,7 @@ export function createGames(store, accounts) {
   return {
     recordPvp,
     routes: {
-      'GET /api/profile': a => ({ stats: playerStats(a) }),
+      'GET /api/profile': a => ({ stats: playerStats(a), achievements: accounts.progress.achievementsView(a), collection: accounts.progress.collectionView(a) }),
       'POST /api/games/solo': (a, body) => recordSolo(a, body),
       'GET /api/admin/stats': (_, __, ___, url) => stats({ mode: url.searchParams.get('mode') || 'all', days: +url.searchParams.get('days') || 0 }),
     },

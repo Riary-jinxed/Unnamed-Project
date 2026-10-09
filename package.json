@@ -9,6 +9,7 @@
     "dev": "npm run dev -w @jeu/server & npm run dev -w @jeu/client",
     "build": "npm run build -w @jeu/client",
     "start": "npm start -w @jeu/server",
-    "sim": "node packages/engine/src/sim.js"
+    "sim": "node packages/engine/src/sim.js",
+    "eco": "node packages/engine/src/eco.js"
   }
 }
