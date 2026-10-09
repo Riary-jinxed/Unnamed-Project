@@ -375,19 +375,6 @@ function terrainChip(side, z, isMe) {
   if (!t) return `<div class="terrain">${ui.view.turn < 3 ? 'Terrain à venir' : '—'}</div>`;
   return `<button class="terrain set ${isMe ? 'me' : 'foe'}" data-terrain="${t}">${TERRAINS[t].name}</button>`;
 }
-function infoHTML() {
-  const f = ui.focus, v = ui.view;
-  if (ui.msg) return `<div class="hint">${esc(ui.msg)}</div>`;
-  if (ui.moveSel !== null) return `<div class="hint">Touchez la zone vers laquelle déplacer ${esc(CARDS[me().board.flat().find(c => c.uid === ui.moveSel)?.id]?.name || 'cette créature')}. Le déplacement se fait à la révélation.</div>`;
-  if (v.phase === 'plan' && v.ready.me) return `<div class="wait">Tour validé. En attente de ${esc(v.foe.name)}…</div>`;
-  if (ui.sel !== null && canPlay()) return `<div class="hint">Touchez une de vos zones pour poser ${esc(CARDS[me().hand.find(c => c.uid === ui.sel)?.id]?.name || 'cette carte')}, ou retouchez-la pour la reposer.</div>`;
-  if (!f) return `<div class="hint">Touchez une carte pour la jouer, ou glissez-la vers une zone. Touchez-la deux fois pour la voir en grand.${canPlay() && me().board.flat().some(c => c.mobile) ? ' Une créature marquée ⇄ peut changer de zone.' : ''}</div>`;
-  if (f.kind === 'card') { const d = CARDS[f.id];
-    return `<div class="h"><b>${esc(d.name)}</b><span class="meta">${typeName(d)} · coût ${d.x ? 'X' : d.cost}${d.type === 'C' ? ` · puissance ${d.power}` : ''} · ${kwLine(d)}</span></div><div>${d.text ? rich(d.text) : 'Pas d\'effet.'}</div>`; }
-  if (f.kind === 'terrain') { const t = TERRAINS[f.id]; return `<div class="h"><b>${t.name}</b><span class="meta">Terrain</span></div><div>${rich(t.text)}</div>`; }
-  if (f.kind === 'general') { const g = GENERALS[f.id]; return `<div class="h"><b>${g.name}</b><span class="meta">Général · ${genLine(g)}</span></div><div>${rich(g.text)}</div>`; }
-  return '';
-}
 // Titre, niveau, cadre et dos de carte de chaque joueur : envoyés par le serveur en ligne ; contre l'IA, ceux du compte.
 const badgeOf = seat => ui.view.badges?.[seat] || (seat === ui.view.seat && ui.account ? prog().badge : null);
 // Niveau d'une carte en partie : le sien vient du compte ; celui de l'adversaire, du serveur, une fois la carte révélée.
@@ -464,17 +451,17 @@ function renderGame() {
   const canGen = play && g.activate && !m.generalUsed && m.seals >= (g.activateCost || 0);
   const goLabel = v.phase === 'reveal' ? 'Révélation…' : v.ready.me ? 'En attente…' : v.turn === v.turns ? 'Valider le dernier tour' : 'Valider le tour';
   const mode = ui.mode === 'online' ? (v.ranked ? 'Partie classée' : `Partie ${esc(ui.room || '')}`) : ui.mode === 'tuto' ? 'Tutoriel' : 'Contre l\'IA';
-  // La fiche d'une carte s'ouvre par-dessus le bas du plateau : la main et le plateau ne bougent pas. Une touche la referme.
-  const info = infoHTML(), detail = info.startsWith('<div class="h">');
+  // Hors tutoriel, pas d'encadré d'info : une double touche ouvre la carte en grand, et un refus (zone pleine, sceaux) s'affiche en bulle au-dessus de la main.
+  const toast = ui.msg ? `<div class="toast" role="alert">${esc(ui.msg)}</div>` : '';
   return `
   <div class="top">${turnHTML(mode)}
     ${muteBtn()}<button class="btn" data-act="log">Journal</button><button class="btn" data-act="set">Cartes</button></div>
   ${pbar(f, false, v.connected[1 - v.seat])}
   <div class="board">${board}</div>
   ${pbar(m, true, true, canGen)}
-  ${ui.coach ? coachHTML(ui.coach) : `<div class="infoslot"><div class="info ${detail ? 'detail' : ''}" aria-live="polite" ${detail ? 'data-act="unfocus" title="Toucher pour refermer"' : ''}>${info}</div></div>`}
+  ${ui.coach ? coachHTML(ui.coach) : ''}
   <div class="hand" id="hand">${hand || '<span class="empty">Main vide.</span>'}</div>
-  <div class="dock"><button class="btn icon" data-act="quit" aria-label="Quitter la partie" title="Quitter la partie">${QUIT_ICON}</button>${sealsHTML(seals)}
+  <div class="dock">${toast}<button class="btn icon" data-act="quit" aria-label="Quitter la partie" title="Quitter la partie">${QUIT_ICON}</button>${sealsHTML(seals)}
     <button class="btn primary grow" data-act="go" ${play && (ui.mode !== 'tuto' || ui.ctrl?.canSubmit(ui)) ? '' : 'disabled'}>${goLabel}</button></div>`;
 }
 // Bulle du tutoriel : à la place de l'encadré d'info, ou en haut de l'écran par-dessus une carte ouverte en grand.
@@ -1085,7 +1072,7 @@ function tryPlace(z) {
   if (ui.moveSel !== null) {
     const from = me().board.findIndex(col => col.some(c => c.uid === ui.moveSel));
     if (z === from) { ui.moveSel = null; ui.msg = ''; }
-    else if (freeSlots(z) <= 0) { ui.msg = `La zone ${ZONE_NAMES[z]} est pleine de votre côté.`; play('deny'); }
+    else if (freeSlots(z) <= 0) { ui.msg = `La zone ${ZONE_NAMES[z]} est pleine de votre côté.`; play('deny'); msgFades(); }
     else { ui.moves.push({ uid: ui.moveSel, zone: z }); ui.moveSel = null; ui.msg = ''; play('place'); }
     render(); return;
   }
@@ -1095,9 +1082,12 @@ function tryPlace(z) {
   if (freeSlots(z) <= 0) ui.msg = `La zone ${ZONE_NAMES[z]} est pleine de votre côté.`;
   else if (d.x ? left <= 0 : c.cost > left) ui.msg = d.x ? `Il ne vous reste aucun sceau pour ${d.name}.` : `Pas assez de sceaux : ${d.name} coûte ${c.cost}, il vous en reste ${left}.`;
   else { ui.pending.push({ uid: c.uid, id: c.id, zone: z }); ui.sel = null; ui.msg = ''; ui.fx = { list: [[cardSel(c.uid), 'dropin']] }; play('place'); }
-  if (ui.msg) play('deny');
+  if (ui.msg) { play('deny'); msgFades(); }
   render();
 }
+// La bulle d'un refus s'efface seule après un moment.
+let msgTimer = null;
+function msgFades() { const m = ui.msg; clearTimeout(msgTimer); msgTimer = setTimeout(() => { if (ui.msg === m && ui.screen === 'game') { ui.msg = ''; render(); } }, 2600); }
 function quit() {
   if (ui.ctrl) ui.ctrl.leave();
   store.set('session', null);
@@ -1166,7 +1156,6 @@ app.addEventListener('click', e => {
       while (ui.genZone !== null && sealsLeft() < 0 && ui.pending.length) ui.pending.pop();
       play(ui.genZone === null ? 'unplace' : 'place'); render(); }
     else if (a === 'again') { ui.rematchAsked = true; ui.soloReward = null; ui.ctrl.rematch(); render(); }
-    else if (a === 'unfocus') { ui.focus = null; render(); }
     else if (a === 'quit') {
       if (ui.screen === 'game' && ui.view?.ranked && ui.view.phase !== 'over' && !confirm('Quitter une partie classée en cours compte comme une défaite. Quitter quand même ?')) return;
       quit(); }

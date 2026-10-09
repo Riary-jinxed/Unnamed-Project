@@ -198,15 +198,6 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
 @keyframes zoomin { from { transform: scale(.7) translateY(30px); opacity: 0; } }
 .btn.icon { padding: 7px 9px; line-height: 0; }
 
-/* bandeau d'info : hauteur fixe ; la fiche d'une carte déborde vers le haut, par-dessus le plateau */
-.infoslot { position: relative; height: 50px; z-index: 4; }
-.infoslot .info { position: absolute; inset: auto 0 0; max-height: 46vh; overflow: auto; }
-.info.detail { cursor: pointer; box-shadow: 0 -6px 18px rgb(0 0 0 / .3); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
-.info { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 10px; min-height: 40px; font-size: 13.5px; line-height: 1.35; display: grid; gap: 2px; }
-.info .h { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-.info .h b { font-family: var(--display); font-size: 17px; }
-.info .meta { font-size: 12px; color: var(--muted); }
-.info .hint { color: var(--muted); }
 
 /* main */
 .hand { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; padding-top: 4px; margin-top: -4px; min-height: 120px; }
@@ -229,6 +220,11 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
   background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(6px); border-top: 1px solid var(--line); }
 .actions .grow { margin-left: auto; }
 .dock .grow { margin-left: auto; min-height: 44px; }
+/* refus d'un coup (zone pleine, sceaux) : bulle au-dessus de la main, qui s'efface seule */
+.dock .toast { position: absolute; left: 16px; right: 16px; bottom: calc(100% + 8px); padding: 8px 12px; border-radius: var(--r); background: var(--surface);
+  border: 1px solid var(--down); color: var(--ink); font-size: 13.5px; line-height: 1.35; box-shadow: 0 6px 18px rgb(0 0 0 / .3); animation: toastin .2s ease-out; }
+@keyframes toastin { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .dock .toast { animation: none; } }
 .timer { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
 .timer.low { color: var(--down); font-weight: 700; }
 
