@@ -13,6 +13,7 @@ import { openStore } from './store.js';
 import { createAccounts, apiHandler, activeDeck } from './accounts.js';
 import { createGames } from './games.js';
 import { createCatalog } from './cards.js';
+import { createFriends } from './friends.js';
 
 const PORT = +process.env.PORT || 8787;
 const DIST = fileURLToPath(new URL('../../client/dist/', import.meta.url));
@@ -25,7 +26,9 @@ const accounts = createAccounts(store);
 await accounts.ready;
 const catalog = createCatalog(store, accounts), games = createGames(store, accounts);
 await accounts.syncAll();
-const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes }, catalog.public);
+// Les amis voient qui est en partie et peuvent ouvrir un salon réservé à eux deux (défi accepté).
+const friends = createFriends(store, accounts, { playing, inviteRoom, abortInvite });
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
 // Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.
@@ -78,9 +81,9 @@ function broadcast(room, flash = null) {
 function lobby(room) {
   room.seats.forEach((s, i) => s && send(s.ws, { t: 'lobby', room: room.code, seat: i, token: s.token, names: room.seats.map(x => x && x.name) }));
 }
-// Chaque joueur joue le deck enregistré sur son compte au moment où la partie (ou la revanche) commence.
+// Chaque joueur joue le deck choisi en entrant (son deck joué par défaut), relu sur son compte quand la partie (ou la revanche) commence.
 function startMatch(room) {
-  const decks = room.seats.map(s => { const acc = accounts.byToken(s.auth), d = acc && activeDeck(acc); return d && !deckError(d, acc) ? d : s.deck; });
+  const decks = room.seats.map(s => { const acc = accounts.byToken(s.auth), d = acc && deckOf(acc, s.deckId); return d && !deckError(d, acc) ? d : s.deck; });
   room.decks = decks.map(d => d.cards);
   room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => d.general) });
   startTurn(room.st); room.st.phase = 'plan';
@@ -106,29 +109,59 @@ async function resolve(room) {
   broadcast(room);
 }
 
-// Un joueur entre dans un salon avec son compte et le deck qui y est enregistré.
+// Un joueur entre dans un salon avec son compte et le deck demandé (msg.deck), ou à défaut son deck joué.
+const deckOf = (acc, id) => (id && (acc.decks || []).find(d => d.id === id)) || activeDeck(acc);
 function seatFor(ws, msg) {
   const acc = accounts.byToken(msg.auth);
   if (!acc) { send(ws, { t: 'error', msg: 'Session expirée : reconnectez-vous.' }); return null; }
-  const deck = activeDeck(acc);
+  const deck = deckOf(acc, msg.deck);
   const err = deck ? deckError(deck, acc) : 'Choisissez d\'abord votre deck de départ.';
   if (err) { send(ws, { t: 'error', msg: err }); return null; }
-  return { name: acc.name, login: acc.login, auth: msg.auth, deck, token: randomBytes(12).toString('hex'), ws };
+  return { name: acc.name, login: acc.login, auth: msg.auth, deck, deckId: deck.id, token: randomBytes(12).toString('hex'), ws };
+}
+// Statut vu par les amis : un joueur est « en partie » s'il est assis et connecté dans un salon.
+function playing(login) {
+  for (const r of rooms.values()) if (r.seats.some(s => s && s.login === login && s.ws && s.ws.readyState === 1)) return true;
+  return false;
+}
+const seatsChanged = room => room.seats.forEach(s => s && friends.changed(s.login));
+// Défi accepté : salon réservé aux deux amis, chacun prend la place qui lui est gardée en entrant.
+function inviteRoom(logins) {
+  const room = { code: newCode(), seats: [null, null], plans: [null, null], st: null, busy: false, lastActive: Date.now(), invite: logins.slice() };
+  rooms.set(room.code, room);
+  return room.code;
+}
+// Un des deux renonce (avant ou après être entré) : le salon disparaît et l'autre est prévenu.
+function closeInvite(room, login) {
+  const name = accounts.nameOf(login) || login;
+  room.seats.forEach(s => { if (s && s.login !== login) send(s.ws, { t: 'left' }); });
+  for (const other of room.invite) if (other !== login) friends.notify(other, { t: 'challenge-gone', room: room.code, msg: `${name} a annulé la partie.` });
+  rooms.delete(room.code); seatsChanged(room);
+}
+function abortInvite(code, login) {
+  const room = rooms.get(code);
+  if (room && room.invite && room.invite.includes(login) && !room.st) closeInvite(room, login);
 }
 function handle(ws, msg) {
+  if (friends.handle(ws, msg)) return;
   if (msg.t === 'create') {
     const seat = seatFor(ws, msg); if (!seat) return;
     const room = { code: newCode(), seats: [null, null], plans: [null, null], st: null, busy: false, lastActive: Date.now() };
     room.seats[0] = seat;
-    rooms.set(room.code, room); ws.room = room; ws.seat = 0; lobby(room); return;
+    rooms.set(room.code, room); ws.room = room; ws.seat = 0; lobby(room); friends.changed(seat.login); return;
   }
   if (msg.t === 'join') {
     const room = rooms.get(String(msg.room || '').toUpperCase());
     if (!room) return send(ws, { t: 'error', msg: 'Aucune partie avec ce code.' });
-    if (room.seats[1]) return send(ws, { t: 'error', msg: 'Cette partie est déjà complète.' });
+    // Salon d'un défi : chacun a sa place gardée, la partie commence quand les deux sont entrés.
+    const i = room.invite ? room.invite.indexOf(accounts.byToken(msg.auth)?.login) : 1;
+    if (i < 0) return send(ws, { t: 'error', msg: 'Cette partie est réservée à deux amis.' });
+    if (room.seats[i]) return send(ws, { t: 'error', msg: 'Cette partie est déjà complète.' });
     const seat = seatFor(ws, msg); if (!seat) return;
-    room.seats[1] = seat;
-    ws.room = room; ws.seat = 1; lobby(room); startMatch(room); return;
+    room.seats[i] = seat;
+    ws.room = room; ws.seat = i; lobby(room); friends.changed(seat.login);
+    if (room.seats[0] && room.seats[1]) startMatch(room);
+    return;
   }
   if (msg.t === 'rejoin') {
     const room = rooms.get(String(msg.room || '').toUpperCase());
@@ -136,6 +169,7 @@ function handle(ws, msg) {
     if (i < 0) return send(ws, { t: 'gone' });
     room.seats[i].ws = ws; room.seats[i].avatarsSent = false; ws.room = room; ws.seat = i;
     if (room.st) broadcast(room); else lobby(room);
+    friends.changed(room.seats[i].login);
     return;
   }
   const room = ws.room; if (!room) return;
@@ -153,15 +187,22 @@ function handle(ws, msg) {
     return;
   }
   if (msg.t === 'leave') {
+    ws.room = null;
+    if (room.invite && !room.st) return closeInvite(room, room.seats[ws.seat].login);
     room.seats.forEach((s, i) => i !== ws.seat && s && send(s.ws, { t: 'left' }));
-    rooms.delete(room.code); ws.room = null;
+    rooms.delete(room.code); seatsChanged(room);
   }
 }
 
 const wss = new WebSocketServer({ server, path: '/ws' });
 wss.on('connection', ws => {
   ws.on('message', data => { try { handle(ws, JSON.parse(data)); } catch (e) { console.error(e); } });
-  ws.on('close', () => { const room = ws.room; if (room && room.st) broadcast(room); });
+  ws.on('close', () => {
+    friends.gone(ws);
+    const room = ws.room; if (!room) return;
+    if (room.st) broadcast(room);
+    if (rooms.has(room.code)) friends.changed(room.seats[ws.seat]?.login);
+  });
 });
 setInterval(() => { const now = Date.now(); for (const [code, r] of rooms) if (now - r.lastActive > ROOM_TTL_MS) rooms.delete(code); }, 60_000);
 

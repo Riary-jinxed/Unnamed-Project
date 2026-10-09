@@ -23,7 +23,8 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 | `shop` | `renderShop` | Cartes du jour et boosters de chaque set. |
 | `decks`, `deck` | `renderDecks`, `renderDeck` | Liste des decks ; création en trois étapes (général, terrains, cartes). |
 | `profile` | `renderProfile` | Pseudo, image, titre, cadre, dos, stats, succès, familles. |
-| `lobby`, `game` | `renderLobby`, `renderGame` | Attente de l'adversaire ; plateau. |
+| `friends` | `friends.screen` (`friends.js`) | Ajouter un ami, demandes reçues et envoyées, amis avec leur statut, défier, retirer. |
+| `lobby`, `game` | `renderLobby`, `renderGame` | Attente de l'adversaire (code à donner, ou ami qui choisit son deck) ; plateau. |
 
 ### Plateau (`renderGame`)
 
@@ -44,6 +45,14 @@ Une partie est pilotée par un « contrôleur » qui offre `submit(plan)`, `rema
 Pendant la préparation, l'appli refait les calculs simples pour guider le joueur (sceaux restants, emplacements libres) ; le serveur refait tout de son côté.
 
 À chaque nouvelle vue, `viewEffects(avant, après)` compare les deux et prépare les animations (carte révélée, détruite, déplacée, puissance qui monte ou baisse, terrain révélé) et les bruitages (`sfx.js`, synthétisés avec Web Audio). Le glisser-déposer d'une carte vers une zone s'ajoute au toucher (sélectionner, puis toucher la zone).
+
+## Amis (`friends.js`)
+
+`createFriends(outils)` reçoit l'état `ui` et quelques fonctions de `main.js`, et renvoie l'écran (`screen`), le bandeau (`banner`), la feuille de choix du deck (`deckSheet`) et ses gestionnaires (`click`, `input`, `submit`), branchés au début des écouteurs de `main.js`. Son état est dans `ui.friends`.
+
+Dès que le compte est chargé, `start()` ouvre la connexion de présence (`hello`), rouverte seule après une coupure ; `stop()` la ferme à la déconnexion. Sur `friends`, la liste est rechargée ; les images de profil des amis ne sont redemandées que si leur empreinte change.
+
+Un bandeau en bas de l'écran (hors partie) montre le défi reçu (Accepter, Refuser), le défi envoyé (Annuler) ou un message (demande reçue, défi refusé…). Défi accepté : la feuille `friend-deck` propose les decks jouables, puis `startFriendMatch` entre dans le salon réservé avec le deck choisi (`join` avec `deck`). En attendant l'ami, l'écran `lobby` dit qu'il choisit son deck (`ui.friendFoe`).
 
 ## Catalogue côté appli
 
