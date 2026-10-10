@@ -10,7 +10,7 @@ import { codexHTML } from './codex.js';
 import { createFriends } from './friends.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
-import { artBg, artHTML } from './art.js';
+import { artBg, artHTML, terrainBg, terrainHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
@@ -587,7 +587,7 @@ function renderGame() {
     const target = play && ((ui.sel && freeSlots(z) > 0) || (ui.moveSel !== null && z !== mz && freeSlots(z) > 0));
     const won = b > a ? 'won-me' : a > b ? 'won-foe' : '';
     board += `<div class="zone ${won} ${target ? 'target' : ''}" data-z="${z}" ${target ? 'tabindex="0" role="button"' : ''} aria-label="Zone ${ZONE_NAMES[z]}">
-      ${terrainChip(f, z, false)}${slots(f, z, false)}
+      ${f.terrains[z] ? terrainBg(f.terrains[z], 'foe') : ''}${m.terrains[z] ? terrainBg(m.terrains[z], 'me') : ''}${terrainChip(f, z, false)}${slots(f, z, false)}
       <div class="score"><span class="v foe ${a > b ? 'lead' : ''}">${a}</span><span class="zn">${ZONE_NAMES[z]}</span><span class="v me ${b > a ? 'lead' : ''}">${b}</span></div>
       ${slots(m, z, true)}${terrainChip(m, z, true)}
       ${ui.genZone === z && g.needsZone ? `<div class="gmark">Général activé ici</div>` : ''}</div>`;
@@ -959,7 +959,7 @@ function fullCard(id, lvl = 1, art = null) { const d = CARDS[id];
   return `<div class="fc${lvCls(lvl)}" style="${famVar(d.kw)}">${artHTML(id, d.name, lvl, '', art)}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
     <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
 const genCard = (k, lvl = 1, art = null) => { const g = GENERALS[k]; return `<div class="fc${lvCls(lvl)}" style="${famVar([g.fam])}">${artHTML(k, g.name, lvl, '', art)}<b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
-const terrainCard = k => { const t = TERRAINS[k]; return `<div class="fc" style="${famVar([t.fam])}"><b>${t.name}</b><span class="k">Terrain</span><span class="x">${rich(t.text)}</span></div>`; };
+const terrainCard = k => { const t = TERRAINS[k]; return `<div class="fc" style="${famVar([t.fam])}">${terrainHTML(k, t.name)}<b>${t.name}</b><span class="k">Terrain</span><span class="x">${rich(t.text)}</span></div>`; };
 // Carte affichée en grand, avec les actions possibles sur elle pendant la planification.
 const artLine = art => (ARTS[art] ? ` · art ${esc(ARTS[art].name)} (${esc(rarityName(ARTS[art]))})` : '');
 function zoomBtns(acts) { return acts.length ? `<div class="zacts">${acts.join('')}</div>` : ''; }
@@ -1012,7 +1012,7 @@ function zoomHTML() {
     const t = TERRAINS[zm.id]; style = famVar([t.fam]);
     body = `<div class="zh"><h2>${t.name}</h2></div><span class="k">Terrain${t.fam ? ` · ${t.fam}` : ''}</span><p class="x">${rich(t.text)}</p>`;
   }
-  const pic = zm.kind === 'terrain' ? '' : artHTML(zm.id, nameOf(zm.id), lvl, 'zoomart', art);
+  const pic = zm.kind === 'terrain' ? terrainHTML(zm.id, TERRAINS[zm.id].name, 'zoomart') : artHTML(zm.id, nameOf(zm.id), lvl, 'zoomart', art);
   return `<div class="sheet zoom" data-act="close"><div class="zoomwrap" data-stop="1" style="${style}">${pic}<div class="panel zoomcard${lvCls(lvl)}" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
     <button class="btn" data-act="close">Fermer</button></div></div></div>`;
 }
