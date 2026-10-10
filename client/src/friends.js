@@ -95,7 +95,7 @@ export function createFriends(app) {
     const note = f.note ? `<p class="hint" role="status" style="margin:0">${esc(f.note)}</p>` : '';
     const block = (title, body) => `<div class="card-box"><span class="eyebrow">${title}</span>${body}</div>`;
     const online = L ? L.friends.filter(p => p.status !== 'off').length : 0;
-    return `<div class="top"><span class="title">Mes amis</span><button class="btn" data-act="home">Retour</button></div>
+    return `<div class="top"><span class="title">Mes amis</span></div>
     ${app.errLine()}${note}
     <form class="card-box" id="friend-form">
       <div class="field"><label class="eyebrow" for="friend-query">Ajouter un ami</label>
