@@ -661,6 +661,7 @@ body:has(#app.ingame) { margin: 0; }
 .pcell.prem { border-color: color-mix(in srgb, #8a5bd6 45%, var(--line)); background: color-mix(in srgb, #8a5bd6 8%, var(--bg)); }
 .pcell.lock { opacity: .55; }
 .ptier.got .pcell:not(.lock) { background: color-mix(in srgb, var(--up) 10%, var(--bg)); }
+.pgifts { display: grid; gap: 4px; min-width: 0; }
 .pgift { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
 .pgift .ico { width: 16px; height: 16px; flex: none; }
 .pgift .mc.back { width: 18px; height: 24px; flex: none; padding: 0; border-top-width: 2px; cursor: default; }
@@ -670,6 +671,8 @@ body:has(#app.ingame) { margin: 0; }
 .promo { display: grid; grid-template-columns: 72px 1fr; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: var(--r); padding: 6px; background: var(--bg); }
 .promo > div { display: grid; gap: 2px; }
 .promo.got { border-color: color-mix(in srgb, var(--up) 50%, var(--line)); }
+.bonusbox .bonusico { display: grid; place-items: center; height: 72px; border-radius: var(--r); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.bonusbox .bonusico .ico { width: 40px; height: 40px; }
 @media (max-width: 420px) { .ptier { grid-template-columns: 26px 1fr 1fr; gap: 4px; } .pcell { padding: 4px 5px; font-size: 12px; } }
 
 /* Cosmétiques des saisons : cadres et dos de carte. */

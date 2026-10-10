@@ -256,7 +256,7 @@ const pct = (n, d) => Math.max(0, Math.min(100, Math.round(100 * n / (d || 1))))
 const levelBar = p => `<div class="lvl"><span class="lvlnum num">Niv. ${p.level}</span><div class="bar" role="progressbar" aria-valuenow="${p.xp}" aria-valuemin="0" aria-valuemax="${p.xpNext}" aria-label="Expérience"><span style="width:${pct(p.xp, p.xpNext)}%"></span></div><small class="hint num">${p.xp}/${p.xpNext} XP</small></div>`;
 const gains = r => [r.xp ? `+${r.xp} XP` : '', r.shards ? `+${r.shards} Éclats` : '', r.prisms ? `+${r.prisms} Prisme${r.prisms > 1 ? 's' : ''}` : '',
   r.chests ? `+${r.chests} coffre${r.chests > 1 ? 's' : ''} d'arts offert${r.chests > 1 ? 's' : ''}` : '', r.boosters ? `+${r.boosters} booster${r.boosters > 1 ? 's' : ''} offert${r.boosters > 1 ? 's' : ''}` : '',
-  r.passXp ? `+${r.passXp} XP de saison` : ''].filter(Boolean).join(' · ');
+  r.passXp ? `+${r.passXp} XP de saison` : '', r.essence ? `+${r.essence} essence${r.essenceCard ? ` de ${nameOf(r.essenceCard)}` : ''}` : ''].filter(Boolean).join(' · ');
 const titleLabel = id => prog().cosmetics.titles.find(t => t.id === id)?.label || '';
 function missionsHTML() {
   const p = prog();
@@ -355,14 +355,18 @@ async function buyPass() {
 const futureSeasons = () => SEASONS.filter(x => !seasonStarted(x.id, seasonId()));
 const futureCosmetic = id => futureSeasons().some(x => [x.frame[0], x.framePremium[0], x.back[0], x.backPremium[0]].includes(id));
 const hiddenCard = id => { const x = seasonOfCard(id); return !!x && !seasonStarted(x.id, seasonId()) && !owned(id); };
-// Une récompense de palier, en court.
+// Une récompense de palier, en court (un palier peut en avoir plusieurs, comme un coffre et un cadre).
 function passGift(r) {
-  if (r.card) return `<button class="chip pgift" data-zoom="${zoomKey(r.card)}">Carte · ${esc(nameOf(r.card))}</button>`;
-  if (r.title) return `<span class="pgift">Titre « ${esc(TITLES[r.title] || r.title)} »</span>`;
-  if (r.frame) return `<span class="pgift"><span class="frame frame-${r.frame} swatch"></span>${esc(FRAMES[r.frame] || r.frame)}</span>`;
-  if (r.back) return `<span class="pgift"><span class="mc back back-${r.back}"></span>${esc(BACKS[r.back] || r.back)}</span>`;
-  return `<span class="pgift">${[r.shards ? `${ico('shard')}<span class="num">${r.shards}</span>` : '', r.prisms ? `${ico('prism')}<span class="num">${r.prisms}</span>` : '',
-    r.chests ? `${ico('chest')}<span>${r.chests > 1 ? `${r.chests} coffres` : 'Coffre'} d'arts</span>` : ''].filter(Boolean).join(' ') || '–'}</span>`;
+  const parts = [
+    r.card ? `<button class="chip pgift" data-zoom="${zoomKey(r.card)}">Carte · ${esc(nameOf(r.card))}</button>` : '',
+    r.title ? `<span class="pgift">Titre « ${esc(TITLES[r.title] || r.title)} »</span>` : '',
+    r.frame ? `<span class="pgift"><span class="frame frame-${r.frame} swatch"></span>${esc(FRAMES[r.frame] || r.frame)}</span>` : '',
+    r.back ? `<span class="pgift"><span class="mc back back-${r.back}"></span>${esc(BACKS[r.back] || r.back)}</span>` : '',
+    r.shards ? `<span class="pgift">${ico('shard')}<span class="num">${r.shards}</span></span>` : '',
+    r.prisms ? `<span class="pgift">${ico('prism')}<span class="num">${r.prisms}</span></span>` : '',
+    r.chests ? `<span class="pgift">${ico('chest')}<span>${r.chests > 1 ? `${r.chests} coffres` : 'Coffre'} d'arts</span></span>` : '',
+  ].filter(Boolean);
+  return parts.length ? `<span class="pgifts">${parts.join('')}</span>` : '<span class="pgift">–</span>';
 }
 function passMissions(list) {
   return `<div class="missions">${list.map(m => `<div class="mission ${m.done ? 'done' : ''}">
@@ -388,8 +392,9 @@ function renderPass() {
     <span class="eyebrow">Saison de ${esc(seasonName(P.id))} · encore ${P.daysLeft} jour${P.daysLeft > 1 ? 's' : ''}</span>
     <h2 style="font-size:26px">${esc(P.name)}</h2>
     <p class="hint" style="margin:0">${esc(P.blurb)}</p>
-    <div class="lvl"><span class="lvlnum num">Palier ${P.tier}/${P.tiers}</span><div class="bar" role="progressbar" aria-valuenow="${P.xp}" aria-valuemin="0" aria-valuemax="${P.next}" aria-label="XP de saison"><span style="width:${P.tier >= P.tiers ? 100 : pct(P.xp, P.next)}%"></span></div>
-      <small class="hint num">${P.tier >= P.tiers ? 'Passe terminé !' : `${P.xp}/${P.next} XP`}</small></div>
+    <div class="lvl"><span class="lvlnum num">Palier ${P.tier}/${P.tiers}</span><div class="bar" role="progressbar" aria-valuenow="${P.xp}" aria-valuemin="0" aria-valuemax="${P.next}" aria-label="${P.tier >= P.tiers ? 'Coffre de fin de passe suivant' : 'XP de saison'}"><span style="width:${pct(P.xp, P.next)}%"></span></div>
+      <small class="hint num">${P.xp}/${P.next} XP</small></div>
+    ${P.tier >= P.tiers ? `<p style="margin:0"><b>Passe terminé !</b> <span class="hint">Chaque ${P.bonusChest.every} XP de saison ouvre un coffre de fin de passe${P.bonus ? ` (${P.bonus} déjà ouvert${P.bonus > 1 ? 's' : ''})` : ''}.</span></p>` : ''}
     ${ui.msg ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
     ${premium}
   </div>
@@ -397,7 +402,7 @@ function renderPass() {
     <p class="hint" style="margin:0">Elles ne sortent d'aucun booster pendant la saison. Elles rejoindront le Set de base en ${esc(seasonName(releaseMonth(P.cards[0], P.cardMonths)))}.</p>
     <div class="gallery">${P.cards.map(id => `<div class="offer"><button class="ccard" data-zoom="${zoomKey(id)}">${anyCard(id)}</button><small class="hint">Palier ${cardTier(id)}${owned(id) ? ' · obtenue ✓' : ''}</small></div>`).join('')}</div></div>
   <div class="card-box"><span class="eyebrow">Missions</span>
-    <p class="hint" style="margin:0">Elles se valident toutes seules et donnent l'XP de saison qui fait monter les paliers.</p>
+    <p class="hint" style="margin:0">Elles se valident toutes seules et donnent l'XP de saison qui fait monter les paliers. Chaque partie en donne aussi : ${P.xpWin} pour une victoire, ${P.xpLoss} sinon (dans la limite des parties récompensées du jour).</p>
     <div class="gal-h">Du jour</div><p class="hint" style="margin:0">Nouvelles missions chaque jour à minuit.</p>${passMissions(P.daily)}
     <div class="gal-h">De la semaine</div><p class="hint" style="margin:0">Jusqu'au ${esc(frDate(P.weekEnds))} à minuit.</p>${passMissions(P.weekly)}
     <div class="gal-h">De la saison · ${doneSeason}/${P.seasonal.length}</div><p class="hint" style="margin:0">Tout le mois pour les accomplir.</p>
@@ -407,7 +412,9 @@ function renderPass() {
     ${passMissions(P.seasonal)}</div>
   <div class="card-box"><span class="eyebrow">Paliers</span>
     <p class="hint" style="margin:0">${PASS_TIERS} paliers. Chaque palier atteint donne sa récompense tout de suite : la piste gratuite pour tous, la piste premium avec le passe premium.</p>
-    <div class="ptrack"><div class="ptier phead"><span></span><span class="eyebrow">Gratuit</span><span class="eyebrow">Premium</span></div><ol>${P.track.map(row).join('')}</ol></div></div>`;
+    <div class="ptrack"><div class="ptier phead"><span></span><span class="eyebrow">Gratuit</span><span class="eyebrow">Premium</span></div><ol>${P.track.map(row).join('')}</ol></div>
+    <div class="promo bonusbox ${P.tier >= P.tiers ? 'got' : ''}"><span class="bonusico">${ico('chest')}</span><div><span class="eyebrow">Après le palier ${P.tiers}, sans fin</span><b>Coffre de fin de passe</b>
+      <small class="hint">Tous les ${P.bonusChest.every} XP de saison, pour tous : ${P.bonusChest.odds.shards} % de chances d'Éclats ${ico('shard')} (environ ${P.bonusChest.shards}), ${P.bonusChest.odds.prisms} % de Prismes ${ico('prism')} (environ ${P.bonusChest.prisms}), ${P.bonusChest.odds.essence} % d'essence d'une de vos cartes (environ ${P.bonusChest.essence}).</small></div></div></div>`;
 }
 
 // Fin de partie : XP, Éclats et niveau gagnés.
@@ -687,8 +694,8 @@ function renderHome() {
     ${p.pass ? `<button class="card-box passline theme-${p.pass.theme}" data-act="pass">
       <span class="eyebrow">Passe de saison · encore ${p.pass.daysLeft} jour${p.pass.daysLeft > 1 ? 's' : ''}${p.pass.premium ? ' · Premium' : ''}</span>
       <b>${esc(p.pass.name)}</b>
-      <div class="lvl"><span class="lvlnum num">Palier ${p.pass.tier}/${p.pass.tiers}</span><div class="bar" aria-hidden="true"><span style="width:${p.pass.tier >= p.pass.tiers ? 100 : pct(p.pass.xp, p.pass.next)}%"></span></div>
-        <small class="hint num">${p.pass.todo ? `${p.pass.todo} mission${p.pass.todo > 1 ? 's' : ''} à faire` : 'Tout est fait ✓'}</small></div></button>` : ''}
+      <div class="lvl"><span class="lvlnum num">Palier ${p.pass.tier}/${p.pass.tiers}</span><div class="bar" aria-hidden="true"><span style="width:${pct(p.pass.xp, p.pass.next)}%"></span></div>
+        <small class="hint num">${p.pass.tier >= p.pass.tiers ? 'Coffre de fin de passe' : p.pass.todo ? `${p.pass.todo} mission${p.pass.todo > 1 ? 's' : ''} à faire` : 'Tout est fait ✓'}</small></div></button>` : ''}
     ${errLine()}
     <div class="card-box">
       <div class="row" style="justify-content:space-between"><span class="eyebrow">Progression${p.title ? ` · <span class="ptitle">${esc(titleLabel(p.title))}</span>` : ''}</span><button class="btn sm" data-act="profile">Succès</button></div>

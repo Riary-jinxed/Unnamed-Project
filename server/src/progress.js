@@ -8,7 +8,7 @@ import { SETS, STARTERS, OWNABLE, allowedGenerals, today } from '@jeu/engine/col
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { TIERS, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics } from '@jeu/engine/ranked';
 import { ARTS, artExists } from '@jeu/engine/arts';
-import { PASS_KINDS, PASS_TIERS, SEASON_MISSIONS, SEASON_CARDS, seasonById, passTrack, refundTier, tierOf as passTierOf, weekOf, passMissionLabel, releasedCards } from '@jeu/engine/pass';
+import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seasonById, passTrack, refundTier, tierOf as passTierOf, weekOf, passMissionLabel, releasedCards } from '@jeu/engine/pass';
 import { HttpError } from './accounts.js';
 
 const INBOX_MAX = 40;
@@ -195,6 +195,7 @@ export function createProgress(store) {
     }[m.id] || 0));
     addXp(a, xp);
     const P = pass(a);
+    if (P && rewarded) gainPassXp(a, win ? c.passXpWin : c.passXpLoss);
     passAdvance(a, m => ({
       play: 1, win: win ? 1 : 0, pvp: win && pvp ? 1 : 0, ranked: ranked ? 1 : 0, sweep: win && sweep ? 1 : 0,
       spells: played.filter(id => CARDS[id]?.type === 'S').length, creatures: played.filter(id => CARDS[id]?.type === 'C').length,
@@ -289,15 +290,18 @@ export function createProgress(store) {
   // ---- Passe de saison ----
   // Compte : seasonPass = { season (« AAAA-MM »), xp (XP de saison), premium, free et prem (derniers paliers donnés sur chaque piste),
   // day = { date, list } et week = { week, list } (missions du jour et de la semaine), sm = { id: avancement } et done (missions de saison),
-  // promo (arts Promo reçus) }. Tout repart à zéro à chaque saison ; les paliers sont donnés dès qu'ils sont atteints.
+  // promo (arts Promo reçus), bonus (coffres de fin de passe ouverts) }. Tout repart à zéro à chaque saison ; les paliers sont donnés dès qu'ils sont atteints.
   // Renvoie null s'il n'y a pas de saison ce mois-ci.
   function pass(a) {
     const season = seasonById(seasonId());
     if (!season || !a.level) return null;
-    if (a.seasonPass?.season !== season.id) a.seasonPass = { season: season.id, xp: 0, premium: false, free: 0, prem: 0, day: null, week: null, sm: {}, done: [], promo: [] };
+    if (a.seasonPass?.season !== season.id) a.seasonPass = { season: season.id, xp: 0, premium: false, free: 0, prem: 0, bonus: 0, day: null, week: null, sm: {}, done: [], promo: [] };
     const P = a.seasonPass, c = cfg(), day = today(), week = weekOf(day);
     if (P.day?.date !== day) P.day = { date: day, list: drawPass(season, 'daily', c.passDaily, c) };
     if (P.week?.week !== week) P.week = { week, list: drawPass(season, 'weekly', c.passWeekly, c) };
+    // Réglages changés depuis /admin (moins d'XP par palier) : les paliers atteints sont donnés tout de suite.
+    const t = passTierOf(P.xp, c);
+    if (t.tier > P.free || (P.premium && t.tier > P.prem) || t.bonus > (P.bonus || 0)) payTiers(a);
     return P;
   }
   // Missions du jour ou de la semaine : n sortes différentes, tirées parmi celles qui ont un objectif à cette échelle.
@@ -329,8 +333,9 @@ export function createProgress(store) {
       P.promo.push(p.art);
       grant(a, { kind: 'pass', label: `${season.name} : art Promo pour ${p.after} missions de saison`, art: p.art });
     }
-    if (xp) { P.xp += xp; payTiers(a); }
+    gainPassXp(a, xp);
   }
+  function gainPassXp(a, xp) { if (!xp) return; a.seasonPass.xp += xp; payTiers(a); }
   // Donne les récompenses des paliers atteints (et, avec le premium, celles de la piste premium).
   // Une récompense avec une carte ou un cosmétique a sa ligne dans la boîte ; les Éclats, Prismes et coffres sont regroupés.
   function payTiers(a) {
@@ -344,7 +349,27 @@ export function createProgress(store) {
     for (; P.free < tier; P.free++) give(P.free + 1, track[P.free].free, false);
     if (P.premium) for (; P.prem < tier; P.prem++) give(P.prem + 1, track[P.prem].premium, true);
     if (sum.shards || sum.prisms || sum.chests) push(a, { kind: 'pass', label: `${season.name}${onlyPremium ? ', premium' : ''} : ${tier - from > 1 ? `paliers ${from + 1} à ${tier}` : `palier ${tier}`}`, ...sum });
+    for (const bonus = passTierOf(P.xp, c).bonus; (P.bonus || 0) < bonus; P.bonus = (P.bonus || 0) + 1) openBonus(a, season, c);
     checkAchievements(a);
+  }
+  // Coffre de fin de passe : un prix au hasard (BONUS_ODDS), montant entre la moitié et une fois et demie du réglage.
+  // L'essence va à une carte possédée qui peut encore monter de niveau (à défaut, n'importe quelle carte possédée).
+  function openBonus(a, season, c) {
+    const amount = base => Math.max(1, Math.round(base * (0.5 + Math.random())));
+    let roll = Math.random() * 100, kind = 'shards';
+    for (const [k, p] of Object.entries(BONUS_ODDS)) { if (roll < p) { kind = k; break; } roll -= p; }
+    const label = `${season.name} : coffre de fin de passe`;
+    if (kind === 'essence') {
+      const mine = OWNABLE.filter(id => a.cards?.[id]), open = mine.filter(id => (a.cardLevels?.[id] || 1) < MAX_CARD_LEVEL);
+      const card = shuffle(open.length ? open : mine)[0];
+      if (card) {
+        const n = amount(c.passBonusEssence);
+        a.essence = { ...(a.essence || {}), [card]: (a.essence?.[card] || 0) + n };
+        return push(a, { kind: 'pass', label, essence: n, essenceCard: card });
+      }
+      kind = 'shards';
+    }
+    grant(a, { kind: 'pass', label, [kind]: amount(kind === 'shards' ? c.passBonusShards : c.passBonusPrisms) });
   }
   // Achat du premium : pay(a, prix) prend les Prismes (accounts.js). Les paliers déjà atteints donnent aussitôt leur récompense premium.
   function buyPass(a, pay) {
@@ -360,7 +385,7 @@ export function createProgress(store) {
     const P = pass(a); if (!P) return null;
     const season = seasonById(P.season), c = cfg(), t = passTierOf(P.xp, c);
     const todo = [...P.day.list, ...P.week.list].filter(m => !m.done).length + season.missions.filter(m => !P.done.includes(m.id)).length;
-    return { id: season.id, name: season.name, theme: season.theme, tier: t.tier, tiers: PASS_TIERS, xp: t.xp, next: t.next, premium: P.premium, todo, daysLeft: seasonDaysLeft() };
+    return { id: season.id, name: season.name, theme: season.theme, tier: t.tier, tiers: PASS_TIERS, xp: t.xp, next: t.next, bonus: t.bonus, premium: P.premium, todo, daysLeft: seasonDaysLeft() };
   }
   // Écran du passe : paliers, missions, arts Promo, prix du premium.
   function passView(a) {
@@ -373,7 +398,8 @@ export function createProgress(store) {
       cosmetics: { title: [`saison:${season.id}`, season.title], titlePremium: [`saison:${season.id}:p`, season.titlePremium], frame: season.frame, framePremium: season.framePremium, back: season.back, backPremium: season.backPremium },
       daily: P.day.list.map(mission), weekly: P.week.list.map(mission), weekEnds: week.toISOString().slice(0, 10),
       seasonal: season.missions.map(def => { const m = { ...def, ...c.passMissions[def.id] }; return { ...mission({ ...m, n: P.sm[def.id] || 0, done: P.done.includes(def.id) }) }; }),
-      promo: season.promo.map(p => ({ art: p.art, after: p.after, got: P.promo.includes(p.art) })), cardMonths: c.passCardMonths } };
+      promo: season.promo.map(p => ({ art: p.art, after: p.after, got: P.promo.includes(p.art) })), cardMonths: c.passCardMonths,
+      bonusChest: { every: c.passBonusXp, shards: c.passBonusShards, prisms: c.passBonusPrisms, essence: c.passBonusEssence, odds: BONUS_ODDS }, xpWin: c.passXpWin, xpLoss: c.passXpLoss } };
   }
   // Cartes de saison déjà arrivées dans le Set de base.
   const seasonCards = () => releasedCards(seasonId(), cfg().passCardMonths);

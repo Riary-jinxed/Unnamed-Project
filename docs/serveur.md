@@ -55,7 +55,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `cosmetics`, `title`, `frame`, `back` | Titres, cadres et dos débloqués ; ceux qui sont portés. |
 | `inbox` | Récompenses gagnées à montrer au joueur (40 au plus), vidée quand il les a vues. |
 | `friends`, `friendsIn`, `friendsOut` | Identifiants des amis, des demandes reçues et des demandes envoyées (100 amis au plus). |
-| `seasonPass` | Passe de saison du mois : `{ season, xp, premium, free, prem, day, week, sm, done, promo }` (XP de saison, premium acheté, derniers paliers donnés sur chaque piste, missions du jour et de la semaine, avancement et missions de saison accomplies, arts Promo reçus). Repart à zéro chaque saison. |
+| `seasonPass` | Passe de saison du mois : `{ season, xp, premium, free, prem, day, week, sm, done, promo }` (XP de saison, premium acheté, derniers paliers donnés sur chaque piste, missions du jour et de la semaine, avancement et missions de saison accomplies, arts Promo reçus, `bonus` : coffres de fin de passe ouverts). Repart à zéro chaque saison. |
 | `ranked` | Mode classé : `{ season, r, best, games, wins, streak }` (saison `AAAA-MM`, rang en étoiles, meilleur rang de la saison, parties, victoires et série en classé). |
 
 Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDuplicates`, `migrateDecks`, `grantStarterGenerals`, `progress.init`) ; rien n'est jamais supprimé de la base par ces mises à niveau.

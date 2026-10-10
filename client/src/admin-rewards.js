@@ -30,16 +30,20 @@ const GROUPS = [
     ['loginShards', 'Éclats : jour de semaine'], ['loginChests', 'Coffres d\'arts : dimanche'], ['loginPrisms', 'Prismes : 2e et 4e dimanches'],
   ]],
   ['Passe de saison', `Une saison par mois, ${PASS_TIERS} paliers. Les missions donnent l'XP de saison. Piste gratuite : des Éclats à chaque palier, des Prismes aux paliers 15 et 35, un coffre d'arts aux paliers 20 et 40, plus les cartes uniques et les cosmétiques. Piste premium : des Prismes à chaque palier, un coffre tous les 10 paliers, plus ses cosmétiques.`, [
-    ['passTierXp', 'XP de saison par palier'], ['passDaily', 'Missions du passe par jour', 'Entre 0 et 6.'], ['passWeekly', 'Missions du passe par semaine', 'Entre 0 et 10.'],
+    ['passTierXp', 'XP de saison par palier'], ['passXpWin', 'XP de saison : victoire'], ['passXpLoss', 'XP de saison : défaite ou nul'], ['passDaily', 'Missions du passe par jour', 'Entre 0 et 6.'], ['passWeekly', 'Missions du passe par semaine', 'Entre 0 et 10.'],
     ['passXpDaily', 'XP de saison : mission du jour'], ['passXpWeekly', 'XP de saison : mission de la semaine'],
     ['passPrice', 'Prix du premium en Prismes'], ['passShards', 'Éclats : palier gratuit'], ['passPrisms', 'Prismes : paliers gratuits 15 et 35'], ['passChests', 'Coffres d\'arts : paliers gratuits 20 et 40'],
     ['passPremiumPrisms', 'Prismes : palier premium'], ['passPremiumChests', 'Coffres d\'arts : tous les 10 paliers premium'],
+    ['passBonusXp', 'Passe fini : un coffre tous les … XP de saison'], ['passBonusShards', 'Coffre de fin de passe : Éclats (60 %)', 'Montant tiré entre la moitié et une fois et demie.'],
+    ['passBonusPrisms', 'Coffre de fin de passe : Prismes (25 %)'], ['passBonusEssence', 'Coffre de fin de passe : essence d\'une carte (15 %)'],
     ['passCardMonths', 'Mois avant que les cartes de saison rejoignent le Set de base', 'Comptés depuis le début de la saison : avec 3, une saison d\'octobre les ajoute en janvier. 0 : tout de suite.'],
   ]],
 ];
 
 // XP de saison qu'un joueur qui fait tout peut gagner sur un mois de 31 jours : missions du jour, de la semaine (4,4 semaines) et de la saison.
-const passMonthXp = (season, r) => Math.round(31 * r.passDaily * r.passXpDaily + 4.4 * r.passWeekly * r.passXpWeekly + season.missions.reduce((t, m) => t + r.passMissions[m.id].xp, 0));
+// Parties : 8 par jour, une victoire sur deux (joueur assidu).
+const passMonthXp = (season, r) => Math.round(31 * r.passDaily * r.passXpDaily + 4.4 * r.passWeekly * r.passXpWeekly + season.missions.reduce((t, m) => t + r.passMissions[m.id].xp, 0)
+  + 31 * 8 * (r.passXpWin + r.passXpLoss) / 2);
 
 export function rewardsTab({ call, render, say, esc, notice }) {
   const S = { data: null, err: '' };
@@ -68,7 +72,7 @@ export function rewardsTab({ call, render, say, esc, notice }) {
     const pool = Object.entries(PASS_KINDS).map(([k, x]) => { const v = r.passPool[k];
       return `<tr><td>${esc(x.label('N', 'd\'une famille'))}</td>${['daily', 'weekly'].map(sc => `<td><input id="pp-${k}-${sc}" type="number" min="0" step="1" value="${v[sc] ?? 0}" style="width:80px" aria-label="${sc}"></td>`).join('')}</tr>`; }).join('');
     const seasons = SEASONS.map(x => `<h3 style="font-size:17px">${esc(x.name)} (${x.id})</h3>
-      <p class="hint" style="margin:0">Le premium se rembourse ${refundTier(x, r) ? `au palier ${refundTier(x, r)}` : 'jamais avec ces réglages'} ; XP de saison possible sur le mois : environ ${passMonthXp(x, r).toLocaleString('fr-FR')} pour ${(PASS_TIERS * r.passTierXp).toLocaleString('fr-FR')} nécessaires.</p>
+      <p class="hint" style="margin:0">Le premium se rembourse ${refundTier(x, r) ? `au palier ${refundTier(x, r)}` : 'jamais avec ces réglages'} ; un joueur assidu peut gagner environ ${passMonthXp(x, r).toLocaleString('fr-FR')} XP de saison sur le mois, pour ${(PASS_TIERS * r.passTierXp).toLocaleString('fr-FR')} nécessaires au palier ${PASS_TIERS}.</p>
       <div class="scroll"><table class="admin"><thead><tr><th>Mission de saison</th><th>Objectif</th><th>XP</th></tr></thead><tbody>${x.missions.map(m => { const v = r.passMissions[m.id];
         return `<tr><td>${esc(passMissionLabel({ ...m, target: v.target }))}</td>${['target', 'xp'].map(k => `<td><input id="pm-${m.id}-${k}" type="number" min="0" step="1" value="${v[k]}" style="width:90px" aria-label="${k}"></td>`).join('')}</tr>`; }).join('')}</tbody></table></div>`).join('');
     const fams = FAMILY_REWARDS.map(f => `<li>${esc(f.fam)} (${f.set === 'base' ? 'Set de base' : 'Crépuscule'}) : ${esc(CARDS[f.card]?.name || f.card)}, titre « ${esc(f.title)} »</li>`).join('');

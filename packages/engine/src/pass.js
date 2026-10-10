@@ -108,10 +108,15 @@ export function refundTier(season, r) {
   return null;
 }
 // Palier atteint avec xp d'XP de saison (0 à PASS_TIERS), et XP dans le palier en cours.
+// Passe fini : bonus = coffres de fin de passe gagnés, xp et next = avancement vers le suivant.
 export function tierOf(xp, r) {
   const per = Math.max(1, r.passTierXp), tier = Math.min(PASS_TIERS, Math.floor(xp / per));
-  return { tier, xp: tier >= PASS_TIERS ? per : xp - tier * per, next: per };
+  if (tier < PASS_TIERS) return { tier, xp: xp - tier * per, next: per, bonus: 0 };
+  const extra = xp - PASS_TIERS * per, every = Math.max(1, r.passBonusXp);
+  return { tier, xp: extra % every, next: every, bonus: Math.floor(extra / every) };
 }
+// Coffre de fin de passe : Éclats, Prismes ou essence d'une carte, au hasard selon ces chances (en %).
+export const BONUS_ODDS = { shards: 60, prisms: 25, essence: 15 };
 
 // Semaine du jeu : lundi (« AAAA-MM-JJ ») de la semaine du jour donné (journées à l'heure de Paris, voir today()).
 export function weekOf(day) {
