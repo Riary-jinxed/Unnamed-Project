@@ -49,6 +49,8 @@ export function createFriends(app) {
   }
   function onMsg(m) {
     if (m.t === 'hello' || m.t === 'friends') { if (m.msg) f.note = m.msg; refresh(); return; }
+    // Nouveau message au courrier (mail.js).
+    if (m.t === 'mail') { app.onMail?.(); return; }
     if (m.t === 'challenge') { f.challengeIn = { id: m.id, from: m.from, ranked: m.ranked }; app.play('reveal'); }
     else if (m.t === 'challenge-sent') f.challengeOut = { id: m.id, to: m.to, ranked: m.ranked };
     else if (m.t === 'challenge-error') f.note = m.msg;

@@ -8,6 +8,7 @@ import { startSolo } from './solo.js';
 import { startTutorial } from './tutorial.js';
 import { codexHTML } from './codex.js';
 import { createFriends } from './friends.js';
+import { createMail } from './mail.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
 import { artBg, artHTML, terrainBg, terrainHTML } from './art.js';
@@ -39,7 +40,9 @@ const ui = {
 const app = document.getElementById('app');
 // Amis et défis (friends.js) : écran, bandeau de défi, choix du deck pour une partie entre amis.
 const friends = createFriends({ ui, render: () => render(), call: (...x) => call(...x), avatarHTML: (...x) => avatarHTML(...x), errLine: () => errLine(),
-  deckError, play: (...x) => play(...x), generalName: id => GENERALS[id]?.name || 'Sans général', startFriendMatch: (...x) => startFriendMatch(...x) });
+  deckError, play: (...x) => play(...x), generalName: id => GENERALS[id]?.name || 'Sans général', startFriendMatch: (...x) => startFriendMatch(...x), onMail: () => mail.pushed() });
+// Courrier et codes cadeaux (mail.js).
+const mail = createMail({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), rewardItem: r => rewardItem(r), play: (...x) => play(...x) });
 
 // ---- Contrôleurs (en ligne / IA) ----
 const handlers = {
@@ -680,7 +683,7 @@ function renderHome() {
   const nav = (act, label, badge) => `<button data-act="${act}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
   return `
   <div class="top"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button><span class="title">Jeu de cartes</span>
-    <button class="chip num cur" data-act="shop" aria-label="${a.shards} Éclats, ouvrir la boutique">${ico('shard')}${a.shards}</button>${muteBtn()}</div>
+    <button class="chip num cur" data-act="shop" aria-label="${a.shards} Éclats, ouvrir la boutique">${ico('shard')}${a.shards}</button>${mail.button()}${muteBtn()}</div>
   <div class="setup home">
     ${gift}
     <div class="card-box play">
@@ -755,7 +758,7 @@ function renderShop() {
         ${sh.freeBoosters ? `<button class="btn primary" data-act="free-booster" data-set="${set.id}" ${ui.busy ? 'disabled' : ''}>Ouvrir un booster offert (${sh.freeBoosters})</button>` : ''}</div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
       <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`;
-  return `${top}${errLine()}${sh.sets.map(section).join('')}`;
+  return `${top}${errLine()}${sh.sets.map(section).join('')}${mail.codeForm()}`;
 }
 // Arts alternatifs en boutique : offres du jour et coffre, payés en Prismes (monnaie rare : saisons classées, succès).
 function artShopHTML(A) {
@@ -1020,6 +1023,7 @@ function openZoom(zoom) { ui.zoom = zoom; ui.sheet = 'zoom'; ui.zoomBack = null;
 // Ferme le panneau ouvert ; une carte ouverte depuis le codex y ramène.
 function closeSheet() {
   if (ui.sheet === 'inbox') closeInbox();
+  if (ui.sheet === 'mail-got') mail.closeGot();
   ui.sheet = ui.sheet === 'zoom' && ui.zoomBack ? ui.zoomBack : null; ui.zoom = null; ui.zoomBack = null; ui.renaming = null; ui.gotArt = null; ui.calGot = null; ui.msg = ''; render();
 }
 function sheetHTML() {
@@ -1078,6 +1082,7 @@ function sheetHTML() {
       <div class="row"><button class="btn primary" data-act="close">Super !</button></div></div></div>`;
   }
   if (ui.sheet === 'calendar' && prog().calendar) return calendarHTML(prog().calendar);
+  if (ui.sheet === 'mail-got') return mail.gotSheet();
   if (ui.sheet === 'art' && ui.gotArt) {
     const art = ARTS[ui.gotArt.id], on = mySel(art.card) === art.id;
     return `<div class="sheet" data-act="close"><div class="panel gotart" data-stop="1"><div class="ph"><h2>${ui.gotArt.chest ? 'Coffre d\'arts' : 'Nouvel art'}</h2><button class="btn" data-act="close">Fermer</button></div>
@@ -1112,7 +1117,7 @@ function sheetHTML() {
 }
 function render() {
   const h = document.getElementById('hand'); const sx = h ? h.scrollLeft : 0;
-  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, pass: renderPass, lobby: renderLobby, game: renderGame, friends: friends.screen };
+  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, pass: renderPass, lobby: renderLobby, game: renderGame, friends: friends.screen, mail: mail.screen };
   // Récompenses gagnées (niveau, missions, succès, familles et sets complétés) : affichées en revenant à l'accueil.
   if (ui.screen === 'home' && !ui.sheet && prog().inbox.length) ui.sheet = 'inbox';
   // Récompense du jour du calendrier pas encore récupérée : le calendrier s'ouvre une fois par visite.
@@ -1313,7 +1318,7 @@ function quit() {
   if (ui.auth) api('GET', '/api/me', undefined, ui.auth).then(r => { setAccount(r.account); render(); }).catch(() => {});
 }
 app.addEventListener('input', e => {
-  if (friends.input(e)) return;
+  if (friends.input(e) || mail.input(e)) return;
   if (e.target.id === 'login-id') ui.loginId = e.target.value;
   if (e.target.id === 'login-pass') ui.loginPass = e.target.value;
   if (e.target.id === 'deck-name' && ui.edit) ui.edit.name = e.target.value;
@@ -1329,7 +1334,7 @@ app.addEventListener('change', e => {
 });
 app.addEventListener('submit', e => {
   e.preventDefault(); if (ui.busy) return;
-  if (friends.submit(e.target)) return;
+  if (friends.submit(e.target) || mail.submit(e.target)) return;
   if (e.target.id === 'login-form') doLogin();
   else if (e.target.id === 'name-form') saveName();
   else if (e.target.id === 'rename-form') renameDeck();
@@ -1344,7 +1349,7 @@ app.addEventListener('click', e => {
   if (ds.act) {
     const a = ds.act;
     if (a === 'friends' && ui.sheet === 'play-friend') { ui.sheet = null; ui.error = ''; }
-    if (friends.click(a, ds)) return;
+    if (friends.click(a, ds) || mail.click(a, ds)) return;
     if (a === 'close') closeSheet();
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }

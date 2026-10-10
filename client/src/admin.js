@@ -1,5 +1,5 @@
 // Page d'administration : comptes des joueurs (création, profil, Éclats, collection, deck, accès), statistiques des parties,
-// éditeur de cartes et de sets (brouillon puis publication) et réglages de la boutique.
+// éditeur de cartes et de sets (brouillon puis publication), réglages de la boutique, courrier aux joueurs et codes cadeaux.
 // Protégée par la clé ADMIN_KEY du serveur, gardée dans ce navigateur seulement.
 import './style.css';
 import { DECKS, CARDS, GENERALS, TERRAINS, FAMILIES } from '@jeu/engine';
@@ -9,6 +9,7 @@ import { statsTab } from './admin-stats.js';
 import { esc, famStyle } from './common.js';
 import { cardsTab } from './admin-cards.js';
 import { rewardsTab } from './admin-rewards.js';
+import { mailTab } from './admin-mail.js';
 import { ARTS, ART_RARITIES, RARITY_IDS, rarityName } from '@jeu/engine/arts';
 
 const app = document.getElementById('app');
@@ -27,9 +28,9 @@ async function adminCall(method, path, body) {
   return data;
 }
 const say = (msg, err = '') => { st.msg = msg; st.err = err; };
-const TABS = { accounts: 'Comptes', stats: 'Stats', cards: 'Cartes', sets: 'Sets', shop: 'Boutique', rewards: 'Récompenses' };
+const TABS = { accounts: 'Comptes', stats: 'Stats', cards: 'Cartes', sets: 'Sets', shop: 'Boutique', rewards: 'Récompenses', mail: 'Courrier' };
 const tabCtx = { call: adminCall, render: () => render(), say, esc: s => esc(s), notice: () => notice() };
-const stats = statsTab(tabCtx), rewards = rewardsTab(tabCtx);
+const stats = statsTab(tabCtx), rewards = rewardsTab(tabCtx), mail = mailTab(tabCtx);
 // Après une publication, la liste des comptes et les collections tiennent compte des nouvelles cartes.
 const cards = cardsTab({ ...tabCtx, onPublished: () => refresh() });
 async function refresh() {
@@ -229,7 +230,7 @@ function render() {
       <div class="field"><label class="eyebrow" for="key">Clé d'administration (ADMIN_KEY)</label><input id="key" type="password" value="${esc(st.key)}" required></div>
       ${st.err ? `<p class="err" style="margin:0">${esc(st.err)}</p>` : ''}
       <div class="row"><button class="btn primary" type="submit">Ouvrir</button></div></form>`
-    : st.tab === 'shop' ? renderShopSettings() : st.tab === 'rewards' ? rewards.render() : st.tab === 'stats' ? stats.render() : st.tab === 'cards' ? cards.renderCards()
+    : st.tab === 'shop' ? renderShopSettings() : st.tab === 'rewards' ? rewards.render() : st.tab === 'mail' ? mail.render() : st.tab === 'stats' ? stats.render() : st.tab === 'cards' ? cards.renderCards()
     : st.tab === 'sets' ? cards.renderSets() : st.sel && st.detail ? renderDetail() : renderList();
   app.innerHTML = `<div class="top"><span class="title">Administration</span>${tabs}</div>${body}`;
 }
@@ -239,7 +240,7 @@ app.addEventListener('submit', async e => {
   const v = id => document.getElementById(id).value;
   const id = e.target.id;
   if (id === 'unlock') { st.key = v('key'); refresh(); return; }
-  if (cards.onSubmit(id) || rewards.onSubmit(id)) return;
+  if (cards.onSubmit(id) || rewards.onSubmit(id) || mail.onSubmit(id)) return;
   if (id === 'create') {
     const password = v('password');
     try {
@@ -281,10 +282,10 @@ app.addEventListener('click', e => {
   if (t.dataset.open) { openAccount(t.dataset.open); return; }
   if (t.dataset.tab) {
     st.tab = t.dataset.tab; st.sel = null; st.detail = null; say('');
-    if (st.tab === 'stats') stats.load(); else if (st.tab === 'shop') loadArts(); else if (st.tab === 'rewards') rewards.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
+    if (st.tab === 'stats') stats.load(); else if (st.tab === 'shop') loadArts(); else if (st.tab === 'rewards') rewards.load(); else if (st.tab === 'mail') mail.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
     render(); return;
   }
-  if (stats.onClick(t) || cards.onClick(t) || rewards.onClick(t)) return;
+  if (stats.onClick(t) || cards.onClick(t) || rewards.onClick(t) || mail.onClick(t)) return;
   if (t.dataset.artTake) { act('/api/admin/account/art', { art: t.dataset.artTake, give: false }, 'Art retiré.'); return; }
   if (t.dataset.addShards) { const i = document.getElementById('p-shards'); i.value = (Number(i.value) || 0) + Number(t.dataset.addShards); return; }
   const fam = t.dataset.famAll || t.dataset.famNone;
