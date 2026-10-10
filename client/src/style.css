@@ -519,6 +519,9 @@ body:has(#app.ingame) { margin: 0; }
    Gabarit 960x1424, fenêtre 832x1168 à (64, 192) : le personnage déborde de la fenêtre au niveau qui le débloque (.pop). */
 .art { position: relative; aspect-ratio: 832 / 1168; border-radius: 4px; overflow: hidden; container-type: inline-size; background: var(--sunk); }
 .zoomart.pop { overflow: visible; z-index: 1; }
+/* Sans débordement (vignettes, et vue en grand avant le niveau qui le débloque) : toute l'image, réduite à la largeur de la carte
+   et calée en haut, pour que le haut du personnage (tête, ailes, armes) reste visible ; seul le bas, sous le nom, est rogné. */
+.art:not(.zoomart.pop) :is(.art-decor, .art-perso) { left: 0; top: 0; width: 100%; }
 .art-clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .art-decor, .art-perso { position: absolute; left: -7.6923%; top: -16.4384%; width: 115.3846%; height: auto; max-width: none; pointer-events: none; user-select: none; }
 .art-name { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 18% 6% 5%; text-align: center; color: #fff; line-height: 1.05;
@@ -681,7 +684,7 @@ body:has(#app.ingame) { margin: 0; }
 .mc.back.back-cyber_p { background: linear-gradient(transparent 60%, rgb(212 43 184 / .5) 60% 62%, transparent 62%), repeating-linear-gradient(90deg, #0b1530 0 5px, #1a2a55 5px 6px, #0b1530 6px 11px), linear-gradient(#2a0d3a, #0b1530); border-top-color: #d42bb8; }
 /* Petites cartes (main, plateau) : le décor en fond, voilé pour garder le texte lisible (art.js, artBg). */
 .mc:has(> .cart), .hc:has(> .cart) { position: relative; isolation: isolate; overflow: hidden; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / .9); }
-.cart { position: absolute; inset: 0; z-index: -1; background-size: 115.3846% auto; background-position: 50% 24%; background-repeat: no-repeat; pointer-events: none; }
+.cart { position: absolute; inset: 0; z-index: -1; background-size: 100% auto; background-position: 50% 12%; background-repeat: no-repeat; pointer-events: none; }
 .cart::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgb(0 0 0 / .55) 0%, rgb(0 0 0 / .1) 38%, rgb(0 0 0 / .25) 58%, rgb(0 0 0 / .8) 100%); }
 .hc:has(> .cart) .x, .hc:has(> .cart) .k, .hc:has(> .cart) .t { color: rgb(255 255 255 / .88); }
 .hc:has(> .cart) .x { margin-top: auto; }
