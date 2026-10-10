@@ -306,6 +306,20 @@ export const CARDS = {
                  onReveal: (c, st) => { st.p[c.owner].bonusSeals += 2; log(st, `${who(st, c.owner)} : +2 sceaux au tour suivant.`, 'up'); },
                  grace: (c, st) => mine(st, c.owner).filter(x => hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)) },
 
+  // ---- Saisons : cartes du passe de saison (pass.js), jamais dans un booster pendant leur saison ----
+  // Elles rejoignent le Set de base quelques mois après leur saison (réglage passCardMonths). Neutres : elles vont dans tous les decks.
+  // Nuit des citrouilles (octobre 2026)
+  citrouille:  { set: 'saison', name: 'Citrouille hantée', type: 'C', cost: 2, power: 2, kw: [], text: 'Révélation : farce ou friandise ! Si vous avez moins de créatures que l\'adversaire ici, sa créature la plus puissante ici perd 2 ; sinon, vos autres créatures ici gagnent +1.',
+                 onReveal: (c, st) => { const foes = creaturesAt(st, 1 - c.owner, c.zone), mine = creaturesAt(st, c.owner, c.zone);
+                   if (foes.length > mine.length) buff(st, strongest(st, foes), -2); else mine.filter(x => x !== c).forEach(x => buff(st, x, 1)); } },
+  sorciere_sabbat:{ set: 'saison', name: 'Sorcière du sabbat', type: 'C', cost: 4, power: 3, kw: [], text: 'Révélation : piochez 1 carte, puis votre zone ici gagne +1 par sort que vous avez révélé cette partie.',
+                 onReveal: (c, st) => { draw(st, c.owner, 1, true); const n = st.p[c.owner].spells || 0; if (n) addZone(st, c.owner, c.zone, n); } },
+  // Néon 2099 (novembre 2026, préparée)
+  drone:       { set: 'saison', name: 'Drone éclaireur', type: 'C', cost: 2, power: 2, kw: [], mobile: true, text: 'Déplaçable. Déplacement : la créature adverse la plus puissante de la zone d\'arrivée perd 1.',
+                 onMove: (c, st) => { const s = strongest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (s) buff(st, s, -1); } },
+  netrunner:   { set: 'saison', name: 'Netrunner', type: 'C', cost: 3, power: 3, kw: [], text: 'Révélation : la créature adverse la plus puissante ici perd 1, puis piochez 1 carte.',
+                 onReveal: (c, st) => { const s = strongest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (s) buff(st, s, -1); draw(st, c.owner, 1, true); } },
+
   // JETONS
   horde:       { name: 'Horde', type: 'C', cost: 0, power: 0, kw: ['Gobelin'], token: true, text: 'Jeton. Une seule Horde par zone : les effets Horde la font grandir.' },
   chevre:      { name: 'Chèvre', type: 'C', cost: 0, power: -1, kw: [], token: true, text: 'Jeton. Si elle est sacrifiée, +1 sceau au tour suivant.',

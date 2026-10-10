@@ -1,5 +1,6 @@
 // Catalogue de cartes et de sets modifiable depuis /admin : un brouillon, puis une publication qui l'applique au jeu.
 // La version publiée est servie à l'appli (GET /api/catalog), qui l'applique aussi pour l'affichage et la partie contre l'IA.
+// Elle porte aussi les cartes de saison déjà arrivées dans le Set de base (seasonCards, passe de saison) ; stamp change avec l'un ou l'autre.
 import { catalogError, applyCatalog, emptyCatalog, BASE_CARDS, withNewcomers, knownIds } from '@jeu/engine/catalog';
 import { HttpError } from './accounts.js';
 
@@ -9,7 +10,17 @@ export function createCatalog(store, accounts) {
   let published = store.doc('catalogue') || emptyCatalog();
   if (catalogError(published)) { console.error('Catalogue publié invalide, cartes d\'origine utilisées :', catalogError(published)); published = emptyCatalog(); }
   published = upgrade(published);
-  accounts.setCatalogVersion(applyCatalog(published));
+  // Catalogue servi et appliqué : le publié, plus les cartes de saison arrivées dans le Set de base.
+  let served = null;
+  function apply() {
+    const seasonCards = accounts.progress.seasonCards();
+    served = { ...published, seasonCards, stamp: `${published.version || 0}-${seasonCards.length}` };
+    applyCatalog(served);
+    accounts.setCatalogVersion(served.stamp);
+  }
+  // Appelé régulièrement : les cartes de saison rejoignent le Set de base au début du mois prévu.
+  function refresh() { if (accounts.progress.seasonCards().length !== served.seasonCards.length) { apply(); console.log('Cartes de saison ajoutées au Set de base.'); } }
+  apply();
   const draft = () => { const d = store.doc('brouillon'); return d ? upgrade(d) : published; };
 
   // Une carte créée puis publiée ne peut plus disparaître tant qu'un joueur la possède.
@@ -31,7 +42,7 @@ export function createCatalog(store, accounts) {
     published = { ...d, version: (published.version || 0) + 1, publishedAt: new Date().toISOString() };
     await store.putDoc('catalogue', published);
     await store.putDoc('brouillon', published);
-    accounts.setCatalogVersion(applyCatalog(published));
+    apply();
     console.log(`Catalogue de cartes publié (version ${published.version}).`);
     return view();
   }
@@ -40,12 +51,13 @@ export function createCatalog(store, accounts) {
 
   return {
     routes: {
-      'GET /api/catalog': () => ({ catalog: published }),
+      'GET /api/catalog': () => { refresh(); return { catalog: served }; },
       'GET /api/admin/catalog': () => view(),
       'PUT /api/admin/catalog': (_, body) => saveDraft(body),
       'POST /api/admin/catalog/publish': () => publish(),
       'POST /api/admin/catalog/discard': () => discard(),
     },
     public: ['GET /api/catalog'],
+    refresh,
   };
 }

@@ -73,6 +73,7 @@ export const knownIds = cat => [...new Set([...OWNABLE, ...Object.keys(cat.cards
 
 // Applique un catalogue au moteur : CARDS, cartes à collectionner, sets et booster quotidien sont mis à jour sur place.
 export function applyCatalog(cat) {
+  const seasonCards = cat?.seasonCards || [];
   if (!cat || catalogError(cat)) cat = emptyCatalog();
   for (const id of Object.keys(CARDS)) if (!BASE_CARDS[id]) delete CARDS[id];
   for (const [id, d] of Object.entries(BASE_CARDS)) CARDS[id] = { ...d };
@@ -81,6 +82,9 @@ export function applyCatalog(cat) {
   OWNABLE.splice(0, Infinity, ...COLLECTIBLE, ...GENERAL_IDS);
   const sets = withNewcomers(cat);
   SETS.splice(0, Infinity, ...sets.map(s => ({ ...s, cards: s.cards.filter(id => OWNABLE.includes(id)) })));
+  // Cartes de saison arrivées dans le Set de base (pass.js, releasedCards) : le serveur en joint la liste au catalogue.
+  const base = SETS.find(s => s.id === 'base');
+  for (const id of seasonCards) if (base && OWNABLE.includes(id) && !SETS.some(s => s.cards.includes(id))) base.cards.push(id);
   BOOSTER_POOL.splice(0, Infinity, ...new Set(SETS.filter(s => s.daily).flatMap(s => s.cards)));
   return cat.version || 0;
 }
