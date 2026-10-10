@@ -276,6 +276,7 @@ body:has(#app.ingame) { margin: 0; }
 /* accueil, salon, réseau */
 .field { display: grid; gap: 4px; }
 .field input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 9px 11px; min-width: 0; }
+.field input[type=range] { padding: 0; border: 0; background: none; accent-color: var(--accent); min-height: 32px; }
 .field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .code { font-family: var(--display); font-size: 44px; letter-spacing: .18em; color: var(--accent); }
 .err { color: var(--down); }

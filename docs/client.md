@@ -49,7 +49,7 @@ Une partie est pilotée par un « contrôleur » qui offre `submit(plan)`, `rema
 
 Pendant la préparation, l'appli refait les calculs simples pour guider le joueur (sceaux restants, emplacements libres) ; le serveur refait tout de son côté.
 
-À chaque nouvelle vue, `viewEffects(avant, après)` compare les deux et prépare les animations (carte révélée, détruite, déplacée, puissance qui monte ou baisse, terrain révélé) et les bruitages (`sfx.js`, synthétisés avec Web Audio). Niveaux de carte : `lvCls(niveau)` ajoute la bordure (`.lv-bronze` … `.lv-astral`, `style.css`) aux cartes de la main, du plateau, aux généraux et aux cartes de la collection ; `levelIn(siège, id)` lit son niveau dans le compte, celui de l'adversaire dans `badges[siège].looks`. Arts alternatifs : `artIn(siège, id)` lit l'art choisi de la même façon (compte, ou `badges[siège].arts`) ; la carte en grand le montre (`artHTML(…, art)`, `art.js`), avec le liseré de sa rareté. Une carte de niveau 5 révélée joue en plus son effet de mise en jeu (`burstAt`, bruitage `astral`). Le glisser-déposer d'une carte vers une zone s'ajoute au toucher (sélectionner, puis toucher la zone). En partie, une touche sélectionne une carte de la main ou une créature ⇄ (une deuxième la désélectionne), une touche sur une carte posée ce tour la reprend en main, et une double touche (`doubleTap`) ouvre n'importe quelle carte en grand.
+À chaque nouvelle vue, `viewEffects(avant, après)` compare les deux et prépare les animations (carte révélée, détruite, déplacée, puissance qui monte ou baisse, terrain révélé) et les bruitages (`sfx.js`, synthétisés avec Web Audio). La musique d'ambiance (`music.js`) suit l'écran et la saison : voir [Musiques](musique.md). Niveaux de carte : `lvCls(niveau)` ajoute la bordure (`.lv-bronze` … `.lv-astral`, `style.css`) aux cartes de la main, du plateau, aux généraux et aux cartes de la collection ; `levelIn(siège, id)` lit son niveau dans le compte, celui de l'adversaire dans `badges[siège].looks`. Arts alternatifs : `artIn(siège, id)` lit l'art choisi de la même façon (compte, ou `badges[siège].arts`) ; la carte en grand le montre (`artHTML(…, art)`, `art.js`), avec le liseré de sa rareté. Une carte de niveau 5 révélée joue en plus son effet de mise en jeu (`burstAt`, bruitage `astral`). Le glisser-déposer d'une carte vers une zone s'ajoute au toucher (sélectionner, puis toucher la zone). En partie, une touche sélectionne une carte de la main ou une créature ⇄ (une deuxième la désélectionne), une touche sur une carte posée ce tour la reprend en main, et une double touche (`doubleTap`) ouvre n'importe quelle carte en grand.
 
 ## Amis (`friends.js`)
 
@@ -71,9 +71,9 @@ Au démarrage puis chaque fois que la version change (`account.catalog`), l'appl
 
 ## Hors ligne et cache
 
-`public/sw.js` (service worker) rend l'appli installable sur téléphone. Les fichiers de `/assets/` (leur nom contient une empreinte, ils ne changent jamais) sont servis depuis le cache ; les pages passent par le réseau, avec le cache en secours. Un changement de la constante `CACHE` efface les anciens caches. L'API et le WebSocket ne passent jamais par le cache.
+`public/sw.js` (service worker) rend l'appli installable sur téléphone. Les fichiers de `/assets/` (leur nom contient une empreinte, ils ne changent jamais) sont servis depuis le cache ; les pages passent par le réseau, avec le cache en secours. Les musiques (`/music/`) ne passent pas par le service worker. Un changement de la constante `CACHE` efface les anciens caches. L'API et le WebSocket ne passent jamais par le cache.
 
-`localStorage` garde la session (`jeu-auth`), le salon en cours (`jeu-session`, pour reprendre après un rechargement), le son coupé (`jeu-muted`) et le tutoriel déjà proposé (`jeu-tuto-<identifiant>`).
+`localStorage` garde la session (`jeu-auth`), le salon en cours (`jeu-session`, pour reprendre après un rechargement), le son coupé (`jeu-muted`), le volume de la musique (`jeu-music`) et le tutoriel déjà proposé (`jeu-tuto-<identifiant>`).
 
 ## Page `/admin` (`admin.js`)
 
