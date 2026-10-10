@@ -521,11 +521,10 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
 .zoomwrap .zoomart { width: min(100%, calc(46dvh * 832 / 1168)); margin: calc(min(100%, 46dvh * 832 / 1168) * .19) 0 -14px; border-radius: 8px; box-shadow: 0 6px 20px rgb(0 0 0 / .35); }
 .zoomwrap:has(.zoomart) .zoomcard .zh h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .zoomwrap:has(.zoomart) .zoomcard .zh { justify-content: space-between; }
-.zoomart .art-decor { animation: artdrift 16s ease-in-out infinite alternate; transform-origin: 50% 40%; }
-.zoomart .art-perso { animation: artfloat 5s ease-in-out infinite; }
+/* Les deux calques bougent ensemble : le personnage est aussi dessiné dans le décor, un décalage le dédoublerait. */
+.zoomart .art-decor, .zoomart .art-perso { animation: artdrift 8s ease-in-out infinite alternate; transform-origin: 50% 40%; }
 .zoomart.pop .art-perso { filter: drop-shadow(0 8px 10px rgb(0 0 0 / .45)); }
 @keyframes artdrift { from { transform: scale(1); } to { transform: scale(1.06) translateY(-1%); } }
-@keyframes artfloat { 50% { transform: translateY(-1.2%); } }
 @media (prefers-reduced-motion: reduce) { .zoomart .art-decor, .zoomart .art-perso { animation: none; } }
 
 /* accueil : un bloc « Jouer », la progression, et une barre de menu en bas pour le reste */
