@@ -55,7 +55,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `cosmetics`, `title`, `frame`, `back` | Titres, cadres et dos débloqués ; ceux qui sont portés. |
 | `inbox` | Récompenses gagnées à montrer au joueur (40 au plus), vidée quand il les a vues. |
 | `friends`, `friendsIn`, `friendsOut` | Identifiants des amis, des demandes reçues et des demandes envoyées (100 amis au plus). |
-| `seasonPass` | Passe de saison du mois : `{ season, xp, premium, free, prem, day, week, sm, done, promo }` (XP de saison, premium acheté, derniers paliers donnés sur chaque piste, missions du jour et de la semaine, avancement et missions de saison accomplies, arts Promo reçus, `bonus` : coffres de fin de passe ouverts). Repart à zéro chaque saison. |
+| `seasonPass` | Passe de saison du mois : `{ season, xp, premium, free, prem, day, week, sm, done }` (XP de saison, premium acheté, derniers paliers donnés sur chaque piste, missions du jour et de la semaine, avancement et missions de saison accomplies, `bonus` : coffres de fin de passe ouverts). Repart à zéro chaque saison. |
 | `ranked` | Mode classé : `{ season, r, best, games, wins, streak }` (saison `AAAA-MM`, rang en étoiles, meilleur rang de la saison, parties, victoires et série en classé). |
 
 Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDuplicates`, `migrateDecks`, `grantStarterGenerals`, `progress.init`) ; rien n'est jamais supprimé de la base par ces mises à niveau.
@@ -103,7 +103,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `PUT /api/cosmetics` | Change le titre, le cadre ou le dos de carte porté. |
 | `POST /api/shop/art`, `/api/shop/chest` | Arts alternatifs (`arts.js`) : payés en Prismes. `{ art }` achète un art du jour ; le coffre donne un art classique pas encore possédé, au hasard selon sa rareté (`{ free: true }` : avec un coffre offert). Renvoie `art` et la boutique à jour. |
 | `POST /api/shop/convert` | `{ prisms }` : change des Prismes en Éclats au taux `prismShards` (0 : fermé). Jamais l'inverse. |
-| `GET /api/pass` | Passe de saison du mois (`pass`, `null` sans saison) : paliers gratuits et premium, missions du jour, de la semaine et de la saison, arts Promo, prix du premium et palier où il est remboursé. |
+| `GET /api/pass` | Passe de saison du mois (`pass`, `null` sans saison) : paliers gratuits et premium, missions du jour, de la semaine et de la saison, arts Promo (palier de la piste gratuite), prix du premium et palier où il est remboursé. |
 | `POST /api/pass/premium` | Achète le premium en Prismes ; les récompenses premium des paliers déjà atteints sont données aussitôt. |
 | `POST /api/calendar/claim` | Récompense du jour du calendrier du mois (409 si déjà prise). Renvoie `got`. |
 | `PUT /api/arts/select` | `{ card, art }` : art affiché pour cette carte (`art: null` : l'illustration d'origine). |

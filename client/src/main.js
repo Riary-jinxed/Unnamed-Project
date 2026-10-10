@@ -362,6 +362,7 @@ const hiddenCard = id => { const x = seasonOfCard(id); return !!x && !seasonStar
 function passGift(r) {
   const parts = [
     r.card ? `<button class="chip pgift" data-zoom="${zoomKey(r.card)}">Carte · ${esc(nameOf(r.card))}</button>` : '',
+    r.art && ARTS[r.art] ? `<button class="chip pgift" data-zoom="${zoomKey(ARTS[r.art].card, r.art)}">Art Promo · ${esc(ARTS[r.art].name)}</button>` : '',
     r.title ? `<span class="pgift">Titre « ${esc(TITLES[r.title] || r.title)} »</span>` : '',
     r.frame ? `<span class="pgift"><span class="frame frame-${r.frame} swatch"></span>${esc(FRAMES[r.frame] || r.frame)}</span>` : '',
     r.back ? `<span class="pgift"><span class="mc back back-${r.back}"></span>${esc(BACKS[r.back] || r.back)}</span>` : '',
@@ -403,15 +404,17 @@ function renderPass() {
   </div>
   <div class="card-box"><span class="eyebrow">Cartes uniques de la saison</span>
     <p class="hint" style="margin:0">Elles ne sortent d'aucun booster pendant la saison. Elles rejoindront le Set de base en ${esc(seasonName(releaseMonth(P.cards[0], P.cardMonths)))}.</p>
-    <div class="gallery">${P.cards.map(id => `<div class="offer"><button class="ccard" data-zoom="${zoomKey(id)}">${anyCard(id)}</button><small class="hint">Palier ${cardTier(id)}${owned(id) ? ' · obtenue ✓' : ''}</small></div>`).join('')}</div></div>
+    <div class="gallery">${P.cards.map(id => `<div class="offer"><button class="ccard" data-zoom="${zoomKey(id)}">${anyCard(id)}</button><small class="hint">Palier ${cardTier(id)}${owned(id) ? ' · obtenue ✓' : ''}</small></div>`).join('')}</div>
+    <span class="eyebrow">Arts Promo de la saison</span>
+    <p class="hint" style="margin:0">Sur la piste gratuite : on les gagne en montant les paliers.</p>
+    <div class="promos">${P.promo.map(x => { const art = ARTS[x.art];
+      return `<div class="promo ${x.got ? 'got' : ''}"><button class="ccard artthumb" data-zoom="${zoomKey(art.card, art.id)}" aria-label="Voir ${esc(art.name)} en grand">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</button>
+        <div><span class="eyebrow">Art Promo</span><b>${esc(art.name)}</b><small class="hint num">${x.got ? 'Obtenu ✓' : `Palier ${x.tier}`}</small></div></div>`; }).join('')}</div></div>
   <div class="card-box"><span class="eyebrow">Missions</span>
     <p class="hint" style="margin:0">Elles se valident toutes seules et donnent l'XP de saison qui fait monter les paliers. Chaque partie en donne aussi : ${P.xpWin} pour une victoire, ${P.xpLoss} sinon (dans la limite des parties récompensées du jour).</p>
     <div class="gal-h">Du jour</div><p class="hint" style="margin:0">Nouvelles missions chaque jour à minuit.</p>${passMissions(P.daily)}
     <div class="gal-h">De la semaine</div><p class="hint" style="margin:0">Jusqu'au ${esc(frDate(P.weekEnds))} à minuit.</p>${passMissions(P.weekly)}
     <div class="gal-h">De la saison · ${doneSeason}/${P.seasonal.length}</div><p class="hint" style="margin:0">Tout le mois pour les accomplir.</p>
-    <div class="promos">${P.promo.map(x => { const art = ARTS[x.art];
-      return `<div class="promo ${x.got ? 'got' : ''}"><button class="ccard artthumb" data-zoom="${zoomKey(art.card, art.id)}" aria-label="Voir ${esc(art.name)} en grand">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</button>
-        <div><span class="eyebrow">Art Promo</span><b>${esc(art.name)}</b><small class="hint num">${x.got ? 'Obtenu ✓' : `${Math.min(doneSeason, x.after)}/${x.after} missions de saison`}</small></div></div>`; }).join('')}</div>
     ${passMissions(P.seasonal)}</div>
   <div class="card-box"><span class="eyebrow">Paliers</span>
     <p class="hint" style="margin:0">${PASS_TIERS} paliers. Chaque palier atteint donne sa récompense tout de suite : la piste gratuite pour tous, la piste premium avec le passe premium.</p>

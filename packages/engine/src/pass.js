@@ -2,7 +2,7 @@
 // et de la saison qui donnent l'XP de saison, et PASS_TIERS paliers de récompenses : une piste gratuite pour tous et une piste
 // premium achetée en Prismes, qui rend son prix en Prismes au fil des paliers.
 // Chaque saison a ses cartes uniques (elles rejoignent le Set de base quelques mois plus tard), ses cosmétiques (titre, cadre,
-// dos de carte, en version gratuite et premium) et des arts Promo donnés pour les missions de saison accomplies.
+// dos de carte, en version gratuite et premium) et des arts Promo donnés à des paliers de la piste gratuite.
 // Partagé par le serveur (qui fait foi) et l'appli (qui affiche). Les nombres se règlent dans l'onglet Récompenses de /admin
 // (réglages « pass… » de DEFAULT_REWARDS dans rewards.js, plus passPool et passMissions).
 
@@ -30,8 +30,8 @@ export const passMissionLabel = m => PASS_KINDS[m.kind]?.label(m.target, m.fam) 
 
 // ---- Saisons ----
 // id : mois de la saison (« AAAA-MM »). cards : 2 ou 3 cartes uniques (set « saison » dans engine.js).
-// fams : familles des missions « Jouer des cartes … » de la saison. promo : arts Promo (arts.js) donnés quand le joueur a
-// accompli « after » missions de saison. missions : id unique, sorte, objectif, XP de saison (objectif et XP réglables).
+// fams : familles des missions « Jouer des cartes … » de la saison. promo : arts Promo (arts.js) donnés au palier « tier »
+// de la piste gratuite. missions : id unique, sorte, objectif, XP de saison (objectif et XP réglables).
 // Cosmétiques : [id, nom] ; leur style est dans client/src/style.css (.frame-<id>, .mc.back.back-<id>).
 const M = (id, kind, target, xp, extra = {}) => ({ id, kind, target, xp, ...extra });
 export const SEASONS = [
@@ -42,7 +42,7 @@ export const SEASONS = [
     title: 'Chasseur de citrouilles', titlePremium: 'Roi des citrouilles',
     frame: ['halloween', 'Cadre des lanternes'], framePremium: ['halloween_p', 'Cadre du sabbat'],
     back: ['halloween', 'Dos de la citrouille'], backPremium: ['halloween_p', 'Dos de la nuit hantée'],
-    promo: [{ art: 'morgrath_citrouilles', after: 4 }, { art: 'grisk_farce', after: 8 }],
+    promo: [{ art: 'morgrath_citrouilles', tier: 18 }, { art: 'grisk_farce', tier: 38 }],
     missions: [
       M('h_play', 'play', 60, 2000), M('h_win', 'win', 30, 2000), M('h_demon', 'fam', 100, 1500, { fam: 'Démon' }), M('h_sweep', 'sweep', 10, 1500),
       M('h_ranked', 'ranked', 15, 1500), M('h_missions', 'missions', 40, 2000), M('h_cards', 'season', 10, 1500), M('h_login', 'login', 20, 1500),
@@ -55,7 +55,7 @@ export const SEASONS = [
     title: 'Fantôme du réseau', titlePremium: 'Légende chromée',
     frame: ['cyber', 'Cadre néon'], framePremium: ['cyber_p', 'Cadre holographique'],
     back: ['cyber', 'Dos du circuit'], backPremium: ['cyber_p', 'Dos de la mégapole'],
-    promo: [{ art: 'lirael_neon', after: 4 }, { art: 'vaelthar_chrome', after: 8 }],
+    promo: [{ art: 'lirael_neon', tier: 18 }, { art: 'vaelthar_chrome', tier: 38 }],
     missions: [
       M('c_play', 'play', 60, 2000), M('c_win', 'win', 30, 2000), M('c_elfe', 'fam', 100, 1500, { fam: 'Elfe' }), M('c_spells', 'spells', 80, 1500),
       M('c_ranked', 'ranked', 15, 1500), M('c_missions', 'missions', 40, 2000), M('c_cards', 'season', 10, 1500), M('c_login', 'login', 20, 1500),
@@ -83,7 +83,7 @@ export const SEASON_FRAMES = SEASONS.flatMap(x => [x.frame, x.framePremium]);
 export const SEASON_BACKS = SEASONS.flatMap(x => [x.back, x.backPremium]);
 
 // ---- Paliers ----
-// Piste gratuite : des Éclats à chaque palier, sauf les paliers spéciaux (titre, cartes uniques, Prismes, coffres d'arts, dos, cadre).
+// Piste gratuite : des Éclats à chaque palier, sauf les paliers spéciaux (titre, cartes uniques, arts Promo, Prismes, coffres d'arts, dos, cadre).
 // Piste premium : des Prismes à chaque palier (c'est ce qui rembourse le passe), un coffre d'arts tous les 10 paliers, et ses cosmétiques.
 // r : réglages (DEFAULT_REWARDS complété par /admin).
 const CARD_TIERS = [10, 30, 22];
@@ -93,6 +93,7 @@ export function passTrack(season, r) {
     35: { prisms: r.passPrisms }, 40: { chests: r.passChests, frame: season.frame[0] },
   };
   season.cards.forEach((card, i) => { free[CARD_TIERS[i]] = { card }; });
+  for (const p of season.promo) free[p.tier] = { ...free[p.tier], art: p.art };
   const premium = { 1: { frame: season.framePremium[0] }, 25: { back: season.backPremium[0] } };
   for (let t = 10; t <= PASS_TIERS; t += 10) premium[t] = { chests: r.passPremiumChests };
   premium[PASS_TIERS] = { ...premium[PASS_TIERS], title: `saison:${season.id}:p` };
