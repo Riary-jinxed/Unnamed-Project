@@ -641,3 +641,43 @@ body:has(#app.ingame) { margin: 0; }
 .calday .ico { width: 15px; height: 15px; }
 .calday.sun .ico-chest { width: 18px; height: 18px; }
 .calday { min-width: 0; overflow: hidden; }
+
+/* Passe de saison : chaque saison a ses deux couleurs (--sa, --sb), reprises par l'accueil et l'écran du passe. */
+.theme-halloween { --sa: #e8741c; --sb: #5b2a86; }
+.theme-cyber { --sa: #19c8e6; --sb: #d42bb8; }
+.passline { width: 100%; text-align: left; color: inherit; font: inherit; gap: 6px; border-color: color-mix(in srgb, var(--sa) 55%, var(--line));
+  background: linear-gradient(120deg, color-mix(in srgb, var(--sb) 16%, var(--surface)), color-mix(in srgb, var(--sa) 14%, var(--surface))); }
+.passline b { font-family: var(--display); font-size: 20px; }
+.passline .bar span, .passhead .bar span { background: linear-gradient(90deg, var(--sb), var(--sa)); }
+.passline .lvlnum, .passhead .lvlnum { color: var(--sa); }
+.passhead { border-color: color-mix(in srgb, var(--sa) 55%, var(--line));
+  background: radial-gradient(circle at 92% 12%, color-mix(in srgb, var(--sa) 30%, transparent), transparent 40%), linear-gradient(160deg, color-mix(in srgb, var(--sb) 20%, var(--surface)), var(--surface) 70%); }
+.ptrack ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.ptier { display: grid; grid-template-columns: 34px 1fr 1fr; gap: 6px; align-items: center; }
+.ptier .pnum { text-align: center; font-weight: 700; color: var(--muted); }
+.ptier.got .pnum { color: var(--up); }
+.ptier.cur { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: var(--r); }
+.pcell { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; min-height: 38px; padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); font-size: 13px; }
+.pcell.prem { border-color: color-mix(in srgb, #8a5bd6 45%, var(--line)); background: color-mix(in srgb, #8a5bd6 8%, var(--bg)); }
+.pcell.lock { opacity: .55; }
+.ptier.got .pcell:not(.lock) { background: color-mix(in srgb, var(--up) 10%, var(--bg)); }
+.pgift { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.pgift .ico { width: 16px; height: 16px; flex: none; }
+.pgift .mc.back { width: 18px; height: 24px; flex: none; padding: 0; border-top-width: 2px; cursor: default; }
+.frame.swatch { width: 18px; height: 18px; padding: 0; flex: none; }
+.phead { font-size: 11px; }
+.promos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 8px; }
+.promo { display: grid; grid-template-columns: 72px 1fr; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: var(--r); padding: 6px; background: var(--bg); }
+.promo > div { display: grid; gap: 2px; }
+.promo.got { border-color: color-mix(in srgb, var(--up) 50%, var(--line)); }
+@media (max-width: 420px) { .ptier { grid-template-columns: 26px 1fr 1fr; gap: 4px; } .pcell { padding: 4px 5px; font-size: 12px; } }
+
+/* Cosmétiques des saisons : cadres et dos de carte. */
+.frame-halloween { background: repeating-conic-gradient(#e8741c 0 20deg, #1d1226 20deg 40deg); box-shadow: 0 0 8px rgb(232 116 28 / .55); }
+.frame-halloween_p { background: conic-gradient(from 30deg, #5b2a86, #e8741c, #ffd25a, #e8741c, #5b2a86); box-shadow: 0 0 12px rgb(140 70 200 / .7); }
+.frame-cyber { background: linear-gradient(135deg, #19c8e6, #0b1530 50%, #d42bb8); box-shadow: 0 0 9px rgb(25 200 230 / .6); }
+.frame-cyber_p { background: conic-gradient(#19c8e6, #7cffb2, #d42bb8, #fff05a, #19c8e6); box-shadow: 0 0 12px rgb(212 43 184 / .7); }
+.mc.back.back-halloween { background: radial-gradient(ellipse 34% 26% at 50% 55%, #f39030 0 60%, #b9500c 61% 70%, transparent 72%), radial-gradient(circle at 50% 30%, #3a7a2a 0 5%, transparent 6%), linear-gradient(#2a1838, #140b1d); border-top-color: #e8741c; }
+.mc.back.back-halloween_p { background: radial-gradient(circle at 70% 25%, #ffe9a8 0 12%, transparent 13%), radial-gradient(circle at 76% 21%, #2a1446 0 11%, transparent 12%), repeating-linear-gradient(160deg, transparent 0 9px, rgb(232 116 28 / .25) 9px 11px), linear-gradient(#3b1a5c, #12081d); border-top-color: #8a4fd0; }
+.mc.back.back-cyber { background: linear-gradient(rgb(25 200 230 / .35) 1px, transparent 1px) 0 0 / 8px 8px, linear-gradient(90deg, rgb(25 200 230 / .35) 1px, transparent 1px) 0 0 / 8px 8px, #0b1530; border-top-color: #19c8e6; }
+.mc.back.back-cyber_p { background: linear-gradient(transparent 60%, rgb(212 43 184 / .5) 60% 62%, transparent 62%), repeating-linear-gradient(90deg, #0b1530 0 5px, #1a2a55 5px 6px, #0b1530 6px 11px), linear-gradient(#2a0d3a, #0b1530); border-top-color: #d42bb8; }

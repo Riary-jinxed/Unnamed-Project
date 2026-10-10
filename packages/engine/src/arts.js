@@ -4,6 +4,7 @@
 // Les images se rangent dans client/src/art/alt/<id de l'art>/ (decor.webp, perso.webp) ; tant qu'elles manquent,
 // l'appli affiche un art provisoire, et l'art reste vendable.
 import { CARDS, GENERALS } from './engine.js';
+import { today } from './collection.js';
 
 // Raretés. price : prix par défaut en Prismes (réglable dans /admin) ; weight : chance relative de sortir
 // dans les offres du jour et dans le coffre. D'autres raretés pourront s'ajouter ici.
@@ -55,11 +56,18 @@ export const ARTS = Object.fromEntries([
   A('barde_taverne', 'barde', 'Barde de la taverne', 'rare'),
   // Promo
   A('seraphine_pionniere', 'seraphine', 'Séraphine des pionniers', 'rare', { edition: 'promo', how: 'Offert aux premiers joueurs.' }),
+  // Promo des passes de saison (pass.js) : season = mois de la saison ; cachés dans l'appli avant le début de leur saison.
+  A('morgrath_citrouilles', 'morgrath', 'Morgrath, nuit des citrouilles', 'epique', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : 4 missions de saison accomplies.' }),
+  A('grisk_farce', 'grisk', 'Grisk, farce ou friandise', 'legendaire', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : toutes les missions de saison accomplies.' }),
+  A('lirael_neon', 'lirael', 'Lirael sous les néons', 'epique', { edition: 'promo', season: '2026-11', how: 'Passe de saison Néon 2099 : 4 missions de saison accomplies.' }),
+  A('vaelthar_chrome', 'vaelthar', 'Vael\'Thar chromé', 'legendaire', { edition: 'promo', season: '2026-11', how: 'Passe de saison Néon 2099 : toutes les missions de saison accomplies.' }),
 ]);
 
 // Les arts dont la carte existe (le catalogue publié depuis /admin peut en avoir retiré).
 export const artExists = id => { const a = ARTS[id]; return !!a && !!(CARDS[a.card] || GENERALS[a.card]); };
-export const artsOf = card => Object.values(ARTS).filter(a => a.card === card && artExists(a.id));
+// Les arts Promo d'une saison pas encore commencée ne se montrent pas.
+export const artVisible = a => !a.season || a.season <= today().slice(0, 7);
+export const artsOf = card => Object.values(ARTS).filter(a => a.card === card && artExists(a.id) && artVisible(a));
 // Vendable dans les offres du jour et le coffre : les raretés classiques hors Promo.
 export const isClassic = a => !a.edition && !!ART_RARITIES[a.rarity];
 // Prix d'un art en Prismes, avec les réglages de la boutique (artPrice_<rareté>).

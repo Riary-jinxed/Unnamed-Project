@@ -47,7 +47,7 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   // Prismes (monnaie rare des arts alternatifs), arts possédés et art choisi pour chaque carte.
   prisms: a.prisms || 0, arts: a.arts || {}, artSel: a.artSel || {} });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'artShop', 'freeChests', 'calendar'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'artShop', 'freeChests', 'calendar', 'seasonPass'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte.
 function addCards(a, ids, rate, essenceRate) {
@@ -220,6 +220,14 @@ export function createAccounts(store) {
     await store.put(a);
     return { got, account: me(a) };
   }
+  // Passe de saison : écran du passe, achat du premium en Prismes.
+  async function passView(a) { const r = progress.passView(a); await store.put(a); return r; }
+  async function buyPass(a) {
+    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    progress.buyPass(a, payPrisms);
+    await store.put(a);
+    return { ...progress.passView(a), account: me(a) };
+  }
   async function selectArt(a, body) { arts.select(a, body || {}); await store.put(a); return { account: me(a) }; }
 
   // Decks : créer (sans id) ou enregistrer un deck, même incomplet ; seul un deck complet peut être joué.
@@ -391,7 +399,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, arts, buyArt, openChest, convertPrisms, claimDay, selectArt, adminArt, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, arts, passView, buyPass, buyArt, openChest, convertPrisms, claimDay, selectArt, adminArt, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -424,6 +432,8 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/shop/chest': (a, body) => accounts.openChest(a, body || {}),
     'POST /api/shop/convert': (a, body) => accounts.convertPrisms(a, body || {}),
     'POST /api/calendar/claim': a => accounts.claimDay(a),
+    'GET /api/pass': a => accounts.passView(a),
+    'POST /api/pass/premium': a => accounts.buyPass(a),
     'PUT /api/arts/select': (a, body) => accounts.selectArt(a, body),
     'POST /api/missions/reroll': (a, body) => accounts.reroll(a, body),
     'POST /api/rewards/seen': a => accounts.seen(a),

@@ -51,6 +51,15 @@ Une carte ne doit jamais être retirée du code tant que des joueurs la possède
 
 Une nouvelle rareté s'ajoute dans `ART_RARITIES` (nom, prix, poids) avec sa couleur dans `style.css` (`.rar-<id>`). Les prix des raretés, le nombre d'arts du jour et le prix du coffre se règlent dans l'onglet Boutique de `/admin`.
 
+## Préparer une saison du passe
+
+1. Les cartes uniques (2 ou 3) dans `engine.js` avec `set: 'saison'` : elles ne sortent d'aucun booster et rejoignent le Set de base `passCardMonths` mois après le début de leur saison (onglet Récompenses de `/admin`, 3 par défaut).
+2. Une entrée dans `SEASONS` (`packages/engine/src/pass.js`) : `id` (le mois, `AAAA-MM`), nom, `theme`, présentation, familles des missions, cartes, titres, cadres et dos (gratuits et premium), arts Promo et missions de saison.
+3. Les arts Promo dans `ARTS` (`arts.js`) avec `edition: 'promo'` et `season` : ils restent cachés avant la saison.
+4. Le style dans `client/src/style.css` : couleurs `.theme-<theme>` (`--sa`, `--sb`), `.frame-<id>` et `.mc.back.back-<id>`.
+
+Une saison sans entrée dans `SEASONS` n'a pas de passe : l'accueil ne le montre pas ce mois-là.
+
 ## Ajouter une mission ou un succès
 
 - **Mission** : entrée dans `MISSIONS` (`rewards.js`) avec son libellé, son objectif, son XP et ses Éclats, puis ce qui la fait avancer dans `progress.js` : la table passée à `advance` dans `onGame` (fin de partie) ou un appel à `advance` ailleurs (comme `onBooster`).

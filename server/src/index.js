@@ -117,7 +117,7 @@ async function resolve(room) {
     room.rewards = await Promise.all(room.seats.map(async (s, i) => {
       const acc = accounts.byToken(s.auth); if (!acc) return null;
       const reward = await accounts.recordGame(acc, { mode, result: result(i), played: room.st.p[i].played,
-        general: room.st.p[i].general, sweep: winner === i && zones.every(z => z === i), friend: !!room.invite }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
+        general: room.st.p[i].general, sweep: winner === i && zones.every(z => z === i), friend: !!room.invite, ranked: !!room.ranked }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
       return reward && ranks[i] ? { ...reward, ranked: ranks[i] } : reward;
     }));
   }
@@ -252,6 +252,7 @@ wss.on('connection', ws => {
 // Partie classée abandonnée sans « leave » : celui qui n'est plus connecté perd (contre l'IA, le joueur ; entre amis, seulement si l'autre est resté).
 const away = s => s && !s.ai && !(s.ws && s.ws.readyState === 1);
 setInterval(() => {
+  catalog.refresh();
   const now = Date.now();
   for (const [code, r] of rooms) {
     if (now - r.lastActive <= ROOM_TTL_MS) continue;

@@ -2,6 +2,7 @@
 // Partagé par le serveur (qui fait foi) et l'appli (qui affiche). Les nombres se règlent depuis /admin (document « recompenses »).
 import { CARDS, GENERALS, FAMILIES } from './engine.js';
 import { TIERS } from './ranked.js';
+import { SEASON_TITLES, SEASON_FRAMES, SEASON_BACKS } from './pass.js';
 
 // ---- Réglages chiffrés ----
 // Les valeurs par défaut sont justifiées dans la proposition d'économie (recompenses/economie.md).
@@ -28,6 +29,11 @@ export const DEFAULT_REWARDS = {
   rankPrismsBronze: 0, rankPrismsArgent: 5, rankPrismsOr: 10, rankPrismsPlatine: 20, rankPrismsDiamant: 30, rankPrismsMaitre: 50,
   // Calendrier de connexion du mois (loginReward) : Éclats en semaine, coffres d'arts le dimanche, Prismes les 2e et 4e dimanches.
   loginShards: 15, loginChests: 1, loginPrisms: 5,
+  // Passe de saison (pass.js) : XP de saison par palier, missions du jour et de la semaine (nombre et XP), prix du premium en Prismes,
+  // récompenses des paliers (gratuits : Éclats, Prismes, coffres ; premium : Prismes, coffres), mois avant que les cartes de saison
+  // rejoignent le Set de base. Objectifs des missions et XP des missions de saison : passPool et passMissions.
+  passTierXp: 600, passDaily: 2, passWeekly: 4, passXpDaily: 150, passXpWeekly: 500, passPrice: 100,
+  passShards: 40, passPrisms: 10, passChests: 1, passPremiumPrisms: 4, passPremiumChests: 1, passCardMonths: 3,
 };
 export const REWARD_LIMITS = {
   xpBase: [10, 100000], xpStep: [0, 100000], xpCap: [10, 1000000], levelShards: [0, 100000], boosterEvery: [0, 100],
@@ -41,6 +47,8 @@ export const REWARD_LIMITS = {
   rankShardsBronze: [0, 100000], rankShardsArgent: [0, 100000], rankShardsOr: [0, 100000], rankShardsPlatine: [0, 100000], rankShardsDiamant: [0, 100000], rankShardsMaitre: [0, 100000],
   rankPrismsBronze: [0, 10000], rankPrismsArgent: [0, 10000], rankPrismsOr: [0, 10000], rankPrismsPlatine: [0, 10000], rankPrismsDiamant: [0, 10000], rankPrismsMaitre: [0, 10000],
   loginShards: [0, 10000], loginChests: [0, 10], loginPrisms: [0, 10000],
+  passTierXp: [10, 100000], passDaily: [0, 6], passWeekly: [0, 10], passXpDaily: [0, 100000], passXpWeekly: [0, 100000], passPrice: [0, 100000],
+  passShards: [0, 100000], passPrisms: [0, 10000], passChests: [0, 10], passPremiumPrisms: [0, 10000], passPremiumChests: [0, 10], passCardMonths: [0, 60],
 };
 
 // XP pour passer du niveau `level` au suivant.
@@ -66,6 +74,8 @@ export const FRAMES = {
   flamme: 'Cadre de flammes', duel: 'Cadre du duelliste', tresor: 'Cadre du trésor', etoile: 'Cadre étoilé',
   base: 'Couronne du Set de base', set2: 'Couronne du Crépuscule',
   platine: 'Cadre de platine', diamant: 'Cadre de diamant', maitre: 'Cadre du grand maître',
+  // Cadres des passes de saison (pass.js).
+  ...Object.fromEntries(SEASON_FRAMES),
 };
 const FAM_KEY = { 'Ange': 'ange', 'Démon': 'demon', 'Gobelin': 'gobelin', 'Elfe': 'elfe', 'Dragon': 'dragon', 'Mort-vivant': 'mortvivant', 'Vampire': 'vampire' };
 export const famKey = fam => FAM_KEY[fam] || 'neutre';
@@ -73,7 +83,7 @@ export const famKey = fam => FAM_KEY[fam] || 'neutre';
 export const BACKS = { classique: 'Dos classique', ange: 'Dos céleste', demon: 'Dos infernal', gobelin: 'Dos de la horde', elfe: 'Dos sylvestre',
   dragon: 'Dos d\'écailles', mortvivant: 'Dos funéraire', vampire: 'Dos écarlate',
   ange_set2: 'Dos céleste du Crépuscule', demon_set2: 'Dos infernal du Crépuscule', gobelin_set2: 'Dos du banquet', elfe_set2: 'Dos des arcanes',
-  dragon_set2: 'Dos des couvées' };
+  dragon_set2: 'Dos des couvées', ...Object.fromEntries(SEASON_BACKS) };
 
 // ---- Niveaux de carte ----
 // Purement cosmétiques : la carte joue pareil à tous les niveaux. Chaque doublon donne de l'essence propre à la carte (ou au général) ;
@@ -191,6 +201,7 @@ export const TITLES = Object.fromEntries([
   ...FAMILY_REWARDS.map(r => [`fam:${r.set}:${r.fam}`, r.title]),
   ...Object.entries(SET_REWARDS).map(([set, r]) => [`set:${set}`, r.title]),
   ...TIERS.filter(t => t.title).map(t => [`rang:${t.id}`, t.title]),
+  ...SEASON_TITLES,
 ]);
 
 // ---- Calendrier de connexion du mois ----
