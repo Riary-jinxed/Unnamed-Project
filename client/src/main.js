@@ -14,6 +14,7 @@ import { artHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { FRAMES, BACKS, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS } from '@jeu/engine/ranked';
+import { ARTS, artsOf, artExists, rarityKey, rarityName, LIMITED } from '@jeu/engine/arts';
 
 const famVar = kw => famStyle(kw[0]);
 const kwLine = d => (d.token ? 'Jeton · ' : '') + (d.kw.join(' · ') || 'Neutre');
@@ -32,7 +33,7 @@ const ui = {
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
   drag: null, fx: null, zoom: null, soloReward: null, avatars: null, friendFoe: null, rankedAi: false, rankedData: null,
-  codexQuery: '', zoomBack: null, coach: null, coachShown: null,
+  codexQuery: '', zoomBack: null, coach: null, coachShown: null, gotArt: null,
 };
 const app = document.getElementById('app');
 // Amis et défis (friends.js) : écran, bandeau de défi, choix du deck pour une partie entre amis.
@@ -164,6 +165,13 @@ async function openShop() {
 async function buy(path, body) {
   const r = await call('POST', path, body);
   if (r) { ui.shop = r.shop; showCards(r); }
+}
+// Art alternatif acheté ou sorti du coffre : montré en grand, prêt à être choisi pour sa carte.
+async function buyArt(path, body) {
+  const r = await call('POST', path, body);
+  if (!r) return;
+  ui.shop = r.shop; ui.gotArt = { id: r.art, chest: !!r.chest }; ui.sheet = 'art'; ui.msg = '';
+  play(['epique', 'legendaire'].includes(ARTS[r.art].rarity) || ARTS[r.art].edition ? 'astral' : 'reveal'); render();
 }
 // Decks : jusqu'à MAX_DECKS. Création et modification en trois étapes : général, terrains, cartes.
 const deckById = id => ui.account.decks.find(d => d.id === id);
@@ -331,6 +339,31 @@ function upgradeHTML(id) {
     <ul class="lvladder">${ladder}</ul>${ui.msg ? `<p class="hint" role="status"><b>${esc(ui.msg)}</b></p>` : ''}${next}</div>`;
 }
 
+// ---- Arts alternatifs (cosmétiques) ----
+// Art choisi pour une carte, s'il est toujours possédé ; null : l'illustration d'origine.
+const mySel = id => { const x = ui.account?.artSel?.[id]; return x && ui.account.arts?.[x] && artExists(x) ? x : null; };
+const myArts = id => artsOf(id).filter(x => ui.account?.arts?.[x.id]);
+// Pastille de rareté (style.css, « .rar-… »).
+const rarChip = art => `<span class="rarchip rar-${rarityKey(art)}">${esc(rarityName(art))}</span>`;
+const serial = art => { const n = ui.account?.arts?.[art.id]?.n; return n && art.stock ? ` · n° ${n}/${art.stock}` : ''; };
+async function selectArt(card, art) {
+  const r = await call('PUT', '/api/arts/select', { card, art: art || null });
+  if (!r) return;
+  ui.msg = art ? `Art « ${ARTS[art].name} » choisi pour ${nameOf(card)}.` : `${nameOf(card)} reprend son illustration d'origine.`;
+  ui.fx = { list: [['.zoomwrap .zoomart', 'art-swap']] }; play('pick'); render();
+}
+// Bloc « Arts » de la carte ouverte en grand depuis la collection : l'origine et les arts possédés, à choisir ; ceux qui restent à trouver.
+function artsHTML(id) {
+  const all = artsOf(id); if (!all.length) return '';
+  const mine = myArts(id), cur = mySel(id), missing = all.length - mine.length;
+  const opt = (art, label, sub) => `<button class="artopt ${cur === (art?.id || null) ? 'on' : ''}" data-act="art-pick" data-card="${id}" data-art="${art?.id || ''}" aria-pressed="${cur === (art?.id || null)}" ${ui.busy ? 'disabled' : ''}>
+    <span class="artsw ${art ? `rar-${rarityKey(art)}` : ''}"></span><span><b>${esc(label)}</b>${sub ? ` <small class="hint">${sub}</small>` : ''}</span>${cur === (art?.id || null) ? '<span class="ok">✓</span>' : ''}</button>`;
+  return `<div class="zacts artbox"><span class="eyebrow">Arts de la carte · ${mine.length + 1}/${all.length + 1}</span>
+    <p class="hint">Purement cosmétique. Votre adversaire voit l'art choisi quand la carte est révélée.</p>
+    <div class="artopts">${opt(null, 'Illustration d\'origine', '')}${mine.map(x => opt(x, x.name, `${esc(rarityName(x))}${serial(x)}`)).join('')}</div>
+    ${missing ? `<p class="hint">${missing} autre${missing > 1 ? 's' : ''} art${missing > 1 ? 's' : ''} à trouver en boutique${all.some(x => x.edition === 'promo' && !ui.account.arts?.[x.id]) ? ' ou en récompense' : ''}.</p>` : ''}</div>`;
+}
+
 // ---- Calculs locaux pendant la planification ----
 const me = () => ui.view.me;
 const myGen = () => GENERALS[me().general];
@@ -355,11 +388,11 @@ function miniCard(c, opts = {}) {
   const cls = c.revealed ? (pw > d.power ? 'up' : pw < d.power ? 'down' : '') : '';
   const mv = opts.mine && moveOf(c.uid);
   const mobile = opts.mine && c.mobile && canPlay();
-  const lv = lvCls(levelIn(opts.mine || opts.pending ? ui.view.seat : 1 - ui.view.seat, c.id));
+  const seat = opts.mine || opts.pending ? ui.view.seat : 1 - ui.view.seat, lv = lvCls(levelIn(seat, c.id)), alt = ARTS[artIn(seat, c.id)];
   return `<div class="mc${lv} ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.drag === c.uid ? 'dragging' : ''}" style="${famVar(d.kw)}"
     data-card="${c.uid}" data-id="${c.id}" ${opts.pending ? 'data-pending="1"' : ''} ${mobile ? 'data-mobile="1"' : ''} title="${esc(d.name)}">
     ${mv ? `<span class="mv">→ ${ZONE_NAMES[mv.zone]}</span>` : mobile ? '<span class="mv" aria-label="Déplaçable">⇄</span>' : ''}
-    <span class="n">${esc(d.name)}</span>${d.type === 'C' ? `<span class="p num ${cls}">${pw}</span>` : `<span class="p" style="font-size:12px">Sort</span>`}</div>`;
+    ${alt ? `<span class="altgem rar-${rarityKey(alt)}" title="Art ${esc(rarityName(alt))}"></span>` : ''}<span class="n">${esc(d.name)}</span>${d.type === 'C' ? `<span class="p num ${cls}">${pw}</span>` : `<span class="p" style="font-size:12px">Sort</span>`}</div>`;
 }
 function slots(side, z, isMe) {
   const cards = side.board[z].map(c => miniCard(c, { mine: isMe }));
@@ -379,6 +412,8 @@ function terrainChip(side, z, isMe) {
 const badgeOf = seat => ui.view.badges?.[seat] || (seat === ui.view.seat && ui.account ? prog().badge : null);
 // Niveau d'une carte en partie : le sien vient du compte ; celui de l'adversaire, du serveur, une fois la carte révélée.
 const levelIn = (seat, id) => (seat === ui.view.seat ? myLevel(id) : badgeOf(seat)?.looks?.[id] || 1);
+// Art alternatif d'une carte en partie : le sien vient du compte ; celui de l'adversaire, du serveur, une fois la carte révélée.
+const artIn = (seat, id) => (seat === ui.view.seat ? mySel(id) : badgeOf(seat)?.arts?.[id] || null);
 // Image de profil : envoyée une fois par le serveur en ligne ; contre l'IA, la sienne seulement.
 const avatarOf = seat => (ui.mode === 'online' ? ui.avatars?.[seat] : null) || (seat === ui.view.seat ? ui.account?.avatar : null) || null;
 // Carte du général, toujours visible à côté du joueur. La sienne brille quand elle peut être activée.
@@ -386,9 +421,9 @@ function genSlot(side, isMe, canGen) {
   const g = GENERALS[side.general];
   const state = isMe && ui.genZone !== null ? 'armed' : g.activate && side.generalUsed ? 'used' : isMe && canGen ? 'ready' : '';
   const note = state === 'armed' ? 'Activé ce tour' : state === 'used' ? 'Utilisé' : g.activate ? `Activable${g.activateCost ? ` · ${g.activateCost} sceau` : ''}` : g.kind;
-  const lv = lvCls(levelIn(isMe ? ui.view.seat : 1 - ui.view.seat, side.general));
+  const seat = isMe ? ui.view.seat : 1 - ui.view.seat, lv = lvCls(levelIn(seat, side.general)), alt = ARTS[artIn(seat, side.general)];
   return `<button class="gencard${lv} ${state}" style="${famVar([g.fam])}" data-general="${side.general}" data-side="${isMe ? 'me' : 'foe'}" aria-label="Général : ${esc(g.name)}">
-    <span class="gk">Général</span><span class="gn">${esc(g.name)}</span><span class="gs">${esc(note)}</span></button>`;
+    ${alt ? `<span class="altgem rar-${rarityKey(alt)}" title="Art ${esc(rarityName(alt))}"></span>` : ''}<span class="gk">Général</span><span class="gn">${esc(g.name)}</span><span class="gs">${esc(note)}</span></button>`;
 }
 function pbar(side, isMe, connected, canGen = false) {
   const seat = isMe ? ui.view.seat : 1 - ui.view.seat, b = badgeOf(seat);
@@ -479,8 +514,9 @@ const costKey = id => GENERALS[id] ? -1 : CARDS[id].cost;
 const famRank = id => { const i = FAMILIES.indexOf(famOfCard(id)); return i < 0 ? FAMILIES.length : i; };
 const byFamCost = (a, b) => famRank(a) - famRank(b) || costKey(a) - costKey(b) || nameOf(a).localeCompare(nameOf(b));
 // Carte ou général, tel qu'il sort d'un booster ou s'affiche dans la collection.
-const anyCard = (id, lvl = 1) => GENERALS[id] ? genCard(id, lvl) : fullCard(id, lvl);
-const zoomKey = id => `${GENERALS[id] ? 'general' : 'card'}:${id}`;
+const anyCard = (id, lvl = 1, art = null) => GENERALS[id] ? genCard(id, lvl, art) : fullCard(id, lvl, art);
+// art : montrer cet art alternatif en grand (aperçu en boutique).
+const zoomKey = (id, art = '') => `${GENERALS[id] ? 'general' : 'card'}:${id}${art ? `:${art}` : ''}`;
 function renderLoading() {
   return `<div class="top"><span class="title">Jeu de cartes</span></div>
   <div class="card-box">${ui.error ? `${errLine()}<div class="row"><button class="btn primary" data-act="retry">Réessayer</button><button class="btn" data-act="logout">Changer de compte</button></div>` : '<p class="wait">Connexion…</p>'}</div>`;
@@ -556,7 +592,7 @@ function renderCollection() {
   const shown = OWNABLE.filter(id => !ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam).sort(byFamCost);
   const tile = id => { const n = owned(id), lvl = myLevel(id), up = canUpgrade(id);
     return `<button class="ccard ${n ? '' : 'locked'} ${n && (lvl > 1 || up) ? 'tagged' : ''}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? `, niveau ${lvl}${up ? ', peut monter de niveau' : ''}` : ', pas encore obtenue'}">
-      ${anyCard(id, n ? lvl : 1)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
+      ${anyCard(id, n ? lvl : 1, n ? mySel(id) : null)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
       ${n && (lvl > 1 || up) ? `<span class="lvtag num ${up ? 'up' : ''}">${lvl > 1 ? `Niv. ${lvl}` : ''}${up ? `${lvl > 1 ? ' · ' : ''}↑ Améliorer` : ''}</span>` : ''}</button>`; };
   return `<div class="top"><span class="title">Ma collection</span><button class="btn" data-act="edit">Modifier le deck</button><button class="btn" data-act="home">Retour</button></div>
   <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.length}, généraux compris. Touchez une carte pour la voir en grand et la faire monter de niveau avec l'essence de ses doublons.</p>
@@ -586,7 +622,33 @@ function renderShop() {
         ${sh.freeBoosters ? `<button class="btn primary" data-act="free-booster" data-set="${set.id}" ${ui.busy ? 'disabled' : ''}>Ouvrir un booster offert (${sh.freeBoosters})</button>` : ''}</div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
       <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`;
-  return `${top}${errLine()}${sh.sets.map(section).join('')}`;
+  return `${top}${errLine()}${artShopHTML(sh.arts)}${sh.sets.map(section).join('')}`;
+}
+// Arts alternatifs en boutique : offres du jour, éditions Limited, coffre. Payés en Éclats.
+function artShopHTML(A) {
+  if (!A) return '';
+  const a = ui.account;
+  const tile = (o, extra = '') => { const art = ARTS[o.id];
+    return `<div class="offer artoffer"><button class="ccard artthumb" data-zoom="${zoomKey(art.card, art.id)}" aria-label="Voir ${esc(art.name)} en grand">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</button>
+      <div class="artmeta">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}${owned(art.card) ? '' : ' · carte pas encore obtenue'}</small>${extra}</div>
+      <button class="btn ${o.owned ? '' : 'primary'}" data-act="buy-art" data-id="${o.id}" ${o.owned || a.shards < o.price || ui.busy || o.left === 0 ? 'disabled' : ''}>${o.owned ? `Dans votre collection${serial(art)}` : o.left === 0 ? 'Épuisée' : `Acheter · ${o.price} Éclats`}</button></div>`; };
+  const date = d => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  const limited = A.limited.length ? `<div class="gal-h">Édition ${LIMITED.name}</div>
+    <p class="hint" style="margin:0">Exemplaires numérotés, en nombre fixe pour tous les joueurs et en vente pour un temps seulement.</p>
+    <div class="gallery">${A.limited.map(o => tile(o, `<small class="hint num">${o.left}/${o.stock} exemplaires restants${o.until ? ` · jusqu'au ${date(o.until)}` : ''}</small>`)).join('')}</div>` : '';
+  const rates = A.chest.rates.map(r => `<li><span class="rarchip rar-${r.rarity}">${esc(r.name)}</span><span class="num">${String(r.pct).replace('.', ',')} %</span></li>`).join('');
+  return `<section class="card-box shopset artshop">
+    <div><span class="eyebrow">Cosmétique</span><h2 style="font-size:22px">Arts alternatifs</h2></div>
+    <p class="hint" style="margin:0">D'autres illustrations pour vos cartes, à choisir ensuite dans la collection. Votre adversaire les voit quand vos cartes sont révélées.</p>
+    <div class="gal-h">Arts du jour</div>
+    ${A.offers.length ? `<p class="hint" style="margin:0">Choisis pour vous parmi les arts que vous n'avez pas, renouvelés chaque jour à minuit.</p>
+      <div class="gallery">${A.offers.map(o => tile(o)).join('')}</div>` : '<p class="hint" style="margin:0">Vous avez tous les arts en vente. Revenez quand de nouveaux arriveront.</p>'}
+    ${limited}
+    <div class="gal-h">Coffre d'arts</div>
+    <div class="row chest"><div style="flex:1;display:grid;gap:6px"><p class="hint" style="margin:0">Un art que vous n'avez pas encore, au hasard. Chances selon la rareté :</p>
+      ${rates ? `<ul class="rates">${rates}</ul>` : ''}</div>
+      <button class="btn primary" data-act="chest" ${A.chest.left && a.shards >= A.chest.price && !ui.busy ? '' : 'disabled'}>${A.chest.left ? `Ouvrir · ${A.chest.price} Éclats` : 'Coffre vide pour vous'}</button></div>
+  </section>`;
 }
 
 // Liste des decks du joueur : jouer, modifier, renommer, remettre à zéro, supprimer, créer.
@@ -756,16 +818,17 @@ function renderLobby() {
     <button class="btn" data-act="quit">Annuler</button>
   </div>`;
 }
-function fullCard(id, lvl = 1) { const d = CARDS[id];
-  return `<div class="fc${lvCls(lvl)}" style="${famVar(d.kw)}">${artHTML(id, d.name, lvl)}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
+function fullCard(id, lvl = 1, art = null) { const d = CARDS[id];
+  return `<div class="fc${lvCls(lvl)}" style="${famVar(d.kw)}">${artHTML(id, d.name, lvl, '', art)}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
     <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
-const genCard = (k, lvl = 1) => { const g = GENERALS[k]; return `<div class="fc${lvCls(lvl)}" style="${famVar([g.fam])}">${artHTML(k, g.name, lvl)}<b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
+const genCard = (k, lvl = 1, art = null) => { const g = GENERALS[k]; return `<div class="fc${lvCls(lvl)}" style="${famVar([g.fam])}">${artHTML(k, g.name, lvl, '', art)}<b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
 const terrainCard = k => { const t = TERRAINS[k]; return `<div class="fc" style="${famVar([t.fam])}"><b>${t.name}</b><span class="k">Terrain</span><span class="x">${rich(t.text)}</span></div>`; };
 // Carte affichée en grand, avec les actions possibles sur elle pendant la planification.
+const artLine = art => (ARTS[art] ? ` · art ${esc(ARTS[art].name)} (${esc(rarityName(ARTS[art]))})` : '');
 function zoomBtns(acts) { return acts.length ? `<div class="zacts">${acts.join('')}</div>` : ''; }
 function zoomHTML() {
   const zm = ui.zoom, play = ui.view && canPlay();
-  let body = '', style = '', lvl = 1;
+  let body = '', style = '', lvl = 1, art = null;
   if (zm.kind === 'card') {
     const d = CARDS[zm.id];
     const inHand = ui.view && me().hand.find(c => c.uid === zm.uid);
@@ -774,7 +837,9 @@ function zoomHTML() {
     const cost = inHand ? (d.x ? 'X' : inHand.cost) : (d.x ? 'X' : d.cost);
     const pw = inHand ? inHand.power : onBoard && onBoard.revealed ? onBoard.power : d.power;
     const pcls = pw > d.power ? 'up' : pw < d.power ? 'down' : '';
-    lvl = !ui.view ? myLevel(zm.id) : onBoard ? levelIn(onBoard.side === 'me' ? ui.view.seat : 1 - ui.view.seat, zm.id) : myLevel(zm.id);
+    const seat = onBoard ? (onBoard.side === 'me' ? ui.view.seat : 1 - ui.view.seat) : null;
+    lvl = seat !== null ? levelIn(seat, zm.id) : myLevel(zm.id);
+    art = zm.art || (seat !== null ? artIn(seat, zm.id) : mySel(zm.id));
     const acts = [];
     if (play && inHand && !pend) {
       const left = sealsLeft(), cant = d.x ? left <= 0 : inHand.cost > left;
@@ -789,8 +854,8 @@ function zoomHTML() {
     style = famVar(d.kw);
     body = `
       <div class="zh"><span class="seal" title="Coût">${cost}</span><h2>${esc(d.name)}</h2>${d.type === 'C' ? `<span class="zp num ${pcls}" title="Puissance">${pw}</span>` : ''}</div>
-      <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · puissance de base ${d.power}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}</span>
-      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? upgradeHTML(zm.id) : ''}`;
+      <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · puissance de base ${d.power}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span>
+      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
   } else if (zm.kind === 'general') {
     const g = GENERALS[zm.id]; style = famVar([g.fam]);
     const acts = [];
@@ -802,21 +867,23 @@ function zoomHTML() {
       else acts.push(`<button class="btn primary" data-act="zgen" data-zone="0">Activer le général</button>`);
     }
     const deck = ui.view && (zm.mine ? me() : zm.side === 'foe' ? ui.view.foe : null)?.deckName;
-    lvl = ui.view && zm.side ? levelIn(zm.mine ? ui.view.seat : 1 - ui.view.seat, zm.id) : myLevel(zm.id);
-    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? upgradeHTML(zm.id) : ''}`;
+    const seat = ui.view && zm.side ? (zm.mine ? ui.view.seat : 1 - ui.view.seat) : null;
+    lvl = seat !== null ? levelIn(seat, zm.id) : myLevel(zm.id);
+    art = zm.art || (seat !== null ? artIn(seat, zm.id) : mySel(zm.id));
+    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
   } else {
     const t = TERRAINS[zm.id]; style = famVar([t.fam]);
     body = `<div class="zh"><h2>${t.name}</h2></div><span class="k">Terrain${t.fam ? ` · ${t.fam}` : ''}</span><p class="x">${rich(t.text)}</p>`;
   }
-  const art = zm.kind === 'terrain' ? '' : artHTML(zm.id, nameOf(zm.id), lvl, 'zoomart');
-  return `<div class="sheet zoom" data-act="close"><div class="zoomwrap" data-stop="1" style="${style}">${art}<div class="panel zoomcard${lvCls(lvl)}" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
+  const pic = zm.kind === 'terrain' ? '' : artHTML(zm.id, nameOf(zm.id), lvl, 'zoomart', art);
+  return `<div class="sheet zoom" data-act="close"><div class="zoomwrap" data-stop="1" style="${style}">${pic}<div class="panel zoomcard${lvCls(lvl)}" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
     <button class="btn" data-act="close">Fermer</button></div></div></div>`;
 }
 function openZoom(zoom) { ui.zoom = zoom; ui.sheet = 'zoom'; ui.zoomBack = null; ui.fx = { list: [['.zoomcard', 'zoom-in']] }; }
 // Ferme le panneau ouvert ; une carte ouverte depuis le codex y ramène.
 function closeSheet() {
   if (ui.sheet === 'inbox') closeInbox();
-  ui.sheet = ui.sheet === 'zoom' && ui.zoomBack ? ui.zoomBack : null; ui.zoom = null; ui.zoomBack = null; ui.renaming = null; render();
+  ui.sheet = ui.sheet === 'zoom' && ui.zoomBack ? ui.zoomBack : null; ui.zoom = null; ui.zoomBack = null; ui.renaming = null; ui.gotArt = null; ui.msg = ''; render();
 }
 function sheetHTML() {
   if (ui.sheet === 'zoom' && ui.zoom) return zoomHTML();
@@ -873,12 +940,22 @@ function sheetHTML() {
       ${levelBar(prog())}<div class="rewards">${prog().inbox.slice().reverse().map(rewardItem).join('')}</div>
       <div class="row"><button class="btn primary" data-act="close">Super !</button></div></div></div>`;
   }
+  if (ui.sheet === 'art' && ui.gotArt) {
+    const art = ARTS[ui.gotArt.id], on = mySel(art.card) === art.id;
+    return `<div class="sheet" data-act="close"><div class="panel gotart" data-stop="1"><div class="ph"><h2>${ui.gotArt.chest ? 'Coffre d\'arts' : 'Nouvel art'}</h2><button class="btn" data-act="close">Fermer</button></div>
+      <div class="row" style="gap:8px">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}${serial(art)}</small></div>
+      <div class="bcard gotcard">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</div>
+      ${ui.msg ? `<p class="hint" role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
+      <div class="row"><button class="btn ${on ? '' : 'primary'}" data-act="art-pick" data-card="${art.card}" data-art="${art.id}" ${on || ui.busy ? 'disabled' : ''}>${on ? 'Art utilisé ✓' : 'Utiliser cet art'}</button>
+        <button class="btn" data-act="close">Plus tard</button></div>
+      <p class="hint" style="margin:0">Vous pourrez changer d'art à tout moment depuis la carte, dans la collection.${owned(art.card) ? '' : ' Il s\'affichera dès que vous aurez la carte.'}</p></div></div>`;
+  }
   if (ui.sheet === 'booster' && ui.booster) {
     const { title, cards, fresh, shards, xp } = ui.booster, n = fresh.filter(Boolean).length;
     const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats${ui.booster.essence ? ` et ${ui.booster.essence} essence` : ''} gagnés avec les doublons` : '', xp ? `${xp} XP` : ''].filter(Boolean).join(', ');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${esc(title)}</h2><button class="btn" data-act="close">Fermer</button></div>
       <p class="hint" style="margin:0">${sum}.</p>
-      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats${lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}</span>`}${anyCard(id, myLevel(id))}</div>`).join('')}</div></div></div>`;
+      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats${lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}</span>`}${anyCard(id, myLevel(id), mySel(id))}</div>`).join('')}</div></div></div>`;
   }
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;
@@ -1171,6 +1248,9 @@ app.addEventListener('click', e => {
     else if (a === 'buy-card' && !ui.busy) buy('/api/shop/card', { set: ds.set, card: ds.id });
     else if (a === 'buy-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set });
     else if (a === 'free-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set, free: true });
+    else if (a === 'buy-art' && !ui.busy) buyArt('/api/shop/art', { art: ds.id });
+    else if (a === 'chest' && !ui.busy) buyArt('/api/shop/chest', {});
+    else if (a === 'art-pick' && !ui.busy) selectArt(ds.card, ds.art);
     else if (a === 'reroll' && !ui.busy) call('POST', '/api/missions/reroll', { index: +ds.i });
     else if (a === 'edit') { editDeck(ui.account.active, ui.screen === 'collection' ? 'collection' : 'home'); render(); }
     else if (a === 'home') { ui.screen = 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
@@ -1190,7 +1270,7 @@ app.addEventListener('click', e => {
   if (ds.frame !== undefined && !ui.busy) { equip({ frame: ds.frame || null }, 'Cadre changé.'); return; }
   if (ds.back && !ui.busy) { equip({ back: ds.back }, 'Dos de carte changé.'); return; }
   if (ds.fam !== undefined) { ui.colFam = ds.fam; render(); return; }
-  if (ds.zoom) { const [kind, id] = ds.zoom.split(':'); const back = ui.sheet === 'codex' ? 'codex' : null; openZoom({ kind, id }); ui.zoomBack = back; ui.msg = ''; render(); return; }
+  if (ds.zoom) { const [kind, id, art] = ds.zoom.split(':'); const back = ui.sheet === 'codex' ? 'codex' : null; openZoom({ kind, id, art: art || null }); ui.zoomBack = back; ui.msg = ''; render(); return; }
   if (ds.pick) { togglePick(ds.pick); return; }
   if (ds.tpick) { toggleTerrain(ds.tpick); return; }
   if (ds.gpick) { ui.edit.general = ds.gpick; ui.msg = '';

@@ -7,9 +7,12 @@ import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, ACHIEVEMENTS, familyReward, S
 import { SETS, STARTERS, OWNABLE, allowedGenerals, today } from '@jeu/engine/collection';
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { TIERS, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonCosmetics } from '@jeu/engine/ranked';
+import { artExists } from '@jeu/engine/arts';
 import { HttpError } from './accounts.js';
 
 const INBOX_MAX = 40;
+// Art alternatif choisi pour chacune de ces cartes, s'il est toujours possédé (arts.js).
+const shownArts = (a, ids) => Object.fromEntries(ids.filter(id => id && a.artSel?.[id] && a.arts?.[a.artSel[id]] && artExists(a.artSel[id])).map(id => [id, a.artSel[id]]));
 const newStats = () => ({ games: 0, wins: 0, pvpWins: 0, pveWins: 0, streak: 0, bestStreak: 0, missions: 0, famWins: {}, day: null, dayGames: 0 });
 
 export function createProgress(store) {
@@ -255,8 +258,10 @@ export function createProgress(store) {
   const levelView = a => ({ level: a.level || 1, xp: a.xp || 0, xpNext: xpToNext(a.level || 1, cfg()) });
   // Ce qu'un adversaire voit du joueur pendant une partie. looks : niveau des cartes du deck joué et de son général (niveau 2 et plus) ;
   // le serveur n'envoie à l'adversaire que ceux des cartes déjà révélées (index.js).
+  // arts : art alternatif choisi pour ces mêmes cartes, filtré de la même façon.
   const badge = (a, deck = null) => ({ title: a.title ? TITLES[a.title] || null : null, frame: a.frame || null, back: a.back || 'classique', level: a.level || 1,
-    looks: deck ? Object.fromEntries([...deck.cards, deck.general].filter(id => id && (a.cardLevels?.[id] || 1) > 1).map(id => [id, a.cardLevels[id]])) : {} });
+    looks: deck ? Object.fromEntries([...deck.cards, deck.general].filter(id => id && (a.cardLevels?.[id] || 1) > 1).map(id => [id, a.cardLevels[id]])) : {},
+    arts: deck ? shownArts(a, [...deck.cards, deck.general]) : {} });
   function view(a) {
     if (!a.level) return { ...levelView(a), freeBoosters: 0, missions: [], rerollsLeft: 0, inbox: [], badge: badge(a), cosmetics: { titles: [], frames: [], backs: [] }, cardLevels: levelsView() };
     const ms = missions(a), c = cfg();

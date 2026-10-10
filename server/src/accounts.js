@@ -4,7 +4,9 @@ import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers } from '@jeu/engine/collection';
 import { pick, CARDS, GENERALS } from '@jeu/engine';
+import { ART_RARITIES, RARITY_IDS } from '@jeu/engine/arts';
 import { createProgress } from './progress.js';
+import { createArts } from './arts.js';
 
 const MAX_SESSIONS = 10;
 // scrypt en asynchrone : le calcul (volontairement lent) ne bloque pas les parties en cours pendant une connexion.
@@ -15,8 +17,11 @@ const cleanLogin = s => String(s || '').trim().toLowerCase();
 const LOGIN_RE = /^[a-z0-9._-]{2,24}$/;
 
 // Réglages de la boutique modifiables depuis /admin. « rotation » change à chaque renouvellement forcé des offres du jour.
-export const DEFAULT_SETTINGS = { cardPrice: SHOP.cardPrice, boosterPrice: SHOP.boosterPrice, dailyCards: SHOP.dailyCards, boosterSize: SHOP.boosterSize, shardsPerDuplicate: SHARDS_PER_DUPLICATE, rotation: 0 };
-const SETTING_LIMITS = { cardPrice: [0, 100000], boosterPrice: [0, 100000], dailyCards: [1, 10], boosterSize: [1, 10], shardsPerDuplicate: [0, 10000] };
+// Arts alternatifs : nombre d'offres du jour, prix du coffre et prix de chaque rareté (artPrice_<rareté>).
+export const DEFAULT_SETTINGS = { cardPrice: SHOP.cardPrice, boosterPrice: SHOP.boosterPrice, dailyCards: SHOP.dailyCards, boosterSize: SHOP.boosterSize, shardsPerDuplicate: SHARDS_PER_DUPLICATE,
+  artOffers: 4, chestPrice: 350, ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, ART_RARITIES[r].price])), rotation: 0 };
+const SETTING_LIMITS = { cardPrice: [0, 100000], boosterPrice: [0, 100000], dailyCards: [1, 10], boosterSize: [1, 10], shardsPerDuplicate: [0, 10000],
+  artOffers: [0, 12], chestPrice: [0, 100000], ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, [0, 100000]])) };
 
 // Decks du joueur : jusqu'à MAX_DECKS, chacun avec un identifiant ; « active » désigne celui qui est joué.
 const newDeckId = () => randomBytes(4).toString('hex');
@@ -38,9 +43,11 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   deck: activeDeck(a), decks: (a.decks || []).map(cleanDeck), active: activeDeck(a)?.id || null, maxDecks: MAX_DECKS,
   boosterReady: a.starter !== null && a.lastBooster !== today(), shardRate: cfg.shardsPerDuplicate,
   // Niveaux de carte (cosmétiques) : essence de chaque carte et niveau atteint (1 si absent).
-  essence: a.essence || {}, cardLevels: a.cardLevels || {} });
+  essence: a.essence || {}, cardLevels: a.cardLevels || {},
+  // Arts alternatifs possédés (avec le numéro d'une Limited) et art choisi pour chaque carte.
+  arts: a.arts || {}, artSel: a.artSel || {} });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'arts', 'artSel', 'artShop'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte.
 function addCards(a, ids, rate, essenceRate) {
@@ -67,7 +74,7 @@ export function createAccounts(store) {
   // Un compte désactivé n'a plus de session valable.
   const byToken = token => { const login = sessions.get(String(token || '')); const a = login && store.get(login); return a && !a.disabled ? a : null; };
   const cfg = () => ({ ...DEFAULT_SETTINGS, ...store.doc('jeu') });
-  const progress = createProgress(store);
+  const progress = createProgress(store), arts = createArts(store, cfg);
   // Version du catalogue de cartes publié : l'appli recharge les cartes quand elle change.
   let catalogVersion = 0;
   const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a) });
@@ -135,7 +142,8 @@ export function createAccounts(store) {
   }
   function shopView(a) {
     const c = cfg();
-    return { shards: a.shards || 0, freeBoosters: a.freeBoosters || 0, prices: { dailyCards: c.dailyCards, cardPrice: c.cardPrice, boosterPrice: c.boosterPrice, boosterSize: c.boosterSize, shardsPerDuplicate: c.shardsPerDuplicate }, sets: SETS.map(set => ({ id: set.id, name: set.name, open: set.open, teaser: set.teaser || '', size: set.cards.length,
+    return { shards: a.shards || 0, freeBoosters: a.freeBoosters || 0, prices: { dailyCards: c.dailyCards, cardPrice: c.cardPrice, boosterPrice: c.boosterPrice, boosterSize: c.boosterSize, shardsPerDuplicate: c.shardsPerDuplicate },
+      arts: a.starter ? arts.view(a) : null, sets: SETS.map(set => ({ id: set.id, name: set.name, open: set.open, teaser: set.teaser || '', size: set.cards.length,
       offers: set.open ? shopDay(a, set).offers.map(id => ({ id, bought: shopDay(a, set).bought.includes(id), owned: !!a.cards[id] })) : [] })) };
   }
   function openSet(a, id) {
@@ -170,6 +178,21 @@ export function createAccounts(store) {
     await store.put(a);
     return { title: `${free ? 'Booster offert' : 'Booster'} ${set.name}`, cards, ...got, shop: shopView(a), account: me(a) };
   }
+  // Arts alternatifs : achat (offre du jour ou Limited), coffre, choix de l'art d'une carte.
+  async function buyArt(a, body) {
+    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    const art = arts.buy(a, body || {}, pay);
+    await store.put(a);
+    return { art: art.id, shop: shopView(a), account: me(a) };
+  }
+  async function openChest(a) {
+    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    const art = arts.chest(a, pay);
+    await store.put(a);
+    return { art: art.id, chest: true, shop: shopView(a), account: me(a) };
+  }
+  async function selectArt(a, body) { arts.select(a, body || {}); await store.put(a); return { account: me(a) }; }
+
   // Decks : créer (sans id) ou enregistrer un deck, même incomplet ; seul un deck complet peut être joué.
   const deckName = (name, fallback) => String(name ?? '').trim().slice(0, 30) || fallback;
   function ownDeck(a, id) {
@@ -265,7 +288,7 @@ export function createAccounts(store) {
   // inDecks : cartes présentes dans au moins un deck du joueur (elles ne peuvent pas être retirées de sa collection).
   const adminDetail = a => ({ ...adminView(a), owned: Object.keys(a.cards).filter(id => a.cards[id]), deck: activeDeck(a), decks: (a.decks || []).length,
     inDecks: [...new Set((a.decks || []).flatMap(d => [...d.cards, d.general].filter(Boolean)))],
-    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? deckError(activeDeck(a), a) : null });
+    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? deckError(activeDeck(a), a) : null, arts: a.arts || {} });
   const target = login => { const a = store.get(cleanLogin(login)); if (!a) throw new HttpError(404, 'Compte introuvable.'); return a; };
   const closeSessions = a => { for (const t of a.tokens || []) sessions.delete(t); a.tokens = []; };
   const done = async a => { await store.put(a); return { account: adminDetail(a) }; };
@@ -313,7 +336,9 @@ export function createAccounts(store) {
     return done(a);
   }
   async function adminBooster({ login }) { const a = target(login); a.lastBooster = null; return done(a); }
-  async function adminShopReset({ login }) { const a = target(login); a.shop = {}; return done(a); }
+  async function adminShopReset({ login }) { const a = target(login); a.shop = {}; delete a.artShop; return done(a); }
+  // Donner (Promo) ou retirer un art alternatif.
+  async function adminArt({ login, art, give }) { const a = target(login); arts.adminGive(a, { art, give }); return done(a); }
   async function adminLogout({ login }) { const a = target(login); closeSessions(a); return done(a); }
   async function adminDelete({ login }) {
     const a = target(login); closeSessions(a);
@@ -335,9 +360,9 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, arts, buyArt, openChest, selectArt, adminArt, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
-    adminUpdate, adminCards, adminStarter, adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
+    adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
     nameOf: login => store.get(login)?.name, ownersOf: id => store.all().filter(a => a.cards[id]).map(a => a.login),
     setCatalogVersion: v => { catalogVersion = v; } };
@@ -364,6 +389,9 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'GET /api/shop': a => accounts.shop(a),
     'POST /api/shop/card': (a, body) => accounts.buyCard(a, body),
     'POST /api/shop/booster': (a, body) => accounts.buyBooster(a, body),
+    'POST /api/shop/art': (a, body) => accounts.buyArt(a, body),
+    'POST /api/shop/chest': a => accounts.openChest(a),
+    'PUT /api/arts/select': (a, body) => accounts.selectArt(a, body),
     'POST /api/missions/reroll': (a, body) => accounts.reroll(a, body),
     'POST /api/rewards/seen': a => accounts.seen(a),
     'PUT /api/cosmetics': (a, body) => accounts.equip(a, body),
@@ -379,6 +407,8 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/admin/account/shop': (_, body) => accounts.adminShopReset(body),
     'POST /api/admin/account/logout': (_, body) => accounts.adminLogout(body),
     'POST /api/admin/account/delete': (_, body) => accounts.adminDelete(body),
+    'POST /api/admin/account/art': (_, body) => accounts.adminArt(body),
+    'GET /api/admin/arts': () => accounts.adminArts(),
     'GET /api/admin/settings': () => accounts.settings(),
     'POST /api/admin/settings': (_, body) => accounts.adminSettings(body),
     'GET /api/admin/rewards': () => accounts.progress.settings(),

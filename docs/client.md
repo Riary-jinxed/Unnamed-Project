@@ -19,8 +19,8 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 | `loading`, `login` | `renderLoading`, `renderLogin` | Démarrage, connexion. |
 | `starter` | `renderStarter` | Choix du deck de départ (première connexion). |
 | `home` | `renderHome` | Booster du jour, niveau et missions, deck joué, boutique, rang classé, parties, tutoriel et codex. |
-| `collection` | `renderCollection` | Toutes les cartes, par famille, celles qui manquent grisées ; niveau de chaque carte. Une carte ouverte en grand y monte de niveau (`upgradeHTML`). |
-| `shop` | `renderShop` | Cartes du jour et boosters de chaque set. |
+| `collection` | `renderCollection` | Toutes les cartes, par famille, celles qui manquent grisées ; niveau de chaque carte. Une carte ouverte en grand y change d'art (`artsHTML`) et monte de niveau (`upgradeHTML`). |
+| `shop` | `renderShop` | Arts alternatifs (`artShopHTML` : arts du jour, éditions Limited, coffre avec ses chances), puis cartes du jour et boosters de chaque set. Un art obtenu s'affiche dans la feuille `art`, avec « Utiliser cet art ». |
 | `decks`, `deck` | `renderDecks`, `renderDeck` | Liste des decks ; création en trois étapes (général, terrains, cartes). |
 | `profile` | `renderProfile` | Pseudo, image, titre, cadre, dos, stats, succès, familles. |
 | `friends` | `friends.screen` (`friends.js`) | Ajouter un ami, demandes reçues et envoyées, amis avec leur statut, défier (normal ou classé), retirer. |
@@ -48,7 +48,7 @@ Une partie est pilotée par un « contrôleur » qui offre `submit(plan)`, `rema
 
 Pendant la préparation, l'appli refait les calculs simples pour guider le joueur (sceaux restants, emplacements libres) ; le serveur refait tout de son côté.
 
-À chaque nouvelle vue, `viewEffects(avant, après)` compare les deux et prépare les animations (carte révélée, détruite, déplacée, puissance qui monte ou baisse, terrain révélé) et les bruitages (`sfx.js`, synthétisés avec Web Audio). Niveaux de carte : `lvCls(niveau)` ajoute la bordure (`.lv-bronze` … `.lv-astral`, `style.css`) aux cartes de la main, du plateau, aux généraux et aux cartes de la collection ; `levelIn(siège, id)` lit son niveau dans le compte, celui de l'adversaire dans `badges[siège].looks`. Une carte de niveau 5 révélée joue en plus son effet de mise en jeu (`burstAt`, bruitage `astral`). Le glisser-déposer d'une carte vers une zone s'ajoute au toucher (sélectionner, puis toucher la zone). En partie, une touche sélectionne une carte de la main ou une créature ⇄ (une deuxième la désélectionne), une touche sur une carte posée ce tour la reprend en main, et une double touche (`doubleTap`) ouvre n'importe quelle carte en grand.
+À chaque nouvelle vue, `viewEffects(avant, après)` compare les deux et prépare les animations (carte révélée, détruite, déplacée, puissance qui monte ou baisse, terrain révélé) et les bruitages (`sfx.js`, synthétisés avec Web Audio). Niveaux de carte : `lvCls(niveau)` ajoute la bordure (`.lv-bronze` … `.lv-astral`, `style.css`) aux cartes de la main, du plateau, aux généraux et aux cartes de la collection ; `levelIn(siège, id)` lit son niveau dans le compte, celui de l'adversaire dans `badges[siège].looks`. Arts alternatifs : `artIn(siège, id)` lit l'art choisi de la même façon (compte, ou `badges[siège].arts`) ; la carte en grand le montre (`artHTML(…, art)`, `art.js`) et une petite pastille de la couleur de sa rareté (`.altgem`) le signale sur le plateau. Une carte de niveau 5 révélée joue en plus son effet de mise en jeu (`burstAt`, bruitage `astral`). Le glisser-déposer d'une carte vers une zone s'ajoute au toucher (sélectionner, puis toucher la zone). En partie, une touche sélectionne une carte de la main ou une créature ⇄ (une deuxième la désélectionne), une touche sur une carte posée ce tour la reprend en main, et une double touche (`doubleTap`) ouvre n'importe quelle carte en grand.
 
 ## Amis (`friends.js`)
 

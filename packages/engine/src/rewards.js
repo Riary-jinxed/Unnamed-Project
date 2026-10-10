@@ -73,7 +73,7 @@ export const BACKS = { classique: 'Dos classique', ange: 'Dos céleste', demon: 
 // Purement cosmétiques : la carte joue pareil à tous les niveaux. Chaque doublon donne de l'essence propre à la carte (ou au général) ;
 // l'essence et des Éclats font monter la carte de niveau. L'adversaire voit le niveau des cartes que vous révélez.
 // look : classe CSS de la bordure (style.css, « .lv-… ») ; fx : effet joué quand la carte est révélée.
-// Les futurs arts alternatifs se rangeront à côté (compte : « arts ») sans toucher aux niveaux.
+// Les arts alternatifs (arts.js) se rangent à côté (compte : « arts », « artSel ») sans toucher aux niveaux.
 export const CARD_LEVELS = [
   null,
   { name: 'Base', look: null, perk: 'Aspect d\'origine' },

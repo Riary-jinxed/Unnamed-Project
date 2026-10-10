@@ -18,6 +18,7 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `@jeu/engine/collection` | `collection.js` | Deck de départ, boosters, règles de deck, sets, boutique, jour courant. |
 | `@jeu/engine/catalog` | `catalog.js` | Catalogue modifiable depuis `/admin` (retouches, nouvelles cartes, sets). |
 | `@jeu/engine/rewards` | `rewards.js` | Niveaux, missions, succès, récompenses de complétion, titres, cadres, dos. |
+| `@jeu/engine/arts` | `arts.js` | Arts alternatifs : catalogue, raretés, éditions Limited et Promo, offres du jour, coffre. |
 
 ## Carte des fichiers
 
@@ -36,6 +37,7 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `server/src/progress.js` | ~235 | XP, niveaux, missions, succès, complétions, cosmétiques. |
 | `server/src/games.js` | ~90 | Historique des parties, statistiques admin et profil. |
 | `server/src/friends.js` | ~170 | Amis, présence en ligne et défis entre amis. |
+| `server/src/arts.js` | ~95 | Arts alternatifs : offres du jour, Limited numérotées, coffre, choix de l'art d'une carte, dons depuis `/admin`. |
 | `server/src/cards.js` | ~50 | Brouillon et publication du catalogue de cartes. |
 | `client/src/main.js` | ~1000 | Toute l'appli joueur : état, écrans, partie, animations, interactions. |
 | `client/src/net.js` | 30 | Connexion WebSocket avec reconnexion automatique. |
