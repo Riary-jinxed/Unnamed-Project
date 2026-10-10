@@ -271,16 +271,19 @@ function rewardItem(r) {
   return `<div class="reward"><div><b>${esc(r.label)}</b>${gains(r) ? `<div class="num">${gains(r)}</div>` : ''}${extra ? `<div class="hint">${extra}</div>` : ''}</div>
     ${r.card ? `<button class="ccard" data-zoom="${zoomKey(r.card)}">${anyCard(r.card)}</button>` : ''}</div>`;
 }
+// Icônes des monnaies (style.css, .ico-…) : Éclat, Prisme, coffre d'arts.
+const ico = kind => `<span class="ico ico-${kind}" aria-hidden="true"></span>`;
 // Calendrier du mois : une case par jour, semaine du lundi au dimanche. Dimanche : coffre d'arts (et parfois des Prismes).
 function calendarHTML(cal) {
   const [y, m] = cal.month.split('-').map(Number), lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
-  const what = d => (d.chests ? `<span class="calchest" aria-hidden="true"></span><small>Coffre${d.prisms ? ` + ${d.prisms} P` : ''}</small>` : `<small class="num">${d.shards} É</small>`);
+  const what = d => (d.chests ? `<span class="calgain">${ico('chest')}${d.prisms ? `<small class="num">+${d.prisms}</small>${ico('prism')}` : ''}</span>`
+    : `<span class="calgain"><small class="num">${d.shards}</small>${ico('shard')}</span>`);
   const label = d => [`${d.day}`, d.chests ? `coffre d'arts${d.prisms ? ` et ${d.prisms} Prismes` : ''}` : `${d.shards} Éclats`, d.got ? 'récupéré' : d.missed ? 'manqué' : d.day === cal.today ? 'aujourd\'hui' : ''].filter(Boolean).join(', ');
   const cell = d => `<div class="calday ${d.chests ? 'sun' : ''} ${d.got ? 'got' : ''} ${d.missed ? 'missed' : ''} ${d.day === cal.today ? 'today' : ''}" aria-label="${label(d)}">
     <span class="num cdn">${d.day}</span>${what(d)}${d.got ? '<span class="ok">✓</span>' : ''}</div>`;
   const g = ui.calGot;
   return `<div class="sheet" data-act="close"><div class="panel calendar" data-stop="1" role="dialog" aria-label="Calendrier du mois"><div class="ph"><h2>Calendrier de ${esc(cal.name)}</h2><button class="btn" data-act="close">Fermer</button></div>
-    <p class="hint" style="margin:0">Connectez-vous chaque jour pour récupérer sa récompense : des Éclats en semaine, un coffre d'arts chaque dimanche, et des Prismes en plus un dimanche sur deux. Un jour manqué est perdu ; tout repart le 1er du mois.</p>
+    <p class="hint" style="margin:0">Connectez-vous chaque jour pour récupérer sa récompense : des Éclats ${ico('shard')} en semaine, un coffre d'arts ${ico('chest')} chaque dimanche, et des Prismes ${ico('prism')} en plus un dimanche sur deux. Un jour manqué est perdu ; tout repart le 1er du mois.</p>
     <div class="calgrid">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span class="calh">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${cal.days.map(cell).join('')}</div>
     ${g ? `<p role="status" style="margin:0"><b>Récupéré : ${gains(g)}.</b>${g.chests ? ' Le coffre vous attend dans la boutique, onglet Arts.' : ''}</p>` : ''}
     ${errLine()}
@@ -593,7 +596,7 @@ function renderHome() {
   const nav = (act, label, badge) => `<button data-act="${act}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
   return `
   <div class="top"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button><span class="title">Jeu de cartes</span>
-    <button class="chip num" data-act="shop" aria-label="${a.shards} Éclats, ouvrir la boutique">${a.shards} Éclats</button>${muteBtn()}</div>
+    <button class="chip num cur" data-act="shop" aria-label="${a.shards} Éclats, ouvrir la boutique">${ico('shard')}${a.shards}</button>${muteBtn()}</div>
   <div class="setup home">
     ${gift}
     <div class="card-box play">
@@ -641,7 +644,7 @@ function renderCollection() {
 function renderShop() {
   const sh = ui.shop, a = ui.account, tab = ui.shopTab === 'arts' && sh?.arts ? 'arts' : 'sets';
   const tabBtn = (id, label, badge) => `<button role="tab" data-act="shop-tab" data-tab="${id}" class="${tab === id ? 'on' : ''}" aria-selected="${tab === id}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
-  const top = `<div class="top"><span class="title">Boutique</span><span class="chip num">${a.shards} Éclats</span>${sh?.arts ? `<span class="chip num prism">${sh.arts.prisms} Prisme${sh.arts.prisms > 1 ? 's' : ''}</span>` : ''}<button class="btn" data-act="home">Retour</button></div>
+  const top = `<div class="top"><span class="title">Boutique</span><span class="chip num cur" title="Éclats" aria-label="${a.shards} Éclats">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="Prismes" aria-label="${sh.arts.prisms} Prismes">${ico('prism')}${sh.arts.prisms}</span>` : ''}<button class="btn" data-act="home">Retour</button></div>
     ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}</div>` : ''}`;
   if (!sh) return `${top}${errLine()}<p class="wait">Chargement…</p>`;
   if (tab === 'arts') return `${top}${errLine()}${artShopHTML(sh.arts)}`;

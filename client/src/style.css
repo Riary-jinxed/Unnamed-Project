@@ -630,4 +630,14 @@ body:has(#app.ingame) { margin: 0; }
 .calday.missed { opacity: .4; }
 .calday.got { background: color-mix(in srgb, var(--up) 14%, var(--surface)); }
 .calday .ok { position: absolute; top: 2px; right: 4px; color: var(--up); font-size: 11px; }
-.calchest { width: 18px; height: 13px; border-radius: 3px 3px 2px 2px; background: linear-gradient(#b48a3c 0 40%, #6b4a1a 40% 48%, #b48a3c 48%); border: 1px solid #5a3a10; }
+
+/* Icônes des monnaies : Éclat (cristal ambré), Prisme (prisme violet), coffre d'arts */
+.ico { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -0.2em; background: center / contain no-repeat; flex: none; }
+.ico-shard { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1 16 7 10 19 4 7Z' fill='%23e0a530' stroke='%238a5a10' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M4 7h12M10 1 8 7l2 12 2-12Z' fill='none' stroke='%238a5a10' stroke-width='.9' stroke-linejoin='round'/%3E%3Cpath d='M8 7 10 1 6 6Z' fill='%23fff3c4' opacity='.8'/%3E%3C/svg%3E"); }
+.ico-prism { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1.5 18.5 17.5H1.5Z' fill='%239b6ee8' stroke='%234a2590' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M10 1.5 13 17.5' stroke='%234a2590' stroke-width='.9'/%3E%3Cpath d='M10 1.5 13 17.5H18.5Z' fill='%236a3fc0'/%3E%3Cpath d='M9 6 5 14' stroke='%23efe4ff' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E"); }
+.ico-chest { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M2 8a5 4 0 0 1 5-4h6a5 4 0 0 1 5 4v2H2Z' fill='%23c4934a' stroke='%235a3a10' stroke-width='1.1'/%3E%3Crect x='2' y='10' width='16' height='7' rx='1' fill='%23a87634' stroke='%235a3a10' stroke-width='1.1'/%3E%3Cpath d='M2 10h16' stroke='%23e0b860' stroke-width='1.6'/%3E%3Crect x='8.5' y='8.5' width='3' height='4' rx='.6' fill='%23f2d27a' stroke='%235a3a10' stroke-width='.8'/%3E%3C/svg%3E"); }
+.chip.cur { display: inline-flex; align-items: center; gap: 4px; }
+.calgain { display: inline-flex; align-items: center; gap: 2px; }
+.calday .ico { width: 15px; height: 15px; }
+.calday.sun .ico-chest { width: 20px; height: 20px; }
+.calday.sun .calgain { flex-wrap: wrap; justify-content: center; row-gap: 0; }
