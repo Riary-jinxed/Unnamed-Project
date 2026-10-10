@@ -26,6 +26,8 @@ export const DEFAULT_REWARDS = {
   rankShardsBronze: 50, rankShardsArgent: 100, rankShardsOr: 200, rankShardsPlatine: 350, rankShardsDiamant: 500, rankShardsMaitre: 800,
   // Prismes (monnaie rare des arts alternatifs, arts.js) de fin de saison selon le meilleur palier atteint.
   rankPrismsBronze: 0, rankPrismsArgent: 5, rankPrismsOr: 10, rankPrismsPlatine: 20, rankPrismsDiamant: 30, rankPrismsMaitre: 50,
+  // Calendrier de connexion du mois (loginReward) : Éclats en semaine, coffres d'arts le dimanche, Prismes les 2e et 4e dimanches.
+  loginShards: 15, loginChests: 1, loginPrisms: 5,
 };
 export const REWARD_LIMITS = {
   xpBase: [10, 100000], xpStep: [0, 100000], xpCap: [10, 1000000], levelShards: [0, 100000], boosterEvery: [0, 100],
@@ -38,6 +40,7 @@ export const REWARD_LIMITS = {
   lvl4Essence: [0, 10000], lvl4Shards: [0, 100000], lvl5Essence: [0, 10000], lvl5Shards: [0, 100000],
   rankShardsBronze: [0, 100000], rankShardsArgent: [0, 100000], rankShardsOr: [0, 100000], rankShardsPlatine: [0, 100000], rankShardsDiamant: [0, 100000], rankShardsMaitre: [0, 100000],
   rankPrismsBronze: [0, 10000], rankPrismsArgent: [0, 10000], rankPrismsOr: [0, 10000], rankPrismsPlatine: [0, 10000], rankPrismsDiamant: [0, 10000], rankPrismsMaitre: [0, 10000],
+  loginShards: [0, 10000], loginChests: [0, 10], loginPrisms: [0, 10000],
 };
 
 // XP pour passer du niveau `level` au suivant.
@@ -128,7 +131,8 @@ export const familyOf = id => (GENERALS[id] ? GENERALS[id].fam : CARDS[id]?.kw.f
 // ---- Succès ----
 // stat : compteur du compte comparé à goal. Éclats et Prismes se règlent dans /admin ; titres et cadres sont fixes.
 // prisms : Prismes (monnaie des arts alternatifs), surtout pour les succès difficiles ; un peu pour les faciles.
-const A = (id, group, label, stat, goal, shards, extra = {}) => ({ id, group, label, stat, goal, shards, prisms: 0, ...extra });
+// chests : coffres d'arts offerts, réservés aux succès les plus rares.
+const A = (id, group, label, stat, goal, shards, extra = {}) => ({ id, group, label, stat, goal, shards, prisms: 0, chests: 0, ...extra });
 export const ACHIEVEMENTS = [
   A('lvl5', 'Niveau', 'Atteindre le niveau 5', 'level', 5, 100, { prisms: 2, title: 'Apprenti' }),
   A('lvl10', 'Niveau', 'Atteindre le niveau 10', 'level', 10, 200, { prisms: 5, frame: 'bronze' }),
@@ -155,6 +159,29 @@ export const ACHIEVEMENTS = [
     ['Ange', 'Voix des cieux'], ['Démon', 'Signataire du pacte'], ['Gobelin', 'Meneur de horde'], ['Elfe', 'Gardien des bois'],
     ['Dragon', 'Dompteur de dragons'], ['Mort-vivant', 'Nécromant'], ['Vampire', 'Enfant de la nuit'],
   ].map(([fam, title]) => A(`fam_${famKey(fam)}`, 'Familles', `Gagner 10 parties avec un général ${fam}`, `famWins.${fam}`, 10, 150, { title, prisms: 5 })),
+  A('art1', 'Arts alternatifs', 'Obtenir un premier art alternatif', 'arts', 1, 50, { title: 'Esthète' }),
+  A('art10', 'Arts alternatifs', 'Posséder 10 arts alternatifs', 'arts', 10, 300, { prisms: 10 }),
+  A('art20', 'Arts alternatifs', 'Posséder 20 arts alternatifs', 'arts', 20, 600, { chests: 1, title: 'Mécène' }),
+  A('artLeg', 'Arts alternatifs', 'Obtenir un art légendaire', 'legendArts', 1, 200, { prisms: 10, title: 'Œil d\'or' }),
+  A('chest10', 'Arts alternatifs', 'Ouvrir 10 coffres d\'arts', 'chests', 10, 200, { prisms: 10 }),
+  A('up1', 'Niveaux de carte', 'Monter une carte au niveau 2', 'upgraded', 1, 50, { prisms: 1 }),
+  A('up10', 'Niveaux de carte', 'Monter 10 cartes au niveau 2 ou plus', 'upgraded', 10, 200, { prisms: 5 }),
+  A('max1', 'Niveaux de carte', 'Monter une carte au niveau maximum', 'maxCards', 1, 300, { prisms: 10, title: 'Orfèvre' }),
+  A('max10', 'Niveaux de carte', 'Monter 10 cartes au niveau maximum', 'maxCards', 10, 800, { chests: 1, title: 'Maître artisan' }),
+  A('rk1', 'Classé', 'Gagner une partie classée', 'rankedWins', 1, 50, { prisms: 2 }),
+  A('rk50', 'Classé', 'Gagner 50 parties classées', 'rankedWins', 50, 400, { prisms: 15, title: 'Habitué de l\'arène' }),
+  A('tier_or', 'Classé', 'Atteindre le palier Or', 'bestTier', 2, 200, { prisms: 5 }),
+  A('tier_diamant', 'Classé', 'Atteindre le palier Diamant', 'bestTier', 4, 600, { prisms: 15, chests: 1 }),
+  A('tier_maitre', 'Classé', 'Atteindre le palier Maître', 'bestTier', 5, 1000, { prisms: 25, chests: 2 }),
+  A('friend1', 'Amis', 'Ajouter un ami', 'friends', 1, 50, { prisms: 1 }),
+  A('friend5', 'Amis', 'Avoir 5 amis', 'friends', 5, 150, { prisms: 3, title: 'Âme de la taverne' }),
+  A('friendWin', 'Amis', 'Gagner un défi contre un ami', 'friendWins', 1, 100, { prisms: 2 }),
+  A('friendWin25', 'Amis', 'Gagner 25 défis contre des amis', 'friendWins', 25, 400, { prisms: 10, title: 'Rival redouté' }),
+  A('login7', 'Connexion', 'Se connecter 7 jours', 'loginDays', 7, 100, { prisms: 2 }),
+  A('login30', 'Connexion', 'Se connecter 30 jours', 'loginDays', 30, 300, { prisms: 10, title: 'Habitué' }),
+  A('login100', 'Connexion', 'Se connecter 100 jours', 'loginDays', 100, 800, { prisms: 20, chests: 1 }),
+  A('perfect1', 'Connexion', 'Ne manquer aucun jour d\'un mois', 'perfectMonths', 1, 500, { chests: 1, title: 'Fidèle' }),
+  A('perfect6', 'Connexion', 'Ne manquer aucun jour pendant 6 mois', 'perfectMonths', 6, 1500, { prisms: 30, chests: 3, title: 'Gardien du calendrier' }),
 ];
 export const statValue = (stats, stat) => stat.split('.').reduce((o, k) => (o ? o[k] : 0), stats) || 0;
 
@@ -165,3 +192,14 @@ export const TITLES = Object.fromEntries([
   ...Object.entries(SET_REWARDS).map(([set, r]) => [`set:${set}`, r.title]),
   ...TIERS.filter(t => t.title).map(t => [`rang:${t.id}`, t.title]),
 ]);
+
+// ---- Calendrier de connexion du mois ----
+// Chaque jour du mois a sa récompense, à récupérer le jour même : un jour manqué est perdu, et tout repart le 1er.
+// month : « AAAA-MM » (comme seasonId). Dimanche : coffre d'arts offert, plus des Prismes les 2e et 4e dimanches ; autres jours : Éclats.
+export const monthDays = month => { const [y, m] = month.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).getUTCDate(); };
+export function loginReward(month, day, r = DEFAULT_REWARDS) {
+  const [y, m] = month.split('-').map(Number);
+  if (new Date(Date.UTC(y, m - 1, day)).getUTCDay() !== 0) return { shards: r.loginShards };
+  return { sunday: true, chests: r.loginChests, prisms: Math.ceil(day / 7) % 2 === 0 ? r.loginPrisms : 0 };
+}
+export const loginCalendar = (month, r = DEFAULT_REWARDS) => Array.from({ length: monthDays(month) }, (_, i) => ({ day: i + 1, ...loginReward(month, i + 1, r) }));

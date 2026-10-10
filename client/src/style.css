@@ -603,3 +603,31 @@ body:has(#app.ingame) { margin: 0; }
 .zoomart.art-swap { animation: zoomin .3s cubic-bezier(.2,.9,.3,1.2); }
 @media (prefers-reduced-motion: reduce) { .art.rar::after { animation: none; } .zoomart.art-swap { animation: none; } }
 .artthumb .art { width: 100%; border-radius: var(--r); }
+
+/* Boutique : onglets Sets et Arts */
+.shoptabs { align-self: start; }
+.shoptabs button { padding: 8px 18px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.shoptabs .badge { min-width: 18px; padding: 0 5px; border-radius: 999px; background: #8a5bd6; color: #fff; font-size: 11px; line-height: 18px; }
+.shoptabs button.on .badge { background: var(--accent-ink); color: var(--accent); }
+.chestbtns { display: flex; flex-wrap: wrap; gap: 8px; }
+.convert input { width: 100%; min-width: 0; box-sizing: border-box; }
+
+/* Calendrier de connexion du mois */
+.calline { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%; padding: 0; border: 0; background: none; color: inherit; text-align: left;
+  font-family: var(--display); font-weight: 700; font-size: 16px; cursor: pointer; }
+.calline small { font-family: var(--body); font-weight: 400; }
+.calready { color: var(--up); }
+.panel.calendar { max-width: 560px; }
+.calgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.calh { text-align: center; font-size: 11px; color: var(--muted); font-weight: 700; }
+.calday { position: relative; display: grid; justify-items: center; align-content: start; gap: 2px; min-height: 54px; padding: 4px 2px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--surface); font-size: 11px; text-align: center; }
+.calday .cdn { font-weight: 700; font-size: 12px; }
+.calday small { font-size: 10px; line-height: 1.1; color: var(--muted); }
+.calday.sun { border-color: #8a5bd6; background: color-mix(in srgb, #8a5bd6 14%, var(--surface)); }
+.calday.sun small { color: var(--ink); }
+.calday.today { outline: 2px solid var(--accent); outline-offset: 1px; }
+.calday.missed { opacity: .4; }
+.calday.got { background: color-mix(in srgb, var(--up) 14%, var(--surface)); }
+.calday .ok { position: absolute; top: 2px; right: 4px; color: var(--up); font-size: 11px; }
+.calchest { width: 18px; height: 13px; border-radius: 3px 3px 2px 2px; background: linear-gradient(#b48a3c 0 40%, #6b4a1a 40% 48%, #b48a3c 48%); border: 1px solid #5a3a10; }

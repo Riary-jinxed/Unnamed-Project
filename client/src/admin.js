@@ -118,6 +118,7 @@ function renderDetail() {
       <div class="field"><label class="eyebrow" for="p-level">Niveau</label><input id="p-level" type="number" min="1" step="1" value="${a.level}">
         <small class="hint">${a.xp} XP dans ce niveau. Changer le niveau ne donne pas les récompenses des niveaux sautés.</small></div>
       <div class="field"><label class="eyebrow" for="p-free">Boosters offerts à ouvrir</label><input id="p-free" type="number" min="0" step="1" value="${a.freeBoosters}"></div>
+      <div class="field"><label class="eyebrow" for="p-chests">Coffres d'arts offerts à ouvrir</label><input id="p-chests" type="number" min="0" step="1" value="${a.freeChests || 0}"></div>
     </div>
     <div class="row"><button class="btn primary" type="submit" ${dis()}>Enregistrer</button>
       <span class="hint">Ajouter :</span>${[100, 300, 1000].map(n => `<button class="btn sm" type="button" data-add-shards="${n}">+${n}</button>`).join('')}</div>
@@ -208,11 +209,12 @@ function renderShopSettings() {
   </form>
   <form class="card-box" id="art-settings">
     <h2 style="font-size:20px">Arts alternatifs</h2>
-    <p class="hint" style="margin:0">Payés en Prismes, la monnaie rare gagnée en fin de saison classée et avec les succès (onglet Récompenses). Chaque joueur a ses arts du jour, tirés selon leur rareté parmi ceux qu'il n'a pas (ceux de ses cartes trois fois plus souvent). Le coffre donne un art qu'il n'a pas, avec les mêmes chances.</p>
+    <p class="hint" style="margin:0">Payés en Prismes, la monnaie rare gagnée en fin de saison classée, avec les succès et le calendrier du mois (onglet Récompenses). Les coffres offerts (succès rares, dimanches du calendrier) s'ouvrent sans Prismes. Chaque joueur a ses arts du jour, tirés selon leur rareté parmi ceux qu'il n'a pas (ceux de ses cartes trois fois plus souvent). Le coffre donne un art qu'il n'a pas, avec les mêmes chances.</p>
     <div class="grid2">
       ${field('artOffers', 'Arts du jour', 'Entre 0 et 12.')}
       ${field('chestPrice', 'Prix du coffre', 'En Prismes.')}
       ${RARITY_IDS.map(r => field(`artPrice_${r}`, `Prix d'un art ${ART_RARITIES[r].name.toLowerCase()}`, 'En Prismes.')).join('')}
+      ${field('prismShards', 'Éclats par Prisme changé', 'Change à sens unique, des Prismes vers les Éclats. 0 ferme le change.')}
     </div>
     <div class="row"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="art-defaults">Revenir aux valeurs par défaut</button></div>
   </form>
@@ -247,7 +249,7 @@ app.addEventListener('submit', async e => {
     } catch (err) { say('', err.message); render(); }
     return;
   }
-  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), prisms: Number(v('p-prisms')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')) }, 'Profil enregistré.'); return; }
+  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), prisms: Number(v('p-prisms')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')), freeChests: Number(v('p-chests')) }, 'Profil enregistré.'); return; }
   if (id === 'pass') {
     const password = v('p-pass');
     try {
@@ -262,7 +264,7 @@ app.addEventListener('submit', async e => {
     saveSettings(Object.fromEntries(keys.map(k => [k, Number(v(`s-${k}`))])), 'Réglages enregistrés.');
   }
 });
-const ART_KEYS = ['artOffers', 'chestPrice', ...RARITY_IDS.map(r => `artPrice_${r}`)];
+const ART_KEYS = ['artOffers', 'chestPrice', ...RARITY_IDS.map(r => `artPrice_${r}`), 'prismShards'];
 async function loadArts() {
   try { st.arts = (await adminCall('GET', '/api/admin/arts')).arts; } catch (e) { say('', e.message); }
   render();

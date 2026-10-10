@@ -19,9 +19,9 @@ const LOGIN_RE = /^[a-z0-9._-]{2,24}$/;
 // Réglages de la boutique modifiables depuis /admin. « rotation » change à chaque renouvellement forcé des offres du jour.
 // Arts alternatifs : nombre d'offres du jour, prix du coffre et prix de chaque rareté (artPrice_<rareté>), en Prismes.
 export const DEFAULT_SETTINGS = { cardPrice: SHOP.cardPrice, boosterPrice: SHOP.boosterPrice, dailyCards: SHOP.dailyCards, boosterSize: SHOP.boosterSize, shardsPerDuplicate: SHARDS_PER_DUPLICATE,
-  artOffers: 3, chestPrice: 60, ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, ART_RARITIES[r].price])), rotation: 0 };
+  artOffers: 3, chestPrice: 60, ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, ART_RARITIES[r].price])), prismShards: 10, rotation: 0 };
 const SETTING_LIMITS = { cardPrice: [0, 100000], boosterPrice: [0, 100000], dailyCards: [1, 10], boosterSize: [1, 10], shardsPerDuplicate: [0, 10000],
-  artOffers: [0, 12], chestPrice: [0, 10000], ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, [0, 100000]])) };
+  artOffers: [0, 12], chestPrice: [0, 10000], ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, [0, 100000]])), prismShards: [0, 10000] };
 
 // Decks du joueur : jusqu'à MAX_DECKS, chacun avec un identifiant ; « active » désigne celui qui est joué.
 const newDeckId = () => randomBytes(4).toString('hex');
@@ -47,7 +47,7 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   // Prismes (monnaie rare des arts alternatifs), arts possédés et art choisi pour chaque carte.
   prisms: a.prisms || 0, arts: a.arts || {}, artSel: a.artSel || {} });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'artShop'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'artShop', 'freeChests', 'calendar'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte.
 function addCards(a, ids, rate, essenceRate) {
@@ -186,14 +186,39 @@ export function createAccounts(store) {
   async function buyArt(a, body) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
     const art = arts.buy(a, body || {}, payPrisms);
+    progress.check(a);
     await store.put(a);
     return { art: art.id, shop: shopView(a), account: me(a) };
   }
-  async function openChest(a) {
+  // free : coffre offert (succès rares, dimanches du calendrier), sinon payé en Prismes.
+  async function openChest(a, { free } = {}) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
-    const art = arts.chest(a, payPrisms);
+    const art = arts.chest(a, free ? useFreeChest : payPrisms);
+    a.stats.chests = (a.stats.chests || 0) + 1;
+    progress.check(a);
     await store.put(a);
     return { art: art.id, chest: true, shop: shopView(a), account: me(a) };
+  }
+  function useFreeChest(a) {
+    if (!(a.freeChests > 0)) throw new HttpError(409, 'Aucun coffre offert à ouvrir.');
+    a.freeChests--;
+  }
+  // Prismes changés en Éclats, à un taux réglé dans /admin (prismShards ; 0 ferme le change). Jamais l'inverse.
+  async function convertPrisms(a, { prisms }) {
+    const rate = cfg().prismShards, n = Number(prisms);
+    if (!rate) throw new HttpError(409, 'Le change de Prismes est fermé pour le moment.');
+    if (!Number.isInteger(n) || n < 1) throw new HttpError(400, 'Indiquez un nombre entier de Prismes.');
+    payPrisms(a, n);
+    a.shards = (a.shards || 0) + n * rate;
+    await store.put(a);
+    return { shards: n * rate, shop: shopView(a), account: me(a) };
+  }
+  // Calendrier de connexion : récompense du jour.
+  async function claimDay(a) {
+    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    const got = progress.claimDay(a);
+    await store.put(a);
+    return { got, account: me(a) };
   }
   async function selectArt(a, body) { arts.select(a, body || {}); await store.put(a); return { account: me(a) }; }
 
@@ -270,7 +295,7 @@ export function createAccounts(store) {
   async function reroll(a, body) { await progress.reroll(a, body); await store.put(a); return { account: me(a) }; }
   async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
   async function equip(a, body) { await progress.equip(a, body || {}); await store.put(a); return { account: me(a) }; }
-  async function upgradeCard(a, body) { const level = await progress.upgradeCard(a, body || {}); await store.put(a); return { level, account: me(a) }; }
+  async function upgradeCard(a, body) { const level = await progress.upgradeCard(a, body || {}); progress.check(a); await store.put(a); return { level, account: me(a) }; }
 
   // Administration : créer un compte, ou changer le mot de passe d'un compte existant.
   async function adminUpsert({ login, password, name, create }) {
@@ -287,7 +312,7 @@ export function createAccounts(store) {
     return { created: !old, account: adminView(a) };
   }
   const adminView = a => ({ login: a.login, name: a.name, starter: a.starter, cards: Object.values(a.cards).reduce((s, n) => s + n, 0), shards: a.shards || 0, prisms: a.prisms || 0, level: a.level || 1,
-    xp: a.xp || 0, freeBoosters: a.freeBoosters || 0,
+    xp: a.xp || 0, freeBoosters: a.freeBoosters || 0, freeChests: a.freeChests || 0,
     lastBooster: a.lastBooster, created: a.created, disabled: !!a.disabled, sessions: (a.tokens || []).length, deckName: activeDeck(a)?.name || null });
   // inDecks : cartes présentes dans au moins un deck du joueur (elles ne peuvent pas être retirées de sa collection).
   const adminDetail = a => ({ ...adminView(a), owned: Object.keys(a.cards).filter(id => a.cards[id]), deck: activeDeck(a), decks: (a.decks || []).length,
@@ -298,13 +323,14 @@ export function createAccounts(store) {
   const done = async a => { await store.put(a); return { account: adminDetail(a) }; };
 
   // Modifie un compte : pseudo, Éclats, désactivation. Seuls les champs présents changent.
-  async function adminUpdate({ login, name, shards, prisms, level, freeBoosters, disabled }) {
+  async function adminUpdate({ login, name, shards, prisms, level, freeBoosters, freeChests, disabled }) {
     const a = target(login);
     if (name !== undefined) a.name = String(name).trim().slice(0, 20) || a.login;
     const int = (v, max, label) => { const n = Number(v); if (!Number.isInteger(n) || n < 0 || n > max) throw new HttpError(400, `${label} : un nombre entier positif.`); return n; };
     if (shards !== undefined) a.shards = int(shards, 10_000_000, 'Éclats');
     if (prisms !== undefined) a.prisms = int(prisms, 1_000_000, 'Prismes');
     if (freeBoosters !== undefined) a.freeBoosters = int(freeBoosters, 1000, 'Boosters offerts');
+    if (freeChests !== undefined) a.freeChests = int(freeChests, 1000, 'Coffres d\'arts offerts');
     // Changer le niveau ne donne pas les récompenses des niveaux sautés ; les succès de niveau, si.
     if (level !== undefined && a.level) { const n = int(level, 1000, 'Niveau'); if (n !== a.level) { a.level = Math.max(1, n); a.xp = 0; progress.checkCollection(a); } }
     if (disabled !== undefined) { a.disabled = !!disabled; if (a.disabled) closeSessions(a); }
@@ -343,7 +369,7 @@ export function createAccounts(store) {
   async function adminBooster({ login }) { const a = target(login); a.lastBooster = null; return done(a); }
   async function adminShopReset({ login }) { const a = target(login); a.shop = {}; delete a.artShop; return done(a); }
   // Donner (Promo) ou retirer un art alternatif.
-  async function adminArt({ login, art, give }) { const a = target(login); arts.adminGive(a, { art, give }); return done(a); }
+  async function adminArt({ login, art, give }) { const a = target(login); arts.adminGive(a, { art, give }); progress.check(a); return done(a); }
   async function adminLogout({ login }) { const a = target(login); closeSessions(a); return done(a); }
   async function adminDelete({ login }) {
     const a = target(login); closeSessions(a);
@@ -365,7 +391,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, arts, buyArt, openChest, selectArt, adminArt, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, arts, buyArt, openChest, convertPrisms, claimDay, selectArt, adminArt, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -395,7 +421,9 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/shop/card': (a, body) => accounts.buyCard(a, body),
     'POST /api/shop/booster': (a, body) => accounts.buyBooster(a, body),
     'POST /api/shop/art': (a, body) => accounts.buyArt(a, body),
-    'POST /api/shop/chest': a => accounts.openChest(a),
+    'POST /api/shop/chest': (a, body) => accounts.openChest(a, body || {}),
+    'POST /api/shop/convert': (a, body) => accounts.convertPrisms(a, body || {}),
+    'POST /api/calendar/claim': a => accounts.claimDay(a),
     'PUT /api/arts/select': (a, body) => accounts.selectArt(a, body),
     'POST /api/missions/reroll': (a, body) => accounts.reroll(a, body),
     'POST /api/rewards/seen': a => accounts.seen(a),

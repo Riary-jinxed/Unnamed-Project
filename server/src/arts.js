@@ -1,5 +1,5 @@
 // Arts alternatifs : offres du jour propres à chaque joueur, coffre, choix de l'art de chaque carte, dons depuis /admin (Promo).
-// Payés en Prismes, la monnaie rare des arts (pay est fourni par accounts.js).
+// Payés en Prismes, la monnaie rare des arts, ou avec un coffre offert (pay est fourni par accounts.js).
 // Compte : arts = { idArt: { at, gift? } }, artSel = { idCarte: idArt }, artShop = offres du jour.
 import { ARTS, artExists, isClassic, artPrice, artOffers, chestPool, chestRates, weightedPick, rarityName } from '@jeu/engine/arts';
 import { today } from '@jeu/engine/collection';
@@ -20,7 +20,9 @@ export function createArts(store, cfg) {
     return {
       prisms: a.prisms || 0,
       offers: day(a).offers.map(id => ({ id, price: artPrice(ARTS[id], c), owned: owns(a, id) })),
-      chest: { price: c.chestPrice, rates: chestRates(a.arts), left: chestPool(a.arts).length },
+      chest: { price: c.chestPrice, rates: chestRates(a.arts), left: chestPool(a.arts).length, free: a.freeChests || 0 },
+      // Change des Prismes en Éclats (0 : fermé).
+      prismShards: c.prismShards,
     };
   }
 

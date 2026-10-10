@@ -25,6 +25,9 @@ const GROUPS = [
   ]],
   ['Mode classé', 'Éclats et Prismes (monnaie des arts alternatifs) reçus à la fin de chaque saison (un mois) selon le meilleur palier atteint. Les titres et cadres des paliers sont fixes.',
     TIERS.flatMap((t, i) => [[seasonShardsKey(i), `Éclats : saison finie en ${t.name}`], [seasonPrismsKey(i), `Prismes : saison finie en ${t.name}`]])],
+  ['Calendrier du mois', 'Une récompense par jour de connexion, à récupérer le jour même ; tout repart le 1er du mois. Dimanche : des coffres d\'arts offerts, plus des Prismes les 2e et 4e dimanches.', [
+    ['loginShards', 'Éclats : jour de semaine'], ['loginChests', 'Coffres d\'arts : dimanche'], ['loginPrisms', 'Prismes : 2e et 4e dimanches'],
+  ]],
 ];
 
 export function rewardsTab({ call, render, say, esc, notice }) {
@@ -49,7 +52,8 @@ export function rewardsTab({ call, render, say, esc, notice }) {
         ${['target', 'xp', 'shards'].map(k => `<td><input id="m-${id}-${k}" type="number" min="0" step="1" value="${v[k]}" style="width:80px" aria-label="${k}"></td>`).join('')}</tr>`; }).join('');
     const achievements = ACHIEVEMENTS.map(x => `<tr><td>${esc(x.label)}</td><td class="hint">${[x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? esc(FRAMES[x.frame]) : ''].filter(Boolean).join(' · ')}</td>
       <td><input id="a-${x.id}" type="number" min="0" step="1" value="${r.achievements[x.id]}" style="width:90px" aria-label="Éclats"></td>
-      <td><input id="ap-${x.id}" type="number" min="0" step="1" value="${r.achievementPrisms[x.id]}" style="width:80px" aria-label="Prismes"></td></tr>`).join('');
+      <td><input id="ap-${x.id}" type="number" min="0" step="1" value="${r.achievementPrisms[x.id]}" style="width:80px" aria-label="Prismes"></td>
+      <td><input id="ac-${x.id}" type="number" min="0" max="10" step="1" value="${r.achievementChests[x.id]}" style="width:70px" aria-label="Coffres d'arts"></td></tr>`).join('');
     const fams = FAMILY_REWARDS.map(f => `<li>${esc(f.fam)} (${f.set === 'base' ? 'Set de base' : 'Crépuscule'}) : ${esc(CARDS[f.card]?.name || f.card)}, titre « ${esc(f.title)} »</li>`).join('');
     const sets = Object.entries(SET_REWARDS).map(([set, s]) => `<li>${set === 'base' ? 'Set de base' : 'Crépuscule'} : ${esc(CARDS[s.card]?.name || s.card)}, titre « ${esc(s.title)} », ${esc(FRAMES[s.frame])}</li>`).join('');
     return `${notice()}
@@ -60,7 +64,7 @@ export function rewardsTab({ call, render, say, esc, notice }) {
       <p class="hint" style="margin:0">Décochez une mission pour ne plus la tirer. Elles sont tirées au hasard chaque jour parmi celles cochées.</p>
       <div class="scroll"><table class="admin"><thead><tr><th>Mission</th><th>Objectif</th><th>XP</th><th>Éclats</th></tr></thead><tbody>${missions}</tbody></table></div>
       <h2 style="font-size:20px">Succès</h2>
-      <div class="scroll"><table class="admin"><thead><tr><th>Succès</th><th>Débloque</th><th>Éclats</th><th>Prismes</th></tr></thead><tbody>${achievements}</tbody></table></div>
+      <div class="scroll"><table class="admin"><thead><tr><th>Succès</th><th>Débloque</th><th>Éclats</th><th>Prismes</th><th>Coffres</th></tr></thead><tbody>${achievements}</tbody></table></div>
       <div class="row"><button class="btn primary" type="submit">Enregistrer les récompenses</button><button class="btn" type="button" data-act="rewards-defaults">Revenir aux valeurs par défaut</button></div>
       <p class="hint" style="margin:0">Les nouveaux réglages valent pour les prochaines récompenses ; les missions déjà tirées aujourd'hui gardent leurs valeurs.</p>
     </form>
@@ -81,6 +85,7 @@ export function rewardsTab({ call, render, say, esc, notice }) {
       ...Object.fromEntries(['target', 'xp', 'shards'].map(k => [k, Number(v(`m-${mid}-${k}`).value)])) }]));
     body.achievements = Object.fromEntries(ACHIEVEMENTS.map(x => [x.id, Number(v(`a-${x.id}`).value)]));
     body.achievementPrisms = Object.fromEntries(ACHIEVEMENTS.map(x => [x.id, Number(v(`ap-${x.id}`).value)]));
+    body.achievementChests = Object.fromEntries(ACHIEVEMENTS.map(x => [x.id, Number(v(`ac-${x.id}`).value)]));
     save(body, 'Récompenses enregistrées.');
     return true;
   }
