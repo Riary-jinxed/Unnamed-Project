@@ -127,6 +127,10 @@ Le catalogue publié depuis `/admin` retouche des cartes (nom, coût, puissance,
 
 Données partagées par le serveur (qui calcule) et l'appli (qui affiche) : réglages chiffrés par défaut (`DEFAULT_REWARDS`, bornes dans `REWARD_LIMITS`), courbe d'XP (`xpToNext`), missions (`MISSIONS`), succès (`ACHIEVEMENTS`), récompenses de famille et de set (`FAMILY_REWARDS`, `SET_REWARDS`), titres, cadres et dos de carte, niveaux de carte (`CARD_LEVELS` : nom, bordure `look`, effet `fx` ; `levelCost(n)` lit les coûts dans les réglages). Les choix chiffrés sont justifiés dans la proposition d'économie (`recompenses/economie.md`, dans les fichiers du projet Claude, pas dans ce dépôt).
 
+## Arts alternatifs (`arts.js`)
+
+Catalogue des arts (`ARTS` : carte, nom, rareté ; `edition: 'promo'` avec `how`), trois raretés (rare, épique, légendaire) avec leur prix par défaut en Prismes et leur poids de tirage (`ART_RARITIES`), prix d'un art selon les réglages (`artPrice`), arts du jour d'un joueur (`artOffers` : pondérés par rareté, ceux de ses cartes trois fois plus souvent), contenu et chances du coffre (`chestPool`, `chestRates`). Les coffres offerts viennent des succès rares (`chests` dans `ACHIEVEMENTS`) et des dimanches du calendrier du mois (`loginReward`, `loginCalendar`, `monthDays` dans `rewards.js`). Les Promo ne sont jamais en vente. Les Prismes se gagnent avec les succès (`prisms` dans `ACHIEVEMENTS`, `rewards.js`) et en fin de saison classée (réglages `rankPrisms…`, voir `seasonPrismsKey`, `ranked.js`). Purement cosmétique : le moteur de partie ne les lit pas.
+
 ## Mode classé (`ranked.js`)
 
 Le rang d'un joueur tient en un nombre d'étoiles `r` : 3 étoiles par division, 3 divisions par palier (III, II, I), paliers `TIERS` Bronze, Argent, Or, Platine, Diamant, puis Maître où les étoiles deviennent des points sans plafond (`MASTER`). `rankOf(r)` donne palier, division, étoiles, plancher et libellé.

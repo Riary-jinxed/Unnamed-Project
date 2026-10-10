@@ -14,6 +14,7 @@ import { artHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { FRAMES, BACKS, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS } from '@jeu/engine/ranked';
+import { ARTS, artsOf, artExists, rarityKey, rarityName } from '@jeu/engine/arts';
 
 const famVar = kw => famStyle(kw[0]);
 const kwLine = d => (d.token ? 'Jeton · ' : '') + (d.kw.join(' · ') || 'Neutre');
@@ -32,7 +33,7 @@ const ui = {
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
   drag: null, fx: null, zoom: null, soloReward: null, avatars: null, friendFoe: null, rankedAi: false, rankedData: null,
-  codexQuery: '', zoomBack: null, coach: null, coachShown: null,
+  codexQuery: '', zoomBack: null, coach: null, coachShown: null, gotArt: null,
 };
 const app = document.getElementById('app');
 // Amis et défis (friends.js) : écran, bandeau de défi, choix du deck pour une partie entre amis.
@@ -156,14 +157,34 @@ async function openBoosterNow() {
   const r = await call('POST', '/api/booster');
   if (r) showCards(r);
 }
-async function openShop() {
-  ui.screen = 'shop'; ui.error = ''; render();
+async function openShop(tab = ui.shopTab || 'sets') {
+  ui.screen = 'shop'; ui.shopTab = tab; ui.error = ''; render();
   const r = await call('GET', '/api/shop');
   if (r) { ui.shop = r.shop; render(); }
 }
 async function buy(path, body) {
   const r = await call('POST', path, body);
   if (r) { ui.shop = r.shop; showCards(r); }
+}
+// Art alternatif acheté ou sorti du coffre : montré en grand, prêt à être choisi pour sa carte.
+async function buyArt(path, body) {
+  const r = await call('POST', path, body);
+  if (!r) return;
+  ui.shop = r.shop; ui.gotArt = { id: r.art, chest: !!r.chest }; ui.sheet = 'art'; ui.msg = '';
+  play(['epique', 'legendaire'].includes(ARTS[r.art].rarity) ? 'astral' : 'reveal'); render();
+}
+// Prismes changés en Éclats (jamais l'inverse) : demande confirmation, le change ne s'annule pas.
+async function convertPrisms() {
+  const n = Number(document.getElementById('conv-n')?.value), rate = ui.shop?.arts?.prismShards;
+  if (!Number.isInteger(n) || n < 1 || !rate) { ui.error = 'Indiquez un nombre entier de Prismes.'; render(); return; }
+  if (!confirm(`Changer ${n} Prisme${n > 1 ? 's' : ''} contre ${n * rate} Éclats ? Les Éclats ne redonnent pas de Prismes.`)) return;
+  const r = await call('POST', '/api/shop/convert', { prisms: n });
+  if (r) { ui.shop = r.shop; ui.msg = `+${r.shards} Éclats.`; render(); }
+}
+// Calendrier de connexion du mois : récompense du jour.
+async function claimDay() {
+  const r = await call('POST', '/api/calendar/claim');
+  if (r) { ui.calGot = r.got; play('reveal'); render(); }
 }
 // Decks : jusqu'à MAX_DECKS. Création et modification en trois étapes : général, terrains, cartes.
 const deckById = id => ui.account.decks.find(d => d.id === id);
@@ -232,7 +253,8 @@ const avatarHTML = (a, cls = '', frame = a.progress?.frame) => (frame ? `<span c
 const prog = () => ui.account?.progress || { level: 1, xp: 0, xpNext: 1, missions: [], inbox: [], cosmetics: { titles: [], frames: [], backs: [] }, freeBoosters: 0 };
 const pct = (n, d) => Math.max(0, Math.min(100, Math.round(100 * n / (d || 1))));
 const levelBar = p => `<div class="lvl"><span class="lvlnum num">Niv. ${p.level}</span><div class="bar" role="progressbar" aria-valuenow="${p.xp}" aria-valuemin="0" aria-valuemax="${p.xpNext}" aria-label="Expérience"><span style="width:${pct(p.xp, p.xpNext)}%"></span></div><small class="hint num">${p.xp}/${p.xpNext} XP</small></div>`;
-const gains = r => [r.xp ? `+${r.xp} XP` : '', r.shards ? `+${r.shards} Éclats` : '', r.boosters ? `+${r.boosters} booster${r.boosters > 1 ? 's' : ''} offert${r.boosters > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
+const gains = r => [r.xp ? `+${r.xp} XP` : '', r.shards ? `+${r.shards} Éclats` : '', r.prisms ? `+${r.prisms} Prisme${r.prisms > 1 ? 's' : ''}` : '',
+  r.chests ? `+${r.chests} coffre${r.chests > 1 ? 's' : ''} d'arts offert${r.chests > 1 ? 's' : ''}` : '', r.boosters ? `+${r.boosters} booster${r.boosters > 1 ? 's' : ''} offert${r.boosters > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
 const titleLabel = id => prog().cosmetics.titles.find(t => t.id === id)?.label || '';
 function missionsHTML() {
   const p = prog();
@@ -248,6 +270,26 @@ function rewardItem(r) {
   const extra = [r.title ? `Titre « ${esc(titleLabel(r.title) || r.title)} »` : '', r.frame ? esc(FRAMES[r.frame] || r.frame) : '', r.back ? esc(BACKS[r.back] || r.back) : ''].filter(Boolean).join(' · ');
   return `<div class="reward"><div><b>${esc(r.label)}</b>${gains(r) ? `<div class="num">${gains(r)}</div>` : ''}${extra ? `<div class="hint">${extra}</div>` : ''}</div>
     ${r.card ? `<button class="ccard" data-zoom="${zoomKey(r.card)}">${anyCard(r.card)}</button>` : ''}</div>`;
+}
+// Icônes des monnaies (style.css, .ico-…) : Éclat, Prisme, coffre d'arts.
+const ico = kind => `<span class="ico ico-${kind}" aria-hidden="true"></span>`;
+// Calendrier du mois : une case par jour, semaine du lundi au dimanche. Dimanche : coffre d'arts (et parfois des Prismes).
+function calendarHTML(cal) {
+  const [y, m] = cal.month.split('-').map(Number), lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
+  const what = d => (d.chests ? `${ico('chest')}${d.prisms ? `<span class="calgain"><small class="num">+${d.prisms}</small>${ico('prism')}</span>` : ''}`
+    : `<span class="calgain"><small class="num">${d.shards}</small>${ico('shard')}</span>`);
+  const label = d => [`${d.day}`, d.chests ? `coffre d'arts${d.prisms ? ` et ${d.prisms} Prismes` : ''}` : `${d.shards} Éclats`, d.got ? 'récupéré' : d.missed ? 'manqué' : d.day === cal.today ? 'aujourd\'hui' : ''].filter(Boolean).join(', ');
+  const cell = d => `<div class="calday ${d.chests ? 'sun' : ''} ${d.got ? 'got' : ''} ${d.missed ? 'missed' : ''} ${d.day === cal.today ? 'today' : ''}" aria-label="${label(d)}">
+    <span class="num cdn">${d.day}</span>${what(d)}${d.got ? '<span class="ok">✓</span>' : ''}</div>`;
+  const g = ui.calGot;
+  return `<div class="sheet" data-act="close"><div class="panel calendar" data-stop="1" role="dialog" aria-label="Calendrier du mois"><div class="ph"><h2>Calendrier de ${esc(cal.name)}</h2><button class="btn" data-act="close">Fermer</button></div>
+    <p class="hint" style="margin:0">Connectez-vous chaque jour pour récupérer sa récompense : des Éclats ${ico('shard')} en semaine, un coffre d'arts ${ico('chest')} chaque dimanche, et des Prismes ${ico('prism')} en plus un dimanche sur deux. Un jour manqué est perdu ; tout repart le 1er du mois.</p>
+    <div class="calgrid">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span class="calh">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${cal.days.map(cell).join('')}</div>
+    ${g ? `<p role="status" style="margin:0"><b>Récupéré : ${gains(g)}.</b>${g.chests ? ' Le coffre vous attend dans la boutique, onglet Arts.' : ''}</p>` : ''}
+    ${errLine()}
+    <div class="row">${cal.ready ? `<button class="btn primary" data-act="claim-day" ${ui.busy ? 'disabled' : ''}>Récupérer la récompense du jour</button>`
+      : g?.chests ? '<button class="btn primary" data-act="shop-arts">Ouvrir le coffre</button>' : '<span class="hint">Revenez demain pour la suite.</span>'}
+      <button class="btn" data-act="close">Fermer</button></div></div></div>`;
 }
 function closeInbox() {
   ui.sheet = null; ui.account.progress.inbox = [];
@@ -275,7 +317,7 @@ function renderRanked() {
   const rewards = !D ? '' : `<div class="card-box"><span class="eyebrow">Récompenses de fin de saison</span>
     <p class="hint" style="margin:0">Selon le meilleur palier atteint pendant la saison. Les titres et cadres des paliers en dessous sont aussi débloqués.</p>
     <ul class="tiers">${D.rewards.map(t => `<li class="${R.best.id === t.id ? 'on' : ''}"><span class="rank rank-${t.id}">${esc(t.name)}</span>
-      <span>${[t.shards ? `${t.shards} Éclats` : '', t.title ? `titre « ${esc(t.title)} »` : '', t.frame ? esc(t.frame) : ''].filter(Boolean).join(' · ') || '–'}</span></li>`).join('')}</ul></div>`;
+      <span>${[t.shards ? `${t.shards} Éclats` : '', t.prisms ? `${t.prisms} Prismes` : '', t.title ? `titre « ${esc(t.title)} »` : '', t.frame ? esc(t.frame) : ''].filter(Boolean).join(' · ') || '–'}</span></li>`).join('')}</ul></div>`;
   return `${head}
   <div class="card-box">
     <span class="eyebrow">Saison ${esc(R.seasonName)} · encore ${R.daysLeft} jour${R.daysLeft > 1 ? 's' : ''}</span>
@@ -331,6 +373,30 @@ function upgradeHTML(id) {
     <ul class="lvladder">${ladder}</ul>${ui.msg ? `<p class="hint" role="status"><b>${esc(ui.msg)}</b></p>` : ''}${next}</div>`;
 }
 
+// ---- Arts alternatifs (cosmétiques) ----
+// Art choisi pour une carte, s'il est toujours possédé ; null : l'illustration d'origine.
+const mySel = id => { const x = ui.account?.artSel?.[id]; return x && ui.account.arts?.[x] && artExists(x) ? x : null; };
+const myArts = id => artsOf(id).filter(x => ui.account?.arts?.[x.id]);
+// Pastille de rareté (style.css, « .rar-… »).
+const rarChip = art => `<span class="rarchip rar-${rarityKey(art)}">${esc(rarityName(art))}</span>`;
+async function selectArt(card, art) {
+  const r = await call('PUT', '/api/arts/select', { card, art: art || null });
+  if (!r) return;
+  ui.msg = art ? `Art « ${ARTS[art].name} » choisi pour ${nameOf(card)}.` : `${nameOf(card)} reprend son illustration d'origine.`;
+  ui.fx = { list: [['.zoomwrap .zoomart', 'art-swap']] }; play('pick'); render();
+}
+// Bloc « Arts » de la carte ouverte en grand depuis la collection : l'origine et les arts possédés, à choisir ; ceux qui restent à trouver.
+function artsHTML(id) {
+  const all = artsOf(id); if (!all.length) return '';
+  const mine = myArts(id), cur = mySel(id), missing = all.length - mine.length;
+  const opt = (art, label, sub) => `<button class="artopt ${cur === (art?.id || null) ? 'on' : ''}" data-act="art-pick" data-card="${id}" data-art="${art?.id || ''}" aria-pressed="${cur === (art?.id || null)}" ${ui.busy ? 'disabled' : ''}>
+    <span class="artsw ${art ? `rar-${rarityKey(art)}` : ''}"></span><span><b>${esc(label)}</b>${sub ? ` <small class="hint">${sub}</small>` : ''}</span>${cur === (art?.id || null) ? '<span class="ok">✓</span>' : ''}</button>`;
+  return `<div class="zacts artbox"><span class="eyebrow">Arts de la carte · ${mine.length + 1}/${all.length + 1}</span>
+    <p class="hint">Purement cosmétique. Votre adversaire voit l'art choisi quand la carte est révélée.</p>
+    <div class="artopts">${opt(null, 'Illustration d\'origine', '')}${mine.map(x => opt(x, x.name, esc(rarityName(x)))).join('')}</div>
+    ${missing ? `<p class="hint">${missing} autre${missing > 1 ? 's' : ''} art${missing > 1 ? 's' : ''} à trouver en boutique${all.some(x => x.edition === 'promo' && !ui.account.arts?.[x.id]) ? ' ou en récompense' : ''}.</p>` : ''}</div>`;
+}
+
 // ---- Calculs locaux pendant la planification ----
 const me = () => ui.view.me;
 const myGen = () => GENERALS[me().general];
@@ -379,6 +445,8 @@ function terrainChip(side, z, isMe) {
 const badgeOf = seat => ui.view.badges?.[seat] || (seat === ui.view.seat && ui.account ? prog().badge : null);
 // Niveau d'une carte en partie : le sien vient du compte ; celui de l'adversaire, du serveur, une fois la carte révélée.
 const levelIn = (seat, id) => (seat === ui.view.seat ? myLevel(id) : badgeOf(seat)?.looks?.[id] || 1);
+// Art alternatif d'une carte en partie : le sien vient du compte ; celui de l'adversaire, du serveur, une fois la carte révélée.
+const artIn = (seat, id) => (seat === ui.view.seat ? mySel(id) : badgeOf(seat)?.arts?.[id] || null);
 // Image de profil : envoyée une fois par le serveur en ligne ; contre l'IA, la sienne seulement.
 const avatarOf = seat => (ui.mode === 'online' ? ui.avatars?.[seat] : null) || (seat === ui.view.seat ? ui.account?.avatar : null) || null;
 // Carte du général, toujours visible à côté du joueur. La sienne brille quand elle peut être activée.
@@ -479,8 +547,9 @@ const costKey = id => GENERALS[id] ? -1 : CARDS[id].cost;
 const famRank = id => { const i = FAMILIES.indexOf(famOfCard(id)); return i < 0 ? FAMILIES.length : i; };
 const byFamCost = (a, b) => famRank(a) - famRank(b) || costKey(a) - costKey(b) || nameOf(a).localeCompare(nameOf(b));
 // Carte ou général, tel qu'il sort d'un booster ou s'affiche dans la collection.
-const anyCard = (id, lvl = 1) => GENERALS[id] ? genCard(id, lvl) : fullCard(id, lvl);
-const zoomKey = id => `${GENERALS[id] ? 'general' : 'card'}:${id}`;
+const anyCard = (id, lvl = 1, art = null) => GENERALS[id] ? genCard(id, lvl, art) : fullCard(id, lvl, art);
+// art : montrer cet art alternatif en grand (aperçu en boutique).
+const zoomKey = (id, art = '') => `${GENERALS[id] ? 'general' : 'card'}:${id}${art ? `:${art}` : ''}`;
 function renderLoading() {
   return `<div class="top"><span class="title">Jeu de cartes</span></div>
   <div class="card-box">${ui.error ? `${errLine()}<div class="row"><button class="btn primary" data-act="retry">Réessayer</button><button class="btn" data-act="logout">Changer de compte</button></div>` : '<p class="wait">Connexion…</p>'}</div>`;
@@ -520,11 +589,14 @@ function renderHome() {
       <button class="btn primary" data-act="booster" ${ui.busy ? 'disabled' : ''}>Ouvrir</button></div>`
     : p.freeBoosters ? `<div class="card-box booster ready">
       <div><span class="eyebrow">Récompense</span><h2 style="font-size:20px">${p.freeBoosters} booster${p.freeBoosters > 1 ? 's' : ''} offert${p.freeBoosters > 1 ? 's' : ''}</h2></div>
-      <button class="btn primary" data-act="shop">Ouvrir</button></div>` : '';
+      <button class="btn primary" data-act="shop">Ouvrir</button></div>`
+    : p.freeChests ? `<div class="card-box booster ready">
+      <div><span class="eyebrow">Récompense</span><h2 style="font-size:20px">${p.freeChests} coffre${p.freeChests > 1 ? 's' : ''} d'arts offert${p.freeChests > 1 ? 's' : ''}</h2></div>
+      <button class="btn primary" data-act="shop-arts">Ouvrir</button></div>` : '';
   const nav = (act, label, badge) => `<button data-act="${act}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
   return `
   <div class="top"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button><span class="title">Jeu de cartes</span>
-    <button class="chip num" data-act="shop" aria-label="${a.shards} Éclats, ouvrir la boutique">${a.shards} Éclats</button>${muteBtn()}</div>
+    <button class="chip num cur" data-act="shop" aria-label="${a.shards} Éclats, ouvrir la boutique">${ico('shard')}${a.shards}</button>${muteBtn()}</div>
   <div class="setup home">
     ${gift}
     <div class="card-box play">
@@ -540,6 +612,8 @@ function renderHome() {
       <div class="row" style="justify-content:space-between"><span class="eyebrow">Progression${p.title ? ` · <span class="ptitle">${esc(titleLabel(p.title))}</span>` : ''}</span><button class="btn sm" data-act="profile">Succès</button></div>
       ${levelBar(p)}
       ${p.missions.length ? `<details class="mdetails" ${ui.missionsOpen ? 'open' : ''}><summary><span>Missions du jour</span><small class="hint num">${left ? `${left} à faire` : 'Toutes faites ✓'}</small></summary>${missionsHTML()}</details>` : ''}
+      ${p.calendar ? `<button class="calline" data-act="calendar"><span>Calendrier de ${esc(p.calendar.name.split(' ')[0])}</span>
+        <small class="hint num">${p.calendar.ready ? '<b class="calready">Récompense du jour à récupérer</b>' : `${p.calendar.got} jour${p.calendar.got > 1 ? 's' : ''} sur ${p.calendar.days.length}`}</small></button>` : ''}
     </div>
   </div>
   <nav class="tabbar" aria-label="Menu">${nav('collection', 'Collection', upgradable)}${nav('decks', 'Decks')}${nav('shop', 'Boutique')}${nav('friends', 'Amis', asks)}${nav('learn', 'Apprendre')}</nav>`;
@@ -556,7 +630,7 @@ function renderCollection() {
   const shown = OWNABLE.filter(id => !ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam).sort(byFamCost);
   const tile = id => { const n = owned(id), lvl = myLevel(id), up = canUpgrade(id);
     return `<button class="ccard ${n ? '' : 'locked'} ${n && (lvl > 1 || up) ? 'tagged' : ''}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? `, niveau ${lvl}${up ? ', peut monter de niveau' : ''}` : ', pas encore obtenue'}">
-      ${anyCard(id, n ? lvl : 1)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
+      ${anyCard(id, n ? lvl : 1, n ? mySel(id) : null)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
       ${n && (lvl > 1 || up) ? `<span class="lvtag num ${up ? 'up' : ''}">${lvl > 1 ? `Niv. ${lvl}` : ''}${up ? `${lvl > 1 ? ' · ' : ''}↑ Améliorer` : ''}</span>` : ''}</button>`; };
   return `<div class="top"><span class="title">Ma collection</span><button class="btn" data-act="edit">Modifier le deck</button><button class="btn" data-act="home">Retour</button></div>
   <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.length}, généraux compris. Touchez une carte pour la voir en grand et la faire monter de niveau avec l'essence de ses doublons.</p>
@@ -566,10 +640,14 @@ function renderCollection() {
   <div class="gallery">${allowedTerrains(a).map(terrainCard).join('')}</div>`;
 }
 // Boutique : un espace par set ; les sets à venir y ont déjà leur place.
+// Deux onglets : les sets (cartes et boosters, en Éclats) et les arts alternatifs (en Prismes).
 function renderShop() {
-  const sh = ui.shop, a = ui.account;
-  const top = `<div class="top"><span class="title">Boutique</span><span class="chip num">${a.shards} Éclats</span><button class="btn" data-act="home">Retour</button></div>`;
+  const sh = ui.shop, a = ui.account, tab = ui.shopTab === 'arts' && sh?.arts ? 'arts' : 'sets';
+  const tabBtn = (id, label, badge) => `<button role="tab" data-act="shop-tab" data-tab="${id}" class="${tab === id ? 'on' : ''}" aria-selected="${tab === id}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
+  const top = `<div class="top"><span class="title">Boutique</span><span class="chip num cur" title="Éclats" aria-label="${a.shards} Éclats">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="Prismes" aria-label="${sh.arts.prisms} Prismes">${ico('prism')}${sh.arts.prisms}</span>` : ''}<button class="btn" data-act="home">Retour</button></div>
+    ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}</div>` : ''}`;
   if (!sh) return `${top}${errLine()}<p class="wait">Chargement…</p>`;
+  if (tab === 'arts') return `${top}${errLine()}${artShopHTML(sh.arts)}`;
   const P = sh.prices;
   const offer = (set, o) => {
     const label = o.bought ? 'Achetée' : o.owned ? 'Déjà dans votre collection' : `Acheter · ${P.cardPrice} Éclats`;
@@ -587,6 +665,36 @@ function renderShop() {
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
       <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`;
   return `${top}${errLine()}${sh.sets.map(section).join('')}`;
+}
+// Arts alternatifs en boutique : offres du jour et coffre, payés en Prismes (monnaie rare : saisons classées, succès).
+function artShopHTML(A) {
+  if (!A) return '';
+  const tile = o => { const art = ARTS[o.id];
+    return `<div class="offer artoffer"><button class="ccard artthumb" data-zoom="${zoomKey(art.card, art.id)}" aria-label="Voir ${esc(art.name)} en grand">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</button>
+      <div class="artmeta">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}${owned(art.card) ? '' : ' · carte pas encore obtenue'}</small></div>
+      <button class="btn ${o.owned ? '' : 'primary'}" data-act="buy-art" data-id="${o.id}" ${o.owned || A.prisms < o.price || ui.busy ? 'disabled' : ''}>${o.owned ? 'Dans votre collection' : `Acheter · ${o.price} Prismes`}</button></div>`; };
+  const rates = A.chest.rates.map(r => `<li><span class="rarchip rar-${r.rarity}">${esc(r.name)}</span><span class="num">${String(r.pct).replace('.', ',')} %</span></li>`).join('');
+  return `<section class="card-box shopset artshop">
+    <div><span class="eyebrow">Cosmétique</span><h2 style="font-size:22px">Arts alternatifs</h2></div>
+    <p class="hint" style="margin:0">D'autres illustrations pour vos cartes, à choisir ensuite dans la collection. Votre adversaire les voit quand vos cartes sont révélées.
+      Ils se paient en Prismes, gagnés en fin de saison classée, avec les succès et le calendrier du mois.</p>
+    <div class="gal-h">Arts du jour</div>
+    ${A.offers.length ? `<p class="hint" style="margin:0">Choisis pour vous parmi les arts que vous n'avez pas, renouvelés chaque jour à minuit.</p>
+      <div class="gallery">${A.offers.map(o => tile(o)).join('')}</div>` : '<p class="hint" style="margin:0">Vous avez tous les arts en vente. Revenez quand de nouveaux arriveront.</p>'}
+    <div class="gal-h">Coffre d'arts</div>
+    <div class="row chest"><div style="flex:1;display:grid;gap:6px"><p class="hint" style="margin:0">Un art que vous n'avez pas encore, au hasard. Chances selon la rareté :</p>
+      ${rates ? `<ul class="rates">${rates}</ul>` : ''}</div>
+      <div class="chestbtns">${A.chest.free && A.chest.left ? `<button class="btn primary" data-act="chest-free" ${ui.busy ? 'disabled' : ''}>Ouvrir un coffre offert (${A.chest.free})</button>` : ''}
+      <button class="btn ${A.chest.free ? '' : 'primary'}" data-act="chest" ${A.chest.left && A.prisms >= A.chest.price && !ui.busy ? '' : 'disabled'}>${A.chest.left ? `Ouvrir · ${A.chest.price} Prismes` : 'Coffre vide pour vous'}</button></div></div>
+    ${A.chest.left ? '' : A.chest.free ? `<p class="hint" style="margin:0">Vos ${A.chest.free} coffre${A.chest.free > 1 ? 's' : ''} offert${A.chest.free > 1 ? 's' : ''} vous attendent : ils s'ouvriront dès que de nouveaux arts arriveront.</p>` : ''}
+  </section>
+  ${A.prismShards ? `<section class="card-box shopset convert">
+    <div><span class="eyebrow">Change</span><h2 style="font-size:22px">Prismes en Éclats</h2></div>
+    <p class="hint" style="margin:0">1 Prisme donne ${A.prismShards} Éclats. Le change ne marche que dans ce sens : les Éclats ne s'échangent pas contre des Prismes.</p>
+    ${ui.msg && !ui.sheet ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
+    <div class="row"><div class="field" style="width:120px"><label class="eyebrow" for="conv-n">Prismes</label><input id="conv-n" type="number" inputmode="numeric" min="1" max="${A.prisms}" value="${Math.min(A.prisms, 1)}" ${A.prisms ? '' : 'disabled'}></div>
+      <button class="btn" data-act="convert" style="align-self:end" ${A.prisms && !ui.busy ? '' : 'disabled'}>Changer</button></div>
+  </section>` : ''}`;
 }
 
 // Liste des decks du joueur : jouer, modifier, renommer, remettre à zéro, supprimer, créer.
@@ -679,7 +787,7 @@ function achievementsHTML() {
   const groups = [...new Set(list.map(x => x.group))], done = list.filter(x => x.done).length;
   return `<div class="card-box"><div><span class="eyebrow">Succès</span><h2 style="font-size:22px">${done} sur ${list.length}</h2></div>
     ${groups.map(g => `<div class="gal-h">${esc(g)}</div><div class="achs">${list.filter(x => x.group === g).map(x => `<div class="ach ${x.done ? 'done' : ''}">
-      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(x.label)}</span><small class="hint">${[x.shards ? `${x.shards} Éclats` : '', x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? esc(x.frame) : ''].filter(Boolean).join(' · ')}</small></div>
+      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(x.label)}</span><small class="hint">${[x.shards ? `${x.shards} Éclats` : '', x.prisms ? `${x.prisms} Prisme${x.prisms > 1 ? 's' : ''}` : '', x.chests ? `${x.chests} coffre${x.chests > 1 ? 's' : ''} d'arts` : '', x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? esc(x.frame) : ''].filter(Boolean).join(' · ')}</small></div>
       ${x.done ? '' : `<div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(x.value, x.goal)}%"></span></div><small class="num">${x.value}/${x.goal}</small></div>`}</div>`).join('')}</div>`).join('')}</div>`;
 }
 function renderProfile() {
@@ -756,16 +864,17 @@ function renderLobby() {
     <button class="btn" data-act="quit">Annuler</button>
   </div>`;
 }
-function fullCard(id, lvl = 1) { const d = CARDS[id];
-  return `<div class="fc${lvCls(lvl)}" style="${famVar(d.kw)}">${artHTML(id, d.name, lvl)}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
+function fullCard(id, lvl = 1, art = null) { const d = CARDS[id];
+  return `<div class="fc${lvCls(lvl)}" style="${famVar(d.kw)}">${artHTML(id, d.name, lvl, '', art)}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
     <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
-const genCard = (k, lvl = 1) => { const g = GENERALS[k]; return `<div class="fc${lvCls(lvl)}" style="${famVar([g.fam])}">${artHTML(k, g.name, lvl)}<b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
+const genCard = (k, lvl = 1, art = null) => { const g = GENERALS[k]; return `<div class="fc${lvCls(lvl)}" style="${famVar([g.fam])}">${artHTML(k, g.name, lvl, '', art)}<b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
 const terrainCard = k => { const t = TERRAINS[k]; return `<div class="fc" style="${famVar([t.fam])}"><b>${t.name}</b><span class="k">Terrain</span><span class="x">${rich(t.text)}</span></div>`; };
 // Carte affichée en grand, avec les actions possibles sur elle pendant la planification.
+const artLine = art => (ARTS[art] ? ` · art ${esc(ARTS[art].name)} (${esc(rarityName(ARTS[art]))})` : '');
 function zoomBtns(acts) { return acts.length ? `<div class="zacts">${acts.join('')}</div>` : ''; }
 function zoomHTML() {
   const zm = ui.zoom, play = ui.view && canPlay();
-  let body = '', style = '', lvl = 1;
+  let body = '', style = '', lvl = 1, art = null;
   if (zm.kind === 'card') {
     const d = CARDS[zm.id];
     const inHand = ui.view && me().hand.find(c => c.uid === zm.uid);
@@ -774,7 +883,9 @@ function zoomHTML() {
     const cost = inHand ? (d.x ? 'X' : inHand.cost) : (d.x ? 'X' : d.cost);
     const pw = inHand ? inHand.power : onBoard && onBoard.revealed ? onBoard.power : d.power;
     const pcls = pw > d.power ? 'up' : pw < d.power ? 'down' : '';
-    lvl = !ui.view ? myLevel(zm.id) : onBoard ? levelIn(onBoard.side === 'me' ? ui.view.seat : 1 - ui.view.seat, zm.id) : myLevel(zm.id);
+    const seat = onBoard ? (onBoard.side === 'me' ? ui.view.seat : 1 - ui.view.seat) : null;
+    lvl = seat !== null ? levelIn(seat, zm.id) : myLevel(zm.id);
+    art = zm.art || (seat !== null ? artIn(seat, zm.id) : mySel(zm.id));
     const acts = [];
     if (play && inHand && !pend) {
       const left = sealsLeft(), cant = d.x ? left <= 0 : inHand.cost > left;
@@ -789,8 +900,8 @@ function zoomHTML() {
     style = famVar(d.kw);
     body = `
       <div class="zh"><span class="seal" title="Coût">${cost}</span><h2>${esc(d.name)}</h2>${d.type === 'C' ? `<span class="zp num ${pcls}" title="Puissance">${pw}</span>` : ''}</div>
-      <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · puissance de base ${d.power}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}</span>
-      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? upgradeHTML(zm.id) : ''}`;
+      <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · puissance de base ${d.power}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span>
+      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
   } else if (zm.kind === 'general') {
     const g = GENERALS[zm.id]; style = famVar([g.fam]);
     const acts = [];
@@ -802,21 +913,23 @@ function zoomHTML() {
       else acts.push(`<button class="btn primary" data-act="zgen" data-zone="0">Activer le général</button>`);
     }
     const deck = ui.view && (zm.mine ? me() : zm.side === 'foe' ? ui.view.foe : null)?.deckName;
-    lvl = ui.view && zm.side ? levelIn(zm.mine ? ui.view.seat : 1 - ui.view.seat, zm.id) : myLevel(zm.id);
-    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? upgradeHTML(zm.id) : ''}`;
+    const seat = ui.view && zm.side ? (zm.mine ? ui.view.seat : 1 - ui.view.seat) : null;
+    lvl = seat !== null ? levelIn(seat, zm.id) : myLevel(zm.id);
+    art = zm.art || (seat !== null ? artIn(seat, zm.id) : mySel(zm.id));
+    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
   } else {
     const t = TERRAINS[zm.id]; style = famVar([t.fam]);
     body = `<div class="zh"><h2>${t.name}</h2></div><span class="k">Terrain${t.fam ? ` · ${t.fam}` : ''}</span><p class="x">${rich(t.text)}</p>`;
   }
-  const art = zm.kind === 'terrain' ? '' : artHTML(zm.id, nameOf(zm.id), lvl, 'zoomart');
-  return `<div class="sheet zoom" data-act="close"><div class="zoomwrap" data-stop="1" style="${style}">${art}<div class="panel zoomcard${lvCls(lvl)}" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
+  const pic = zm.kind === 'terrain' ? '' : artHTML(zm.id, nameOf(zm.id), lvl, 'zoomart', art);
+  return `<div class="sheet zoom" data-act="close"><div class="zoomwrap" data-stop="1" style="${style}">${pic}<div class="panel zoomcard${lvCls(lvl)}" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
     <button class="btn" data-act="close">Fermer</button></div></div></div>`;
 }
 function openZoom(zoom) { ui.zoom = zoom; ui.sheet = 'zoom'; ui.zoomBack = null; ui.fx = { list: [['.zoomcard', 'zoom-in']] }; }
 // Ferme le panneau ouvert ; une carte ouverte depuis le codex y ramène.
 function closeSheet() {
   if (ui.sheet === 'inbox') closeInbox();
-  ui.sheet = ui.sheet === 'zoom' && ui.zoomBack ? ui.zoomBack : null; ui.zoom = null; ui.zoomBack = null; ui.renaming = null; render();
+  ui.sheet = ui.sheet === 'zoom' && ui.zoomBack ? ui.zoomBack : null; ui.zoom = null; ui.zoomBack = null; ui.renaming = null; ui.gotArt = null; ui.calGot = null; ui.msg = ''; render();
 }
 function sheetHTML() {
   if (ui.sheet === 'zoom' && ui.zoom) return zoomHTML();
@@ -873,12 +986,23 @@ function sheetHTML() {
       ${levelBar(prog())}<div class="rewards">${prog().inbox.slice().reverse().map(rewardItem).join('')}</div>
       <div class="row"><button class="btn primary" data-act="close">Super !</button></div></div></div>`;
   }
+  if (ui.sheet === 'calendar' && prog().calendar) return calendarHTML(prog().calendar);
+  if (ui.sheet === 'art' && ui.gotArt) {
+    const art = ARTS[ui.gotArt.id], on = mySel(art.card) === art.id;
+    return `<div class="sheet" data-act="close"><div class="panel gotart" data-stop="1"><div class="ph"><h2>${ui.gotArt.chest ? 'Coffre d\'arts' : 'Nouvel art'}</h2><button class="btn" data-act="close">Fermer</button></div>
+      <div class="row" style="gap:8px">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}</small></div>
+      <div class="bcard gotcard">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</div>
+      ${ui.msg ? `<p class="hint" role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
+      <div class="row"><button class="btn ${on ? '' : 'primary'}" data-act="art-pick" data-card="${art.card}" data-art="${art.id}" ${on || ui.busy ? 'disabled' : ''}>${on ? 'Art utilisé ✓' : 'Utiliser cet art'}</button>
+        <button class="btn" data-act="close">Plus tard</button></div>
+      <p class="hint" style="margin:0">Vous pourrez changer d'art à tout moment depuis la carte, dans la collection.${owned(art.card) ? '' : ' Il s\'affichera dès que vous aurez la carte.'}</p></div></div>`;
+  }
   if (ui.sheet === 'booster' && ui.booster) {
     const { title, cards, fresh, shards, xp } = ui.booster, n = fresh.filter(Boolean).length;
     const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats${ui.booster.essence ? ` et ${ui.booster.essence} essence` : ''} gagnés avec les doublons` : '', xp ? `${xp} XP` : ''].filter(Boolean).join(', ');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${esc(title)}</h2><button class="btn" data-act="close">Fermer</button></div>
       <p class="hint" style="margin:0">${sum}.</p>
-      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats${lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}</span>`}${anyCard(id, myLevel(id))}</div>`).join('')}</div></div></div>`;
+      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats${lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}</span>`}${anyCard(id, myLevel(id), mySel(id))}</div>`).join('')}</div></div></div>`;
   }
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;
@@ -900,6 +1024,8 @@ function render() {
   const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, lobby: renderLobby, game: renderGame, friends: friends.screen };
   // Récompenses gagnées (niveau, missions, succès, familles et sets complétés) : affichées en revenant à l'accueil.
   if (ui.screen === 'home' && !ui.sheet && prog().inbox.length) ui.sheet = 'inbox';
+  // Récompense du jour du calendrier pas encore récupérée : le calendrier s'ouvre une fois par visite.
+  if (ui.screen === 'home' && !ui.sheet && prog().calendar?.ready && !ui.calShown) { ui.calShown = true; ui.calGot = null; ui.sheet = 'calendar'; }
   // Première connexion sur cet appareil : le tutoriel est proposé une fois.
   if ((ui.screen === 'home' || ui.screen === 'starter') && !ui.sheet && ui.account && !store.get(tutoKey(), false)) ui.sheet = 'tuto-offer';
   ui.coach = ui.screen === 'game' && ui.mode === 'tuto' && ui.ctrl ? ui.ctrl.coach(ui) : null;
@@ -1167,10 +1293,19 @@ app.addEventListener('click', e => {
     else if (a === 'starter' && ui.starterPick && !ui.busy) call('POST', '/api/starter', { starter: ui.starterPick });
     else if (a === 'booster' && !ui.busy) openBoosterNow();
     else if (a === 'collection') { ui.screen = 'collection'; ui.error = ''; render(); }
-    else if (a === 'shop') openShop();
+    else if (a === 'shop') openShop('sets');
     else if (a === 'buy-card' && !ui.busy) buy('/api/shop/card', { set: ds.set, card: ds.id });
     else if (a === 'buy-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set });
     else if (a === 'free-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set, free: true });
+    else if (a === 'buy-art' && !ui.busy) buyArt('/api/shop/art', { art: ds.id });
+    else if (a === 'chest' && !ui.busy) buyArt('/api/shop/chest', {});
+    else if (a === 'chest-free' && !ui.busy) buyArt('/api/shop/chest', { free: true });
+    else if (a === 'shop-tab') { ui.shopTab = ds.tab; ui.msg = ''; ui.error = ''; render(); }
+    else if (a === 'shop-arts') { ui.sheet = null; ui.calGot = null; openShop('arts'); }
+    else if (a === 'convert' && !ui.busy) convertPrisms();
+    else if (a === 'calendar') { ui.sheet = 'calendar'; ui.calGot = null; render(); }
+    else if (a === 'claim-day' && !ui.busy) claimDay();
+    else if (a === 'art-pick' && !ui.busy) selectArt(ds.card, ds.art);
     else if (a === 'reroll' && !ui.busy) call('POST', '/api/missions/reroll', { index: +ds.i });
     else if (a === 'edit') { editDeck(ui.account.active, ui.screen === 'collection' ? 'collection' : 'home'); render(); }
     else if (a === 'home') { ui.screen = 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
@@ -1190,7 +1325,7 @@ app.addEventListener('click', e => {
   if (ds.frame !== undefined && !ui.busy) { equip({ frame: ds.frame || null }, 'Cadre changé.'); return; }
   if (ds.back && !ui.busy) { equip({ back: ds.back }, 'Dos de carte changé.'); return; }
   if (ds.fam !== undefined) { ui.colFam = ds.fam; render(); return; }
-  if (ds.zoom) { const [kind, id] = ds.zoom.split(':'); const back = ui.sheet === 'codex' ? 'codex' : null; openZoom({ kind, id }); ui.zoomBack = back; ui.msg = ''; render(); return; }
+  if (ds.zoom) { const [kind, id, art] = ds.zoom.split(':'); const back = ui.sheet === 'codex' ? 'codex' : null; openZoom({ kind, id, art: art || null }); ui.zoomBack = back; ui.msg = ''; render(); return; }
   if (ds.pick) { togglePick(ds.pick); return; }
   if (ds.tpick) { toggleTerrain(ds.tpick); return; }
   if (ds.gpick) { ui.edit.general = ds.gpick; ui.msg = '';

@@ -67,11 +67,11 @@ const rooms = new Map();
 const newCode = () => { let c; do { c = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join(''); } while (rooms.has(c)); return c; };
 const send = (ws, msg) => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg)); };
 
-// Niveaux de carte de l'adversaire : seulement ceux de son général et des cartes qu'il a déjà révélées, pour ne rien dire de son deck.
+// Niveaux et arts alternatifs des cartes de l'adversaire : seulement ceux de son général et des cartes qu'il a déjà révélées, pour ne rien dire de son deck.
 function shownBadge(b, P) {
   if (!b) return b;
-  const ids = new Set([P.general, ...P.played]);
-  return { ...b, looks: Object.fromEntries(Object.entries(b.looks || {}).filter(([id]) => ids.has(id))) };
+  const ids = new Set([P.general, ...P.played]), only = o => Object.fromEntries(Object.entries(o || {}).filter(([id]) => ids.has(id)));
+  return { ...b, looks: only(b.looks), arts: only(b.arts) };
 }
 function broadcast(room, flash = null) {
   room.seats.forEach((s, i) => {
@@ -117,7 +117,7 @@ async function resolve(room) {
     room.rewards = await Promise.all(room.seats.map(async (s, i) => {
       const acc = accounts.byToken(s.auth); if (!acc) return null;
       const reward = await accounts.recordGame(acc, { mode, result: result(i), played: room.st.p[i].played,
-        general: room.st.p[i].general, sweep: winner === i && zones.every(z => z === i) }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
+        general: room.st.p[i].general, sweep: winner === i && zones.every(z => z === i), friend: !!room.invite }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
       return reward && ranks[i] ? { ...reward, ranked: ranks[i] } : reward;
     }));
   }

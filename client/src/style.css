@@ -566,3 +566,78 @@ body:has(#app.ingame) { margin: 0; }
 .tabbar .badge { position: absolute; top: 4px; right: 6px; min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 11px; line-height: 18px; }
 #app:has(.tabbar) { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 #app:has(.tabbar) .fbanner { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+
+/* Arts alternatifs (art.js, boutique, collection) : une couleur par rareté (--rar), un liseré autour de l'illustration,
+   une pastille dans la boutique. Art provisoire (.ph) tant que ses images manquent : l'illustration d'origine voilée de la couleur de la rareté. */
+.rar-rare { --rar: #3a78d0; } .rar-epique { --rar: #8a5bd6; } .rar-legendaire { --rar: #d59a1c; }
+.art.rar { box-shadow: inset 0 0 0 2px var(--rar); }
+.art.rar::after { content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 2px var(--rar), inset 0 0 14px -4px var(--rar); }
+.art.rar-legendaire::after { background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / .28) 50%, transparent 65%) 0 0 / 300% 100%; animation: rarshine 4.5s ease-in-out infinite; }
+@keyframes rarshine { from { background-position: 100% 0; } to { background-position: -50% 0; } }
+.art.ph { background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--rar) 55%, #fff), transparent 60%), linear-gradient(160deg, var(--rar), var(--rar2, #10131a)); }
+.art.ph .art-decor { filter: saturate(.35) brightness(.8); }
+.art.ph .ph-veil { position: absolute; inset: 0; background: linear-gradient(160deg, color-mix(in srgb, var(--rar) 55%, transparent), transparent 70%); mix-blend-mode: color; }
+.art.ph .ph-tag { position: absolute; top: 5%; left: 6%; z-index: 1; font-size: clamp(9px, 7cqi, 14px); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #fff;
+  background: var(--rar); border-radius: 999px; padding: .1em .6em; }
+.art.ph .ph-title { position: absolute; top: 34%; left: 8%; right: 8%; z-index: 1; text-align: center; color: #fff; font-family: var(--display); font-size: clamp(11px, 9cqi, 24px); line-height: 1.1; text-wrap: balance;
+  text-shadow: 0 1px 3px rgb(0 0 0 / .9); }
+.art.ph .ph-title::after { content: "Illustration à venir"; display: block; margin-top: .4em; font-family: var(--body); font-size: .6em; opacity: .85; }
+.rarchip { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #fff; background: var(--rar); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.chip.prism { border-color: #8a5bd6; color: var(--ink); background: color-mix(in srgb, #8a5bd6 18%, var(--surface)); }
+/* Boutique */
+.artshop { border-top: 3px solid var(--f-dieux); }
+.artoffer { grid-template-rows: 1fr auto auto; }
+.artmeta { display: grid; gap: 2px; justify-items: start; line-height: 1.2; }
+.rates { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.rates li { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.row.chest { display: grid; gap: 10px; justify-items: start; }
+.rates li .num { white-space: nowrap; }
+/* Collection : choix de l'art d'une carte */
+.artopts { display: grid; gap: 6px; }
+.artopt { display: flex; align-items: center; gap: 8px; text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: var(--r); padding: 6px 8px; }
+.artopt.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.artopt > span:nth-child(2) { flex: 1; line-height: 1.25; }
+.artopt .ok { color: var(--up); font-weight: 700; }
+.artsw { flex: none; width: 22px; height: 28px; border-radius: 4px; background: linear-gradient(160deg, var(--rar, var(--line)), var(--rar2, var(--sunk))); border: 1px solid var(--line); }
+.gotart .gotcard { width: min(240px, 70%); justify-self: center; }
+.zoomart.art-swap { animation: zoomin .3s cubic-bezier(.2,.9,.3,1.2); }
+@media (prefers-reduced-motion: reduce) { .art.rar::after { animation: none; } .zoomart.art-swap { animation: none; } }
+.artthumb .art { width: 100%; border-radius: var(--r); }
+
+/* Boutique : onglets Sets et Arts */
+.shoptabs { align-self: start; }
+.shoptabs button { padding: 8px 18px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.shoptabs .badge { min-width: 18px; padding: 0 5px; border-radius: 999px; background: #8a5bd6; color: #fff; font-size: 11px; line-height: 18px; }
+.shoptabs button.on .badge { background: var(--accent-ink); color: var(--accent); }
+.chestbtns { display: flex; flex-wrap: wrap; gap: 8px; }
+.convert input { width: 100%; min-width: 0; box-sizing: border-box; }
+
+/* Calendrier de connexion du mois */
+.calline { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%; padding: 0; border: 0; background: none; color: inherit; text-align: left;
+  font-family: var(--display); font-weight: 700; font-size: 16px; cursor: pointer; }
+.calline small { font-family: var(--body); font-weight: 400; }
+.calready { color: var(--up); }
+.panel.calendar { max-width: 560px; }
+.calgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.calh { text-align: center; font-size: 11px; color: var(--muted); font-weight: 700; }
+.calday { position: relative; display: grid; justify-items: center; align-content: start; gap: 2px; min-height: 54px; padding: 4px 2px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--surface); font-size: 11px; text-align: center; }
+.calday .cdn { font-weight: 700; font-size: 12px; }
+.calday small { font-size: 10px; line-height: 1.1; color: var(--muted); }
+.calday.sun { border-color: #8a5bd6; background: color-mix(in srgb, #8a5bd6 14%, var(--surface)); }
+.calday.sun small { color: var(--ink); }
+.calday.today { outline: 2px solid var(--accent); outline-offset: 1px; }
+.calday.missed { opacity: .4; }
+.calday.got { background: color-mix(in srgb, var(--up) 14%, var(--surface)); }
+.calday .ok { position: absolute; top: 2px; right: 4px; color: var(--up); font-size: 11px; }
+
+/* Icônes des monnaies : Éclat (cristal ambré), Prisme (prisme violet), coffre d'arts */
+.ico { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -0.2em; background: center / contain no-repeat; flex: none; }
+.ico-shard { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1 16 7 10 19 4 7Z' fill='%23e0a530' stroke='%238a5a10' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M4 7h12M10 1 8 7l2 12 2-12Z' fill='none' stroke='%238a5a10' stroke-width='.9' stroke-linejoin='round'/%3E%3Cpath d='M8 7 10 1 6 6Z' fill='%23fff3c4' opacity='.8'/%3E%3C/svg%3E"); }
+.ico-prism { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1.5 18.5 17.5H1.5Z' fill='%239b6ee8' stroke='%234a2590' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M10 1.5 13 17.5' stroke='%234a2590' stroke-width='.9'/%3E%3Cpath d='M10 1.5 13 17.5H18.5Z' fill='%236a3fc0'/%3E%3Cpath d='M9 6 5 14' stroke='%23efe4ff' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E"); }
+.ico-chest { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M2 8a5 4 0 0 1 5-4h6a5 4 0 0 1 5 4v2H2Z' fill='%23c4934a' stroke='%235a3a10' stroke-width='1.1'/%3E%3Crect x='2' y='10' width='16' height='7' rx='1' fill='%23a87634' stroke='%235a3a10' stroke-width='1.1'/%3E%3Cpath d='M2 10h16' stroke='%23e0b860' stroke-width='1.6'/%3E%3Crect x='8.5' y='8.5' width='3' height='4' rx='.6' fill='%23f2d27a' stroke='%235a3a10' stroke-width='.8'/%3E%3C/svg%3E"); }
+.chip.cur { display: inline-flex; align-items: center; gap: 4px; }
+.calgain { display: inline-flex; align-items: center; gap: 2px; }
+.calday .ico { width: 15px; height: 15px; }
+.calday.sun .ico-chest { width: 18px; height: 18px; }
+.calday { min-width: 0; overflow: hidden; }
