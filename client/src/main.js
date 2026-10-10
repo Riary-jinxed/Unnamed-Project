@@ -276,7 +276,7 @@ const ico = kind => `<span class="ico ico-${kind}" aria-hidden="true"></span>`;
 // Calendrier du mois : une case par jour, semaine du lundi au dimanche. Dimanche : coffre d'arts (et parfois des Prismes).
 function calendarHTML(cal) {
   const [y, m] = cal.month.split('-').map(Number), lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
-  const what = d => (d.chests ? `<span class="calgain">${ico('chest')}${d.prisms ? `<small class="num">+${d.prisms}</small>${ico('prism')}` : ''}</span>`
+  const what = d => (d.chests ? `${ico('chest')}${d.prisms ? `<span class="calgain"><small class="num">+${d.prisms}</small>${ico('prism')}</span>` : ''}`
     : `<span class="calgain"><small class="num">${d.shards}</small>${ico('shard')}</span>`);
   const label = d => [`${d.day}`, d.chests ? `coffre d'arts${d.prisms ? ` et ${d.prisms} Prismes` : ''}` : `${d.shards} Éclats`, d.got ? 'récupéré' : d.missed ? 'manqué' : d.day === cal.today ? 'aujourd\'hui' : ''].filter(Boolean).join(', ');
   const cell = d => `<div class="calday ${d.chests ? 'sun' : ''} ${d.got ? 'got' : ''} ${d.missed ? 'missed' : ''} ${d.day === cal.today ? 'today' : ''}" aria-label="${label(d)}">

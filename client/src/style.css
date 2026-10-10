@@ -639,5 +639,5 @@ body:has(#app.ingame) { margin: 0; }
 .chip.cur { display: inline-flex; align-items: center; gap: 4px; }
 .calgain { display: inline-flex; align-items: center; gap: 2px; }
 .calday .ico { width: 15px; height: 15px; }
-.calday.sun .ico-chest { width: 20px; height: 20px; }
-.calday.sun .calgain { flex-wrap: wrap; justify-content: center; row-gap: 0; }
+.calday.sun .ico-chest { width: 18px; height: 18px; }
+.calday { min-width: 0; overflow: hidden; }
