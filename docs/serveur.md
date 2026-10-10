@@ -25,7 +25,7 @@ Documents de la table `reglages` :
 | Clé | Écrit par | Contenu |
 | --- | --- | --- |
 | `jeu` | onglet Boutique | Prix, cartes par booster, Éclats par doublon, cartes du jour, `rotation`. |
-| `recompenses` | onglet Récompenses | Valeurs qui remplacent `DEFAULT_REWARDS`, missions, Éclats des succès. |
+| `recompenses` | onglet Récompenses | Valeurs qui remplacent `DEFAULT_REWARDS` (dont le calendrier : `loginShards`, `loginChests`, `loginPrisms`), missions, Éclats, Prismes et coffres des succès. |
 | `brouillon` | onglets Cartes et Sets | Catalogue en cours de modification. |
 | `catalogue` | « Publier dans le jeu » | Catalogue publié, appliqué au moteur. |
 
@@ -47,8 +47,10 @@ Un compte est un objet JSON (colonne `data`) :
 | `lastBooster` | Jour du dernier booster quotidien ouvert. |
 | `shop` | Par set : `{ date, rotation, offers, bought }`, les cartes du jour du joueur. |
 | `level`, `xp`, `freeBoosters` | Niveau, XP vers le niveau suivant, boosters offerts à ouvrir. |
-| `stats` | Compteurs des succès : parties, victoires, séries, missions, victoires par famille, parties du jour. |
+| `stats` | Compteurs des succès : parties, victoires, séries, missions, victoires par famille, parties du jour, coffres ouverts, victoires classées, meilleur palier, défis gagnés contre un ami, jours de connexion, mois parfaits. |
 | `missions` | `{ date, rerolls, list }` : les missions du jour. |
+| `calendar` | `{ month, days }` : jours du mois dont la récompense de connexion est prise (remis à zéro chaque mois). |
+| `freeChests` | Coffres d'arts offerts à ouvrir (succès rares, dimanches du calendrier). |
 | `achievements`, `completed` | Succès obtenus ; familles (`set:famille`) et sets complétés, avec leur date. |
 | `cosmetics`, `title`, `frame`, `back` | Titres, cadres et dos débloqués ; ceux qui sont portés. |
 | `inbox` | Récompenses gagnées à montrer au joueur (40 au plus), vidée quand il les a vues. |
@@ -94,6 +96,10 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/missions/reroll` | Remplace une mission (`{ index }`). |
 | `POST /api/rewards/seen` | Vide la boîte de récompenses. |
 | `PUT /api/cosmetics` | Change le titre, le cadre ou le dos de carte porté. |
+| `POST /api/shop/art`, `/api/shop/chest` | Arts alternatifs (`arts.js`) : payés en Prismes. `{ art }` achète un art du jour ; le coffre donne un art classique pas encore possédé, au hasard selon sa rareté (`{ free: true }` : avec un coffre offert). Renvoie `art` et la boutique à jour. |
+| `POST /api/shop/convert` | `{ prisms }` : change des Prismes en Éclats au taux `prismShards` (0 : fermé). Jamais l'inverse. |
+| `POST /api/calendar/claim` | Récompense du jour du calendrier du mois (409 si déjà prise). Renvoie `got`. |
+| `PUT /api/arts/select` | `{ card, art }` : art affiché pour cette carte (`art: null` : l'illustration d'origine). |
 | `POST /api/cards/upgrade` | `{ card }` : monte une carte possédée d'un niveau contre son essence et des Éclats (`progress.upgradeCard`). |
 | `POST /api/games/solo` | Résultat d'une partie contre l'IA (non classée) → récompenses. |
 | `GET /api/ranked` | Mode classé : rang du joueur (`ranked`), classement de la saison (`ladder`), récompenses de fin de saison par palier (`rewards`). |
@@ -108,8 +114,9 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | --- | --- |
 | `GET /api/admin/accounts`, `POST /api/admin/accounts` | Liste des comptes ; création ou changement de mot de passe. |
 | `GET /api/admin/account?login=` | Fiche complète d'un compte. |
-| `POST /api/admin/account/update`, `/cards`, `/starter`, `/reset`, `/booster`, `/shop`, `/logout`, `/delete` | Modifier un compte (pseudo, Éclats, niveau, boosters offerts, désactivation), sa collection, son deck de départ ; le remettre à zéro ; rendre le booster du jour ; renouveler ses offres ; fermer ses sessions ; le supprimer. |
-| `GET/POST /api/admin/settings` | Réglages de la boutique (`renew: true` renouvelle les offres de tous). |
+| `POST /api/admin/account/update`, `/cards`, `/starter`, `/reset`, `/booster`, `/shop`, `/logout`, `/delete` | Modifier un compte (pseudo, Éclats, Prismes, niveau, boosters offerts, désactivation), sa collection, son deck de départ ; le remettre à zéro ; rendre le booster du jour ; renouveler ses offres ; fermer ses sessions ; le supprimer. |
+| `GET/POST /api/admin/settings` | Réglages de la boutique, prix des arts alternatifs compris (`renew: true` renouvelle les offres de tous). |
+| `GET /api/admin/arts`, `POST /api/admin/account/art` | Catalogue des arts avec le nombre de joueurs qui les ont ; donner (`give: true`, pour les Promo) ou retirer un art à un compte. |
 | `GET/POST /api/admin/rewards` | Réglages des récompenses (`reset: true` revient aux valeurs par défaut). |
 | `GET /api/admin/stats?mode=&days=` | Stats des parties (`all`, `pvp`, `pve` ; sur N jours, 0 = tout). |
 | `GET/PUT /api/admin/catalog`, `POST …/publish`, `POST …/discard` | Brouillon du catalogue, publication, abandon du brouillon. |
@@ -154,6 +161,9 @@ Un salon (`rooms` dans `index.js`) garde ses deux sièges (compte, deck, jeton, 
 - **Fin de partie** (`progress.onGame`) : statistiques, XP et Éclats selon le mode et le résultat (pour les `gamesPerDay` premières parties du jour), avancement des missions, montée de niveau (Éclats à chaque niveau, booster offert tous les `boosterEvery` niveaux), succès.
 - **Nouvelles cartes** (`progress.onCards`) : XP par carte nouvelle, puis vérification des familles et sets complétés (carte unique, titre, dos ou cadre, Éclats, boosters offerts).
 - **Missions** : tirées chaque jour parmi celles activées, une peut être remplacée par jour.
+- **Calendrier du mois** (`progress.claimDay`, `POST /api/calendar/claim`) : la récompense du jour (`loginReward`) est donnée par `grant` sans passer par la boîte de récompenses (l'appli l'affiche dans le calendrier). Compte aussi `loginDays` et, quand tous les jours du mois sont pris, `perfectMonths`.
+- **Succès des fonctions récentes** : `statsOf` calcule arts possédés et légendaires, cartes montées de niveau, amis, meilleur palier classé ; `progress.check(a)` les vérifie après un achat d'art, un coffre, une montée de niveau, un ami accepté ou un don depuis `/admin`. `grant` ajoute les coffres (`chests`) à `freeChests`.
+- **Arts alternatifs** (`server/src/arts.js`) : le compte garde `prisms` (monnaie des arts, donnée par `grant` avec les succès et la fin de saison classée), `arts` (arts possédés), `artSel` (art choisi par carte) et `artShop` (arts du jour, renouvelés à minuit ou avec la rotation de la boutique). Le badge de partie porte `arts` comme `looks`, et l'adversaire ne reçoit que ceux du général et des cartes révélées (`shownBadge`, `index.js`).
 - **Niveaux de carte** (`progress.upgradeCard`) : chaque doublon donne `essencePerDuplicate` essence de la carte (`addCards`, `accounts.js`) ; passer au niveau n coûte `lvlNEssence` essence et `lvlNShards` Éclats. Les niveaux et leur aspect sont dans `CARD_LEVELS` (`rewards.js`).
 - Chaque récompense passe par `grant`, qui l'applique au compte et la range dans `inbox`.
 

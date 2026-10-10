@@ -44,6 +44,13 @@ Une carte ne doit jamais être retirée du code tant que des joueurs la possède
 2. Une entrée dans `DEFAULT_SETS` (`packages/engine/src/collection.js`) : nom, `open: false` tant qu'il n'est pas en vente, `daily`, présentation (`teaser`). Une fois un catalogue publié, l'ouverture du set se règle dans l'onglet Sets de `/admin`.
 3. Récompenses de complétion (`packages/engine/src/rewards.js`) : une ligne par famille du set dans `FAMILY_REWARDS` (carte unique avec `set: 'recompense'`, titre, dos de carte), une entrée dans `SET_REWARDS` (carte Dieu, titre, cadre), et les nouveaux noms dans `BACKS` et `FRAMES`. Les dos et cadres ont leur style dans `client/src/style.css` (`.mc.back.back-<id>`, `.frame-<id>`).
 
+## Ajouter un art alternatif
+
+1. Une ligne `A(id, carte, nom, rareté)` dans `ARTS` (`packages/engine/src/arts.js`). Promo : `{ edition: 'promo', how }`, puis le donner depuis la fiche du joueur dans `/admin`.
+2. Les images dans `client/src/art/alt/<id>/` (`decor.webp`, `perso.webp`, même gabarit que les cartes). Sans elles, l'appli montre un art provisoire et l'art reste vendable.
+
+Une nouvelle rareté s'ajoute dans `ART_RARITIES` (nom, prix, poids) avec sa couleur dans `style.css` (`.rar-<id>`). Les prix des raretés, le nombre d'arts du jour et le prix du coffre se règlent dans l'onglet Boutique de `/admin`.
+
 ## Ajouter une mission ou un succès
 
 - **Mission** : entrée dans `MISSIONS` (`rewards.js`) avec son libellé, son objectif, son XP et ses Éclats, puis ce qui la fait avancer dans `progress.js` : la table passée à `advance` dans `onGame` (fin de partie) ou un appel à `advance` ailleurs (comme `onBooster`).

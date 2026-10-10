@@ -70,6 +70,7 @@ export function createFriends(store, accounts, rooms) {
     for (const [x, y] of [[a, b], [b, a]]) {
       drop(list(x, 'friendsIn'), y.login); drop(list(x, 'friendsOut'), y.login);
       if (!list(x, 'friends').includes(y.login)) x.friends.push(y.login);
+      accounts.progress.check(x);
     }
     await save(a, b);
     notify(b.login, { t: 'friends', msg: `${a.name} a accepté votre demande d'ami.` });

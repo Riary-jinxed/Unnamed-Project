@@ -19,8 +19,9 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 | `loading`, `login` | `renderLoading`, `renderLogin` | Démarrage, connexion. |
 | `starter` | `renderStarter` | Choix du deck de départ (première connexion). |
 | `home` | `renderHome` | Booster du jour, niveau et missions, deck joué, boutique, rang classé, parties, tutoriel et codex. |
-| `collection` | `renderCollection` | Toutes les cartes, par famille, celles qui manquent grisées ; niveau de chaque carte. Une carte ouverte en grand y monte de niveau (`upgradeHTML`). |
-| `shop` | `renderShop` | Cartes du jour et boosters de chaque set. |
+| `collection` | `renderCollection` | Toutes les cartes, par famille, celles qui manquent grisées ; niveau de chaque carte. Une carte ouverte en grand y change d'art (`artsHTML`) et monte de niveau (`upgradeHTML`). |
+| `shop` | `renderShop` | Deux onglets (`ui.shopTab`) : « Sets » (cartes du jour et boosters de chaque set) et « Arts » (`artShopHTML` : arts du jour, coffre avec ses chances et coffres offerts, change des Prismes en Éclats). Un art obtenu s'affiche dans la feuille `art`, avec « Utiliser cet art ». |
+| `home` (feuille `calendar`) | `calendarHTML` | Calendrier du mois : une case par jour (Éclats, coffre le dimanche), récupérer la récompense du jour. S'ouvre une fois par visite tant qu'elle attend (`ui.calShown`). |
 | `decks`, `deck` | `renderDecks`, `renderDeck` | Liste des decks ; création en trois étapes (général, terrains, cartes). |
 | `profile` | `renderProfile` | Pseudo, image, titre, cadre, dos, stats, succès, familles. |
 | `friends` | `friends.screen` (`friends.js`) | Ajouter un ami, demandes reçues et envoyées, amis avec leur statut, défier (normal ou classé), retirer. |
@@ -29,11 +30,13 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 
 ### Plateau (`renderGame`)
 
-De haut en bas : bandeau de l'adversaire, les trois zones, votre bandeau, l'encadré d'info, la main, puis une barre collée en bas de l'écran (`.dock`) avec le tour, les sceaux et le bouton Valider.
+De haut en bas : barre du haut (type de partie et tour), bandeau de l'adversaire, les trois zones, votre bandeau, la main, puis une barre collée en bas de l'écran (`.dock`) avec Quitter, les sceaux et le bouton Valider. Dans le tutoriel, la bulle du guide s'insère entre votre bandeau et la main.
 
-- Bandeau d'un joueur (`pbar`) : image de profil dans son cadre, nom, niveau, titre, compteurs (sceaux de l'adversaire, main, deck, Trésor, Grâce), et à droite l'emplacement de la carte du général (`genSlot`). Toucher deux fois le général l'ouvre en grand ; le sien s'y active (zone à choisir s'il en demande une) et s'y annule. Il brille quand il peut être activé.
+L'écran de partie tient sur la hauteur du téléphone (`#app.ingame`) : le plateau prend la place libre et ses cases s'agrandissent ou rétrécissent avec elle (42 px au moins ; en dessous, la page défile). Il n'y a pas d'encadré d'info : une double touche ouvre une carte en grand, et un coup refusé (zone pleine, pas assez de sceaux) s'affiche dans une bulle au-dessus de la main (`ui.msg`, `.toast`), qui s'efface seule (`msgFades`).
+
+- Bandeau d'un joueur (`pbar`) : image de profil dans son cadre, nom, niveau et titre sur une ligne, compteurs (sceaux de l'adversaire, main, deck, Trésor, Grâce), et à droite l'emplacement de la carte du général (`genSlot`). Toucher deux fois le général l'ouvre en grand ; le sien s'y active (zone à choisir s'il en demande une) et s'y annule. Il brille quand il peut être activé.
 - Images de profil en ligne : le serveur les envoie dans `view.avatars` une seule fois par connexion et par partie, l'appli les garde dans `ui.avatars`. Contre l'IA, seule la vôtre s'affiche.
-- Tour et sceaux (`tempoHTML`) : un point par tour, un jeton par sceau ; les jetons déjà engagés sont vides, ceux que coûterait la carte sélectionnée clignotent.
+- Tour (`turnHTML`, dans la barre du haut) et sceaux (`sealsHTML`, dans `.dock`) : un point par tour, un jeton par sceau ; les jetons déjà engagés sont vides, ceux que coûterait la carte sélectionnée clignotent.
 - Les cartes de la main montrent leur effet (trois lignes). Dans tous les textes d'effet, `rich(texte)` (`common.js`) échappe le texte et met les mots-clés en gras ; la liste des mots-clés est `KEYWORDS`, à compléter quand une nouvelle mécanique apparaît.
 
 ## Parties
@@ -46,7 +49,7 @@ Une partie est pilotée par un « contrôleur » qui offre `submit(plan)`, `rema
 
 Pendant la préparation, l'appli refait les calculs simples pour guider le joueur (sceaux restants, emplacements libres) ; le serveur refait tout de son côté.
 
-À chaque nouvelle vue, `viewEffects(avant, après)` compare les deux et prépare les animations (carte révélée, détruite, déplacée, puissance qui monte ou baisse, terrain révélé) et les bruitages (`sfx.js`, synthétisés avec Web Audio). Niveaux de carte : `lvCls(niveau)` ajoute la bordure (`.lv-bronze` … `.lv-astral`, `style.css`) aux cartes de la main, du plateau, aux généraux et aux cartes de la collection ; `levelIn(siège, id)` lit son niveau dans le compte, celui de l'adversaire dans `badges[siège].looks`. Une carte de niveau 5 révélée joue en plus son effet de mise en jeu (`burstAt`, bruitage `astral`). Le glisser-déposer d'une carte vers une zone s'ajoute au toucher (sélectionner, puis toucher la zone). En partie, une touche sélectionne une carte de la main ou une créature ⇄ (une deuxième la désélectionne), une touche sur une carte posée ce tour la reprend en main, et une double touche (`doubleTap`) ouvre n'importe quelle carte en grand.
+À chaque nouvelle vue, `viewEffects(avant, après)` compare les deux et prépare les animations (carte révélée, détruite, déplacée, puissance qui monte ou baisse, terrain révélé) et les bruitages (`sfx.js`, synthétisés avec Web Audio). Niveaux de carte : `lvCls(niveau)` ajoute la bordure (`.lv-bronze` … `.lv-astral`, `style.css`) aux cartes de la main, du plateau, aux généraux et aux cartes de la collection ; `levelIn(siège, id)` lit son niveau dans le compte, celui de l'adversaire dans `badges[siège].looks`. Arts alternatifs : `artIn(siège, id)` lit l'art choisi de la même façon (compte, ou `badges[siège].arts`) ; la carte en grand le montre (`artHTML(…, art)`, `art.js`), avec le liseré de sa rareté. Une carte de niveau 5 révélée joue en plus son effet de mise en jeu (`burstAt`, bruitage `astral`). Le glisser-déposer d'une carte vers une zone s'ajoute au toucher (sélectionner, puis toucher la zone). En partie, une touche sélectionne une carte de la main ou une créature ⇄ (une deuxième la désélectionne), une touche sur une carte posée ce tour la reprend en main, et une double touche (`doubleTap`) ouvre n'importe quelle carte en grand.
 
 ## Amis (`friends.js`)
 
@@ -78,10 +81,10 @@ Protégée par `ADMIN_KEY`, saisie une fois et gardée dans le navigateur le tem
 
 | Onglet | Fichier | Rôle |
 | --- | --- | --- |
-| Comptes | `admin.js` | Créer un compte ; fiche complète : pseudo, mot de passe, Éclats, niveau, collection, deck de départ, booster, offres, sessions, désactivation, remise à zéro, suppression. |
+| Comptes | `admin.js` | Créer un compte ; fiche complète : pseudo, mot de passe, Éclats, Prismes, niveau, arts alternatifs (donner, retirer), collection, deck de départ, booster, offres, sessions, désactivation, remise à zéro, suppression. |
 | Stats | `admin-stats.js` | Taux de victoire par joueur et par général, cartes les plus jouées, dernières parties. |
 | Cartes, Sets | `admin-cards.js` | Brouillon du catalogue : retoucher ou créer une carte, ranger les cartes en sets, publier. |
-| Boutique | `admin.js` | Prix, taille des boosters, Éclats par doublon, cartes du jour, renouvellement des offres. |
+| Boutique | `admin.js` | Prix, taille des boosters, Éclats par doublon, cartes du jour, renouvellement des offres ; arts alternatifs : prix en Prismes par rareté, arts du jour, coffre, Éclats par Prisme changé, catalogue. |
 | Récompenses | `admin-rewards.js` | Courbe d'XP, gains des parties et niveaux, missions, complétions, niveaux de carte (essence par doublon, coûts de chaque niveau), succès. |
 
 Chaque onglet séparé est une fonction (`statsTab`, `cardsTab`, `rewardsTab`) qui reçoit les outils de la page (`call`, `render`, `say`, `esc`, `notice`) et renvoie de quoi s'afficher et réagir aux clics.

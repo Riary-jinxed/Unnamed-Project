@@ -9,6 +9,7 @@ import { statsTab } from './admin-stats.js';
 import { esc, famStyle } from './common.js';
 import { cardsTab } from './admin-cards.js';
 import { rewardsTab } from './admin-rewards.js';
+import { ARTS, ART_RARITIES, RARITY_IDS, rarityName } from '@jeu/engine/arts';
 
 const app = document.getElementById('app');
 const KEY = 'jeu-admin-key';
@@ -16,7 +17,7 @@ const famOf = id => (GENERALS[id] ? GENERALS[id].fam : CARDS[id].kw.find(k => FA
 const nameOf = id => GENERALS[id] ? `${GENERALS[id].name} (général)` : CARDS[id].name;
 const st = {
   key: (() => { try { return sessionStorage.getItem(KEY) || ''; } catch { return ''; } })(),
-  tab: 'accounts', accounts: null, q: '', sel: null, detail: null, cards: null, settings: null, defaults: null, msg: '', err: '', busy: false,
+  tab: 'accounts', accounts: null, q: '', sel: null, detail: null, cards: null, settings: null, defaults: null, arts: null, msg: '', err: '', busy: false,
 };
 
 async function adminCall(method, path, body) {
@@ -109,13 +110,15 @@ function renderDetail() {
     ${notice()}
   </div>
   <form class="card-box" id="profile">
-    <h3>Profil, Éclats et niveau</h3>
+    <h3>Profil, monnaies et niveau</h3>
     <div class="grid2">
       <div class="field"><label class="eyebrow" for="p-name">Pseudo</label><input id="p-name" maxlength="20" value="${esc(a.name)}"></div>
       <div class="field"><label class="eyebrow" for="p-shards">Éclats</label><input id="p-shards" type="number" min="0" step="1" value="${a.shards}"></div>
+      <div class="field"><label class="eyebrow" for="p-prisms">Prismes</label><input id="p-prisms" type="number" min="0" step="1" value="${a.prisms}"><small class="hint">Monnaie des arts alternatifs.</small></div>
       <div class="field"><label class="eyebrow" for="p-level">Niveau</label><input id="p-level" type="number" min="1" step="1" value="${a.level}">
         <small class="hint">${a.xp} XP dans ce niveau. Changer le niveau ne donne pas les récompenses des niveaux sautés.</small></div>
       <div class="field"><label class="eyebrow" for="p-free">Boosters offerts à ouvrir</label><input id="p-free" type="number" min="0" step="1" value="${a.freeBoosters}"></div>
+      <div class="field"><label class="eyebrow" for="p-chests">Coffres d'arts offerts à ouvrir</label><input id="p-chests" type="number" min="0" step="1" value="${a.freeChests || 0}"></div>
     </div>
     <div class="row"><button class="btn primary" type="submit" ${dis()}>Enregistrer</button>
       <span class="hint">Ajouter :</span>${[100, 300, 1000].map(n => `<button class="btn sm" type="button" data-add-shards="${n}">+${n}</button>`).join('')}</div>
@@ -138,6 +141,7 @@ function renderDetail() {
     <div class="row"><button class="btn primary" data-act="cards" ${changed ? dis() : 'disabled'}>Enregistrer la collection</button>
       ${changed ? '<button class="btn" data-act="cards-undo">Annuler les changements</button>' : ''}</div>
   </div>
+  ${artsBlock(a)}
   <form class="card-box" id="pass">
     <h3>Accès</h3>
     <div class="field"><label class="eyebrow" for="p-pass">Nouveau mot de passe</label><input id="p-pass" minlength="4" required autocomplete="new-password"></div>
@@ -158,6 +162,29 @@ function renderDetail() {
   </div>`;
 }
 
+// Arts alternatifs du joueur : retirer un art, en donner un (Promo, geste commercial).
+function artsBlock(a) {
+  const mine = Object.keys(a.arts || {}).filter(id => ARTS[id]);
+  const label = id => `${esc(ARTS[id].name)} · ${esc(nameOf(ARTS[id].card))} · ${esc(rarityName(ARTS[id]))}`;
+  return `<div class="card-box">
+    <div class="row"><h3 style="margin-right:auto">Arts alternatifs</h3><small class="hint">${mine.length}/${Object.keys(ARTS).length}</small></div>
+    ${mine.length ? `<div class="chips">${mine.map(id => `<span class="pick on">${label(id)}${a.arts[id].gift ? ' · offert' : ''}
+      <button class="btn sm" type="button" data-art-take="${id}" ${dis()}>Retirer</button></span>`).join('')}</div>` : '<p class="hint" style="margin:0">Aucun art pour l\'instant.</p>'}
+    <div class="row"><select id="give-art" aria-label="Art à donner">${Object.keys(ARTS).filter(id => !a.arts?.[id]).map(id => `<option value="${id}">${label(id)}</option>`).join('')}</select>
+      <button class="btn" data-act="give-art" ${dis()}>Donner cet art</button></div>
+    <p class="hint" style="margin:0">Les arts Promo ne sont jamais en vente : ils se donnent d'ici.</p>
+  </div>`;
+}
+// Catalogue des arts alternatifs : rareté, prix, nombre de joueurs qui l'ont.
+function artsCatalog() {
+  if (!st.arts) return '<p class="wait">Chargement des arts…</p>';
+  const rows = st.arts.map(x => `<tr><td><b>${esc(x.name)}</b>${x.exists ? '' : ' <span class="chip off">carte absente</span>'}<br><small class="hint">${esc(x.id)}</small></td><td>${esc(CARDS[x.card]?.name || GENERALS[x.card]?.name || x.card)}</td>
+    <td>${esc(x.rarityName)}${x.edition === 'promo' && x.how ? `<br><small class="hint">${esc(x.how)}</small>` : ''}</td>
+    <td class="num">${x.price === null ? '—' : x.price}</td><td class="num">${x.owners}</td></tr>`).join('');
+  return `<div class="card-box" style="overflow-x:auto"><h2 style="font-size:20px">Catalogue des arts</h2>
+    <p class="hint" style="margin:0">Les arts se déclarent dans <code>packages/engine/src/arts.js</code> et leurs images dans <code>client/src/art/alt/&lt;id&gt;/</code> ; sans image, l'appli montre un art provisoire.</p>
+    <table class="admin"><thead><tr><th>Art</th><th>Carte</th><th>Rareté</th><th>Prix (Prismes)</th><th>Joueurs</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
 function renderShopSettings() {
   const s = st.settings, d = st.defaults;
   const field = (k, label, hint) => `<div class="field"><label class="eyebrow" for="s-${k}">${label}</label>
@@ -178,8 +205,20 @@ function renderShopSettings() {
     <p class="hint" style="margin:0">Chaque joueur a ses propres cartes du jour, tirées en priorité parmi celles qu'il n'a pas. Elles changent à minuit (heure de Paris).</p>
     ${field('dailyCards', 'Nombre de cartes du jour', 'Entre 1 et 10. Le changer renouvelle aussitôt les offres de tous.')}
     <div class="row"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="renew">Renouveler les offres de tous maintenant</button></div>
-    <p class="hint" style="margin:0">Renouveler tire de nouvelles cartes du jour pour tous les joueurs ; ils peuvent alors en acheter de nouveau aujourd'hui.</p>
-  </form>`;
+    <p class="hint" style="margin:0">Renouveler tire de nouvelles cartes du jour et de nouveaux arts du jour pour tous les joueurs ; ils peuvent alors en acheter de nouveau aujourd'hui.</p>
+  </form>
+  <form class="card-box" id="art-settings">
+    <h2 style="font-size:20px">Arts alternatifs</h2>
+    <p class="hint" style="margin:0">Payés en Prismes, la monnaie rare gagnée en fin de saison classée, avec les succès et le calendrier du mois (onglet Récompenses). Les coffres offerts (succès rares, dimanches du calendrier) s'ouvrent sans Prismes. Chaque joueur a ses arts du jour, tirés selon leur rareté parmi ceux qu'il n'a pas (ceux de ses cartes trois fois plus souvent). Le coffre donne un art qu'il n'a pas, avec les mêmes chances.</p>
+    <div class="grid2">
+      ${field('artOffers', 'Arts du jour', 'Entre 0 et 12.')}
+      ${field('chestPrice', 'Prix du coffre', 'En Prismes.')}
+      ${RARITY_IDS.map(r => field(`artPrice_${r}`, `Prix d'un art ${ART_RARITIES[r].name.toLowerCase()}`, 'En Prismes.')).join('')}
+      ${field('prismShards', 'Éclats par Prisme changé', 'Change à sens unique, des Prismes vers les Éclats. 0 ferme le change.')}
+    </div>
+    <div class="row"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="art-defaults">Revenir aux valeurs par défaut</button></div>
+  </form>
+  ${artsCatalog()}`;
 }
 
 function render() {
@@ -210,7 +249,7 @@ app.addEventListener('submit', async e => {
     } catch (err) { say('', err.message); render(); }
     return;
   }
-  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')) }, 'Profil enregistré.'); return; }
+  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), prisms: Number(v('p-prisms')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')), freeChests: Number(v('p-chests')) }, 'Profil enregistré.'); return; }
   if (id === 'pass') {
     const password = v('p-pass');
     try {
@@ -220,11 +259,16 @@ app.addEventListener('submit', async e => {
     } catch (err) { say('', err.message); }
     render(); return;
   }
-  if (id === 'settings' || id === 'rotation') {
-    const keys = id === 'settings' ? ['cardPrice', 'boosterPrice', 'boosterSize', 'shardsPerDuplicate'] : ['dailyCards'];
+  if (id === 'settings' || id === 'rotation' || id === 'art-settings') {
+    const keys = id === 'settings' ? ['cardPrice', 'boosterPrice', 'boosterSize', 'shardsPerDuplicate'] : id === 'rotation' ? ['dailyCards'] : ART_KEYS;
     saveSettings(Object.fromEntries(keys.map(k => [k, Number(v(`s-${k}`))])), 'Réglages enregistrés.');
   }
 });
+const ART_KEYS = ['artOffers', 'chestPrice', ...RARITY_IDS.map(r => `artPrice_${r}`), 'prismShards'];
+async function loadArts() {
+  try { st.arts = (await adminCall('GET', '/api/admin/arts')).arts; } catch (e) { say('', e.message); }
+  render();
+}
 async function saveSettings(body, okMsg) {
   try { const r = await adminCall('POST', '/api/admin/settings', body); st.settings = r.settings; say(okMsg); }
   catch (e) { say('', e.message); }
@@ -237,10 +281,11 @@ app.addEventListener('click', e => {
   if (t.dataset.open) { openAccount(t.dataset.open); return; }
   if (t.dataset.tab) {
     st.tab = t.dataset.tab; st.sel = null; st.detail = null; say('');
-    if (st.tab === 'stats') stats.load(); else if (st.tab === 'rewards') rewards.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
+    if (st.tab === 'stats') stats.load(); else if (st.tab === 'shop') loadArts(); else if (st.tab === 'rewards') rewards.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
     render(); return;
   }
   if (stats.onClick(t) || cards.onClick(t) || rewards.onClick(t)) return;
+  if (t.dataset.artTake) { act('/api/admin/account/art', { art: t.dataset.artTake, give: false }, 'Art retiré.'); return; }
   if (t.dataset.addShards) { const i = document.getElementById('p-shards'); i.value = (Number(i.value) || 0) + Number(t.dataset.addShards); return; }
   const fam = t.dataset.famAll || t.dataset.famNone;
   if (fam) {
@@ -282,6 +327,8 @@ app.addEventListener('click', e => {
       const { cardPrice, boosterPrice, boosterSize, shardsPerDuplicate } = st.defaults;
       saveSettings({ cardPrice, boosterPrice, boosterSize, shardsPerDuplicate }, 'Prix remis par défaut.'); break;
     }
+    case 'give-art': { const id = document.getElementById('give-art')?.value; if (id) act('/api/admin/account/art', { art: id, give: true }, `Art « ${esc(ARTS[id].name)} » donné.`); break; }
+    case 'art-defaults': saveSettings(Object.fromEntries(ART_KEYS.map(k => [k, st.defaults[k]])), 'Prix des arts remis par défaut.'); break;
     case 'renew':
       if (confirm('Tirer de nouvelles cartes du jour pour tous les joueurs ?')) saveSettings({ renew: true }, 'Offres du jour renouvelées pour tous.');
       break;
