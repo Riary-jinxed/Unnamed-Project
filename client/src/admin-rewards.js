@@ -34,7 +34,7 @@ const GROUPS = [
     ['passXpDaily', 'XP de saison : mission du jour'], ['passXpWeekly', 'XP de saison : mission de la semaine'],
     ['passPrice', 'Prix du premium en Prismes'], ['passShards', 'Éclats : palier gratuit'], ['passPrisms', 'Prismes : paliers gratuits 15 et 35'], ['passChests', 'Coffres d\'arts : paliers gratuits 20 et 40'],
     ['passPremiumPrisms', 'Prismes : palier premium'], ['passPremiumChests', 'Coffres d\'arts : tous les 10 paliers premium'],
-    ['passBonusXp', 'Passe fini : un coffre tous les … XP de saison'], ['passBonusShards', 'Coffre de fin de passe : Éclats (60 %)', 'Montant tiré entre la moitié et une fois et demie.'],
+    ['passBonusXp', 'Passe fini : un coffre tous les … XP de saison'], ['passBonusShards', 'Coffre de fin de passe : Éclats (60 %)'],
     ['passBonusPrisms', 'Coffre de fin de passe : Prismes (25 %)'], ['passBonusEssence', 'Coffre de fin de passe : essence d\'une carte (15 %)'],
     ['passCardMonths', 'Mois avant que les cartes de saison rejoignent le Set de base', 'Comptés depuis le début de la saison : avec 3, une saison d\'octobre les ajoute en janvier. 0 : tout de suite.'],
   ]],

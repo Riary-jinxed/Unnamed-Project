@@ -352,10 +352,9 @@ export function createProgress(store) {
     for (const bonus = passTierOf(P.xp, c).bonus; (P.bonus || 0) < bonus; P.bonus = (P.bonus || 0) + 1) openBonus(a, season, c);
     checkAchievements(a);
   }
-  // Coffre de fin de passe : un prix au hasard (BONUS_ODDS), montant entre la moitié et une fois et demie du réglage.
+  // Coffre de fin de passe : un prix au hasard (BONUS_ODDS), au montant fixe réglé dans /admin.
   // L'essence va à une carte possédée qui peut encore monter de niveau (à défaut, n'importe quelle carte possédée).
   function openBonus(a, season, c) {
-    const amount = base => Math.max(1, Math.round(base * (0.5 + Math.random())));
     let roll = Math.random() * 100, kind = 'shards';
     for (const [k, p] of Object.entries(BONUS_ODDS)) { if (roll < p) { kind = k; break; } roll -= p; }
     const label = `${season.name} : coffre de fin de passe`;
@@ -363,13 +362,13 @@ export function createProgress(store) {
       const mine = OWNABLE.filter(id => a.cards?.[id]), open = mine.filter(id => (a.cardLevels?.[id] || 1) < MAX_CARD_LEVEL);
       const card = shuffle(open.length ? open : mine)[0];
       if (card) {
-        const n = amount(c.passBonusEssence);
+        const n = c.passBonusEssence;
         a.essence = { ...(a.essence || {}), [card]: (a.essence?.[card] || 0) + n };
         return push(a, { kind: 'pass', label, essence: n, essenceCard: card });
       }
       kind = 'shards';
     }
-    grant(a, { kind: 'pass', label, [kind]: amount(kind === 'shards' ? c.passBonusShards : c.passBonusPrisms) });
+    grant(a, { kind: 'pass', label, [kind]: kind === 'shards' ? c.passBonusShards : c.passBonusPrisms });
   }
   // Achat du premium : pay(a, prix) prend les Prismes (accounts.js). Les paliers déjà atteints donnent aussitôt leur récompense premium.
   function buyPass(a, pay) {

@@ -34,7 +34,7 @@ export const DEFAULT_REWARDS = {
   // rejoignent le Set de base. Objectifs des missions et XP des missions de saison : passPool et passMissions.
   // Parties : XP de saison par victoire et par défaite (dans la limite des parties récompensées du jour).
   // Passe fini : un coffre de fin de passe tous les passBonusXp d'XP de saison, avec au hasard des Éclats, des Prismes ou de l'essence
-  // d'une carte (montants de base, tirés entre la moitié et une fois et demie).
+  // d'une carte (montants fixes).
   passTierXp: 400, passXpWin: 60, passXpLoss: 30, passBonusXp: 800, passBonusShards: 100, passBonusPrisms: 6, passBonusEssence: 10, passDaily: 2, passWeekly: 4, passXpDaily: 150, passXpWeekly: 500, passPrice: 100,
   passShards: 40, passPrisms: 10, passChests: 1, passPremiumPrisms: 4, passPremiumChests: 1, passCardMonths: 3,
 };

@@ -414,7 +414,7 @@ function renderPass() {
     <p class="hint" style="margin:0">${PASS_TIERS} paliers. Chaque palier atteint donne sa récompense tout de suite : la piste gratuite pour tous, la piste premium avec le passe premium.</p>
     <div class="ptrack"><div class="ptier phead"><span></span><span class="eyebrow">Gratuit</span><span class="eyebrow">Premium</span></div><ol>${P.track.map(row).join('')}</ol></div>
     <div class="promo bonusbox ${P.tier >= P.tiers ? 'got' : ''}"><span class="bonusico">${ico('chest')}</span><div><span class="eyebrow">Après le palier ${P.tiers}, sans fin</span><b>Coffre de fin de passe</b>
-      <small class="hint">Tous les ${P.bonusChest.every} XP de saison, pour tous : ${P.bonusChest.odds.shards} % de chances d'Éclats ${ico('shard')} (environ ${P.bonusChest.shards}), ${P.bonusChest.odds.prisms} % de Prismes ${ico('prism')} (environ ${P.bonusChest.prisms}), ${P.bonusChest.odds.essence} % d'essence d'une de vos cartes (environ ${P.bonusChest.essence}).</small></div></div></div>`;
+      <small class="hint">Tous les ${P.bonusChest.every} XP de saison, pour tous : ${P.bonusChest.odds.shards} % de chances d'avoir ${P.bonusChest.shards} Éclats ${ico('shard')}, ${P.bonusChest.odds.prisms} % ${P.bonusChest.prisms} Prismes ${ico('prism')}, ${P.bonusChest.odds.essence} % ${P.bonusChest.essence} essence d'une de vos cartes.</small></div></div></div>`;
 }
 
 // Fin de partie : XP, Éclats et niveau gagnés.
