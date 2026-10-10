@@ -72,10 +72,10 @@ export const ARTS = Object.fromEntries([
   // Promo
   A('seraphine_pionniere', 'seraphine', 'Séraphine des pionniers', 'rare', { edition: 'promo', how: 'Offert aux premiers joueurs.' }),
   // Promo des passes de saison (pass.js) : season = mois de la saison ; cachés dans l'appli avant le début de leur saison.
-  A('morgrath_citrouilles', 'morgrath', 'Morgrath, nuit des citrouilles', 'epique', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : 4 missions de saison accomplies.' }),
-  A('grisk_farce', 'grisk', 'Grisk, farce ou friandise', 'legendaire', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : toutes les missions de saison accomplies.' }),
-  A('lirael_neon', 'lirael', 'Lirael sous les néons', 'epique', { edition: 'promo', season: '2026-11', how: 'Passe de saison Néon 2099 : 4 missions de saison accomplies.' }),
-  A('vaelthar_chrome', 'vaelthar', 'Vael\'Thar chromé', 'legendaire', { edition: 'promo', season: '2026-11', how: 'Passe de saison Néon 2099 : toutes les missions de saison accomplies.' }),
+  A('morgrath_citrouilles', 'morgrath', 'Morgrath, nuit des citrouilles', 'epique', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : palier 18.' }),
+  A('grisk_farce', 'grisk', 'Grisk, farce ou friandise', 'legendaire', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : palier 38.' }),
+  A('lirael_neon', 'lirael', 'Lirael sous les néons', 'epique', { edition: 'promo', season: '2026-11', how: 'Passe de saison Néon 2099 : palier 18.' }),
+  A('vaelthar_chrome', 'vaelthar', 'Vael\'Thar chromé', 'legendaire', { edition: 'promo', season: '2026-11', how: 'Passe de saison Néon 2099 : palier 38.' }),
 ]);
 
 // Les arts dont la carte existe (le catalogue publié depuis /admin peut en avoir retiré).
