@@ -43,7 +43,7 @@ export const CARDS = {
                  onDestroyed: (c, st, z) => addZone(st, c.owner, z, 2) },
   cultiste:    { name: 'Cultiste', type: 'C', cost: 1, power: 1, kw: ['Démon'], text: 'Révélation : créez une Chèvre ici.',
                  onReveal: (c, st) => summon(st, c.owner, c.zone, 'chevre') },
-  pacte:       { name: 'Pacte de sang', type: 'S', cost: 1, power: 0, kw: ['Démon'], text: 'Détruisez votre créature la plus faible ici, puis piochez une carte.',
+  pacte:       { name: 'Marché des âmes', type: 'S', cost: 1, power: 0, kw: ['Démon'], text: 'Détruisez votre créature la plus faible ici, puis piochez une carte.',
                  onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, c.owner, c.zone)); if (w) destroy(st, w, c.owner); draw(st, c.owner, 1); } },
   bourreau:    { name: 'Bourreau', type: 'C', cost: 2, power: 3, kw: ['Démon'], text: 'Quand une de vos autres créatures ici est détruite : +2.',
                  onAllyDestroyed: (c, st, dead, z) => { if (z === c.zone) buff(st, c, 2); } },
