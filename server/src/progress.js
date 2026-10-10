@@ -7,7 +7,7 @@ import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, ACHIEVEMENTS, familyReward, S
 import { SETS, STARTERS, OWNABLE, allowedGenerals, today } from '@jeu/engine/collection';
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { TIERS, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics } from '@jeu/engine/ranked';
-import { ARTS, artExists } from '@jeu/engine/arts';
+import { ARTS, artExists, THEME_IDS } from '@jeu/engine/arts';
 import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seasonById, passTrack, refundTier, tierOf as passTierOf, weekOf, passMissionLabel, releasedCards } from '@jeu/engine/pass';
 import { HttpError } from './accounts.js';
 
@@ -94,7 +94,7 @@ export function createProgress(store) {
     const owned = Object.keys(a.cards || {}).filter(id => a.cards[id]).length;
     const families = Object.keys(a.completed || {}).filter(k => k.includes(':')).length;
     const arts = Object.keys(a.arts || {}).filter(artExists), levels = Object.values(a.cardLevels || {});
-    return { ...a.stats, level: a.level, cards: owned, families, arts: arts.length, legendArts: arts.filter(id => ARTS[id].rarity === 'legendaire').length,
+    return { ...a.stats, level: a.level, cards: owned, families, arts: arts.length, artThemes: Object.fromEntries(THEME_IDS.map(t => [t, arts.filter(id => ARTS[id].theme === t).length])), legendArts: arts.filter(id => ARTS[id].rarity === 'legendaire').length,
       upgraded: levels.filter(l => l >= 2).length, maxCards: levels.filter(l => l >= MAX_CARD_LEVEL).length, friends: (a.friends || []).length,
       bestTier: Math.max(a.stats?.bestTier || 0, a.ranked?.games ? rankOf(a.ranked.best).tier : 0) };
   }

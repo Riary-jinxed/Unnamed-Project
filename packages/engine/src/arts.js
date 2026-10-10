@@ -22,38 +22,53 @@ export function rarityName(art) {
 // Classe CSS de la rareté (style.css, « .rar-… »).
 export const rarityKey = art => art.rarity;
 
-// Catalogue. Un art = { card, name, rarity } ; Promo : edition, how (comment l'obtenir).
+// Familles d'arts : un thème et un style d'artiste communs à quelques cartes de familles différentes (un art y entre par « theme »).
+// Compléter une famille donne son titre (rewards.js). Un art sans famille reste un art solo, avec son propre thème.
+export const ART_THEMES = {
+  vitraux: { name: 'Vitraux', style: 'vitrail Art nouveau, plomb et verre coloré', title: 'Maître verrier' },
+  saisons: { name: 'Quatre saisons', style: 'une saison par carte, lumière et palette de la saison', title: 'Gardien des saisons' },
+  eclipse: { name: 'Éclipse', style: 'ciel sombre, soleil noir, contre-jour', title: 'Enfant de l\'éclipse' },
+  tresors: { name: 'Trésors', style: 'or, joyaux et lumière chaude', title: 'Chasseur de trésors' },
+  taverne: { name: 'La taverne', style: 'scène de fête, lumière de taverne', title: 'Roi de la fête' },
+};
+export const THEME_IDS = Object.keys(ART_THEMES);
+
+// Catalogue. Un art = { card, name, rarity } ; theme : sa famille d'arts ; Promo : edition, how (comment l'obtenir).
 // Ajouter un art : une ligne ici, puis ses images dans client/src/art/alt/<id>/ quand elles sont prêtes.
 const A = (id, card, name, rarity, extra = {}) => [id, { id, card, name, rarity, ...extra }];
 export const ARTS = Object.fromEntries([
   // Anges
-  A('seraphine_zenith', 'seraphine', 'Séraphine au zénith', 'rare'),
-  A('aurelia_vitrail', 'aurelia', 'Aurélia, vitrail du Serment', 'epique'),
+  A('seraphine_zenith', 'seraphine', 'Séraphine au zénith', 'rare', { theme: 'saisons' }),
+  A('aurelia_vitrail', 'aurelia', 'Aurélia, vitrail du Serment', 'epique', { theme: 'vitraux' }),
   A('cherubin_nuage', 'cherubin', 'Chérubin des nuées', 'rare'),
-  A('archange_jugement', 'archange', 'Archange du Jugement dernier', 'legendaire'),
+  A('archange_jugement', 'archange', 'Archange du Jugement dernier', 'legendaire', { theme: 'eclipse' }),
+  A('archange_vitrail', 'archange', 'Archange de verre', 'epique', { theme: 'vitraux' }),
   // Démons
   A('morgrath_braises', 'morgrath', 'Morgrath dans les braises', 'rare'),
-  A('vorgoth_cercle', 'vorgoth', 'Vorgoth et le cercle pourpre', 'epique'),
-  A('diablotin_farceur', 'diablotin', 'Diablotin farceur', 'rare'),
+  A('vorgoth_cercle', 'vorgoth', 'Vorgoth et le cercle pourpre', 'epique', { theme: 'eclipse' }),
+  A('diablotin_farceur', 'diablotin', 'Diablotin farceur', 'rare', { theme: 'taverne' }),
   A('archidemon_couronne', 'archidemon', 'Archidémon couronné', 'epique'),
   // Gobelins
-  A('grisk_butin', 'grisk', 'Grisk sur son butin', 'rare'),
-  A('snagg_festin', 'snagg', 'Snagg au grand festin', 'rare'),
-  A('pyromane_feu_artifice', 'pyromane', 'Pyromane, nuit des feux', 'rare'),
+  A('grisk_butin', 'grisk', 'Grisk sur son butin', 'rare', { theme: 'tresors' }),
+  A('snagg_festin', 'snagg', 'Snagg au grand festin', 'rare', { theme: 'taverne' }),
+  A('pyromane_feu_artifice', 'pyromane', 'Pyromane, nuit des feux', 'rare', { theme: 'taverne' }),
   A('grand_chef_totem', 'grand_chef', 'Grand-chef du totem', 'epique'),
   // Elfes
-  A('sylvaen_automne', 'sylvaen', 'Sylvaën d\'automne', 'rare'),
-  A('lirael_tempete', 'lirael', 'Lirael dans la tempête', 'epique'),
+  A('sylvaen_automne', 'sylvaen', 'Sylvaën d\'automne', 'rare', { theme: 'saisons' }),
+  A('lirael_tempete', 'lirael', 'Lirael dans la tempête', 'epique', { theme: 'eclipse' }),
+  A('lirael_vitrail', 'lirael', 'Lirael en vitrail', 'rare', { theme: 'vitraux' }),
   A('feu_follet_lanterne', 'feu_follet', 'Feu follet des lanternes', 'rare'),
-  A('reine_couronne_fleurs', 'reine', 'Reine aux mille fleurs', 'legendaire'),
+  A('reine_couronne_fleurs', 'reine', 'Reine aux mille fleurs', 'legendaire', { theme: 'saisons' }),
+  A('reine_vitrail', 'reine', 'Reine de la rosace', 'epique', { theme: 'vitraux' }),
   // Dragons
-  A('vaelthar_glacier', 'vaelthar', 'Vael\'Thar des glaciers', 'rare'),
-  A('ignaroth_eclipse', 'ignaroth', 'Ignaroth sous l\'éclipse', 'epique'),
-  A('dragonnet_tresor', 'dragonnet', 'Dragonnet sur le trésor', 'rare'),
-  A('dragon_or_soleil', 'dragon_or', 'Dragon d\'or, soleil levant', 'legendaire'),
+  A('vaelthar_glacier', 'vaelthar', 'Vael\'Thar des glaciers', 'rare', { theme: 'saisons' }),
+  A('ignaroth_eclipse', 'ignaroth', 'Ignaroth sous l\'éclipse', 'epique', { theme: 'eclipse' }),
+  A('dragonnet_tresor', 'dragonnet', 'Dragonnet sur le trésor', 'rare', { theme: 'tresors' }),
+  A('dragon_or_soleil', 'dragon_or', 'Dragon d\'or, soleil levant', 'legendaire', { theme: 'tresors' }),
   // Neutres
   A('golem_mousse', 'golem', 'Golem moussu', 'rare'),
-  A('barde_taverne', 'barde', 'Barde de la taverne', 'rare'),
+  A('barde_taverne', 'barde', 'Barde de la taverne', 'rare', { theme: 'taverne' }),
+  A('wyrm_or', 'wyrm_tresor', 'Wyrm sur la montagne d\'or', 'epique', { theme: 'tresors' }),
   // Promo
   A('seraphine_pionniere', 'seraphine', 'Séraphine des pionniers', 'rare', { edition: 'promo', how: 'Offert aux premiers joueurs.' }),
   // Promo des passes de saison (pass.js) : season = mois de la saison ; cachés dans l'appli avant le début de leur saison.
@@ -67,6 +82,8 @@ export const ARTS = Object.fromEntries([
 export const artExists = id => { const a = ARTS[id]; return !!a && !!(CARDS[a.card] || GENERALS[a.card]); };
 // Les arts Promo d'une saison pas encore commencée ne se montrent pas.
 export const artVisible = a => !a.season || a.season <= today().slice(0, 7);
+// Arts d'une famille d'arts (les mêmes filtres que artsOf).
+export const themeArts = t => Object.values(ARTS).filter(a => a.theme === t && artExists(a.id) && artVisible(a));
 export const artsOf = card => Object.values(ARTS).filter(a => a.card === card && artExists(a.id) && artVisible(a));
 // Vendable dans les offres du jour et le coffre : les raretés classiques hors Promo.
 export const isClassic = a => !a.edition && !!ART_RARITIES[a.rarity];
