@@ -554,13 +554,14 @@ body:has(#app.ingame) { margin: 0; }
 .mdetails[open] summary::after { content: '▴'; }
 .mdetails summary small { margin-left: auto; font-family: var(--body); font-weight: 400; }
 .mdetails[open] { display: grid; gap: 10px; }
-.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: 52px repeat(5, minmax(0, 1fr)); max-width: 760px; margin-inline: auto;
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: 56px repeat(4, minmax(0, 1fr)); max-width: 760px; margin-inline: auto;
   background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
 .tabbar button { position: relative; border: 0; background: none; padding: 14px 2px; font-size: 13.5px; font-weight: 600; color: var(--ink); }
 .tabbar button + button { border-left: 1px solid var(--line); }
 .tabbar button svg { display: block; margin-inline: auto; }
 .tabbar button.on { color: var(--accent); box-shadow: inset 0 3px 0 var(--accent); }
-@media (max-width: 400px) { .tabbar { grid-template-columns: 44px repeat(5, minmax(0, 1fr)); } .tabbar button { font-size: 12.5px; } }
+/* Apprendre : discret en bas de l'accueil, on n'en a plus besoin une fois le jeu connu */
+.learnline { justify-self: center; border: 0; background: none; padding: 6px; color: var(--muted); font-size: 13px; text-decoration: underline; }
 /* Monnaies en haut de l'accueil : le titre se raccourcit plutôt que de renvoyer le bouton du son à la ligne */
 .top.hometop { flex-wrap: nowrap; }
 .hometop .title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

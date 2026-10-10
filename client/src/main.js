@@ -702,6 +702,7 @@ function renderHome() {
       ${p.calendar ? `<button class="calline" data-act="calendar"><span>Calendrier de ${esc(p.calendar.name.split(' ')[0])}</span>
         <small class="hint num">${p.calendar.ready ? '<b class="calready">Récompense du jour à récupérer</b>' : `${p.calendar.got} jour${p.calendar.got > 1 ? 's' : ''} sur ${p.calendar.days.length}`}</small></button>` : ''}
     </div>
+    <button class="learnline" data-act="learn">Apprendre à jouer : tutoriel et codex des mots-clés</button>
   </div>`;
 }
 // Monnaies du joueur, en haut de l'accueil : chacune ouvre le rayon de la boutique où elle se dépense.
@@ -717,7 +718,7 @@ const TABBED = { home: 'home', collection: 'collection', decks: 'decks', shop: '
 function tabbar(cur) {
   const upgradable = OWNABLE.filter(canUpgrade).length, asks = friends.pending();
   const nav = (act, label, badge, extra = '') => `<button data-act="${act}" ${cur === act ? 'class="on" aria-current="page"' : ''} ${extra}>${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
-  return `<nav class="tabbar" aria-label="Menu">${nav('home', HOME_ICON, 0, 'aria-label="Accueil" title="Accueil"')}${nav('collection', 'Collection', upgradable)}${nav('decks', 'Decks')}${nav('shop', 'Boutique')}${nav('friends', 'Amis', asks)}${nav('learn', 'Apprendre')}</nav>`;
+  return `<nav class="tabbar" aria-label="Menu">${nav('home', HOME_ICON, 0, 'aria-label="Accueil" title="Accueil"')}${nav('collection', 'Collection', upgradable)}${nav('decks', 'Decks')}${nav('shop', 'Boutique')}${nav('friends', 'Amis', asks)}</nav>`;
 }
 // Cartes de récompense : on dit comment les obtenir.
 function lockLabel(id) {
