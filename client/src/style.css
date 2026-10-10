@@ -568,13 +568,11 @@ body:has(#app.ingame) { margin: 0; }
 #app:has(.tabbar) .fbanner { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
 
 /* Arts alternatifs (art.js, boutique, collection) : une couleur par rareté (--rar), un liseré autour de l'illustration,
-   une pastille en partie. Art provisoire (.ph) tant que ses images manquent : l'illustration d'origine voilée de la couleur de la rareté. */
-.rar-commun { --rar: #8a93a3; } .rar-peu_commun { --rar: #3f9a5b; } .rar-rare { --rar: #3a78d0; }
-.rar-super_rare { --rar: #8a5bd6; } .rar-epique { --rar: #d0547f; } .rar-legendaire { --rar: #d59a1c; }
-.rar-limited { --rar: #e0473a; --rar2: #1b1b24; }
+   une pastille dans la boutique. Art provisoire (.ph) tant que ses images manquent : l'illustration d'origine voilée de la couleur de la rareté. */
+.rar-rare { --rar: #3a78d0; } .rar-epique { --rar: #8a5bd6; } .rar-legendaire { --rar: #d59a1c; }
 .art.rar { box-shadow: inset 0 0 0 2px var(--rar); }
 .art.rar::after { content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 2px var(--rar), inset 0 0 14px -4px var(--rar); }
-.art.rar-legendaire::after, .art.rar-limited::after { background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / .28) 50%, transparent 65%) 0 0 / 300% 100%; animation: rarshine 4.5s ease-in-out infinite; }
+.art.rar-legendaire::after { background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / .28) 50%, transparent 65%) 0 0 / 300% 100%; animation: rarshine 4.5s ease-in-out infinite; }
 @keyframes rarshine { from { background-position: 100% 0; } to { background-position: -50% 0; } }
 .art.ph { background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--rar) 55%, #fff), transparent 60%), linear-gradient(160deg, var(--rar), var(--rar2, #10131a)); }
 .art.ph .art-decor { filter: saturate(.35) brightness(.8); }
@@ -585,9 +583,7 @@ body:has(#app.ingame) { margin: 0; }
   text-shadow: 0 1px 3px rgb(0 0 0 / .9); }
 .art.ph .ph-title::after { content: "Illustration à venir"; display: block; margin-top: .4em; font-family: var(--body); font-size: .6em; opacity: .85; }
 .rarchip { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #fff; background: var(--rar); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
-.rar-limited.rarchip { background: linear-gradient(90deg, var(--rar), #f0b43c); color: #1b1b24; }
-.altgem { position: absolute; top: 3px; right: 3px; z-index: 1; width: 8px; height: 8px; transform: rotate(45deg); background: var(--rar); box-shadow: 0 0 0 1px var(--surface), 0 0 5px var(--rar); }
-.gencard .altgem { top: 4px; right: 4px; }
+.chip.prism { border-color: #8a5bd6; color: var(--ink); background: color-mix(in srgb, #8a5bd6 18%, var(--surface)); }
 /* Boutique */
 .artshop { border-top: 3px solid var(--f-dieux); }
 .artoffer { grid-template-rows: 1fr auto auto; }

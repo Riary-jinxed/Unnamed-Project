@@ -14,7 +14,7 @@ import { artHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { FRAMES, BACKS, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS } from '@jeu/engine/ranked';
-import { ARTS, artsOf, artExists, rarityKey, rarityName, LIMITED } from '@jeu/engine/arts';
+import { ARTS, artsOf, artExists, rarityKey, rarityName } from '@jeu/engine/arts';
 
 const famVar = kw => famStyle(kw[0]);
 const kwLine = d => (d.token ? 'Jeton · ' : '') + (d.kw.join(' · ') || 'Neutre');
@@ -171,7 +171,7 @@ async function buyArt(path, body) {
   const r = await call('POST', path, body);
   if (!r) return;
   ui.shop = r.shop; ui.gotArt = { id: r.art, chest: !!r.chest }; ui.sheet = 'art'; ui.msg = '';
-  play(['epique', 'legendaire'].includes(ARTS[r.art].rarity) || ARTS[r.art].edition ? 'astral' : 'reveal'); render();
+  play(['epique', 'legendaire'].includes(ARTS[r.art].rarity) ? 'astral' : 'reveal'); render();
 }
 // Decks : jusqu'à MAX_DECKS. Création et modification en trois étapes : général, terrains, cartes.
 const deckById = id => ui.account.decks.find(d => d.id === id);
@@ -240,7 +240,7 @@ const avatarHTML = (a, cls = '', frame = a.progress?.frame) => (frame ? `<span c
 const prog = () => ui.account?.progress || { level: 1, xp: 0, xpNext: 1, missions: [], inbox: [], cosmetics: { titles: [], frames: [], backs: [] }, freeBoosters: 0 };
 const pct = (n, d) => Math.max(0, Math.min(100, Math.round(100 * n / (d || 1))));
 const levelBar = p => `<div class="lvl"><span class="lvlnum num">Niv. ${p.level}</span><div class="bar" role="progressbar" aria-valuenow="${p.xp}" aria-valuemin="0" aria-valuemax="${p.xpNext}" aria-label="Expérience"><span style="width:${pct(p.xp, p.xpNext)}%"></span></div><small class="hint num">${p.xp}/${p.xpNext} XP</small></div>`;
-const gains = r => [r.xp ? `+${r.xp} XP` : '', r.shards ? `+${r.shards} Éclats` : '', r.boosters ? `+${r.boosters} booster${r.boosters > 1 ? 's' : ''} offert${r.boosters > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
+const gains = r => [r.xp ? `+${r.xp} XP` : '', r.shards ? `+${r.shards} Éclats` : '', r.prisms ? `+${r.prisms} Prisme${r.prisms > 1 ? 's' : ''}` : '', r.boosters ? `+${r.boosters} booster${r.boosters > 1 ? 's' : ''} offert${r.boosters > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
 const titleLabel = id => prog().cosmetics.titles.find(t => t.id === id)?.label || '';
 function missionsHTML() {
   const p = prog();
@@ -283,7 +283,7 @@ function renderRanked() {
   const rewards = !D ? '' : `<div class="card-box"><span class="eyebrow">Récompenses de fin de saison</span>
     <p class="hint" style="margin:0">Selon le meilleur palier atteint pendant la saison. Les titres et cadres des paliers en dessous sont aussi débloqués.</p>
     <ul class="tiers">${D.rewards.map(t => `<li class="${R.best.id === t.id ? 'on' : ''}"><span class="rank rank-${t.id}">${esc(t.name)}</span>
-      <span>${[t.shards ? `${t.shards} Éclats` : '', t.title ? `titre « ${esc(t.title)} »` : '', t.frame ? esc(t.frame) : ''].filter(Boolean).join(' · ') || '–'}</span></li>`).join('')}</ul></div>`;
+      <span>${[t.shards ? `${t.shards} Éclats` : '', t.prisms ? `${t.prisms} Prismes` : '', t.title ? `titre « ${esc(t.title)} »` : '', t.frame ? esc(t.frame) : ''].filter(Boolean).join(' · ') || '–'}</span></li>`).join('')}</ul></div>`;
   return `${head}
   <div class="card-box">
     <span class="eyebrow">Saison ${esc(R.seasonName)} · encore ${R.daysLeft} jour${R.daysLeft > 1 ? 's' : ''}</span>
@@ -345,7 +345,6 @@ const mySel = id => { const x = ui.account?.artSel?.[id]; return x && ui.account
 const myArts = id => artsOf(id).filter(x => ui.account?.arts?.[x.id]);
 // Pastille de rareté (style.css, « .rar-… »).
 const rarChip = art => `<span class="rarchip rar-${rarityKey(art)}">${esc(rarityName(art))}</span>`;
-const serial = art => { const n = ui.account?.arts?.[art.id]?.n; return n && art.stock ? ` · n° ${n}/${art.stock}` : ''; };
 async function selectArt(card, art) {
   const r = await call('PUT', '/api/arts/select', { card, art: art || null });
   if (!r) return;
@@ -360,7 +359,7 @@ function artsHTML(id) {
     <span class="artsw ${art ? `rar-${rarityKey(art)}` : ''}"></span><span><b>${esc(label)}</b>${sub ? ` <small class="hint">${sub}</small>` : ''}</span>${cur === (art?.id || null) ? '<span class="ok">✓</span>' : ''}</button>`;
   return `<div class="zacts artbox"><span class="eyebrow">Arts de la carte · ${mine.length + 1}/${all.length + 1}</span>
     <p class="hint">Purement cosmétique. Votre adversaire voit l'art choisi quand la carte est révélée.</p>
-    <div class="artopts">${opt(null, 'Illustration d\'origine', '')}${mine.map(x => opt(x, x.name, `${esc(rarityName(x))}${serial(x)}`)).join('')}</div>
+    <div class="artopts">${opt(null, 'Illustration d\'origine', '')}${mine.map(x => opt(x, x.name, esc(rarityName(x)))).join('')}</div>
     ${missing ? `<p class="hint">${missing} autre${missing > 1 ? 's' : ''} art${missing > 1 ? 's' : ''} à trouver en boutique${all.some(x => x.edition === 'promo' && !ui.account.arts?.[x.id]) ? ' ou en récompense' : ''}.</p>` : ''}</div>`;
 }
 
@@ -388,11 +387,11 @@ function miniCard(c, opts = {}) {
   const cls = c.revealed ? (pw > d.power ? 'up' : pw < d.power ? 'down' : '') : '';
   const mv = opts.mine && moveOf(c.uid);
   const mobile = opts.mine && c.mobile && canPlay();
-  const seat = opts.mine || opts.pending ? ui.view.seat : 1 - ui.view.seat, lv = lvCls(levelIn(seat, c.id)), alt = ARTS[artIn(seat, c.id)];
+  const lv = lvCls(levelIn(opts.mine || opts.pending ? ui.view.seat : 1 - ui.view.seat, c.id));
   return `<div class="mc${lv} ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.drag === c.uid ? 'dragging' : ''}" style="${famVar(d.kw)}"
     data-card="${c.uid}" data-id="${c.id}" ${opts.pending ? 'data-pending="1"' : ''} ${mobile ? 'data-mobile="1"' : ''} title="${esc(d.name)}">
     ${mv ? `<span class="mv">→ ${ZONE_NAMES[mv.zone]}</span>` : mobile ? '<span class="mv" aria-label="Déplaçable">⇄</span>' : ''}
-    ${alt ? `<span class="altgem rar-${rarityKey(alt)}" title="Art ${esc(rarityName(alt))}"></span>` : ''}<span class="n">${esc(d.name)}</span>${d.type === 'C' ? `<span class="p num ${cls}">${pw}</span>` : `<span class="p" style="font-size:12px">Sort</span>`}</div>`;
+    <span class="n">${esc(d.name)}</span>${d.type === 'C' ? `<span class="p num ${cls}">${pw}</span>` : `<span class="p" style="font-size:12px">Sort</span>`}</div>`;
 }
 function slots(side, z, isMe) {
   const cards = side.board[z].map(c => miniCard(c, { mine: isMe }));
@@ -421,9 +420,9 @@ function genSlot(side, isMe, canGen) {
   const g = GENERALS[side.general];
   const state = isMe && ui.genZone !== null ? 'armed' : g.activate && side.generalUsed ? 'used' : isMe && canGen ? 'ready' : '';
   const note = state === 'armed' ? 'Activé ce tour' : state === 'used' ? 'Utilisé' : g.activate ? `Activable${g.activateCost ? ` · ${g.activateCost} sceau` : ''}` : g.kind;
-  const seat = isMe ? ui.view.seat : 1 - ui.view.seat, lv = lvCls(levelIn(seat, side.general)), alt = ARTS[artIn(seat, side.general)];
+  const lv = lvCls(levelIn(isMe ? ui.view.seat : 1 - ui.view.seat, side.general));
   return `<button class="gencard${lv} ${state}" style="${famVar([g.fam])}" data-general="${side.general}" data-side="${isMe ? 'me' : 'foe'}" aria-label="Général : ${esc(g.name)}">
-    ${alt ? `<span class="altgem rar-${rarityKey(alt)}" title="Art ${esc(rarityName(alt))}"></span>` : ''}<span class="gk">Général</span><span class="gn">${esc(g.name)}</span><span class="gs">${esc(note)}</span></button>`;
+    <span class="gk">Général</span><span class="gn">${esc(g.name)}</span><span class="gs">${esc(note)}</span></button>`;
 }
 function pbar(side, isMe, connected, canGen = false) {
   const seat = isMe ? ui.view.seat : 1 - ui.view.seat, b = badgeOf(seat);
@@ -624,30 +623,25 @@ function renderShop() {
       <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`;
   return `${top}${errLine()}${artShopHTML(sh.arts)}${sh.sets.map(section).join('')}`;
 }
-// Arts alternatifs en boutique : offres du jour, éditions Limited, coffre. Payés en Éclats.
+// Arts alternatifs en boutique : offres du jour et coffre, payés en Prismes (monnaie rare : saisons classées, succès).
 function artShopHTML(A) {
   if (!A) return '';
-  const a = ui.account;
-  const tile = (o, extra = '') => { const art = ARTS[o.id];
+  const tile = o => { const art = ARTS[o.id];
     return `<div class="offer artoffer"><button class="ccard artthumb" data-zoom="${zoomKey(art.card, art.id)}" aria-label="Voir ${esc(art.name)} en grand">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</button>
-      <div class="artmeta">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}${owned(art.card) ? '' : ' · carte pas encore obtenue'}</small>${extra}</div>
-      <button class="btn ${o.owned ? '' : 'primary'}" data-act="buy-art" data-id="${o.id}" ${o.owned || a.shards < o.price || ui.busy || o.left === 0 ? 'disabled' : ''}>${o.owned ? `Dans votre collection${serial(art)}` : o.left === 0 ? 'Épuisée' : `Acheter · ${o.price} Éclats`}</button></div>`; };
-  const date = d => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-  const limited = A.limited.length ? `<div class="gal-h">Édition ${LIMITED.name}</div>
-    <p class="hint" style="margin:0">Exemplaires numérotés, en nombre fixe pour tous les joueurs et en vente pour un temps seulement.</p>
-    <div class="gallery">${A.limited.map(o => tile(o, `<small class="hint num">${o.left}/${o.stock} exemplaires restants${o.until ? ` · jusqu'au ${date(o.until)}` : ''}</small>`)).join('')}</div>` : '';
+      <div class="artmeta">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}${owned(art.card) ? '' : ' · carte pas encore obtenue'}</small></div>
+      <button class="btn ${o.owned ? '' : 'primary'}" data-act="buy-art" data-id="${o.id}" ${o.owned || A.prisms < o.price || ui.busy ? 'disabled' : ''}>${o.owned ? 'Dans votre collection' : `Acheter · ${o.price} Prismes`}</button></div>`; };
   const rates = A.chest.rates.map(r => `<li><span class="rarchip rar-${r.rarity}">${esc(r.name)}</span><span class="num">${String(r.pct).replace('.', ',')} %</span></li>`).join('');
   return `<section class="card-box shopset artshop">
-    <div><span class="eyebrow">Cosmétique</span><h2 style="font-size:22px">Arts alternatifs</h2></div>
-    <p class="hint" style="margin:0">D'autres illustrations pour vos cartes, à choisir ensuite dans la collection. Votre adversaire les voit quand vos cartes sont révélées.</p>
+    <div class="row" style="justify-content:space-between"><div><span class="eyebrow">Cosmétique</span><h2 style="font-size:22px">Arts alternatifs</h2></div><span class="chip num prism">${A.prisms} Prisme${A.prisms > 1 ? 's' : ''}</span></div>
+    <p class="hint" style="margin:0">D'autres illustrations pour vos cartes, à choisir ensuite dans la collection. Votre adversaire les voit quand vos cartes sont révélées.
+      Ils se paient en Prismes, gagnés en fin de saison classée et avec les succès.</p>
     <div class="gal-h">Arts du jour</div>
     ${A.offers.length ? `<p class="hint" style="margin:0">Choisis pour vous parmi les arts que vous n'avez pas, renouvelés chaque jour à minuit.</p>
       <div class="gallery">${A.offers.map(o => tile(o)).join('')}</div>` : '<p class="hint" style="margin:0">Vous avez tous les arts en vente. Revenez quand de nouveaux arriveront.</p>'}
-    ${limited}
     <div class="gal-h">Coffre d'arts</div>
     <div class="row chest"><div style="flex:1;display:grid;gap:6px"><p class="hint" style="margin:0">Un art que vous n'avez pas encore, au hasard. Chances selon la rareté :</p>
       ${rates ? `<ul class="rates">${rates}</ul>` : ''}</div>
-      <button class="btn primary" data-act="chest" ${A.chest.left && a.shards >= A.chest.price && !ui.busy ? '' : 'disabled'}>${A.chest.left ? `Ouvrir · ${A.chest.price} Éclats` : 'Coffre vide pour vous'}</button></div>
+      <button class="btn primary" data-act="chest" ${A.chest.left && A.prisms >= A.chest.price && !ui.busy ? '' : 'disabled'}>${A.chest.left ? `Ouvrir · ${A.chest.price} Prismes` : 'Coffre vide pour vous'}</button></div>
   </section>`;
 }
 
@@ -741,7 +735,7 @@ function achievementsHTML() {
   const groups = [...new Set(list.map(x => x.group))], done = list.filter(x => x.done).length;
   return `<div class="card-box"><div><span class="eyebrow">Succès</span><h2 style="font-size:22px">${done} sur ${list.length}</h2></div>
     ${groups.map(g => `<div class="gal-h">${esc(g)}</div><div class="achs">${list.filter(x => x.group === g).map(x => `<div class="ach ${x.done ? 'done' : ''}">
-      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(x.label)}</span><small class="hint">${[x.shards ? `${x.shards} Éclats` : '', x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? esc(x.frame) : ''].filter(Boolean).join(' · ')}</small></div>
+      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(x.label)}</span><small class="hint">${[x.shards ? `${x.shards} Éclats` : '', x.prisms ? `${x.prisms} Prisme${x.prisms > 1 ? 's' : ''}` : '', x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? esc(x.frame) : ''].filter(Boolean).join(' · ')}</small></div>
       ${x.done ? '' : `<div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(x.value, x.goal)}%"></span></div><small class="num">${x.value}/${x.goal}</small></div>`}</div>`).join('')}</div>`).join('')}</div>`;
 }
 function renderProfile() {
@@ -943,7 +937,7 @@ function sheetHTML() {
   if (ui.sheet === 'art' && ui.gotArt) {
     const art = ARTS[ui.gotArt.id], on = mySel(art.card) === art.id;
     return `<div class="sheet" data-act="close"><div class="panel gotart" data-stop="1"><div class="ph"><h2>${ui.gotArt.chest ? 'Coffre d\'arts' : 'Nouvel art'}</h2><button class="btn" data-act="close">Fermer</button></div>
-      <div class="row" style="gap:8px">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}${serial(art)}</small></div>
+      <div class="row" style="gap:8px">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}</small></div>
       <div class="bcard gotcard">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</div>
       ${ui.msg ? `<p class="hint" role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
       <div class="row"><button class="btn ${on ? '' : 'primary'}" data-act="art-pick" data-card="${art.card}" data-art="${art.id}" ${on || ui.busy ? 'disabled' : ''}>${on ? 'Art utilisé ✓' : 'Utiliser cet art'}</button>

@@ -94,7 +94,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/missions/reroll` | Remplace une mission (`{ index }`). |
 | `POST /api/rewards/seen` | Vide la boîte de récompenses. |
 | `PUT /api/cosmetics` | Change le titre, le cadre ou le dos de carte porté. |
-| `POST /api/shop/art`, `/api/shop/chest` | Arts alternatifs (`arts.js`) : `{ art }` achète un art du jour ou un exemplaire numéroté d'une Limited en vente ; le coffre donne un art classique pas encore possédé, au hasard selon sa rareté. Renvoie `art` et la boutique à jour. |
+| `POST /api/shop/art`, `/api/shop/chest` | Arts alternatifs (`arts.js`) : payés en Prismes. `{ art }` achète un art du jour ; le coffre donne un art classique pas encore possédé, au hasard selon sa rareté. Renvoie `art` et la boutique à jour. |
 | `PUT /api/arts/select` | `{ card, art }` : art affiché pour cette carte (`art: null` : l'illustration d'origine). |
 | `POST /api/cards/upgrade` | `{ card }` : monte une carte possédée d'un niveau contre son essence et des Éclats (`progress.upgradeCard`). |
 | `POST /api/games/solo` | Résultat d'une partie contre l'IA (non classée) → récompenses. |
@@ -110,9 +110,9 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | --- | --- |
 | `GET /api/admin/accounts`, `POST /api/admin/accounts` | Liste des comptes ; création ou changement de mot de passe. |
 | `GET /api/admin/account?login=` | Fiche complète d'un compte. |
-| `POST /api/admin/account/update`, `/cards`, `/starter`, `/reset`, `/booster`, `/shop`, `/logout`, `/delete` | Modifier un compte (pseudo, Éclats, niveau, boosters offerts, désactivation), sa collection, son deck de départ ; le remettre à zéro ; rendre le booster du jour ; renouveler ses offres ; fermer ses sessions ; le supprimer. |
+| `POST /api/admin/account/update`, `/cards`, `/starter`, `/reset`, `/booster`, `/shop`, `/logout`, `/delete` | Modifier un compte (pseudo, Éclats, Prismes, niveau, boosters offerts, désactivation), sa collection, son deck de départ ; le remettre à zéro ; rendre le booster du jour ; renouveler ses offres ; fermer ses sessions ; le supprimer. |
 | `GET/POST /api/admin/settings` | Réglages de la boutique, prix des arts alternatifs compris (`renew: true` renouvelle les offres de tous). |
-| `GET /api/admin/arts`, `POST /api/admin/account/art` | Catalogue des arts avec ventes des Limited et nombre de joueurs qui les ont ; donner (`give: true`, pour les Promo) ou retirer un art à un compte. |
+| `GET /api/admin/arts`, `POST /api/admin/account/art` | Catalogue des arts avec le nombre de joueurs qui les ont ; donner (`give: true`, pour les Promo) ou retirer un art à un compte. |
 | `GET/POST /api/admin/rewards` | Réglages des récompenses (`reset: true` revient aux valeurs par défaut). |
 | `GET /api/admin/stats?mode=&days=` | Stats des parties (`all`, `pvp`, `pve` ; sur N jours, 0 = tout). |
 | `GET/PUT /api/admin/catalog`, `POST …/publish`, `POST …/discard` | Brouillon du catalogue, publication, abandon du brouillon. |
@@ -157,7 +157,7 @@ Un salon (`rooms` dans `index.js`) garde ses deux sièges (compte, deck, jeton, 
 - **Fin de partie** (`progress.onGame`) : statistiques, XP et Éclats selon le mode et le résultat (pour les `gamesPerDay` premières parties du jour), avancement des missions, montée de niveau (Éclats à chaque niveau, booster offert tous les `boosterEvery` niveaux), succès.
 - **Nouvelles cartes** (`progress.onCards`) : XP par carte nouvelle, puis vérification des familles et sets complétés (carte unique, titre, dos ou cadre, Éclats, boosters offerts).
 - **Missions** : tirées chaque jour parmi celles activées, une peut être remplacée par jour.
-- **Arts alternatifs** (`server/src/arts.js`) : le compte garde `arts` (arts possédés, avec le numéro `n` d'une Limited), `artSel` (art choisi par carte) et `artShop` (arts du jour, renouvelés à minuit ou avec la rotation de la boutique). Le stock vendu des Limited est dans le document `arts` (`sold`) ; la vérification du stock et la vente se font sans attente entre les deux. Le badge de partie porte `arts` comme `looks`, et l'adversaire ne reçoit que ceux du général et des cartes révélées (`shownBadge`, `index.js`).
+- **Arts alternatifs** (`server/src/arts.js`) : le compte garde `prisms` (monnaie des arts, donnée par `grant` avec les succès et la fin de saison classée), `arts` (arts possédés), `artSel` (art choisi par carte) et `artShop` (arts du jour, renouvelés à minuit ou avec la rotation de la boutique). Le badge de partie porte `arts` comme `looks`, et l'adversaire ne reçoit que ceux du général et des cartes révélées (`shownBadge`, `index.js`).
 - **Niveaux de carte** (`progress.upgradeCard`) : chaque doublon donne `essencePerDuplicate` essence de la carte (`addCards`, `accounts.js`) ; passer au niveau n coûte `lvlNEssence` essence et `lvlNShards` Éclats. Les niveaux et leur aspect sont dans `CARD_LEVELS` (`rewards.js`).
 - Chaque récompense passe par `grant`, qui l'applique au compte et la range dans `inbox`.
 

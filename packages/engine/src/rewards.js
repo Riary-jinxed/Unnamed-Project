@@ -24,6 +24,8 @@ export const DEFAULT_REWARDS = {
   lvl2Essence: 5, lvl2Shards: 50, lvl3Essence: 10, lvl3Shards: 100, lvl4Essence: 15, lvl4Shards: 200, lvl5Essence: 20, lvl5Shards: 400,
   // Mode classé : Éclats de fin de saison selon le meilleur palier atteint (ranked.js).
   rankShardsBronze: 50, rankShardsArgent: 100, rankShardsOr: 200, rankShardsPlatine: 350, rankShardsDiamant: 500, rankShardsMaitre: 800,
+  // Prismes (monnaie rare des arts alternatifs, arts.js) de fin de saison selon le meilleur palier atteint.
+  rankPrismsBronze: 0, rankPrismsArgent: 5, rankPrismsOr: 10, rankPrismsPlatine: 20, rankPrismsDiamant: 30, rankPrismsMaitre: 50,
 };
 export const REWARD_LIMITS = {
   xpBase: [10, 100000], xpStep: [0, 100000], xpCap: [10, 1000000], levelShards: [0, 100000], boosterEvery: [0, 100],
@@ -35,6 +37,7 @@ export const REWARD_LIMITS = {
   lvl2Essence: [0, 10000], lvl2Shards: [0, 100000], lvl3Essence: [0, 10000], lvl3Shards: [0, 100000],
   lvl4Essence: [0, 10000], lvl4Shards: [0, 100000], lvl5Essence: [0, 10000], lvl5Shards: [0, 100000],
   rankShardsBronze: [0, 100000], rankShardsArgent: [0, 100000], rankShardsOr: [0, 100000], rankShardsPlatine: [0, 100000], rankShardsDiamant: [0, 100000], rankShardsMaitre: [0, 100000],
+  rankPrismsBronze: [0, 10000], rankPrismsArgent: [0, 10000], rankPrismsOr: [0, 10000], rankPrismsPlatine: [0, 10000], rankPrismsDiamant: [0, 10000], rankPrismsMaitre: [0, 10000],
 };
 
 // XP pour passer du niveau `level` au suivant.
@@ -123,34 +126,35 @@ export const rewardSourceOf = id => {
 export const familyOf = id => (GENERALS[id] ? GENERALS[id].fam : CARDS[id]?.kw.find(k => FAMILIES.includes(k))) || null;
 
 // ---- Succès ----
-// stat : compteur du compte comparé à goal. Les Éclats se règlent dans /admin ; titres et cadres sont fixes.
-const A = (id, group, label, stat, goal, shards, extra = {}) => ({ id, group, label, stat, goal, shards, ...extra });
+// stat : compteur du compte comparé à goal. Éclats et Prismes se règlent dans /admin ; titres et cadres sont fixes.
+// prisms : Prismes (monnaie des arts alternatifs), surtout pour les succès difficiles ; un peu pour les faciles.
+const A = (id, group, label, stat, goal, shards, extra = {}) => ({ id, group, label, stat, goal, shards, prisms: 0, ...extra });
 export const ACHIEVEMENTS = [
-  A('lvl5', 'Niveau', 'Atteindre le niveau 5', 'level', 5, 100, { title: 'Apprenti' }),
-  A('lvl10', 'Niveau', 'Atteindre le niveau 10', 'level', 10, 200, { frame: 'bronze' }),
-  A('lvl20', 'Niveau', 'Atteindre le niveau 20', 'level', 20, 400, { frame: 'argent', title: 'Vétéran' }),
-  A('lvl30', 'Niveau', 'Atteindre le niveau 30', 'level', 30, 600, { frame: 'or' }),
-  A('lvl50', 'Niveau', 'Atteindre le niveau 50', 'level', 50, 1000, { frame: 'legende', title: 'Légende vivante' }),
-  A('win1', 'Victoires', 'Remporter une première victoire', 'wins', 1, 50, { title: 'Recrue' }),
-  A('win10', 'Victoires', 'Remporter 10 victoires', 'wins', 10, 100, { title: 'Combattant' }),
-  A('win50', 'Victoires', 'Remporter 50 victoires', 'wins', 50, 300, { title: 'Champion' }),
-  A('win200', 'Victoires', 'Remporter 200 victoires', 'wins', 200, 600, { title: 'Seigneur de guerre', frame: 'flamme' }),
-  A('pvp5', 'Victoires', 'Gagner 5 parties en ligne', 'pvpWins', 5, 150, { title: 'Duelliste' }),
-  A('pvp25', 'Victoires', 'Gagner 25 parties en ligne', 'pvpWins', 25, 400, { title: 'Maître duelliste', frame: 'duel' }),
-  A('pve10', 'Victoires', 'Battre l\'IA 10 fois', 'pveWins', 10, 100, { title: 'Fléau des automates' }),
-  A('streak3', 'Victoires', 'Gagner 3 parties d\'affilée', 'bestStreak', 3, 150, { title: 'Inarrêtable' }),
-  A('streak5', 'Victoires', 'Gagner 5 parties d\'affilée', 'bestStreak', 5, 300, { title: 'Invaincu' }),
-  A('games50', 'Parties', 'Jouer 50 parties', 'games', 50, 200, { title: 'Infatigable' }),
-  A('games200', 'Parties', 'Jouer 200 parties', 'games', 200, 500, { title: 'Pilier de la taverne' }),
-  A('missions10', 'Parties', 'Accomplir 10 missions', 'missions', 10, 150, { title: 'Assidu' }),
-  A('missions50', 'Parties', 'Accomplir 50 missions', 'missions', 50, 400, { frame: 'etoile' }),
-  A('cards50', 'Collection', 'Posséder 50 cartes', 'cards', 50, 150, { title: 'Collectionneur' }),
-  A('cards100', 'Collection', 'Posséder 100 cartes', 'cards', 100, 300, { frame: 'tresor' }),
-  A('families3', 'Collection', 'Compléter 3 familles', 'families', 3, 300, { title: 'Généalogiste' }),
+  A('lvl5', 'Niveau', 'Atteindre le niveau 5', 'level', 5, 100, { prisms: 2, title: 'Apprenti' }),
+  A('lvl10', 'Niveau', 'Atteindre le niveau 10', 'level', 10, 200, { prisms: 5, frame: 'bronze' }),
+  A('lvl20', 'Niveau', 'Atteindre le niveau 20', 'level', 20, 400, { prisms: 10, frame: 'argent', title: 'Vétéran' }),
+  A('lvl30', 'Niveau', 'Atteindre le niveau 30', 'level', 30, 600, { prisms: 20, frame: 'or' }),
+  A('lvl50', 'Niveau', 'Atteindre le niveau 50', 'level', 50, 1000, { prisms: 40, frame: 'legende', title: 'Légende vivante' }),
+  A('win1', 'Victoires', 'Remporter une première victoire', 'wins', 1, 50, { prisms: 2, title: 'Recrue' }),
+  A('win10', 'Victoires', 'Remporter 10 victoires', 'wins', 10, 100, { prisms: 3, title: 'Combattant' }),
+  A('win50', 'Victoires', 'Remporter 50 victoires', 'wins', 50, 300, { prisms: 10, title: 'Champion' }),
+  A('win200', 'Victoires', 'Remporter 200 victoires', 'wins', 200, 600, { prisms: 30, title: 'Seigneur de guerre', frame: 'flamme' }),
+  A('pvp5', 'Victoires', 'Gagner 5 parties en ligne', 'pvpWins', 5, 150, { prisms: 5, title: 'Duelliste' }),
+  A('pvp25', 'Victoires', 'Gagner 25 parties en ligne', 'pvpWins', 25, 400, { prisms: 20, title: 'Maître duelliste', frame: 'duel' }),
+  A('pve10', 'Victoires', 'Battre l\'IA 10 fois', 'pveWins', 10, 100, { prisms: 3, title: 'Fléau des automates' }),
+  A('streak3', 'Victoires', 'Gagner 3 parties d\'affilée', 'bestStreak', 3, 150, { prisms: 3, title: 'Inarrêtable' }),
+  A('streak5', 'Victoires', 'Gagner 5 parties d\'affilée', 'bestStreak', 5, 300, { prisms: 10, title: 'Invaincu' }),
+  A('games50', 'Parties', 'Jouer 50 parties', 'games', 50, 200, { prisms: 5, title: 'Infatigable' }),
+  A('games200', 'Parties', 'Jouer 200 parties', 'games', 200, 500, { prisms: 20, title: 'Pilier de la taverne' }),
+  A('missions10', 'Parties', 'Accomplir 10 missions', 'missions', 10, 150, { prisms: 3, title: 'Assidu' }),
+  A('missions50', 'Parties', 'Accomplir 50 missions', 'missions', 50, 400, { prisms: 15, frame: 'etoile' }),
+  A('cards50', 'Collection', 'Posséder 50 cartes', 'cards', 50, 150, { prisms: 5, title: 'Collectionneur' }),
+  A('cards100', 'Collection', 'Posséder 100 cartes', 'cards', 100, 300, { prisms: 15, frame: 'tresor' }),
+  A('families3', 'Collection', 'Compléter 3 familles', 'families', 3, 300, { prisms: 15, title: 'Généalogiste' }),
   ...[
     ['Ange', 'Voix des cieux'], ['Démon', 'Signataire du pacte'], ['Gobelin', 'Meneur de horde'], ['Elfe', 'Gardien des bois'],
     ['Dragon', 'Dompteur de dragons'], ['Mort-vivant', 'Nécromant'], ['Vampire', 'Enfant de la nuit'],
-  ].map(([fam, title]) => A(`fam_${famKey(fam)}`, 'Familles', `Gagner 10 parties avec un général ${fam}`, `famWins.${fam}`, 10, 150, { title })),
+  ].map(([fam, title]) => A(`fam_${famKey(fam)}`, 'Familles', `Gagner 10 parties avec un général ${fam}`, `famWins.${fam}`, 10, 150, { title, prisms: 5 })),
 ];
 export const statValue = (stats, stat) => stat.split('.').reduce((o, k) => (o ? o[k] : 0), stats) || 0;
 

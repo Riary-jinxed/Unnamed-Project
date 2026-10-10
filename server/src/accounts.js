@@ -17,11 +17,11 @@ const cleanLogin = s => String(s || '').trim().toLowerCase();
 const LOGIN_RE = /^[a-z0-9._-]{2,24}$/;
 
 // Réglages de la boutique modifiables depuis /admin. « rotation » change à chaque renouvellement forcé des offres du jour.
-// Arts alternatifs : nombre d'offres du jour, prix du coffre et prix de chaque rareté (artPrice_<rareté>).
+// Arts alternatifs : nombre d'offres du jour, prix du coffre et prix de chaque rareté (artPrice_<rareté>), en Prismes.
 export const DEFAULT_SETTINGS = { cardPrice: SHOP.cardPrice, boosterPrice: SHOP.boosterPrice, dailyCards: SHOP.dailyCards, boosterSize: SHOP.boosterSize, shardsPerDuplicate: SHARDS_PER_DUPLICATE,
-  artOffers: 4, chestPrice: 350, ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, ART_RARITIES[r].price])), rotation: 0 };
+  artOffers: 3, chestPrice: 60, ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, ART_RARITIES[r].price])), rotation: 0 };
 const SETTING_LIMITS = { cardPrice: [0, 100000], boosterPrice: [0, 100000], dailyCards: [1, 10], boosterSize: [1, 10], shardsPerDuplicate: [0, 10000],
-  artOffers: [0, 12], chestPrice: [0, 100000], ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, [0, 100000]])) };
+  artOffers: [0, 12], chestPrice: [0, 10000], ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, [0, 100000]])) };
 
 // Decks du joueur : jusqu'à MAX_DECKS, chacun avec un identifiant ; « active » désigne celui qui est joué.
 const newDeckId = () => randomBytes(4).toString('hex');
@@ -44,10 +44,10 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   boosterReady: a.starter !== null && a.lastBooster !== today(), shardRate: cfg.shardsPerDuplicate,
   // Niveaux de carte (cosmétiques) : essence de chaque carte et niveau atteint (1 si absent).
   essence: a.essence || {}, cardLevels: a.cardLevels || {},
-  // Arts alternatifs possédés (avec le numéro d'une Limited) et art choisi pour chaque carte.
-  arts: a.arts || {}, artSel: a.artSel || {} });
+  // Prismes (monnaie rare des arts alternatifs), arts possédés et art choisi pour chaque carte.
+  prisms: a.prisms || 0, arts: a.arts || {}, artSel: a.artSel || {} });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'arts', 'artSel', 'artShop'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'artShop'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte.
 function addCards(a, ids, rate, essenceRate) {
@@ -178,16 +178,20 @@ export function createAccounts(store) {
     await store.put(a);
     return { title: `${free ? 'Booster offert' : 'Booster'} ${set.name}`, cards, ...got, shop: shopView(a), account: me(a) };
   }
-  // Arts alternatifs : achat (offre du jour ou Limited), coffre, choix de l'art d'une carte.
+  // Arts alternatifs : achat d'un art du jour, coffre, choix de l'art d'une carte. Payés en Prismes.
+  function payPrisms(a, price) {
+    if ((a.prisms || 0) < price) throw new HttpError(409, `Il vous faut ${price} Prismes (vous en avez ${a.prisms || 0}).`);
+    a.prisms = (a.prisms || 0) - price;
+  }
   async function buyArt(a, body) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
-    const art = arts.buy(a, body || {}, pay);
+    const art = arts.buy(a, body || {}, payPrisms);
     await store.put(a);
     return { art: art.id, shop: shopView(a), account: me(a) };
   }
   async function openChest(a) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
-    const art = arts.chest(a, pay);
+    const art = arts.chest(a, payPrisms);
     await store.put(a);
     return { art: art.id, chest: true, shop: shopView(a), account: me(a) };
   }
@@ -282,7 +286,7 @@ export function createAccounts(store) {
     await store.put(a);
     return { created: !old, account: adminView(a) };
   }
-  const adminView = a => ({ login: a.login, name: a.name, starter: a.starter, cards: Object.values(a.cards).reduce((s, n) => s + n, 0), shards: a.shards || 0, level: a.level || 1,
+  const adminView = a => ({ login: a.login, name: a.name, starter: a.starter, cards: Object.values(a.cards).reduce((s, n) => s + n, 0), shards: a.shards || 0, prisms: a.prisms || 0, level: a.level || 1,
     xp: a.xp || 0, freeBoosters: a.freeBoosters || 0,
     lastBooster: a.lastBooster, created: a.created, disabled: !!a.disabled, sessions: (a.tokens || []).length, deckName: activeDeck(a)?.name || null });
   // inDecks : cartes présentes dans au moins un deck du joueur (elles ne peuvent pas être retirées de sa collection).
@@ -294,11 +298,12 @@ export function createAccounts(store) {
   const done = async a => { await store.put(a); return { account: adminDetail(a) }; };
 
   // Modifie un compte : pseudo, Éclats, désactivation. Seuls les champs présents changent.
-  async function adminUpdate({ login, name, shards, level, freeBoosters, disabled }) {
+  async function adminUpdate({ login, name, shards, prisms, level, freeBoosters, disabled }) {
     const a = target(login);
     if (name !== undefined) a.name = String(name).trim().slice(0, 20) || a.login;
     const int = (v, max, label) => { const n = Number(v); if (!Number.isInteger(n) || n < 0 || n > max) throw new HttpError(400, `${label} : un nombre entier positif.`); return n; };
     if (shards !== undefined) a.shards = int(shards, 10_000_000, 'Éclats');
+    if (prisms !== undefined) a.prisms = int(prisms, 1_000_000, 'Prismes');
     if (freeBoosters !== undefined) a.freeBoosters = int(freeBoosters, 1000, 'Boosters offerts');
     // Changer le niveau ne donne pas les récompenses des niveaux sautés ; les succès de niveau, si.
     if (level !== undefined && a.level) { const n = int(level, 1000, 'Niveau'); if (n !== a.level) { a.level = Math.max(1, n); a.xp = 0; progress.checkCollection(a); } }

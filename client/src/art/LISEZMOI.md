@@ -15,7 +15,7 @@ Une carte sans dossier s'affiche sans illustration. Rien d'autre à déclarer : 
 
 ## Arts alternatifs
 
-Chaque art alternatif est déclaré dans `packages/engine/src/arts.js` (`ARTS` : carte, nom, rareté, édition Limited ou Promo).
+Chaque art alternatif est déclaré dans `packages/engine/src/arts.js` (`ARTS` : carte, nom, rareté, édition Promo).
 Ses images suivent le même gabarit, dans un dossier nommé par l'identifiant de l'art :
 
 ```

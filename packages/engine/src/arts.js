@@ -1,66 +1,59 @@
 // Arts alternatifs : d'autres illustrations pour une carte ou un général, purement cosmétiques (la carte joue pareil).
-// Partagé par le serveur (ventes, stock des éditions Limited, sélection) et l'appli (boutique, collection, partie).
+// Partagé par le serveur (ventes, sélection) et l'appli (boutique, collection, partie). Ils se paient en Prismes, une monnaie
+// à part et rare (fin de saison classée, succès ; plus tard événements et passe de saison), jamais en Éclats.
 // Les images se rangent dans client/src/art/alt/<id de l'art>/ (decor.webp, perso.webp) ; tant qu'elles manquent,
 // l'appli affiche un art provisoire, et l'art reste vendable.
 import { CARDS, GENERALS } from './engine.js';
 
-// Raretés classiques. price : prix par défaut en Éclats (réglable dans /admin) ; weight : chance relative de sortir
-// dans les offres du jour et dans le coffre.
+// Raretés. price : prix par défaut en Prismes (réglable dans /admin) ; weight : chance relative de sortir
+// dans les offres du jour et dans le coffre. D'autres raretés pourront s'ajouter ici.
 export const ART_RARITIES = {
-  commun: { name: 'Commun', price: 100, weight: 40 },
-  peu_commun: { name: 'Peu commun', price: 200, weight: 28 },
-  rare: { name: 'Rare', price: 400, weight: 16 },
-  super_rare: { name: 'Super-rare', price: 700, weight: 9 },
-  epique: { name: 'Épique', price: 1100, weight: 5 },
-  legendaire: { name: 'Légendaire', price: 1600, weight: 2 },
+  rare: { name: 'Rare', price: 40, weight: 70 },
+  epique: { name: 'Épique', price: 80, weight: 25 },
+  legendaire: { name: 'Légendaire', price: 150, weight: 5 },
 };
 export const RARITY_IDS = Object.keys(ART_RARITIES);
-// Éditions à part :
-// - limited : rareté unique, un nombre fixe d'exemplaires numérotés, en vente entre deux dates (from, until, jour de Paris inclus) ;
-//   chaque art a son prix et son stock. Il ne sort jamais du coffre ni des offres du jour.
-// - promo : jamais en vente ; donné par un code, un événement, un succès (aujourd'hui, depuis /admin). Garde une rareté classique.
-export const LIMITED = { name: 'Limited', price: 2500 };
+// Édition Promo : jamais en vente ; donnée par un code, un événement, un succès (aujourd'hui, depuis /admin). Garde sa rareté.
 export function rarityName(art) {
   const name = ART_RARITIES[art.rarity]?.name || art.rarity;
-  return art.edition === 'limited' ? LIMITED.name : art.edition === 'promo' ? `Promo ${name.toLowerCase()}` : name;
+  return art.edition === 'promo' ? `Promo ${name.toLowerCase()}` : name;
 }
 // Classe CSS de la rareté (style.css, « .rar-… »).
-export const rarityKey = art => (art.edition === 'limited' ? 'limited' : art.rarity);
+export const rarityKey = art => art.rarity;
 
-// Catalogue. Un art = { card, name, rarity } ; Limited : edition, stock, from, until, price ; Promo : edition, how (comment l'obtenir).
+// Catalogue. Un art = { card, name, rarity } ; Promo : edition, how (comment l'obtenir).
 // Ajouter un art : une ligne ici, puis ses images dans client/src/art/alt/<id>/ quand elles sont prêtes.
 const A = (id, card, name, rarity, extra = {}) => [id, { id, card, name, rarity, ...extra }];
 export const ARTS = Object.fromEntries([
   // Anges
   A('seraphine_zenith', 'seraphine', 'Séraphine au zénith', 'rare'),
-  A('aurelia_vitrail', 'aurelia', 'Aurélia, vitrail du Serment', 'super_rare'),
-  A('cherubin_nuage', 'cherubin', 'Chérubin des nuées', 'commun'),
+  A('aurelia_vitrail', 'aurelia', 'Aurélia, vitrail du Serment', 'epique'),
+  A('cherubin_nuage', 'cherubin', 'Chérubin des nuées', 'rare'),
   A('archange_jugement', 'archange', 'Archange du Jugement dernier', 'legendaire'),
   // Démons
   A('morgrath_braises', 'morgrath', 'Morgrath dans les braises', 'rare'),
   A('vorgoth_cercle', 'vorgoth', 'Vorgoth et le cercle pourpre', 'epique'),
-  A('diablotin_farceur', 'diablotin', 'Diablotin farceur', 'commun'),
-  A('archidemon_couronne', 'archidemon', 'Archidémon couronné', 'super_rare'),
+  A('diablotin_farceur', 'diablotin', 'Diablotin farceur', 'rare'),
+  A('archidemon_couronne', 'archidemon', 'Archidémon couronné', 'epique'),
   // Gobelins
-  A('grisk_butin', 'grisk', 'Grisk sur son butin', 'peu_commun'),
+  A('grisk_butin', 'grisk', 'Grisk sur son butin', 'rare'),
   A('snagg_festin', 'snagg', 'Snagg au grand festin', 'rare'),
-  A('pyromane_feu_artifice', 'pyromane', 'Pyromane, nuit des feux', 'peu_commun'),
+  A('pyromane_feu_artifice', 'pyromane', 'Pyromane, nuit des feux', 'rare'),
   A('grand_chef_totem', 'grand_chef', 'Grand-chef du totem', 'epique'),
   // Elfes
-  A('sylvaen_automne', 'sylvaen', 'Sylvaën d\'automne', 'peu_commun'),
-  A('lirael_tempete', 'lirael', 'Lirael dans la tempête', 'super_rare'),
-  A('feu_follet_lanterne', 'feu_follet', 'Feu follet des lanternes', 'commun'),
+  A('sylvaen_automne', 'sylvaen', 'Sylvaën d\'automne', 'rare'),
+  A('lirael_tempete', 'lirael', 'Lirael dans la tempête', 'epique'),
+  A('feu_follet_lanterne', 'feu_follet', 'Feu follet des lanternes', 'rare'),
   A('reine_couronne_fleurs', 'reine', 'Reine aux mille fleurs', 'legendaire'),
   // Dragons
   A('vaelthar_glacier', 'vaelthar', 'Vael\'Thar des glaciers', 'rare'),
   A('ignaroth_eclipse', 'ignaroth', 'Ignaroth sous l\'éclipse', 'epique'),
-  A('dragonnet_tresor', 'dragonnet', 'Dragonnet sur le trésor', 'commun'),
-  A('dragon_or_soleil', 'dragon_or', 'Dragon d\'or, soleil levant', 'super_rare'),
+  A('dragonnet_tresor', 'dragonnet', 'Dragonnet sur le trésor', 'rare'),
+  A('dragon_or_soleil', 'dragon_or', 'Dragon d\'or, soleil levant', 'legendaire'),
   // Neutres
-  A('golem_mousse', 'golem', 'Golem moussu', 'commun'),
-  A('barde_taverne', 'barde', 'Barde de la taverne', 'peu_commun'),
-  // Éditions à part
-  A('aurvax_eclipse', 'dieu_base', 'Aurvax, trésor de l\'éclipse', 'legendaire', { edition: 'limited', stock: 50, from: '2026-10-01', until: '2026-12-31', price: 2500 }),
+  A('golem_mousse', 'golem', 'Golem moussu', 'rare'),
+  A('barde_taverne', 'barde', 'Barde de la taverne', 'rare'),
+  // Promo
   A('seraphine_pionniere', 'seraphine', 'Séraphine des pionniers', 'rare', { edition: 'promo', how: 'Offert aux premiers joueurs.' }),
 ]);
 
@@ -69,11 +62,8 @@ export const artExists = id => { const a = ARTS[id]; return !!a && !!(CARDS[a.ca
 export const artsOf = card => Object.values(ARTS).filter(a => a.card === card && artExists(a.id));
 // Vendable dans les offres du jour et le coffre : les raretés classiques hors Promo.
 export const isClassic = a => !a.edition && !!ART_RARITIES[a.rarity];
-// Limited en vente ce jour-là (stock à vérifier à part).
-export const limitedOpen = (a, day) => a.edition === 'limited' && (!a.from || day >= a.from) && (!a.until || day <= a.until);
-
-// Prix d'un art avec les réglages de la boutique (artPrice_<rareté>), le prix propre d'une Limited sinon.
-export const artPrice = (a, cfg = {}) => (a.edition === 'limited' ? a.price ?? LIMITED.price : cfg[`artPrice_${a.rarity}`] ?? ART_RARITIES[a.rarity]?.price ?? 0);
+// Prix d'un art en Prismes, avec les réglages de la boutique (artPrice_<rareté>).
+export const artPrice = (a, cfg = {}) => cfg[`artPrice_${a.rarity}`] ?? ART_RARITIES[a.rarity]?.price ?? 0;
 
 // Tirage pondéré par la rareté. bonus(art) multiplie la chance (offres : les arts des cartes possédées d'abord).
 export function weightedPick(arts, rand = Math.random, bonus = () => 1) {

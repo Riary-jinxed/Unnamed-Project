@@ -27,6 +27,7 @@ Ce dossier explique comment le jeu est construit, pour pouvoir le modifier sans 
 | Terrain | 5 par deck ; 3 sont révélés aux tours 1 à 3, un par zone (`TERRAINS`, `terrainPlan`). |
 | Jeton | Créature créée par un effet (Horde, Chèvre, Magot, Festin) : `token: true`, jamais dans une collection. |
 | Éclats | Monnaie de la boutique (`account.shards`). Chaque doublon obtenu est converti en Éclats. |
+| Prismes | Monnaie rare des arts alternatifs (`account.prisms`) : fin de saison classée, succès. Jamais convertie en Éclats ni l'inverse. |
 | Essence, niveau de carte | Chaque doublon donne aussi de l'essence de cette carte (`account.essence`) ; essence et Éclats font monter la carte de niveau (`account.cardLevels`, 1 à 5), purement cosmétique : bordure, puis effet de mise en jeu. |
 | Catalogue | Retouches de cartes et sets publiés depuis `/admin`, appliqués au moteur sur le serveur et dans l'appli. |
 | JcJ / JcE | Partie en ligne (`pvp`) / contre l'IA (`pve`). |

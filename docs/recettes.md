@@ -46,10 +46,10 @@ Une carte ne doit jamais être retirée du code tant que des joueurs la possède
 
 ## Ajouter un art alternatif
 
-1. Une ligne `A(id, carte, nom, rareté)` dans `ARTS` (`packages/engine/src/arts.js`). Limited : `{ edition: 'limited', stock, from, until, price }` ; Promo : `{ edition: 'promo', how }`, puis le donner depuis la fiche du joueur dans `/admin`.
+1. Une ligne `A(id, carte, nom, rareté)` dans `ARTS` (`packages/engine/src/arts.js`). Promo : `{ edition: 'promo', how }`, puis le donner depuis la fiche du joueur dans `/admin`.
 2. Les images dans `client/src/art/alt/<id>/` (`decor.webp`, `perso.webp`, même gabarit que les cartes). Sans elles, l'appli montre un art provisoire et l'art reste vendable.
 
-Les prix des raretés, le nombre d'arts du jour et le prix du coffre se règlent dans l'onglet Boutique de `/admin`.
+Une nouvelle rareté s'ajoute dans `ART_RARITIES` (nom, prix, poids) avec sa couleur dans `style.css` (`.rar-<id>`). Les prix des raretés, le nombre d'arts du jour et le prix du coffre se règlent dans l'onglet Boutique de `/admin`.
 
 ## Ajouter une mission ou un succès
 

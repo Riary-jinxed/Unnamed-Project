@@ -54,5 +54,7 @@ export function seasonDaysLeft(d = new Date()) {
 export const seasonReset = r => Math.max(0, rankOf(r).floor - TIER_STARS);
 // Éclats de fin de saison par palier : réglages « rankShards… » du document « recompenses » (rewards.js).
 export const seasonShardsKey = t => `rankShards${TIERS[t].id[0].toUpperCase()}${TIERS[t].id.slice(1)}`;
+// Prismes de fin de saison par palier (monnaie des arts alternatifs) : réglages « rankPrisms… ».
+export const seasonPrismsKey = t => `rankPrisms${TIERS[t].id[0].toUpperCase()}${TIERS[t].id.slice(1)}`;
 // Titres et cadres de fin de saison, du palier atteint et de ceux en dessous.
 export const seasonCosmetics = t => TIERS.slice(0, t + 1).filter(x => x.title || x.frame).map(x => ({ title: x.title ? `rang:${x.id}` : null, frame: x.frame || null }));

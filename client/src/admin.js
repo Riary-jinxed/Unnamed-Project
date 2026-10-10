@@ -110,10 +110,11 @@ function renderDetail() {
     ${notice()}
   </div>
   <form class="card-box" id="profile">
-    <h3>Profil, Éclats et niveau</h3>
+    <h3>Profil, monnaies et niveau</h3>
     <div class="grid2">
       <div class="field"><label class="eyebrow" for="p-name">Pseudo</label><input id="p-name" maxlength="20" value="${esc(a.name)}"></div>
       <div class="field"><label class="eyebrow" for="p-shards">Éclats</label><input id="p-shards" type="number" min="0" step="1" value="${a.shards}"></div>
+      <div class="field"><label class="eyebrow" for="p-prisms">Prismes</label><input id="p-prisms" type="number" min="0" step="1" value="${a.prisms}"><small class="hint">Monnaie des arts alternatifs.</small></div>
       <div class="field"><label class="eyebrow" for="p-level">Niveau</label><input id="p-level" type="number" min="1" step="1" value="${a.level}">
         <small class="hint">${a.xp} XP dans ce niveau. Changer le niveau ne donne pas les récompenses des niveaux sautés.</small></div>
       <div class="field"><label class="eyebrow" for="p-free">Boosters offerts à ouvrir</label><input id="p-free" type="number" min="0" step="1" value="${a.freeBoosters}"></div>
@@ -166,22 +167,22 @@ function artsBlock(a) {
   const label = id => `${esc(ARTS[id].name)} · ${esc(nameOf(ARTS[id].card))} · ${esc(rarityName(ARTS[id]))}`;
   return `<div class="card-box">
     <div class="row"><h3 style="margin-right:auto">Arts alternatifs</h3><small class="hint">${mine.length}/${Object.keys(ARTS).length}</small></div>
-    ${mine.length ? `<div class="chips">${mine.map(id => `<span class="pick on">${label(id)}${a.arts[id].n ? ` · n° ${a.arts[id].n}` : ''}${a.arts[id].gift ? ' · offert' : ''}
+    ${mine.length ? `<div class="chips">${mine.map(id => `<span class="pick on">${label(id)}${a.arts[id].gift ? ' · offert' : ''}
       <button class="btn sm" type="button" data-art-take="${id}" ${dis()}>Retirer</button></span>`).join('')}</div>` : '<p class="hint" style="margin:0">Aucun art pour l\'instant.</p>'}
     <div class="row"><select id="give-art" aria-label="Art à donner">${Object.keys(ARTS).filter(id => !a.arts?.[id]).map(id => `<option value="${id}">${label(id)}</option>`).join('')}</select>
       <button class="btn" data-act="give-art" ${dis()}>Donner cet art</button></div>
-    <p class="hint" style="margin:0">Les arts Promo ne sont jamais en vente : ils se donnent d'ici. Une Limited donnée ne compte pas dans son stock et n'a pas de numéro.</p>
+    <p class="hint" style="margin:0">Les arts Promo ne sont jamais en vente : ils se donnent d'ici.</p>
   </div>`;
 }
-// Catalogue des arts alternatifs : rareté, prix, ventes des Limited, nombre de joueurs qui l'ont.
+// Catalogue des arts alternatifs : rareté, prix, nombre de joueurs qui l'ont.
 function artsCatalog() {
   if (!st.arts) return '<p class="wait">Chargement des arts…</p>';
   const rows = st.arts.map(x => `<tr><td><b>${esc(x.name)}</b>${x.exists ? '' : ' <span class="chip off">carte absente</span>'}<br><small class="hint">${esc(x.id)}</small></td><td>${esc(CARDS[x.card]?.name || GENERALS[x.card]?.name || x.card)}</td>
-    <td>${esc(x.rarityName)}${x.edition === 'limited' ? `<br><small class="hint">${x.from || '…'} → ${x.until || '…'}</small>` : x.edition === 'promo' && x.how ? `<br><small class="hint">${esc(x.how)}</small>` : ''}</td>
-    <td class="num">${x.price === null ? '—' : x.price}</td><td class="num">${x.sold === null ? '—' : `${x.sold}/${x.stock}`}</td><td class="num">${x.owners}</td></tr>`).join('');
+    <td>${esc(x.rarityName)}${x.edition === 'promo' && x.how ? `<br><small class="hint">${esc(x.how)}</small>` : ''}</td>
+    <td class="num">${x.price === null ? '—' : x.price}</td><td class="num">${x.owners}</td></tr>`).join('');
   return `<div class="card-box" style="overflow-x:auto"><h2 style="font-size:20px">Catalogue des arts</h2>
     <p class="hint" style="margin:0">Les arts se déclarent dans <code>packages/engine/src/arts.js</code> et leurs images dans <code>client/src/art/alt/&lt;id&gt;/</code> ; sans image, l'appli montre un art provisoire.</p>
-    <table class="admin"><thead><tr><th>Art</th><th>Carte</th><th>Rareté</th><th>Prix</th><th>Vendus</th><th>Joueurs</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    <table class="admin"><thead><tr><th>Art</th><th>Carte</th><th>Rareté</th><th>Prix (Prismes)</th><th>Joueurs</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function renderShopSettings() {
   const s = st.settings, d = st.defaults;
@@ -207,11 +208,11 @@ function renderShopSettings() {
   </form>
   <form class="card-box" id="art-settings">
     <h2 style="font-size:20px">Arts alternatifs</h2>
-    <p class="hint" style="margin:0">Chaque joueur a ses arts du jour, tirés selon leur rareté parmi ceux qu'il n'a pas (ceux de ses cartes trois fois plus souvent). Le coffre donne un art qu'il n'a pas, avec les mêmes chances. Les Limited ont leur propre prix et leur stock, dans le catalogue.</p>
+    <p class="hint" style="margin:0">Payés en Prismes, la monnaie rare gagnée en fin de saison classée et avec les succès (onglet Récompenses). Chaque joueur a ses arts du jour, tirés selon leur rareté parmi ceux qu'il n'a pas (ceux de ses cartes trois fois plus souvent). Le coffre donne un art qu'il n'a pas, avec les mêmes chances.</p>
     <div class="grid2">
       ${field('artOffers', 'Arts du jour', 'Entre 0 et 12.')}
-      ${field('chestPrice', 'Prix du coffre', 'En Éclats.')}
-      ${RARITY_IDS.map(r => field(`artPrice_${r}`, `Prix d'un art ${ART_RARITIES[r].name.toLowerCase()}`, 'En Éclats.')).join('')}
+      ${field('chestPrice', 'Prix du coffre', 'En Prismes.')}
+      ${RARITY_IDS.map(r => field(`artPrice_${r}`, `Prix d'un art ${ART_RARITIES[r].name.toLowerCase()}`, 'En Prismes.')).join('')}
     </div>
     <div class="row"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="art-defaults">Revenir aux valeurs par défaut</button></div>
   </form>
@@ -246,7 +247,7 @@ app.addEventListener('submit', async e => {
     } catch (err) { say('', err.message); render(); }
     return;
   }
-  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')) }, 'Profil enregistré.'); return; }
+  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), prisms: Number(v('p-prisms')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')) }, 'Profil enregistré.'); return; }
   if (id === 'pass') {
     const password = v('p-pass');
     try {

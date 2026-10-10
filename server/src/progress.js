@@ -6,7 +6,7 @@ import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, ACHIEVEMENTS, familyReward, S
   xpToNext, familyOf, statValue, missionLabel, MAX_CARD_LEVEL, levelCost } from '@jeu/engine/rewards';
 import { SETS, STARTERS, OWNABLE, allowedGenerals, today } from '@jeu/engine/collection';
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
-import { TIERS, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonCosmetics } from '@jeu/engine/ranked';
+import { TIERS, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics } from '@jeu/engine/ranked';
 import { artExists } from '@jeu/engine/arts';
 import { HttpError } from './accounts.js';
 
@@ -21,7 +21,8 @@ export function createProgress(store) {
     const doc = store.doc('recompenses') || {};
     const missions = Object.fromEntries(Object.entries(MISSIONS).map(([id, m]) => [id, { target: m.target, xp: m.xp, shards: m.shards, on: true, ...(doc.missions || {})[id] }]));
     const achievements = Object.fromEntries(ACHIEVEMENTS.map(x => [x.id, (doc.achievements || {})[x.id] ?? x.shards]));
-    return { ...DEFAULT_REWARDS, ...doc, missions, achievements };
+    const achievementPrisms = Object.fromEntries(ACHIEVEMENTS.map(x => [x.id, (doc.achievementPrisms || {})[x.id] ?? x.prisms]));
+    return { ...DEFAULT_REWARDS, ...doc, missions, achievements, achievementPrisms };
   }
 
   // ---- Champs du compte ----
@@ -65,9 +66,10 @@ export function createProgress(store) {
     }
     checkAchievements(a);
   }
-  // Donne une récompense (Éclats, XP, boosters offerts, carte, titre, cadre, dos) et la range dans la boîte du compte.
+  // Donne une récompense (Éclats, Prismes, XP, boosters offerts, carte, titre, cadre, dos) et la range dans la boîte du compte.
   function grant(a, r) {
     if (r.shards) a.shards = (a.shards || 0) + r.shards;
+    if (r.prisms) a.prisms = (a.prisms || 0) + r.prisms;
     if (r.boosters) a.freeBoosters = (a.freeBoosters || 0) + r.boosters;
     if (r.card && !a.cards[r.card]) a.cards[r.card] = 1;
     if (r.title && !a.cosmetics.titles.includes(r.title)) a.cosmetics.titles.push(r.title);
@@ -88,7 +90,7 @@ export function createProgress(store) {
     for (const x of ACHIEVEMENTS) {
       if (a.achievements[x.id] || statValue(s, x.stat) < x.goal) continue;
       a.achievements[x.id] = new Date().toISOString();
-      grant(a, { kind: 'achievement', label: `Succès : ${x.label}`, shards: c.achievements[x.id], title: x.title ? x.id : undefined, frame: x.frame });
+      grant(a, { kind: 'achievement', label: `Succès : ${x.label}`, shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], title: x.title ? x.id : undefined, frame: x.frame });
     }
   }
 
@@ -192,7 +194,7 @@ export function createProgress(store) {
         if (x.title && !a.cosmetics.titles.includes(x.title)) a.cosmetics.titles.push(x.title);
         if (x.frame && !a.cosmetics.frames.includes(x.frame)) a.cosmetics.frames.push(x.frame);
       }
-      grant(a, { kind: 'season', label: `Saison ${seasonName(R.season)} terminée : ${best.label}`, shards: c[seasonShardsKey(best.tier)] || 0,
+      grant(a, { kind: 'season', label: `Saison ${seasonName(R.season)} terminée : ${best.label}`, shards: c[seasonShardsKey(best.tier)] || 0, prisms: c[seasonPrismsKey(best.tier)] || 0,
         title: t.title ? `rang:${t.id}` : undefined, frame: t.frame });
     }
     const r = R ? seasonReset(R.r) : 0;
@@ -227,7 +229,7 @@ export function createProgress(store) {
   }
   // Récompenses de fin de saison de chaque palier, pour l'écran classé.
   const seasonRewards = () => { const c = cfg();
-    return TIERS.map((t, i) => ({ id: t.id, name: t.name, ai: t.ai, shards: c[seasonShardsKey(i)] || 0, title: t.title || null, frame: t.frame ? FRAMES[t.frame] : null })); };
+    return TIERS.map((t, i) => ({ id: t.id, name: t.name, ai: t.ai, shards: c[seasonShardsKey(i)] || 0, prisms: c[seasonPrismsKey(i)] || 0, title: t.title || null, frame: t.frame ? FRAMES[t.frame] : null })); };
 
   // ---- Cosmétiques ----
   async function equip(a, { title, frame, back }) {
@@ -276,7 +278,7 @@ export function createProgress(store) {
   function achievementsView(a) {
     const s = statsOf(a), c = cfg();
     return ACHIEVEMENTS.map(x => ({ id: x.id, group: x.group, label: x.label, goal: x.goal, value: Math.min(x.goal, statValue(s, x.stat)), done: !!a.achievements?.[x.id],
-      shards: c.achievements[x.id], title: x.title || null, frame: x.frame ? FRAMES[x.frame] : null }));
+      shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], title: x.title || null, frame: x.frame ? FRAMES[x.frame] : null }));
   }
   function collectionView(a) {
     return SETS.filter(s => s.cards.length).map(set => ({ id: set.id, name: set.name, done: !!a.completed?.[set.id], reward: SET_REWARDS[set.id] || null,
@@ -302,12 +304,16 @@ export function createProgress(store) {
       doc.achievements = { ...(doc.achievements || {}) };
       for (const [id, n] of Object.entries(body.achievements)) if (ACHIEVEMENTS.some(x => x.id === id)) doc.achievements[id] = int(n, [0, 100000], `Succès ${id}`);
     }
+    if (body.achievementPrisms) {
+      doc.achievementPrisms = { ...(doc.achievementPrisms || {}) };
+      for (const [id, n] of Object.entries(body.achievementPrisms)) if (ACHIEVEMENTS.some(x => x.id === id)) doc.achievementPrisms[id] = int(n, [0, 10000], `Succès ${id}, Prismes`);
+    }
     if (body.reset) for (const k of Object.keys(doc)) delete doc[k];
     await store.putDoc('recompenses', doc);
     return settings();
   }
   const settings = () => ({ rewards: cfg(), defaults: { ...DEFAULT_REWARDS, missions: Object.fromEntries(Object.entries(MISSIONS).map(([id, m]) => [id, { target: m.target, xp: m.xp, shards: m.shards, on: true }])),
-    achievements: Object.fromEntries(ACHIEVEMENTS.map(x => [x.id, x.shards])) } });
+    achievements: Object.fromEntries(ACHIEVEMENTS.map(x => [x.id, x.shards])), achievementPrisms: Object.fromEntries(ACHIEVEMENTS.map(x => [x.id, x.prisms])) } });
 
   return { init, onCards, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, essenceRate, upgradeCard, achievementsView, collectionView, saveSettings, settings,
     seen: a => { a.inbox = []; } };

@@ -129,7 +129,7 @@ Données partagées par le serveur (qui calcule) et l'appli (qui affiche) : rég
 
 ## Arts alternatifs (`arts.js`)
 
-Catalogue des arts (`ARTS` : carte, nom, rareté ; `edition: 'limited'` avec `stock`, `from`, `until`, `price` ; `edition: 'promo'` avec `how`), six raretés classiques avec leur prix par défaut et leur poids de tirage (`ART_RARITIES`), prix d'un art selon les réglages (`artPrice`), arts du jour d'un joueur (`artOffers` : pondérés par rareté, ceux de ses cartes trois fois plus souvent), contenu et chances du coffre (`chestPool`, `chestRates`). Les Limited ne sortent jamais du coffre ni des offres du jour ; les Promo ne sont jamais en vente. Purement cosmétique : le moteur de partie ne les lit pas.
+Catalogue des arts (`ARTS` : carte, nom, rareté ; `edition: 'promo'` avec `how`), trois raretés (rare, épique, légendaire) avec leur prix par défaut en Prismes et leur poids de tirage (`ART_RARITIES`), prix d'un art selon les réglages (`artPrice`), arts du jour d'un joueur (`artOffers` : pondérés par rareté, ceux de ses cartes trois fois plus souvent), contenu et chances du coffre (`chestPool`, `chestRates`). Les Promo ne sont jamais en vente. Les Prismes se gagnent avec les succès (`prisms` dans `ACHIEVEMENTS`, `rewards.js`) et en fin de saison classée (réglages `rankPrisms…`, voir `seasonPrismsKey`, `ranked.js`). Purement cosmétique : le moteur de partie ne les lit pas.
 
 ## Mode classé (`ranked.js`)
 
