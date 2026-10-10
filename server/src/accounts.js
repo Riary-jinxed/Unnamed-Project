@@ -47,7 +47,7 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   // Prismes (monnaie rare des arts alternatifs), arts possédés et art choisi pour chaque carte.
   prisms: a.prisms || 0, arts: a.arts || {}, artSel: a.artSel || {} });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'artShop', 'freeChests', 'calendar', 'seasonPass'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte.
 function addCards(a, ids, rate, essenceRate) {
@@ -77,7 +77,9 @@ export function createAccounts(store) {
   const progress = createProgress(store), arts = createArts(store, cfg);
   // Version du catalogue de cartes publié : l'appli recharge les cartes quand elle change.
   let catalogVersion = 0;
-  const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a) });
+  // Courrier (mail.js) : messages non lus ou récompenses à récupérer, pour la pastille de l'accueil.
+  let mailCount = () => 0;
+  const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a) });
   // Les nouvelles cartes rapportent de l'XP et peuvent compléter une famille ou un set.
   const add = (a, ids) => { const got = addCards(a, ids, cfg().shardsPerDuplicate, progress.essenceRate()); return { ...got, xp: progress.onCards(a, got.fresh) }; };
   const ready = Promise.all(store.all().filter(a => {
@@ -227,6 +229,16 @@ export function createAccounts(store) {
     progress.buyPass(a, payPrisms);
     await store.put(a);
     return { ...progress.passView(a), account: me(a) };
+  }
+  // Récompense du courrier ou d'un code cadeau : monnaies, XP, boosters et coffres offerts, art, carte (un doublon devient des Éclats et de l'essence).
+  // Renvoie ce que la carte a donné, ou null.
+  function giveReward(a, r) {
+    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    const { card, ...rest } = r;
+    progress.grant(a, rest, { silent: true });
+    const got = card ? add(a, [card]) : null;
+    progress.check(a);
+    return got;
   }
   async function selectArt(a, body) { arts.select(a, body || {}); await store.put(a); return { account: me(a) }; }
 
@@ -399,7 +411,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, arts, passView, buyPass, buyArt, openChest, convertPrisms, claimDay, selectArt, adminArt, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, arts, giveReward, setMailCount: f => { mailCount = f; }, passView, buyPass, buyArt, openChest, convertPrisms, claimDay, selectArt, adminArt, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
