@@ -536,12 +536,7 @@ body:has(#app.ingame) { margin: 0; }
 .zoomwrap .zoomart { width: min(100%, calc(46dvh * 832 / 1168)); margin: calc(min(100%, 46dvh * 832 / 1168) * .19) 0 -14px; border-radius: 8px; box-shadow: 0 6px 20px rgb(0 0 0 / .35); }
 .zoomwrap:has(.zoomart) .zoomcard .zh h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .zoomwrap:has(.zoomart) .zoomcard .zh { justify-content: space-between; }
-.zoomart .art-decor { animation: artdrift 16s ease-in-out infinite alternate; transform-origin: 50% 40%; }
-.zoomart .art-perso { animation: artfloat 5s ease-in-out infinite; }
 .zoomart.pop .art-perso { filter: drop-shadow(0 8px 10px rgb(0 0 0 / .45)); }
-@keyframes artdrift { from { transform: scale(1); } to { transform: scale(1.06) translateY(-1%); } }
-@keyframes artfloat { 50% { transform: translateY(-1.2%); } }
-@media (prefers-reduced-motion: reduce) { .zoomart .art-decor, .zoomart .art-perso { animation: none; } }
 
 /* accueil : un bloc « Jouer », la progression, et une barre de menu en bas pour le reste */
 .home { gap: 12px; }
@@ -684,3 +679,10 @@ body:has(#app.ingame) { margin: 0; }
 .mc.back.back-halloween_p { background: radial-gradient(circle at 70% 25%, #ffe9a8 0 12%, transparent 13%), radial-gradient(circle at 76% 21%, #2a1446 0 11%, transparent 12%), repeating-linear-gradient(160deg, transparent 0 9px, rgb(232 116 28 / .25) 9px 11px), linear-gradient(#3b1a5c, #12081d); border-top-color: #8a4fd0; }
 .mc.back.back-cyber { background: linear-gradient(rgb(25 200 230 / .35) 1px, transparent 1px) 0 0 / 8px 8px, linear-gradient(90deg, rgb(25 200 230 / .35) 1px, transparent 1px) 0 0 / 8px 8px, #0b1530; border-top-color: #19c8e6; }
 .mc.back.back-cyber_p { background: linear-gradient(transparent 60%, rgb(212 43 184 / .5) 60% 62%, transparent 62%), repeating-linear-gradient(90deg, #0b1530 0 5px, #1a2a55 5px 6px, #0b1530 6px 11px), linear-gradient(#2a0d3a, #0b1530); border-top-color: #d42bb8; }
+/* Petites cartes (main, plateau) : le décor en fond, voilé pour garder le texte lisible (art.js, artBg). */
+.mc:has(> .cart), .hc:has(> .cart) { position: relative; isolation: isolate; overflow: hidden; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / .9); }
+.cart { position: absolute; inset: 0; z-index: -1; background-size: 115.3846% auto; background-position: 50% 24%; background-repeat: no-repeat; pointer-events: none; }
+.cart::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgb(0 0 0 / .55) 0%, rgb(0 0 0 / .1) 38%, rgb(0 0 0 / .25) 58%, rgb(0 0 0 / .8) 100%); }
+.hc:has(> .cart) .x, .hc:has(> .cart) .k, .hc:has(> .cart) .t { color: rgb(255 255 255 / .88); }
+.hc:has(> .cart) .x { margin-top: auto; }
+.mc:has(> .cart) .p.up, .hc:has(> .cart) .p.up { color: #7ee08a; } .mc:has(> .cart) .p.down, .hc:has(> .cart) .p.down { color: #ff8a80; }
