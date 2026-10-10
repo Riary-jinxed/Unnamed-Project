@@ -636,3 +636,11 @@ body:has(#app.ingame) { margin: 0; }
 .calday .ico { width: 15px; height: 15px; }
 .calday.sun .ico-chest { width: 18px; height: 18px; }
 .calday { min-width: 0; overflow: hidden; }
+
+/* Petites cartes (main, plateau) : le décor en fond, voilé pour garder le texte lisible (art.js, artBg). */
+.mc:has(> .cart), .hc:has(> .cart) { position: relative; isolation: isolate; overflow: hidden; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / .9); }
+.cart { position: absolute; inset: 0; z-index: -1; background-size: 115.3846% auto; background-position: 50% 24%; background-repeat: no-repeat; pointer-events: none; }
+.cart::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgb(0 0 0 / .55) 0%, rgb(0 0 0 / .1) 38%, rgb(0 0 0 / .25) 58%, rgb(0 0 0 / .8) 100%); }
+.hc:has(> .cart) .x, .hc:has(> .cart) .k, .hc:has(> .cart) .t { color: rgb(255 255 255 / .88); }
+.hc:has(> .cart) .x { margin-top: auto; }
+.mc:has(> .cart) .p.up, .hc:has(> .cart) .p.up { color: #7ee08a; } .mc:has(> .cart) .p.down, .hc:has(> .cart) .p.down { color: #ff8a80; }

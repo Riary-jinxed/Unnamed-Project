@@ -26,6 +26,9 @@ export const POP_LEVEL = CARD_LEVELS.findIndex(l => l?.pop);
 const pops = lvl => POP_LEVEL > 0 && lvl >= POP_LEVEL;
 const isSpell = id => CARDS[id]?.type === 'S';
 
+// Fond illustré des petites cartes (main, plateau) : le décor seul, recadré sur le haut de la fenêtre de la carte.
+export const artBg = id => ART[id]?.decor ? `<span class="cart" style="background-image:url('${ART[id].decor}')" aria-hidden="true"></span>` : '';
+
 // Illustration avec le nom de la carte en bas, dans la police de sa famille (style.css, --famfont).
 // artId : art alternatif à montrer à la place de l'illustration d'origine (null : l'origine).
 export function artHTML(id, name, lvl = 1, cls = '', artId = null) {
