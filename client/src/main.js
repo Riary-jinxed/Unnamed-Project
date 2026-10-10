@@ -224,8 +224,8 @@ async function renameDeck() {
 }
 
 // ---- Profil ----
-function openProfile() {
-  ui.screen = 'profile'; ui.error = ''; ui.msg = ''; ui.nameDraft = ui.account.name; ui.profile = null; render();
+function openProfile(tab = 'profil') {
+  ui.screen = 'profile'; ui.profileTab = tab; ui.error = ''; ui.msg = ''; ui.nameDraft = ui.account.name; ui.profile = null; render();
   call('GET', '/api/profile').then(r => { if (r) { ui.profile = r.stats; ui.progressInfo = { achievements: r.achievements, collection: r.collection }; render(); } });
 }
 async function saveName() {
@@ -667,7 +667,6 @@ function renderStarter() {
 }
 function renderHome() {
   const a = ui.account, d = a.deck, g = d && GENERALS[d.general], p = prog();
-  const upgradable = OWNABLE.filter(canUpgrade).length, asks = friends.pending();
   const deckErr = d ? deckError(d, a) : 'Aucun deck.';
   const left = p.missions.filter(m => !m.done).length;
   // Booster du jour et boosters offerts : un seul bandeau, seulement quand il y a quelque chose à ouvrir.
@@ -680,10 +679,9 @@ function renderHome() {
     : p.freeChests ? `<div class="card-box booster ready">
       <div><span class="eyebrow">Récompense</span><h2 style="font-size:20px">${p.freeChests} coffre${p.freeChests > 1 ? 's' : ''} d'arts offert${p.freeChests > 1 ? 's' : ''}</h2></div>
       <button class="btn primary" data-act="shop-arts">Ouvrir</button></div>` : '';
-  const nav = (act, label, badge) => `<button data-act="${act}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
   return `
-  <div class="top"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button><span class="title">Jeu de cartes</span>
-    <button class="chip num cur" data-act="shop" aria-label="${a.shards} Éclats, ouvrir la boutique">${ico('shard')}${a.shards}</button>${mail.button()}${muteBtn()}</div>
+  <div class="top hometop"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button><span class="title">Jeu de cartes</span>
+    <span class="wallet">${walletHTML()}</span>${mail.button()}${muteBtn()}</div>
   <div class="setup home">
     ${gift}
     <div class="card-box play">
@@ -701,14 +699,29 @@ function renderHome() {
         <small class="hint num">${p.pass.tier >= p.pass.tiers ? 'Coffre de fin de passe' : p.pass.todo ? `${p.pass.todo} mission${p.pass.todo > 1 ? 's' : ''} à faire` : 'Tout est fait ✓'}</small></div></button>` : ''}
     ${errLine()}
     <div class="card-box">
-      <div class="row" style="justify-content:space-between"><span class="eyebrow">Progression${p.title ? ` · <span class="ptitle">${esc(titleLabel(p.title))}</span>` : ''}</span><button class="btn sm" data-act="profile">Succès</button></div>
+      <div class="row" style="justify-content:space-between"><span class="eyebrow">Progression${p.title ? ` · <span class="ptitle">${esc(titleLabel(p.title))}</span>` : ''}</span><button class="btn sm" data-act="profile" data-tab="succes">Succès</button></div>
       ${levelBar(p)}
       ${p.missions.length ? `<details class="mdetails" ${ui.missionsOpen ? 'open' : ''}><summary><span>Missions du jour</span><small class="hint num">${left ? `${left} à faire` : 'Toutes faites ✓'}</small></summary>${missionsHTML()}</details>` : ''}
       ${p.calendar ? `<button class="calline" data-act="calendar"><span>Calendrier de ${esc(p.calendar.name.split(' ')[0])}</span>
         <small class="hint num">${p.calendar.ready ? '<b class="calready">Récompense du jour à récupérer</b>' : `${p.calendar.got} jour${p.calendar.got > 1 ? 's' : ''} sur ${p.calendar.days.length}`}</small></button>` : ''}
     </div>
-  </div>
-  <nav class="tabbar" aria-label="Menu">${nav('collection', 'Collection', upgradable)}${nav('decks', 'Decks')}${nav('shop', 'Boutique')}${nav('friends', 'Amis', asks)}${nav('learn', 'Apprendre')}</nav>`;
+    <button class="learnline" data-act="learn">Apprendre à jouer : tutoriel et codex des mots-clés</button>
+  </div>`;
+}
+// Monnaies du joueur, en haut de l'accueil : chacune ouvre le rayon de la boutique où elle se dépense.
+function walletHTML() {
+  const a = ui.account;
+  return `<button class="chip num cur" data-act="shop" aria-label="${a.shards} Éclats, ouvrir la boutique" title="Éclats">${ico('shard')}${a.shards}</button>
+    <button class="chip num cur prism" data-act="shop-arts" aria-label="${a.prisms} Prismes, ouvrir les arts de la boutique" title="Prismes">${ico('prism')}${a.prisms}</button>`;
+}
+// Barre du bas, sur l'accueil et les écrans du menu : on passe de l'un à l'autre sans revenir à l'accueil.
+const HOME_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>';
+// Écrans qui ont la barre du bas, et l'onglet allumé sur chacun (aucun pour les sous-écrans de l'accueil).
+const TABBED = { home: 'home', collection: 'collection', decks: 'decks', shop: 'shop', friends: 'friends', profile: '', ranked: '', pass: '', mail: '' };
+function tabbar(cur) {
+  const upgradable = OWNABLE.filter(canUpgrade).length, asks = friends.pending();
+  const nav = (act, label, badge, extra = '') => `<button data-act="${act}" ${cur === act ? 'class="on" aria-current="page"' : ''} ${extra}>${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
+  return `<nav class="tabbar" aria-label="Menu">${nav('home', HOME_ICON, 0, 'aria-label="Accueil" title="Accueil"')}${nav('collection', 'Collection', upgradable)}${nav('decks', 'Decks')}${nav('shop', 'Boutique')}${nav('friends', 'Amis', asks)}</nav>`;
 }
 // Cartes de récompense : on dit comment les obtenir.
 function lockLabel(id) {
@@ -726,7 +739,7 @@ function renderCollection() {
     return `<button class="ccard ${n ? '' : 'locked'} ${n && (lvl > 1 || up) ? 'tagged' : ''}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? `, niveau ${lvl}${up ? ', peut monter de niveau' : ''}` : ', pas encore obtenue'}">
       ${anyCard(id, n ? lvl : 1, n ? mySel(id) : null)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
       ${n && (lvl > 1 || up) ? `<span class="lvtag num ${up ? 'up' : ''}">${lvl > 1 ? `Niv. ${lvl}` : ''}${up ? `${lvl > 1 ? ' · ' : ''}↑ Améliorer` : ''}</span>` : ''}</button>`; };
-  return `<div class="top"><span class="title">Ma collection</span><button class="btn" data-act="edit">Modifier le deck</button><button class="btn" data-act="home">Retour</button></div>
+  return `<div class="top"><span class="title">Ma collection</span><button class="btn" data-act="edit">Modifier le deck</button></div>
   <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.filter(id => !hiddenCard(id)).length}, généraux compris. Touchez une carte pour la voir en grand et la faire monter de niveau avec l'essence de ses doublons.</p>
   <div class="seg famseg" role="group" aria-label="Famille"><button data-fam="" class="${ui.colFam ? '' : 'on'}">Toutes</button>${fams.map(f => `<button data-fam="${f}" class="${ui.colFam === f ? 'on' : ''}">${f}</button>`).join('')}</div>
   <div class="gallery">${shown.map(tile).join('')}</div>
@@ -738,7 +751,7 @@ function renderCollection() {
 function renderShop() {
   const sh = ui.shop, a = ui.account, tab = ui.shopTab === 'arts' && sh?.arts ? 'arts' : 'sets';
   const tabBtn = (id, label, badge) => `<button role="tab" data-act="shop-tab" data-tab="${id}" class="${tab === id ? 'on' : ''}" aria-selected="${tab === id}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
-  const top = `<div class="top"><span class="title">Boutique</span><span class="chip num cur" title="Éclats" aria-label="${a.shards} Éclats">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="Prismes" aria-label="${sh.arts.prisms} Prismes">${ico('prism')}${sh.arts.prisms}</span>` : ''}<button class="btn" data-act="home">Retour</button></div>
+  const top = `<div class="top"><span class="title">Boutique</span><span class="chip num cur" title="Éclats" aria-label="${a.shards} Éclats">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="Prismes" aria-label="${sh.arts.prisms} Prismes">${ico('prism')}${sh.arts.prisms}</span>` : ''}</div>
     ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}</div>` : ''}`;
   if (!sh) return `${top}${errLine()}<p class="wait">Chargement…</p>`;
   if (tab === 'arts') return `${top}${errLine()}${artShopHTML(sh.arts)}`;
@@ -808,7 +821,7 @@ function renderDecks() {
         <button class="btn" data-act="deck-delete" data-id="${d.id}" ${a.decks.length <= 1 || ui.busy ? 'disabled' : ''}>Supprimer</button>
       </div></div>`;
   };
-  return `<div class="top"><span class="title">Mes decks</span><span class="chip num">${a.decks.length}/${maxDecks()}</span><button class="btn" data-act="home">Retour</button></div>
+  return `<div class="top"><span class="title">Mes decks</span><span class="chip num">${a.decks.length}/${maxDecks()}</span></div>
   <p class="hint" style="margin:0">Jusqu'à ${maxDecks()} decks. Le deck joué sert en ligne et contre l'IA ; un deck incomplet est gardé mais ne peut pas être joué.</p>
   ${errLine()}
   ${a.decks.map(item).join('')}
@@ -884,6 +897,8 @@ function achievementsHTML() {
       <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(x.label)}</span><small class="hint">${[x.shards ? `${x.shards} Éclats` : '', x.prisms ? `${x.prisms} Prisme${x.prisms > 1 ? 's' : ''}` : '', x.chests ? `${x.chests} coffre${x.chests > 1 ? 's' : ''} d'arts` : '', x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? esc(x.frame) : ''].filter(Boolean).join(' · ')}</small></div>
       ${x.done ? '' : `<div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(x.value, x.goal)}%"></span></div><small class="num">${x.value}/${x.goal}</small></div>`}</div>`).join('')}</div>`).join('')}</div>`;
 }
+// Profil en onglets : le haut (image, pseudo, niveau) reste, la rubrique change en dessous.
+const PROFILE_TABS = [['profil', 'Profil'], ['collection', 'Collection'], ['perso', 'Personnalisation'], ['succes', 'Succès']];
 function renderProfile() {
   const a = ui.account, st = ui.profile, p = prog();
   const sets = SETS.filter(s => s.cards.length).map(s => { const n = s.cards.filter(owned).length, pct = Math.round(100 * n / s.cards.length);
@@ -899,6 +914,20 @@ function renderProfile() {
     ${st.generals.length ? `<div class="gal-h">Par général</div><div class="statlist">${st.generals.map(g => `<div class="row"><span style="flex:1">${esc(g.name)}</span><span class="num hint">${g.games} partie${g.games > 1 ? 's' : ''}</span><b class="num">${g.rate} %</b></div>`).join('')}</div>` : ''}
     ${st.recent.length ? `<div class="gal-h">Dernières parties</div><div class="statlist">${st.recent.map(r => `<div class="row"><b class="res ${r.result}">${RES[r.result]}</b><span style="flex:1">contre ${esc(r.foe)} <small class="hint">· ${esc(r.deck || '')}</small></span><small class="hint num">${new Date(r.at).toLocaleDateString('fr-FR')}</small></div>`).join('')}</div>`
       : '<p class="hint" style="margin:0">Aucune partie jouée pour l\'instant.</p>'}`;
+  const tab = PROFILE_TABS.some(([id]) => id === ui.profileTab) ? ui.profileTab : 'profil';
+  const tabBtn = ([id, label]) => `<button role="tab" data-act="profile-tab" data-tab="${id}" class="${tab === id ? 'on' : ''}" aria-selected="${tab === id}">${label}</button>`;
+  const body = {
+    profil: () => `<form class="card-box" id="name-form">
+      <div class="field"><label class="eyebrow" for="profile-name">Pseudo</label><input id="profile-name" maxlength="20" value="${esc(ui.nameDraft)}"></div>
+      <div class="row"><button class="btn primary" type="submit" ${ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === a.name ? 'disabled' : ''}>Enregistrer le pseudo</button></div>
+    </form>
+    <div class="card-box"><div><span class="eyebrow">Statistiques</span><h2 style="font-size:22px">Victoires</h2></div>${stats}</div>`,
+    collection: () => `<div class="card-box"><div><span class="eyebrow">Collection</span><h2 style="font-size:22px">${complete} set${complete > 1 ? 's' : ''} complété${complete > 1 ? 's' : ''}</h2></div>
+      <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.filter(id => !hiddenCard(id)).length}, généraux compris.</p>${sets}${ui.progressInfo ? familiesHTML() : '<p class="wait">Chargement…</p>'}
+      <div class="row"><button class="btn" data-act="collection">Voir mes cartes</button></div></div>`,
+    perso: customizeHTML,
+    succes: () => (ui.progressInfo ? achievementsHTML() : '<p class="wait">Chargement…</p>'),
+  }[tab]();
   return `<div class="top"><span class="title">Mon profil</span><button class="btn" data-act="logout">Se déconnecter</button><button class="btn" data-act="home">Retour</button></div>
   ${errLine()}${ui.msg ? `<p class="hint" role="status" style="margin:0">${esc(ui.msg)}</p>` : ''}
   <div class="card-box profile">
@@ -912,15 +941,8 @@ function renderProfile() {
         ${a.avatar ? `<button class="btn" data-act="avatar-remove" ${ui.busy ? 'disabled' : ''}>Retirer l'image</button>` : ''}</div>
     </div>
   </div>
-  <form class="card-box" id="name-form">
-    <div class="field"><label class="eyebrow" for="profile-name">Pseudo</label><input id="profile-name" maxlength="20" value="${esc(ui.nameDraft)}"></div>
-    <div class="row"><button class="btn primary" type="submit" ${ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === a.name ? 'disabled' : ''}>Enregistrer le pseudo</button></div>
-  </form>
-  ${customizeHTML()}
-  <div class="card-box"><div><span class="eyebrow">Collection</span><h2 style="font-size:22px">${complete} set${complete > 1 ? 's' : ''} complété${complete > 1 ? 's' : ''}</h2></div>
-    <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.filter(id => !hiddenCard(id)).length}, généraux compris.</p>${sets}${familiesHTML()}</div>
-  ${achievementsHTML()}
-  <div class="card-box"><div><span class="eyebrow">Statistiques</span><h2 style="font-size:22px">Victoires</h2></div>${stats}</div>`;
+  <div class="seg proftabs" role="tablist" aria-label="Rubriques du profil">${PROFILE_TABS.map(tabBtn).join('')}</div>
+  ${body}`;
 }
 function togglePick(id) {
   const e = ui.edit; ui.msg = '';
@@ -1125,7 +1147,7 @@ function render() {
   // Première connexion sur cet appareil : le tutoriel est proposé une fois.
   if ((ui.screen === 'home' || ui.screen === 'starter') && !ui.sheet && ui.account && !store.get(tutoKey(), false)) ui.sheet = 'tuto-offer';
   ui.coach = ui.screen === 'game' && ui.mode === 'tuto' && ui.ctrl ? ui.ctrl.coach(ui) : null;
-  const body = screens[ui.screen]();
+  const body = screens[ui.screen]() + (ui.screen in TABBED ? tabbar(TABBED[ui.screen]) : '');
   app.classList.toggle('ingame', ui.screen === 'game');
   app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
   if (ui.sheet === 'rename') { const r = document.getElementById('rename-input'); if (r && document.activeElement !== r) { r.focus(); r.select(); } }
@@ -1413,7 +1435,8 @@ app.addEventListener('click', e => {
     else if (a === 'deck-cancel') { ui.screen = ui.edit?.back || 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
     else if (a === 'step-next' && stepOpen(ui.edit, ui.deckStep + 1)) { ui.deckStep++; ui.msg = ''; render(); scrollTo(0, 0); }
     else if (a === 'step-prev') { ui.deckStep = Math.max(0, ui.deckStep - 1); ui.msg = ''; render(); scrollTo(0, 0); }
-    else if (a === 'profile') openProfile();
+    else if (a === 'profile') openProfile(ds.tab);
+    else if (a === 'profile-tab') { ui.profileTab = ds.tab; ui.msg = ''; ui.error = ''; render(); }
     else if (a === 'avatar-remove' && !ui.busy) call('PUT', '/api/profile', { avatar: null });
     else if (a === 'save-deck' && !ui.busy) saveDeck();
     else if (a === 'upgrade' && !ui.busy) upgrade(ds.id);

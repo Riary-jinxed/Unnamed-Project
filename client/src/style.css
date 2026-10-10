@@ -557,10 +557,23 @@ body:has(#app.ingame) { margin: 0; }
 .mdetails[open] summary::after { content: '▴'; }
 .mdetails summary small { margin-left: auto; font-family: var(--body); font-weight: 400; }
 .mdetails[open] { display: grid; gap: 10px; }
-.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 760px; margin-inline: auto;
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: 56px repeat(4, minmax(0, 1fr)); max-width: 760px; margin-inline: auto;
   background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
 .tabbar button { position: relative; border: 0; background: none; padding: 14px 2px; font-size: 13.5px; font-weight: 600; color: var(--ink); }
 .tabbar button + button { border-left: 1px solid var(--line); }
+.tabbar button svg { display: block; margin-inline: auto; }
+.tabbar button.on { color: var(--accent); box-shadow: inset 0 3px 0 var(--accent); }
+/* Apprendre : discret en bas de l'accueil, on n'en a plus besoin une fois le jeu connu */
+.learnline { justify-self: center; border: 0; background: none; padding: 6px; color: var(--muted); font-size: 13px; text-decoration: underline; }
+/* Monnaies en haut de l'accueil : le titre se raccourcit plutôt que de renvoyer le bouton du son à la ligne */
+.top.hometop { flex-wrap: nowrap; }
+.hometop .title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 380px) { .hometop .title { font-size: 0; } }
+.wallet { display: inline-flex; gap: 6px; flex-shrink: 0; }
+/* Onglets du profil : sur deux rangées sur un petit écran plutôt que de couper les noms */
+.proftabs { align-self: start; }
+.proftabs button { padding: 8px 14px; font-weight: 600; white-space: nowrap; }
+@media (max-width: 480px) { .proftabs { display: grid; grid-template-columns: 1fr 1fr; align-self: stretch; } .proftabs button:nth-child(n+3) { border-top: 1px solid var(--line); } }
 .tabbar .badge { position: absolute; top: 4px; right: 6px; min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 11px; line-height: 18px; }
 #app:has(.tabbar) { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 #app:has(.tabbar) .fbanner { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
