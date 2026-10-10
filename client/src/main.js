@@ -16,7 +16,7 @@ import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { SEASONS, PASS_TIERS, seasonOfCard, seasonStarted, releaseMonth } from '@jeu/engine/pass';
-import { ARTS, artsOf, artExists, rarityKey, rarityName } from '@jeu/engine/arts';
+import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName } from '@jeu/engine/arts';
 
 const famVar = kw => famStyle(kw[0]);
 const kwLine = d => (d.token ? 'Jeton · ' : '') + (d.kw.join(' · ') || 'Neutre');
@@ -466,6 +466,8 @@ const mySel = id => { const x = ui.account?.artSel?.[id]; return x && ui.account
 const myArts = id => artsOf(id).filter(x => ui.account?.arts?.[x.id]);
 // Pastille de rareté (style.css, « .rar-… »).
 const rarChip = art => `<span class="rarchip rar-${rarityKey(art)}">${esc(rarityName(art))}</span>`;
+// Famille d'arts d'un art (arts.js, ART_THEMES), pour les sous-titres.
+const themeOf = art => (art.theme ? ART_THEMES[art.theme].name : '');
 async function selectArt(card, art) {
   const r = await call('PUT', '/api/arts/select', { card, art: art || null });
   if (!r) return;
@@ -480,7 +482,7 @@ function artsHTML(id) {
     <span class="artsw ${art ? `rar-${rarityKey(art)}` : ''}"></span><span><b>${esc(label)}</b>${sub ? ` <small class="hint">${sub}</small>` : ''}</span>${cur === (art?.id || null) ? '<span class="ok">✓</span>' : ''}</button>`;
   return `<div class="zacts artbox"><span class="eyebrow">Arts de la carte · ${mine.length + 1}/${all.length + 1}</span>
     <p class="hint">Purement cosmétique. Votre adversaire voit l'art choisi quand la carte est révélée.</p>
-    <div class="artopts">${opt(null, 'Illustration d\'origine', '')}${mine.map(x => opt(x, x.name, esc(rarityName(x)))).join('')}</div>
+    <div class="artopts">${opt(null, 'Illustration d\'origine', '')}${mine.map(x => opt(x, x.name, esc([rarityName(x), themeOf(x) && `famille ${themeOf(x)}`].filter(Boolean).join(' · ')))).join('')}</div>
     ${missing ? `<p class="hint">${missing} autre${missing > 1 ? 's' : ''} art${missing > 1 ? 's' : ''} à trouver en boutique${all.some(x => x.edition === 'promo' && !ui.account.arts?.[x.id]) ? ' ou en récompense' : ''}.</p>` : ''}</div>`;
 }
 
@@ -778,7 +780,7 @@ function artShopHTML(A) {
   if (!A) return '';
   const tile = o => { const art = ARTS[o.id];
     return `<div class="offer artoffer"><button class="ccard artthumb" data-zoom="${zoomKey(art.card, art.id)}" aria-label="Voir ${esc(art.name)} en grand">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</button>
-      <div class="artmeta">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}${owned(art.card) ? '' : ' · carte pas encore obtenue'}</small></div>
+      <div class="artmeta">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}${art.theme ? ` · famille ${esc(themeOf(art))}` : ''}${owned(art.card) ? '' : ' · carte pas encore obtenue'}</small></div>
       <button class="btn ${o.owned ? '' : 'primary'}" data-act="buy-art" data-id="${o.id}" ${o.owned || A.prisms < o.price || ui.busy ? 'disabled' : ''}>${o.owned ? 'Dans votre collection' : `Acheter · ${o.price} Prismes`}</button></div>`; };
   const rates = A.chest.rates.map(r => `<li><span class="rarchip rar-${r.rarity}">${esc(r.name)}</span><span class="num">${String(r.pct).replace('.', ',')} %</span></li>`).join('');
   return `<section class="card-box shopset artshop">
@@ -788,6 +790,10 @@ function artShopHTML(A) {
     <div class="gal-h">Arts du jour</div>
     ${A.offers.length ? `<p class="hint" style="margin:0">Choisis pour vous parmi les arts que vous n'avez pas, renouvelés chaque jour à minuit.</p>
       <div class="gallery">${A.offers.map(o => tile(o)).join('')}</div>` : '<p class="hint" style="margin:0">Vous avez tous les arts en vente. Revenez quand de nouveaux arriveront.</p>'}
+    <div class="gal-h">Familles d'arts</div>
+    <p class="hint" style="margin:0">Des arts au même thème et au même style, sur des cartes de familles différentes. Réunissez une famille pour gagner son titre.</p>
+    <ul class="artthemes">${THEME_IDS.map(t => { const all = themeArts(t), got = all.filter(x => ui.account?.arts?.[x.id]).length;
+      return all.length ? `<li class="${got === all.length ? 'done' : ''}"><b>${esc(ART_THEMES[t].name)}</b><small class="hint">${all.map(x => esc(nameOf(x.card))).join(', ')}</small><span class="num">${got}/${all.length}</span></li>` : ''; }).join('')}</ul>
     <div class="gal-h">Coffre d'arts</div>
     <div class="row chest"><div style="flex:1;display:grid;gap:6px"><p class="hint" style="margin:0">Un art que vous n'avez pas encore, au hasard. Chances selon la rareté :</p>
       ${rates ? `<ul class="rates">${rates}</ul>` : ''}</div>
