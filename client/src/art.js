@@ -16,6 +16,17 @@ for (const [path, url] of Object.entries(files)) {
   if (id) ((alt ? ALT : ART)[id] ||= {})[layer] = url;
 }
 export const hasArt = id => !!ART[id]?.decor;
+
+// Visuels des terrains : une image par terrain, art/terrain/<id>.webp, en 832x1168 (le ratio de la fenêtre des cartes),
+// sans personnage ni débordement. Sur le plateau, elle est recadrée au centre en fond de la moitié de zone de son joueur.
+const TERRAIN_ART = Object.fromEntries(Object.entries(import.meta.glob('./art/terrain/*.webp', { eager: true, query: '?url', import: 'default' }))
+  .map(([path, url]) => [path.match(/([^/]+)\.webp$/)[1], url]));
+// Fond d'une moitié de zone (side : « foe » en haut, « me » en bas).
+export const terrainBg = (id, side) => TERRAIN_ART[id] ? `<span class="tbg ${side}" style="background-image:url('${TERRAIN_ART[id]}')" aria-hidden="true"></span>` : '';
+// Illustration d'un terrain en grand (carte de terrain, vue en grand), avec son nom en bas.
+export const terrainHTML = (id, name, cls = '') => TERRAIN_ART[id] ? `<div class="art tart ${cls}" aria-hidden="true">
+  <div class="art-clip"><img class="art-terrain" src="${TERRAIN_ART[id]}" alt="" loading="lazy" decoding="async"></div>
+  <span class="art-name">${esc(name)}</span></div>` : '';
 // Un art alternatif a-t-il déjà ses images ?
 export const altReady = artId => !!ALT[artId]?.decor;
 

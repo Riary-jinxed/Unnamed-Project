@@ -686,3 +686,15 @@ body:has(#app.ingame) { margin: 0; }
 .hc:has(> .cart) .x, .hc:has(> .cart) .k, .hc:has(> .cart) .t { color: rgb(255 255 255 / .88); }
 .hc:has(> .cart) .x { margin-top: auto; }
 .mc:has(> .cart) .p.up, .hc:has(> .cart) .p.up { color: #7ee08a; } .mc:has(> .cart) .p.down, .hc:has(> .cart) .p.down { color: #ff8a80; }
+
+/* Visuels des terrains (art.js) : en grand sur la carte de terrain, et en fond de la moitié de zone de chaque joueur sur le plateau. */
+.art-terrain { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; user-select: none; }
+.zone:has(> .tbg) { position: relative; isolation: isolate; }
+.tbg { position: absolute; left: 0; right: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
+.tbg.foe { top: 0; bottom: 50%; border-radius: var(--r) var(--r) 0 0; }
+.tbg.me { top: 50%; bottom: 0; border-radius: 0 0 var(--r) var(--r); }
+.tbg::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: color-mix(in srgb, var(--sunk) 35%, transparent); }
+.tbg.foe::after { background: linear-gradient(180deg, color-mix(in srgb, var(--sunk) 30%, transparent), color-mix(in srgb, var(--sunk) 85%, transparent)); }
+.tbg.me::after { background: linear-gradient(0deg, color-mix(in srgb, var(--sunk) 30%, transparent), color-mix(in srgb, var(--sunk) 85%, transparent)); }
+.zone:has(> .tbg) .slot { background: color-mix(in srgb, var(--sunk) 55%, transparent); }
+.zone:has(> .tbg) .terrain.set { background: color-mix(in srgb, var(--surface) 82%, transparent); backdrop-filter: blur(2px); }
