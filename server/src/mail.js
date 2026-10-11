@@ -1,7 +1,7 @@
 // Courrier et codes cadeaux. L'administration écrit des messages (annonces, événements, cadeaux) à tous les joueurs ou à quelques-uns,
 // avec une récompense facultative à récupérer ; elle crée aussi des codes cadeaux que les joueurs saisissent dans l'appli.
 // Document « courrier » : { messages: [{ id, at, kind, title, body, reward, to (null : tous, sinon des identifiants), until (AAAA-MM-JJ ou null),
-// newcomers (message à tous : aussi pour les comptes créés après l'envoi) }] }.
+// newcomers (message à tous : aussi pour les comptes créés après l'envoi) }], notes: identifiants des notes de mise à jour déjà envoyées }.
 // Document « codes » : { codes: [{ code, label, reward, max (0 : sans limite), uses, until, at, off }] }.
 // Compte : mail = { read, got, hidden } (identifiants de messages lus, récompenses récupérées, messages supprimés), redeemed = codes déjà utilisés.
 import { randomBytes } from 'node:crypto';
@@ -141,12 +141,12 @@ export function createMail(store, accounts, { notify = () => {} } = {}) {
       if (unknown.length) throw new HttpError(400, `Compte introuvable : ${unknown.join(', ')}.`);
     }
     const m = { id: randomBytes(6).toString('hex'), at: new Date().toISOString(), kind, title, body: text, reward: cleanReward(body.reward), to, until: cleanUntil(body.until), newcomers: to ? false : body.newcomers !== false };
-    await store.putDoc('courrier', { messages: [...messages(), m].slice(-MAX_MESSAGES) });
+    await store.putDoc('courrier', { ...store.doc('courrier'), messages: [...messages(), m].slice(-MAX_MESSAGES) });
     notify(to || store.all().map(a => a.login));
     return adminView();
   }
   async function remove({ id }) {
-    await store.putDoc('courrier', { messages: messages().filter(m => m.id !== id) });
+    await store.putDoc('courrier', { ...store.doc('courrier'), messages: messages().filter(m => m.id !== id) });
     return adminView();
   }
   async function createCode(body) {
@@ -171,7 +171,20 @@ export function createMail(store, accounts, { notify = () => {} } = {}) {
     return adminView();
   }
 
+  // Notes de mise à jour (notes-maj.js) : envoyées à tous une seule fois, au premier démarrage du serveur qui les contient.
+  // Seuls les comptes déjà créés les reçoivent ; les identifiants envoyés sont retenus dans le document « courrier ».
+  async function publishNotes(notes) {
+    const doc = store.doc('courrier') || {}, sent = doc.notes || [];
+    const fresh = notes.filter(n => !sent.includes(n.id));
+    if (!fresh.length) return;
+    const at = new Date().toISOString();
+    const added = fresh.map(n => ({ id: n.id, at, kind: 'news', title: n.title, body: n.body.slice(0, 2000), reward: null, to: null, until: null, newcomers: false }));
+    await store.putDoc('courrier', { ...doc, messages: [...messages(), ...added].slice(-MAX_MESSAGES), notes: [...sent, ...fresh.map(n => n.id)] });
+    console.log(`Notes de mise à jour envoyées : ${fresh.map(n => n.id).join(', ')}.`);
+  }
+
   return {
+    publishNotes,
     routes: {
       'GET /api/mail': a => reply(a),
       'POST /api/mail/read': (a, body) => read(a, body || {}),
