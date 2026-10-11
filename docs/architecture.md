@@ -41,7 +41,7 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `server/src/arts.js` | ~75 | Arts alternatifs : offres du jour, coffre, choix de l'art d'une carte, dons depuis `/admin`. |
 | `server/src/cards.js` | ~50 | Brouillon et publication du catalogue de cartes. |
 | `client/src/main.js` | ~1000 | Toute l'appli joueur : état, écrans, partie, animations, interactions. |
-| `client/src/net.js` | 30 | Connexion WebSocket avec reconnexion automatique. |
+| `client/src/net.js` | 75 | Connexion WebSocket avec reconnexion automatique. |
 | `client/src/friends.js` | ~180 | Écran des amis, bandeau de défi, choix du deck pour une partie entre amis. |
 | `client/src/solo.js` | 25 | Partie contre l'IA, entièrement dans le navigateur. |
 | `client/src/api.js` | 10 | Appel JSON à l'API avec la session. |
@@ -69,7 +69,7 @@ Appli A ──ws──┐                         ┌──ws── Appli B
 4. Chaque joueur ne reçoit que `viewFor(st, siège)` : jamais la main ni les cartes cachées de l'adversaire.
 5. En fin de partie, le serveur enregistre la partie et les récompenses de chaque compte, puis les envoie avec l'état final.
 
-Une page rechargée renvoie `rejoin` avec le jeton gardé dans `localStorage` ; un salon inactif depuis 2 heures est supprimé.
+Reprise après une coupure réseau : le siège reste gardé au joueur. Une page rechargée, ou une connexion perdue, renvoie `rejoin` avec le jeton gardé dans `localStorage` (`net.js` réessaie après 1 s, 2 s, 4 s puis toutes les 8 s, et tout de suite quand le réseau revient ou que l'appli repasse au premier plan). Une connexion morte sans fermeture est repérée des deux côtés : l'appli envoie `ping` toutes les 10 s et se reconnecte sans réponse depuis 25 s ; le serveur ferme les connexions qui ne répondent plus à ses pings WebSocket (30 s), pour que l'adversaire voie le joueur déconnecté. Un tour validé pendant la coupure (ou perdu avec elle) est renvoyé au premier état reçu après la reconnexion. Pendant la coupure, un bandeau le dit au joueur et à son adversaire. Un joueur qui ne revient pas dans les 60 secondes perd par forfait (`forfeitGame`) et l'autre gagne, avec ses récompenses habituelles ; contre l'IA classée, c'est l'IA qui gagne. Si les deux sont déconnectés, personne ne gagne, et le compte à rebours reprend pour celui qui manque encore quand l'autre revient. Un salon inactif depuis 2 heures est supprimé.
 
 ## Partie contre l'IA
 

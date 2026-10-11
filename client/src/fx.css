@@ -1,0 +1,101 @@
+/* Effets de partie posés par-dessus la table (fx.js) et quelques animations du plateau. */
+.fxl { position: fixed; z-index: 9; pointer-events: none; }
+
+/* bandeau d'annonce : Tour N, Révélation, Dernier tour */
+.fxbanner { display: grid; place-items: center; overflow: hidden; }
+.fxbanner .fxb-in { display: grid; justify-items: center; gap: 1px; width: 100%; padding: 8px 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface) 92%, transparent) 18%, color-mix(in srgb, var(--surface) 92%, transparent) 82%, transparent);
+  border-block: 1px solid color-mix(in srgb, var(--accent) 70%, transparent); box-shadow: 0 6px 22px rgb(0 0 0 / .18);
+  animation: fxbanner 1.25s cubic-bezier(.2,.8,.2,1) forwards; }
+.fxbanner b { font-family: var(--display); font-size: 28px; line-height: 1.05; letter-spacing: .06em; color: var(--ink); }
+.fxbanner small { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.fxbanner.reveal .fxb-in { border-color: color-mix(in srgb, var(--foe) 60%, transparent); }
+.fxbanner.reveal b { color: var(--accent); }
+.fxbanner.reveal .fxb-in { animation-duration: .95s; }
+.fxbanner.last b { color: var(--down); }
+@keyframes fxbanner {
+  0% { transform: scaleY(.2); opacity: 0; letter-spacing: .3em; }
+  14% { transform: none; opacity: 1; }
+  75% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-10px); } }
+
+/* nombres qui s'envolent : puissance d'une carte ou d'une zone */
+.fxnum { display: grid; place-items: center; }
+.fxnum span { font-family: var(--display); font-size: 22px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+  color: var(--tone); text-shadow: 0 0 2px var(--bg), 0 0 6px var(--bg), 0 1px 0 var(--bg); animation: fxnum 1s cubic-bezier(.2,.8,.2,1) backwards; }
+.fxnum.up { --tone: var(--up); } .fxnum.down { --tone: var(--down); }
+.fxnum.me { --tone: var(--mine); } .fxnum.foe { --tone: var(--foe); }
+@keyframes fxnum {
+  0% { transform: translateY(6px) scale(.5); opacity: 0; }
+  20% { transform: translateY(-8px) scale(1.25); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: translateY(-30px) scale(1); opacity: 0; } }
+
+/* lueur d'une zone qui change de camp, ou gagnée en fin de partie */
+.fxzone { border-radius: var(--r); --tone: var(--accent); animation: fxzone .85s ease-out backwards; }
+.fxzone.me { --tone: var(--mine); } .fxzone.foe { --tone: var(--foe); }
+.fxzone.strong { animation: fxzonewin 1.7s ease-out backwards; }
+@keyframes fxzone {
+  0% { box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent; }
+  30% { box-shadow: inset 0 0 0 3px var(--tone), 0 0 26px 4px var(--tone); background: color-mix(in srgb, var(--tone) 16%, transparent); }
+  100% { box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent; background: transparent; } }
+@keyframes fxzonewin {
+  0% { box-shadow: none; opacity: 0; }
+  20% { opacity: 1; box-shadow: inset 0 0 0 3px var(--tone), 0 0 34px 8px var(--tone); background: color-mix(in srgb, var(--tone) 22%, transparent); }
+  70% { opacity: 1; box-shadow: inset 0 0 0 2px var(--tone), 0 0 18px 2px var(--tone); background: color-mix(in srgb, var(--tone) 10%, transparent); }
+  100% { opacity: 0; } }
+
+/* le général entre en action */
+.fxgen { display: grid; place-items: center; overflow: visible; --fam: var(--accent); }
+.fxgen i { position: absolute; width: var(--s); height: var(--s); border-radius: 50%; border: 3px solid var(--fam);
+  box-shadow: 0 0 16px 4px var(--fam), inset 0 0 12px 2px var(--fam); animation: fxgenring 1s ease-out forwards; }
+.fxgen i + i { border-width: 2px; animation-delay: .16s; animation-fill-mode: both; }
+.fxgen::before { content: ""; position: absolute; inset: -4px; border-radius: 6px; background: var(--fam); mix-blend-mode: screen; animation: fxgenflash .6s ease-out forwards; }
+@keyframes fxgenring { from { transform: scale(.4); opacity: 1; } to { transform: scale(2.1); opacity: 0; } }
+@keyframes fxgenflash { from { opacity: .7; } to { opacity: 0; } }
+
+/* dos de carte de l'adversaire qui se retourne, puis la face apparaît */
+.fxghost.backflip { animation: backflip .2s ease-in forwards; }
+@keyframes backflip { to { transform: perspective(500px) rotateY(-90deg) scale(1.1); } }
+.mc.reveal-foe.after-back { animation-delay: .19s; animation-fill-mode: backwards; }
+.mc.reveal-foe.after-back::after { animation-delay: .19s; }
+
+/* cartes posées face cachée par l'adversaire, distribuées au début de la révélation */
+.mc.dealt { animation: dealt .42s cubic-bezier(.2,.8,.2,1) backwards; }
+@keyframes dealt { from { transform: translateY(-60px) rotate(-10deg) scale(1.15); opacity: 0; } 70% { transform: translateY(2px) scale(.98); } }
+/* ses propres cartes, scellées quand le tour est validé */
+.mc.sealed { animation: sealed .5s ease-out backwards; }
+@keyframes sealed { 40% { transform: scale(.92); box-shadow: 0 0 0 2px var(--mine), 0 0 14px 2px var(--mine); } }
+
+/* l'adversaire est prêt */
+.chip.pop { animation: chippop .4s cubic-bezier(.3,1.6,.5,1); }
+@keyframes chippop { from { transform: scale(.3); opacity: 0; } }
+
+/* confettis de victoire */
+.fxconfetti { overflow: hidden; z-index: 40; }
+.fxconfetti i { position: absolute; top: -12px; width: 7px; height: 12px; border-radius: 2px; animation: confetti 1.8s cubic-bezier(.3,.6,.5,1) both; }
+.fxconfetti i:nth-child(3n) { width: 9px; height: 6px; } .fxconfetti i:nth-child(4n) { border-radius: 50%; width: 7px; height: 7px; }
+@keyframes confetti { from { transform: translate(0, 0) rotate(0); opacity: 1; } 85% { opacity: 1; } to { transform: translate(var(--dx), 105vh) rotate(var(--rot)); opacity: 0; } }
+
+/* fin de partie : les zones s'affichent une à une, à la couleur du gagnant */
+.end .zs div { animation: zsin .45s cubic-bezier(.2,.8,.2,1) backwards; border-top: 3px solid var(--line); }
+.end .zs div:nth-child(2) { animation-delay: .15s; } .end .zs div:nth-child(3) { animation-delay: .3s; }
+.end .zs div.me { border-top-color: var(--mine); } .end .zs div.foe { border-top-color: var(--foe); }
+@keyframes zsin { from { transform: translateY(12px) scale(.9); opacity: 0; } }
+
+/* main : la carte se soulève sous la souris, la carte choisie respire */
+@media (hover: hover) and (pointer: fine) {
+  .hc:not(.cant):not(.sel):not(.dragging):hover { transform: translateY(-5px); box-shadow: 0 6px 14px rgb(0 0 0 / .18); }
+}
+.hc.sel { animation: selbreath 1.6s ease-in-out infinite; }
+@keyframes selbreath { 50% { box-shadow: 0 0 0 2px var(--accent), 0 0 14px 1px var(--accent); } }
+.tok { transition: background-color .25s, transform .25s; }
+.tok.spent { transform: scale(.82); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fxbanner .fxb-in { animation: fxfade 1.25s linear forwards; }
+  .mc.dealt, .mc.sealed, .chip.pop, .end .zs div, .hc.sel { animation: none; }
+  .tok { transition: none; } .tok.spent { transform: none; }
+  .hc:not(.cant):not(.sel):hover { transform: none; }
+}
+@keyframes fxfade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }

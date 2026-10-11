@@ -890,6 +890,14 @@ function finish(st) {
   st.result = { winner, reason, zones, tot };
   log(st, winner < 0 ? 'Match nul.' : `${who(st, winner)} ${vb(winner, 'gagne', 'gagnez')} : ${reason}.`, 'turn');
 }
+// Forfait (joueur déconnecté trop longtemps) : la partie s'arrête aussitôt et l'autre joueur gagne. Les zones restent celles du plateau.
+export function forfeitGame(st, loser, reason) {
+  st.over = true; st.phase = 'over';
+  const zones = [0, 1, 2].map(z => zoneWinner(st, z));
+  const tot = [0, 1].map(p => [0, 1, 2].reduce((s, z) => s + zonePower(st, p, z), 0));
+  st.result = { winner: 1 - loser, reason, zones, tot, forfeit: true };
+  log(st, `${who(st, loser)} ${vb(loser, 'perd', 'perdez')} : ${reason}.`, 'turn');
+}
 
 // ---- IA ----
 // Copie profonde d'objets et de tableaux simples, en gardant les références partagées (une carte n'est copiée qu'une fois).

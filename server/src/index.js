@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { WebSocketServer } from 'ws';
-import { DECKS, newGame, startTurn, runTurn, viewFor, aiPlan, pick } from '@jeu/engine';
+import { DECKS, newGame, startTurn, runTurn, viewFor, aiPlan, pick, forfeitGame } from '@jeu/engine';
 import { tierOf } from '@jeu/engine/ranked';
 import { deckError } from '@jeu/engine/collection';
 import { openStore } from './store.js';
@@ -20,6 +20,8 @@ import { createMail } from './mail.js';
 const PORT = +process.env.PORT || 8787;
 const DIST = fileURLToPath(new URL('../../client/dist/', import.meta.url));
 const ROOM_TTL_MS = 2 * 60 * 60 * 1000;
+// Joueur déconnecté en pleine partie : au-delà de ce délai sans revenir, il perd par forfait.
+const AWAY_FORFEIT_MS = 60_000;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.ico': 'image/x-icon' };
 
@@ -82,7 +84,8 @@ function broadcast(room, flash = null) {
     const ready = room.plans.map(Boolean);
     send(s.ws, { t: 'state', room: room.code, view: viewFor(room.st, i, { flash, ready: { me: ready[i], foe: ready[1 - i] },
       names: room.seats.map(x => x && x.name), connected: room.seats.map(x => !!(x && (x.ai || (x.ws && x.ws.readyState === 1)))),
-      badges: room.seats.map((x, j) => x && (j === i ? x.badge : shownBadge(x.badge, room.st.p[j]))), reward: room.rewards ? room.rewards[i] : null, ranked: room.ranked || null,
+      badges: room.seats.map((x, j) => x && (j === i ? x.badge : shownBadge(x.badge, room.st.p[j]))),
+      away: room.seats.map(x => (x && x.forfeitAt ? Math.max(0, x.forfeitAt - Date.now()) : null)), reward: room.rewards ? room.rewards[i] : null, ranked: room.ranked || null,
       // Images de profil : lourdes, envoyées une seule fois par connexion et par partie.
       avatars: s.avatarsSent ? undefined : room.seats.map(x => (x && x.avatar) || null) }) });
     if (s.ws && s.ws.readyState === 1) s.avatarsSent = true;
@@ -109,7 +112,12 @@ async function resolve(room) {
   const plans = room.plans; room.plans = [null, null];
   await runTurn(room.st, plans, flash => broadcast(room, flash), ms => new Promise(r => setTimeout(r, ms)));
   room.busy = false;
+  await endMatch(room);
+}
+// Partie terminée (fin du dernier tour ou forfait) : enregistrée une seule fois, avec les récompenses de chacun, puis diffusée.
+async function endMatch(room) {
   if (room.st.over && !room.st.recorded) {
+    room.seats.forEach(s => s && stopAway(s));
     room.st.recorded = true;
     const mode = room.ranked === 'ai' ? 'pve' : 'pvp';
     games.recordPvp(room.st, room.seats.map(s => s.login), room.decks, { mode, ranked: !!room.ranked });
@@ -120,7 +128,7 @@ async function resolve(room) {
     room.rewards = await Promise.all(room.seats.map(async (s, i) => {
       const acc = accounts.byToken(s.auth); if (!acc) return null;
       const reward = await accounts.recordGame(acc, { mode, result: result(i), played: room.st.p[i].played,
-        general: room.st.p[i].general, sweep: winner === i && zones.every(z => z === i), friend: !!room.invite, ranked: !!room.ranked }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
+        general: room.st.p[i].general, sweep: !room.st.result.forfeit && winner === i && zones.every(z => z === i), friend: !!room.invite, ranked: !!room.ranked }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
       return reward && ranks[i] ? { ...reward, ranked: ranks[i] } : reward;
     }));
   }
@@ -147,6 +155,26 @@ function forfeit(room, seat) {
   room.seats.forEach(s => { const acc = !s.ai && accounts.byToken(s.auth); if (acc) store.put(acc).catch(e => console.error('Rang non enregistré :', e)); });
 }
 
+// Déconnexion en pleine partie : le joueur a AWAY_FORFEIT_MS pour revenir, sinon il perd par forfait et l'autre gagne
+// (contre l'IA classée, l'IA gagne). Si les deux sont partis, personne ne gagne : le compte à rebours reprend pour celui
+// qui manque encore quand l'autre revient.
+const isAway = s => s && !s.ai && !(s.ws && s.ws.readyState === 1);
+function stopAway(s) { clearTimeout(s.awayTimer); s.awayTimer = null; s.forfeitAt = null; }
+function startAway(room, i) {
+  const s = room.seats[i];
+  if (!room.st || room.st.over || !isAway(s) || s.awayTimer) return;
+  s.forfeitAt = Date.now() + AWAY_FORFEIT_MS;
+  const fire = () => {
+    // Révélation en cours : le forfait attend qu'elle se termine.
+    if (room.busy) { s.awayTimer = setTimeout(fire, 1000); return; }
+    stopAway(s);
+    if (rooms.get(room.code) !== room || !room.st || room.st.over || !isAway(s) || isAway(room.seats[1 - i])) return;
+    forfeitGame(room.st, i, 'forfait après une déconnexion de plus de 60 secondes');
+    room.plans = [null, null];
+    endMatch(room).catch(e => console.error('Forfait non enregistré :', e));
+  };
+  s.awayTimer = setTimeout(fire, AWAY_FORFEIT_MS);
+}
 // Un joueur entre dans un salon avec son compte et le deck demandé (msg.deck), ou à défaut son deck joué.
 const deckOf = (acc, id) => (id && (acc.decks || []).find(d => d.id === id)) || activeDeck(acc);
 function seatFor(ws, msg) {
@@ -181,6 +209,8 @@ function abortInvite(code, login) {
   if (room && room.invite && room.invite.includes(login) && !room.st) closeInvite(room, login);
 }
 function handle(ws, msg) {
+  // Ping de l'appli : lui permet de repérer une connexion morte sans fermeture (changement de réseau, veille).
+  if (msg.t === 'ping') return send(ws, { t: 'pong' });
   if (friends.handle(ws, msg)) return;
   if (msg.t === 'create') {
     const seat = seatFor(ws, msg); if (!seat) return;
@@ -211,7 +241,11 @@ function handle(ws, msg) {
     const room = rooms.get(String(msg.room || '').toUpperCase());
     const i = room ? room.seats.findIndex(s => s && s.token === msg.token) : -1;
     if (i < 0) return send(ws, { t: 'gone' });
+    // L'ancienne connexion du joueur, peut-être encore ouverte côté serveur, ne parle plus pour lui.
+    const old = room.seats[i].ws;
+    if (old && old !== ws) { old.room = null; old.terminate(); }
     room.seats[i].ws = ws; room.seats[i].avatarsSent = false; ws.room = room; ws.seat = i;
+    stopAway(room.seats[i]); startAway(room, 1 - i);
     if (room.st) broadcast(room); else lobby(room);
     friends.changed(room.seats[i].login);
     return;
@@ -220,6 +254,8 @@ function handle(ws, msg) {
   room.lastActive = Date.now();
   if (msg.t === 'plan') {
     if (!room.st || room.busy || room.st.over || room.plans[ws.seat]) return;
+    // Tour renvoyé après une reconnexion : ignoré s'il date d'un tour déjà joué.
+    if (msg.turn != null && msg.turn !== room.st.turn) return;
     room.plans[ws.seat] = { cards: Array.isArray(msg.cards) ? msg.cards.slice(0, 12) : [], moves: Array.isArray(msg.moves) ? msg.moves.slice(0, 12) : [], general: msg.general ?? null };
     const ai = room.seats.findIndex(s => s && s.ai);
     if (ai >= 0) room.plans[ai] = aiPlan(room.st, ai, room.seats[ai].tries);
@@ -244,15 +280,25 @@ function handle(ws, msg) {
 
 const wss = new WebSocketServer({ server, path: '/ws' });
 wss.on('connection', ws => {
-  ws.on('message', data => { try { handle(ws, JSON.parse(data)); } catch (e) { console.error(e); } });
+  ws.alive = true;
+  ws.on('pong', () => { ws.alive = true; });
+  ws.on('message', data => { ws.alive = true; try { handle(ws, JSON.parse(data)); } catch (e) { console.error(e); } });
   ws.on('close', () => {
     friends.gone(ws);
     const room = ws.room; if (!room) return;
+    if (room.seats[ws.seat]?.ws === ws) startAway(room, ws.seat);
     if (room.st) broadcast(room);
     if (rooms.has(room.code)) friends.changed(room.seats[ws.seat]?.login);
   });
 });
 // Partie classée abandonnée sans « leave » : celui qui n'est plus connecté perd (contre l'IA, le joueur ; entre amis, seulement si l'autre est resté).
+// Connexion qui ne répond plus aux pings depuis 30 secondes : fermée, pour que l'adversaire et les amis voient le joueur déconnecté.
+setInterval(() => {
+  for (const ws of wss.clients) {
+    if (!ws.alive) { ws.terminate(); continue; }
+    ws.alive = false; ws.ping();
+  }
+}, 30_000);
 const away = s => s && !s.ai && !(s.ws && s.ws.readyState === 1);
 setInterval(() => {
   catalog.refresh();

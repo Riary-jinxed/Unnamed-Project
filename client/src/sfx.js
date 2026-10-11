@@ -44,6 +44,10 @@ const SOUNDS = {
   down: () => { tone(300, { to: 120, dur: 0.22, type: 'sawtooth', vol: 0.06 }); },
   destroy: () => { noise({ dur: 0.3, freq: 400, to: 80, type: 'lowpass', vol: 0.5 }); tone(90, { to: 40, dur: 0.3, vol: 0.35 }); },
   terrain: () => { tone(110, { to: 70, dur: 0.5, vol: 0.3 }); noise({ dur: 0.4, freq: 250, type: 'lowpass', vol: 0.25 }); },
+  // Début de tour (petit carillon), cartes de l'adversaire posées face cachée, zone qui change de camp.
+  turn: () => { tone(587, { dur: 0.35, type: 'triangle', vol: 0.1 }); tone(880, { dur: 0.5, type: 'sine', vol: 0.07, at: 0.1 }); },
+  deal: () => { [0, 0.07, 0.14].forEach(at => noise({ dur: 0.07, freq: 1800, to: 700, vol: 0.18, at })); },
+  swing: () => { tone(330, { to: 660, dur: 0.28, type: 'triangle', vol: 0.09 }); noise({ dur: 0.25, freq: 900, to: 2500, q: 1.5, vol: 0.06 }); },
   general: () => { [392, 523, 659].forEach((f, i) => tone(f, { dur: 0.4, type: 'sawtooth', vol: 0.05, at: i * 0.06 })); },
   // Niveau de carte gagné, et effet de mise en jeu d'une carte au niveau maximum.
   levelup: () => { [523, 659, 784].forEach((f, i) => tone(f, { dur: 0.3, type: 'triangle', vol: 0.14, at: i * 0.08 })); noise({ dur: 0.3, freq: 3000, to: 6000, q: 2, vol: 0.06 }); },

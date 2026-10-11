@@ -94,10 +94,7 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
 .gencard.used .gn { color: var(--muted); }
 .gencard.used .gdot { border-style: dotted; }
 @keyframes genready { 50% { box-shadow: 0 0 0 1px var(--accent), 0 0 18px 1px var(--accent); } }
-/* activé ou déclenché pendant la révélation */
-.gencard.gen-fire { animation: genfire .9s cubic-bezier(.2,.8,.2,1); z-index: 2; }
-@keyframes genfire { 25% { transform: scale(1.08); box-shadow: 0 0 0 2px var(--fam, var(--accent)), 0 0 28px 6px var(--fam, var(--accent)); filter: brightness(1.3); } }
-@media (prefers-reduced-motion: reduce) { .gencard.ready, .gencard.gen-fire { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .gencard.ready { animation: none; } }
 
 /* tour (barre du haut, sous le type de partie) et sceaux (en bas, à côté de Valider) */
 .tturn { margin-right: auto; min-width: 0; display: grid; gap: 1px; }
@@ -242,6 +239,9 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
   border: 1px solid var(--down); color: var(--ink); font-size: 13.5px; line-height: 1.35; box-shadow: 0 6px 18px rgb(0 0 0 / .3); animation: toastin .2s ease-out; }
 @keyframes toastin { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .dock .toast { animation: none; } }
+/* partie en ligne : connexion perdue (la sienne ou celle de l'adversaire), la partie reprend au retour */
+.link-lost { padding: 6px 12px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--down); color: var(--ink); font-size: 13.5px; line-height: 1.35; }
+.link-lost.foe { border-color: var(--line); color: var(--muted); }
 .timer { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
 .timer.low { color: var(--down); font-weight: 700; }
 
