@@ -70,17 +70,31 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
 .chip { border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; background: var(--surface); font-size: 12px; color: var(--ink); }
 .chip.used { opacity: .5; text-decoration: line-through; }
 .chip.ok { border-color: var(--up); color: var(--up); padding-block: 0; font-size: 11px; }
-/* emplacement de la carte du général */
-.gencard { width: 96px; height: 46px; border-radius: 4px; background: var(--bg); border: 1px solid var(--line); border-top: 4px solid var(--fam, var(--f-neutre));
-  padding: 3px 5px; display: flex; flex-direction: column; text-align: left; overflow: hidden; position: relative; }
-.gencard .gk { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); line-height: 1.2; }
-.gencard .gn { font-size: 11.5px; line-height: 1.2; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gencard .gs { margin-top: auto; font-size: 9.5px; line-height: 1.15; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gencard.ready { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 10px -2px var(--accent); }
+/* carte du général : portrait recadré sur le visage, nom en deux temps (nom, titre), et son état */
+.gencard { width: 148px; height: 58px; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); border-top: 3px solid var(--fam, var(--f-neutre));
+  padding: 0; display: grid; grid-template-columns: 44px minmax(0, 1fr); text-align: left; overflow: hidden; position: relative; color: var(--ink); }
+.gport { position: relative; overflow: hidden; background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--fam, var(--f-neutre)) 55%, var(--surface)), color-mix(in srgb, var(--fam, var(--f-neutre)) 30%, #000));
+  border-right: 1px solid color-mix(in srgb, var(--fam, var(--f-neutre)) 60%, var(--line)); }
+/* Illustration 960x1424 agrandie 2,5 fois, le visage (--fx, --fy en % de l'image, art.js) au centre du portrait. */
+.gport-art img { position: absolute; left: 50%; top: 50%; width: 250%; transform: translate(calc(var(--fx) * -1%), calc(var(--fy) * -1%)); height: auto; max-width: none; pointer-events: none; user-select: none; }
+.gport-init { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--famfont, var(--display)); font-size: 26px; color: #fff;
+  text-shadow: 0 1px 3px rgb(0 0 0 / .6); }
+.gtx { min-width: 0; display: flex; flex-direction: column; padding: 3px 6px 4px; }
+.gencard .gk { font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); line-height: 1.2; }
+.gencard .gn { font-family: var(--famfont, var(--display)); font-size: 14px; line-height: 1.1; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gencard .gn.two { font-size: 12.5px; white-space: normal; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.gencard .ge { font-size: 10px; line-height: 1.15; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gencard .gs { margin-top: auto; display: flex; align-items: center; gap: 4px; font-size: 10px; line-height: 1.15; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gencard .gdot { flex: none; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; }
+.gencard.ready { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 12px -2px var(--accent); animation: genready 2.4s ease-in-out infinite; }
 .gencard.ready .gs, .gencard.armed .gs { color: var(--accent); font-weight: 700; }
+.gencard:is(.ready, .armed) .gdot { background: var(--accent); border-color: var(--accent); }
 .gencard.armed { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--bg)); box-shadow: 0 0 0 2px var(--accent); }
-.gencard.used { opacity: .55; }
-.gencard.used .gn { text-decoration: line-through; }
+.gencard.used .gport { filter: grayscale(.85) brightness(.8); }
+.gencard.used .gn { color: var(--muted); }
+.gencard.used .gdot { border-style: dotted; }
+@keyframes genready { 50% { box-shadow: 0 0 0 1px var(--accent), 0 0 18px 1px var(--accent); } }
+@media (prefers-reduced-motion: reduce) { .gencard.ready { animation: none; } }
 
 /* tour (barre du haut, sous le type de partie) et sceaux (en bas, à côté de Valider) */
 .tturn { margin-right: auto; min-width: 0; display: grid; gap: 1px; }
