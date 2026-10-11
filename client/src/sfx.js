@@ -52,6 +52,17 @@ const SOUNDS = {
   // Niveau de carte gagné, et effet de mise en jeu d'une carte au niveau maximum.
   levelup: () => { [523, 659, 784].forEach((f, i) => tone(f, { dur: 0.3, type: 'triangle', vol: 0.14, at: i * 0.08 })); noise({ dur: 0.3, freq: 3000, to: 6000, q: 2, vol: 0.06 }); },
   astral: () => { [1047, 1319, 1568, 2093, 2637].forEach((f, i) => tone(f, { dur: 0.45, vol: 0.07, at: 0.05 + i * 0.05 })); tone(262, { to: 523, dur: 0.5, type: 'triangle', vol: 0.12 }); noise({ dur: 0.5, freq: 6000, q: 3, vol: 0.05 }); },
+  // Ouverture d'un booster (opening.js) : papier froissé pendant qu'on déchire, déchirure finale, carte retournée, carte jetée.
+  tear: () => { noise({ dur: 0.045, freq: 2800 + Math.random() * 2600, q: 2.5, vol: 0.11 }); },
+  rip: () => { noise({ dur: 0.32, freq: 1800, to: 6500, q: 0.7, vol: 0.32 }); noise({ dur: 0.12, freq: 500, type: 'lowpass', vol: 0.3, at: 0.02 }); },
+  flip: () => { noise({ dur: 0.07, freq: 2600, to: 1100, q: 1.2, vol: 0.18 }); },
+  toss: () => { noise({ dur: 0.16, freq: 700, to: 3200, q: 1, vol: 0.12 }); },
+  shimmer: () => { [1568, 2093, 2637].forEach((f, i) => tone(f, { dur: 0.3, vol: 0.035, at: i * 0.07 })); },
+  fresh: () => { noise({ dur: 0.1, freq: 2600, to: 1100, q: 1.2, vol: 0.18 }); [659, 880, 1319].forEach((f, i) => tone(f, { dur: 0.35, type: 'triangle', vol: 0.12, at: 0.05 + i * 0.06 })); },
+  // Coffre d'arts : coup sur le coffre, lueur qui monte d'une rareté, ouverture.
+  knock: () => { tone(120, { to: 70, dur: 0.18, vol: 0.4 }); noise({ dur: 0.12, freq: 700, type: 'lowpass', vol: 0.4 }); tone(1900, { dur: 0.08, type: 'square', vol: 0.025, at: 0.01 }); },
+  chestUp: () => { [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, { dur: 0.22, type: 'triangle', vol: 0.1, at: i * 0.05 })); noise({ dur: 0.35, freq: 3000, to: 8000, q: 2, vol: 0.06 }); },
+  chestOpen: () => { noise({ dur: 0.5, freq: 300, to: 4000, q: 0.6, vol: 0.35 }); tone(80, { to: 50, dur: 0.35, vol: 0.4 }); [523, 659, 784, 1047].forEach(f => tone(f, { dur: 0.9, type: 'triangle', vol: 0.07, at: 0.12 })); },
   win: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, { dur: i === 3 ? 0.7 : 0.18, type: 'triangle', vol: 0.18, at: i * 0.13 })); },
   lose: () => { [392, 349, 311, 262].forEach((f, i) => tone(f, { dur: i === 3 ? 0.7 : 0.22, type: 'triangle', vol: 0.15, at: i * 0.18 })); },
   tie: () => { [440, 440].forEach((f, i) => tone(f, { dur: 0.25, type: 'triangle', vol: 0.15, at: i * 0.2 })); },

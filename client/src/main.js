@@ -14,6 +14,7 @@ import { esc, famStyle, rich } from './common.js';
 import { artBg, artHTML, portraitHTML, terrainBg, terrainHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti } from './fx.js';
+import { openPack, openChest } from './opening.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { SEASONS, PASS_TIERS, seasonOfCard, seasonStarted, releaseMonth } from '@jeu/engine/pass';
@@ -160,10 +161,18 @@ function doLogout() {
   api('POST', '/api/logout', {}, token).catch(() => {});
 }
 // Affiche les cartes reçues (booster du jour, booster ou carte achetés en boutique).
-function showCards(r) { ui.booster = r; ui.sheet = 'booster'; play('reveal'); render(); }
+// Un booster s'ouvre d'abord comme en vrai (opening.js) : paquet à déchirer, cartes retournées une à une ; le récapitulatif suit.
+function showCards(r, set = 'base') {
+  const summary = () => { ui.booster = { ...r, opened: r.cards.length > 1 }; ui.sheet = 'booster'; render(); };
+  if (r.cards.length < 2) { play('reveal'); summary(); return; }
+  const dup = `Doublon · +${shardRate()} Éclats${lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}`;
+  openPack({ title: r.title, set, setName: esc(SETS.find(x => x.id === set)?.name || ''), back: prog().back,
+    cards: r.cards.map((id, i) => ({ html: anyCard(id, myLevel(id), mySel(id)), fresh: !!r.fresh[i], general: !!GENERALS[id],
+      tag: r.fresh[i] ? (GENERALS[id] ? 'Nouveau général !' : 'Nouvelle carte !') : dup })) }, summary);
+}
 async function openBoosterNow() {
   const r = await call('POST', '/api/booster');
-  if (r) showCards(r);
+  if (r) showCards(r, SETS.find(x => x.daily)?.id);
 }
 async function openShop(tab = ui.shopTab || 'sets') {
   ui.screen = 'shop'; ui.shopTab = tab; ui.error = ''; render();
@@ -172,14 +181,17 @@ async function openShop(tab = ui.shopTab || 'sets') {
 }
 async function buy(path, body) {
   const r = await call('POST', path, body);
-  if (r) { ui.shop = r.shop; showCards(r); }
+  if (r) { ui.shop = r.shop; showCards(r, body.set); }
 }
 // Art alternatif acheté ou sorti du coffre : montré en grand, prêt à être choisi pour sa carte.
 async function buyArt(path, body) {
   const r = await call('POST', path, body);
   if (!r) return;
-  ui.shop = r.shop; ui.gotArt = { id: r.art, chest: !!r.chest }; ui.sheet = 'art'; ui.msg = '';
-  play(['epique', 'legendaire'].includes(ARTS[r.art].rarity) ? 'astral' : 'reveal'); render();
+  ui.shop = r.shop; ui.msg = '';
+  const art = ARTS[r.art], show = () => { ui.gotArt = { id: r.art, chest: !!r.chest }; ui.sheet = 'art'; render(); };
+  // Coffre : on le frappe, il s'ouvre (opening.js), puis l'art s'affiche, prêt à être choisi.
+  if (r.chest) { openChest({ rarity: art.rarity, html: artHTML(art.card, nameOf(art.card), 1, '', art.id), chip: rarChip(art), name: esc(art.name), sub: esc(nameOf(art.card)) }, show); return; }
+  play(['epique', 'legendaire'].includes(art.rarity) ? 'astral' : 'reveal'); show();
 }
 // Prismes changés en Éclats (jamais l'inverse) : demande confirmation, le change ne s'annule pas.
 async function convertPrisms() {
@@ -1160,7 +1172,7 @@ function sheetHTML() {
     const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats${ui.booster.essence ? ` et ${ui.booster.essence} essence` : ''} gagnés avec les doublons` : '', xp ? `${xp} XP` : ''].filter(Boolean).join(', ');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${esc(title)}</h2><button class="btn" data-act="close">Fermer</button></div>
       <p class="hint" style="margin:0">${sum}.</p>
-      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats${lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}</span>`}${anyCard(id, myLevel(id), mySel(id))}</div>`).join('')}</div></div></div>`;
+      <div class="gallery ${ui.booster.opened ? 'opened' : ''}">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats${lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}</span>`}${anyCard(id, myLevel(id), mySel(id))}</div>`).join('')}</div></div></div>`;
   }
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;

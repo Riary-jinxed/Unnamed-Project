@@ -315,6 +315,8 @@ body:has(#app.ingame) { margin: 0; }
 .bcard { position: relative; display: grid; animation: bcard .5s cubic-bezier(.2,.8,.2,1) backwards; }
 .bcard .new { position: absolute; top: -8px; left: 8px; z-index: 1; background: var(--up); color: #fff; border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 700; }
 @keyframes bcard { from { transform: perspective(500px) rotateY(90deg) scale(1.1); opacity: 0; } }
+.gallery.opened .bcard { animation: bcardseen .35s ease-out backwards; }
+@keyframes bcardseen { from { transform: translateY(8px); opacity: 0; } }
 .deckbar { position: sticky; top: 0; z-index: 2; display: flex; gap: 14px; flex-wrap: wrap; align-items: baseline; background: var(--bg); padding-block: 8px; border-bottom: 1px solid var(--line); }
 .deckbar .num { font-family: var(--display); font-size: 18px; }
 .deckbar .num.ok { color: var(--up); }
