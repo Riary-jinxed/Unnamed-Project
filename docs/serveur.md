@@ -137,10 +137,11 @@ Messages JSON, champ `t` pour le type.
 | `create` | `{ auth }` (session) | `lobby` |
 | `ranked` | `{ auth, deck? }` | `lobby` puis `state` : partie classée contre l'IA, jouée par le serveur |
 | `join` | `{ room, auth, deck? }` (`deck` : identifiant du deck à jouer, sinon le deck joué) | `lobby` aux deux, puis `state` (la partie démarre) |
-| `rejoin` | `{ room, token }` (jeton du `lobby`) | `state` ou `lobby` ; `gone` si le salon n'existe plus |
-| `plan` | `{ cards: [{ uid, zone }], moves: [{ uid, zone }], general }` | `state` (attente de l'autre, puis chaque étape de la révélation) |
+| `rejoin` | `{ room, token }` (jeton du `lobby`) | `state` ou `lobby` ; `gone` si le salon n'existe plus. L'ancienne connexion du siège est fermée. |
+| `plan` | `{ cards: [{ uid, zone }], moves: [{ uid, zone }], general, turn }` (`turn` : tour visé ; un plan renvoyé après une reconnexion pour un tour déjà joué est ignoré) | `state` (attente de l'autre, puis chaque étape de la révélation) |
 | `rematch` | | Nouvelle partie quand les deux l'ont demandée |
 | `leave` | | `left` à l'adversaire, salon supprimé |
+| `ping` | | `pong` (toutes les 10 s : l'appli repère ainsi une connexion morte sans fermeture) |
 
 | Du serveur | Contenu |
 | --- | --- |

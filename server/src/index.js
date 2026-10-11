@@ -181,6 +181,8 @@ function abortInvite(code, login) {
   if (room && room.invite && room.invite.includes(login) && !room.st) closeInvite(room, login);
 }
 function handle(ws, msg) {
+  // Ping de l'appli : lui permet de repérer une connexion morte sans fermeture (changement de réseau, veille).
+  if (msg.t === 'ping') return send(ws, { t: 'pong' });
   if (friends.handle(ws, msg)) return;
   if (msg.t === 'create') {
     const seat = seatFor(ws, msg); if (!seat) return;
@@ -211,6 +213,9 @@ function handle(ws, msg) {
     const room = rooms.get(String(msg.room || '').toUpperCase());
     const i = room ? room.seats.findIndex(s => s && s.token === msg.token) : -1;
     if (i < 0) return send(ws, { t: 'gone' });
+    // L'ancienne connexion du joueur, peut-être encore ouverte côté serveur, ne parle plus pour lui.
+    const old = room.seats[i].ws;
+    if (old && old !== ws) { old.room = null; old.terminate(); }
     room.seats[i].ws = ws; room.seats[i].avatarsSent = false; ws.room = room; ws.seat = i;
     if (room.st) broadcast(room); else lobby(room);
     friends.changed(room.seats[i].login);
@@ -220,6 +225,8 @@ function handle(ws, msg) {
   room.lastActive = Date.now();
   if (msg.t === 'plan') {
     if (!room.st || room.busy || room.st.over || room.plans[ws.seat]) return;
+    // Tour renvoyé après une reconnexion : ignoré s'il date d'un tour déjà joué.
+    if (msg.turn != null && msg.turn !== room.st.turn) return;
     room.plans[ws.seat] = { cards: Array.isArray(msg.cards) ? msg.cards.slice(0, 12) : [], moves: Array.isArray(msg.moves) ? msg.moves.slice(0, 12) : [], general: msg.general ?? null };
     const ai = room.seats.findIndex(s => s && s.ai);
     if (ai >= 0) room.plans[ai] = aiPlan(room.st, ai, room.seats[ai].tries);
@@ -244,7 +251,9 @@ function handle(ws, msg) {
 
 const wss = new WebSocketServer({ server, path: '/ws' });
 wss.on('connection', ws => {
-  ws.on('message', data => { try { handle(ws, JSON.parse(data)); } catch (e) { console.error(e); } });
+  ws.alive = true;
+  ws.on('pong', () => { ws.alive = true; });
+  ws.on('message', data => { ws.alive = true; try { handle(ws, JSON.parse(data)); } catch (e) { console.error(e); } });
   ws.on('close', () => {
     friends.gone(ws);
     const room = ws.room; if (!room) return;
@@ -253,6 +262,13 @@ wss.on('connection', ws => {
   });
 });
 // Partie classée abandonnée sans « leave » : celui qui n'est plus connecté perd (contre l'IA, le joueur ; entre amis, seulement si l'autre est resté).
+// Connexion qui ne répond plus aux pings depuis 30 secondes : fermée, pour que l'adversaire et les amis voient le joueur déconnecté.
+setInterval(() => {
+  for (const ws of wss.clients) {
+    if (!ws.alive) { ws.terminate(); continue; }
+    ws.alive = false; ws.ping();
+  }
+}, 30_000);
 const away = s => s && !s.ai && !(s.ws && s.ws.readyState === 1);
 setInterval(() => {
   catalog.refresh();

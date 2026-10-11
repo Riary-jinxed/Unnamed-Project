@@ -225,6 +225,9 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
   border: 1px solid var(--down); color: var(--ink); font-size: 13.5px; line-height: 1.35; box-shadow: 0 6px 18px rgb(0 0 0 / .3); animation: toastin .2s ease-out; }
 @keyframes toastin { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .dock .toast { animation: none; } }
+/* partie en ligne : connexion perdue (la sienne ou celle de l'adversaire), la partie reprend au retour */
+.link-lost { padding: 6px 12px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--down); color: var(--ink); font-size: 13.5px; line-height: 1.35; }
+.link-lost.foe { border-color: var(--line); color: var(--muted); }
 .timer { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
 .timer.low { color: var(--down); font-weight: 700; }
 
