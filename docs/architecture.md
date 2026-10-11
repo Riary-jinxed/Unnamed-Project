@@ -46,7 +46,8 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `client/src/solo.js` | 25 | Partie contre l'IA, entièrement dans le navigateur. |
 | `client/src/api.js` | 10 | Appel JSON à l'API avec la session. |
 | `client/src/common.js` | 10 | Couleur de famille et échappement HTML, partagés par l'appli et `/admin`. |
-| `client/src/sfx.js` | ~55 | Bruitages synthétisés (Web Audio). |
+| `client/src/sfx.js` | ~70 | Bruitages synthétisés (Web Audio). |
+| `client/src/opening.js` | ~200 | Ouverture d'un booster (paquet à déchirer, cartes retournées une à une) et d'un coffre d'arts (coffre à frapper), avec `opening.css`. |
 | `client/src/admin*.js` | ~720 | Page `/admin` : comptes, boutique, stats, cartes et sets, récompenses. |
 | `client/src/style.css` | | Styles de l'appli et de `/admin` (thème clair et sombre). |
 | `client/public/` | | Icône, manifeste PWA, service worker. |
