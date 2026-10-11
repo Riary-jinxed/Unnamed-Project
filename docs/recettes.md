@@ -62,7 +62,7 @@ Une saison sans entrée dans `SEASONS` n'a pas de passe : l'accueil ne le montre
 
 ## Ajouter une mission ou un succès
 
-- **Mission** : entrée dans `MISSIONS` (`rewards.js`) avec son libellé, son objectif, son XP et ses Éclats, puis ce qui la fait avancer dans `progress.js` : la table passée à `advance` dans `onGame` (fin de partie) ou un appel à `advance` ailleurs (comme `onBooster`).
+- **Mission** : entrée dans `MISSIONS` (`rewards.js`) avec son libellé, son objectif, son XP et ses Éclats. Une mission qui compte des cartes jouées a `count(mission, jouées)` ; une mission qui demande une famille ou une carte a `pick(compte)`, qui la tire parmi les cartes du joueur et renvoie null s'il n'en a pas assez (la mission n'est alors pas proposée) ; `group` évite deux missions semblables le même jour. Les autres avancent dans `progress.js` : la table passée à `advance` dans `onGame` (fin de partie) ou un appel à `advance` ailleurs (comme `onBooster`).
 - **Succès** : une ligne `A(...)` dans `ACHIEVEMENTS` avec la statistique suivie (`level`, `wins`, `cards`, `famWins.Elfe`…, voir `statsOf` dans `progress.js`), l'objectif, les Éclats, et éventuellement un titre ou un cadre. Les comptes qui remplissent déjà la condition le reçoivent au prochain démarrage du serveur.
 
 Les nombres (XP, Éclats, objectifs) se règlent ensuite depuis l'onglet Récompenses de `/admin`, sans redéploiement.
