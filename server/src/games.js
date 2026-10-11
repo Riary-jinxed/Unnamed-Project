@@ -87,7 +87,10 @@ export function createGames(store, accounts) {
       'POST /api/games/solo': (a, body) => recordSolo(a, body),
       // Mode classé : rang du joueur, classement de la saison, récompenses de fin de saison par palier.
       'GET /api/ranked': a => ({ ranked: accounts.progress.rankedView(a), ladder: accounts.progress.ladder(), rewards: accounts.progress.seasonRewards() }),
-      'GET /api/admin/stats': (_, __, ___, url) => stats({ mode: url.searchParams.get('mode') || 'all', days: +url.searchParams.get('days') || 0 }),
+      'GET /api/admin/stats': (_, __, ___, url) => {
+        const days = +url.searchParams.get('days') || 0;
+        return { ...stats({ mode: url.searchParams.get('mode') || 'all', days }), activity: accounts.activity.stats(days) };
+      },
     },
   };
 }

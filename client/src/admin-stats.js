@@ -1,4 +1,4 @@
-// Onglet Stats de /admin : taux de victoire en JcJ et contre l'IA, par joueur et par général, et cartes les plus jouées.
+// Onglet Stats de /admin : joueurs actifs, boosters ouverts et achats ; taux de victoire en JcJ et contre l'IA, par joueur et par général, et cartes les plus jouées.
 import { famStyle } from './common.js';
 
 const SORTS = { plays: 'Les plus jouées', best: 'Meilleur taux de victoire', worst: 'Pire taux de victoire', decks: 'Les plus mises en deck' };
@@ -18,13 +18,35 @@ export function statsTab({ call, render, esc }) {
   const seg = (key, opts) => `<div class="seg">${Object.entries(opts).map(([v, label]) => `<button class="${String(S[key]) === v ? 'on' : ''}" data-stats-${key}="${v}">${label}</button>`).join('')}</div>`;
   const tile = (label, value, sub = '') => `<div class="tile"><span class="eyebrow">${label}</span><b class="num">${value}</b>${sub ? `<small class="hint">${sub}</small>` : ''}</div>`;
 
+  // Barres par jour, une seule série : la hauteur suit la valeur, le détail est au survol.
+  function bars(days, key, label) {
+    const max = Math.max(1, ...days.map(d => d[key]));
+    const fmt = d => new Date(`${d}T12:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    return `<div class="bars" role="img" aria-label="${label} par jour">${days.map(d => `<span title="${fmt(d.day)} : ${d[key]}" style="--h:${(100 * d[key] / max).toFixed(1)}%"></span>`).join('')}</div>
+      <div class="row hint bars-axis"><small>${fmt(days[0].day)}</small><small>max ${max}</small><small>${fmt(days.at(-1).day)}</small></div>`;
+  }
+  function renderActivity(A) {
+    if (!A) return '';
+    // La courbe commence au premier jour où il s'est passé quelque chose.
+    const first = A.days.findIndex(d => d.active || d.boosters), days = first < 0 ? A.days.slice(-7) : A.days.slice(Math.min(first, A.days.length - 7));
+    const boosters = A.totals.boosterDaily + A.totals.boosterBought + A.totals.boosterFree;
+    const counters = Object.entries(A.labels).map(([k, l]) => `<tr><td>${esc(l)}</td><td class="num">${A.totals[k]}</td></tr>`).join('');
+    return `<div class="tiles">${tile('Actifs aujourd\'hui', A.active.today)}${tile('Actifs sur 7 jours', A.active.week)}${tile('Actifs sur 30 jours', A.active.month)}
+      ${tile('Comptes', A.accounts, `${A.started} avec un deck de départ${A.newAccounts ? ` · ${A.newAccounts} nouveau${A.newAccounts > 1 ? 'x' : ''} sur la période` : ''}`)}${tile('Boosters ouverts', boosters, 'sur la période')}</div>
+    <div class="card-box"><h3>Joueurs actifs par jour</h3>${bars(days, 'active', 'Joueurs actifs')}
+      <h3>Boosters ouverts par jour</h3>${bars(days, 'boosters', 'Boosters ouverts')}
+      <p class="hint" style="margin:0">Un joueur est actif un jour s'il a ouvert l'appli connecté ou terminé une partie ce jour-là. ${A.since ? `Boosters et achats comptés depuis le ${new Date(`${A.since}T12:00`).toLocaleDateString('fr-FR', { dateStyle: 'long' })}.` : 'Boosters et achats comptés à partir de cette mise à jour.'} Le filtre JcJ / IA ne s'applique pas à cette partie.</p></div>
+    <div class="card-box scroll"><h3>Boutique et boosters</h3>
+      <table class="admin"><thead><tr><th>Sur la période</th><th>Nombre</th></tr></thead><tbody>${counters}</tbody></table></div>`;
+  }
+
   function renderStats() {
     const head = `<div class="card-box"><div class="row">${seg('mode', { all: 'Toutes', pvp: 'JcJ', pve: 'Contre l\'IA' })}${seg('days', { 7: '7 jours', 30: '30 jours', 0: 'Tout' })}</div>
       <p class="hint" style="margin:0">Victoire = 1, nul = ½. Les taux en gris reposent sur moins de ${MIN_SAMPLE} parties.</p></div>`;
     if (S.err) return `${head}<p class="err">${esc(S.err)}</p>`;
     const d = S.data;
     if (!d) return `${head}<p class="hint">Chargement…</p>`;
-    if (!d.total) return `${head}<div class="card-box"><p class="hint" style="margin:0">Aucune partie terminée sur cette période. Les parties sont enregistrées à partir de cette mise à jour.</p></div>`;
+    if (!d.total) return `${head}${renderActivity(d.activity)}<div class="card-box"><p class="hint" style="margin:0">Aucune partie terminée sur cette période. Les parties sont enregistrées à partir de cette mise à jour.</p></div>`;
     const sorted = d.cards.slice().sort({
       plays: (a, b) => b.plays - a.plays,
       decks: (a, b) => b.decks - a.decks,
@@ -43,7 +65,8 @@ export function statsTab({ call, render, esc }) {
       const names = g.players.map((p, i) => `${g.winner === i ? '<b>' : ''}${esc(p.name)}${g.winner === i ? '</b>' : ''} <small class="hint">${esc(p.deck || '')}</small>`).join(' contre ');
       return `<li><small class="hint">${new Date(g.at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })} · ${g.mode === 'pvp' ? 'JcJ' : 'IA'}</small><br>${names}${g.winner < 0 ? ' · nul' : ''}</li>`;
     }).join('');
-    return `${head}
+    return `${head}${renderActivity(d.activity)}
+    <h3>Parties</h3>
     <div class="tiles">${tile('Parties', d.total)}${tile('JcJ', d.pvp)}${tile('Contre l\'IA', d.pve)}
       ${tile('Victoires contre l\'IA', d.vsAi.rate === null ? '—' : `${d.vsAi.rate} %`, d.vsAi.games ? `${wld(d.vsAi)} sur ${d.vsAi.games}` : '')}</div>
     <div class="card-box scroll"><h3>Joueurs</h3>

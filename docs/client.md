@@ -86,7 +86,7 @@ Protégée par `ADMIN_KEY`, saisie une fois et gardée dans le navigateur le tem
 | Onglet | Fichier | Rôle |
 | --- | --- | --- |
 | Comptes | `admin.js` | Créer un compte ; fiche complète : pseudo, mot de passe, Éclats, Prismes, niveau, arts alternatifs (donner, retirer), collection, deck de départ, booster, offres, sessions, désactivation, remise à zéro, suppression. |
-| Stats | `admin-stats.js` | Taux de victoire par joueur et par général, cartes les plus jouées, dernières parties. |
+| Stats | `admin-stats.js` | Joueurs actifs, comptes, boosters ouverts et achats de la boutique (avec leur courbe par jour), puis taux de victoire par joueur et par général, cartes les plus jouées, dernières parties. |
 | Cartes, Sets | `admin-cards.js` | Brouillon du catalogue : retoucher ou créer une carte, ranger les cartes en sets, publier. |
 | Boutique | `admin.js` | Prix, taille des boosters, Éclats par doublon, cartes du jour, renouvellement des offres ; arts alternatifs : prix en Prismes par rareté, arts du jour, coffre, Éclats par Prisme changé, catalogue. |
 | Récompenses | `admin-rewards.js` | Courbe d'XP, gains des parties et niveaux, missions, complétions, niveaux de carte (essence par doublon, coûts de chaque niveau), succès. |
