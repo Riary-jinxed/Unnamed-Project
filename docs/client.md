@@ -43,7 +43,7 @@ L'écran de partie tient sur la hauteur du téléphone (`#app.ingame`) : le plat
 
 Une partie est pilotée par un « contrôleur » qui offre `submit(plan)`, `rematch()` et `leave()`, et appelle les `handlers` de `main.js` (`onView`, `onLobby`, `onError`…) :
 
-- `net.js` (`connectOnline`) : partie en ligne. Ouvre le WebSocket, envoie le premier message (`create`, `join` ou `rejoin`) et se reconnecte seul après une coupure (`rejoin` avec le jeton de siège).
+- `net.js` (`connectOnline`) : partie en ligne. Ouvre le WebSocket, envoie le premier message (`create`, `join` ou `rejoin`) et se reconnecte seul après une coupure (`rejoin` avec le jeton de siège), repère une connexion morte par un `ping` régulier, et renvoie le tour validé pendant la coupure. `handlers.onLink(ok)` allume `ui.offline` : bandeau `linkHTML` en partie (aussi quand l'adversaire est déconnecté) et dans le salon d'attente.
 - `goRanked` : partie classée contre l'IA, par `connectOnline` avec le message `ranked` ; le serveur joue l'IA. Pas d'écran d'attente (`ui.rankedAi`). En partie classée, `view.ranked` vaut `ai` ou `friend` : le titre l'indique, quitter demande confirmation (c'est une défaite) et l'écran de fin montre le nouveau rang (`reward.ranked`).
 - `solo.js` (`startSolo`) : partie contre l'IA dans la page, avec le même moteur ; l'IA (`aiPlan`, 250 essais) prépare son tour quand le joueur valide le sien.
 

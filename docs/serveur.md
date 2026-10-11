@@ -137,15 +137,16 @@ Messages JSON, champ `t` pour le type.
 | `create` | `{ auth }` (session) | `lobby` |
 | `ranked` | `{ auth, deck? }` | `lobby` puis `state` : partie classée contre l'IA, jouée par le serveur |
 | `join` | `{ room, auth, deck? }` (`deck` : identifiant du deck à jouer, sinon le deck joué) | `lobby` aux deux, puis `state` (la partie démarre) |
-| `rejoin` | `{ room, token }` (jeton du `lobby`) | `state` ou `lobby` ; `gone` si le salon n'existe plus |
-| `plan` | `{ cards: [{ uid, zone }], moves: [{ uid, zone }], general }` | `state` (attente de l'autre, puis chaque étape de la révélation) |
+| `rejoin` | `{ room, token }` (jeton du `lobby`) | `state` ou `lobby` ; `gone` si le salon n'existe plus. L'ancienne connexion du siège est fermée. |
+| `plan` | `{ cards: [{ uid, zone }], moves: [{ uid, zone }], general, turn }` (`turn` : tour visé ; un plan renvoyé après une reconnexion pour un tour déjà joué est ignoré) | `state` (attente de l'autre, puis chaque étape de la révélation) |
 | `rematch` | | Nouvelle partie quand les deux l'ont demandée |
 | `leave` | | `left` à l'adversaire, salon supprimé |
+| `ping` | | `pong` (toutes les 10 s : l'appli repère ainsi une connexion morte sans fermeture) |
 
 | Du serveur | Contenu |
 | --- | --- |
 | `lobby` | `{ room, seat, token, names }` |
-| `state` | `{ room, view }` : `viewFor` + `flash` (carte à animer), `ready`, `names`, `connected`, `badges` (titre, cadre, dos, niveau, et `looks` : niveau des cartes du deck joué ; pour l'adversaire, seulement son général et les cartes qu'il a déjà révélées, voir `shownBadge`), `avatars` (images de profil, seulement dans le premier message de la partie ou après une reconnexion), `reward` (fin de partie) |
+| `state` | `{ room, view }` : `viewFor` + `flash` (carte à animer), `ready`, `names`, `connected`, `badges` (titre, cadre, dos, niveau, et `looks` : niveau des cartes du deck joué ; pour l'adversaire, seulement son général et les cartes qu'il a déjà révélées, voir `shownBadge`), `away` (par siège : millisecondes avant le forfait d'un joueur déconnecté, sinon `null`), `avatars` (images de profil, seulement dans le premier message de la partie ou après une reconnexion), `reward` (fin de partie) |
 | `error` | `{ msg }` (session expirée, deck injouable, code inconnu, salon complet) |
 | `gone`, `left` | Salon expiré, adversaire parti |
 

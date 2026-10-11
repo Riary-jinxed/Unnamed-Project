@@ -35,7 +35,7 @@ const ui = {
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
   drag: null, fx: null, zoom: null, soloReward: null, avatars: null, friendFoe: null, rankedAi: false, rankedData: null,
-  codexQuery: '', zoomBack: null, coach: null, coachShown: null, gotArt: null,
+  codexQuery: '', zoomBack: null, coach: null, coachShown: null, gotArt: null, offline: false,
 };
 const app = document.getElementById('app');
 // Amis et défis (friends.js) : écran, bandeau de défi, choix du deck pour une partie entre amis.
@@ -52,6 +52,7 @@ const handlers = {
   onView(view, room) {
     if (room) ui.room = room;
     if (view.avatars) ui.avatars = view.avatars;
+    ui.awayUntil = (view.away || []).map(ms => (ms == null ? null : Date.now() + ms));
     const prev = ui.screen === 'game' ? ui.view : null;
     if (view.phase !== 'plan' || view.turn !== ui.lastTurn) { ui.pending = []; ui.moves = []; ui.moveSel = null; ui.genZone = null; ui.sel = null; }
     if (view.phase === 'plan' && view.turn !== ui.lastTurn) ui.msg = '';
@@ -61,7 +62,9 @@ const handlers = {
     viewEffects(prev, view);
     render();
   },
-  onError(msg) { ui.error = msg; render(); },
+  onError(msg) { ui.error = msg; ui.offline = false; render(); },
+  // Partie en ligne : connexion perdue ou retrouvée (net.js se reconnecte seul et reprend la partie).
+  onLink(ok) { ui.offline = !ok; render(); },
   // Partie contre l'IA terminée : le serveur l'enregistre et renvoie ce qu'elle a rapporté.
   onSoloOver(result) {
     if (!ui.auth) return;
@@ -84,18 +87,18 @@ function deckReady() {
 function goOnline(action) {
   if (!deckReady()) return;
   ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = false; ui.sheet = null;
-  ui.ctrl = connectOnline(handlers, action === 'create' ? { t: 'create', auth: ui.auth } : { t: 'join', room: ui.joinCode, auth: ui.auth });
+  ui.offline = false; ui.ctrl = connectOnline(handlers, action === 'create' ? { t: 'create', auth: ui.auth } : { t: 'join', room: ui.joinCode, auth: ui.auth });
 }
 // Défi accepté : on entre dans le salon réservé avec le deck choisi.
 function startFriendMatch(room, deck, foe) {
   ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = foe; ui.rankedAi = false; ui.sheet = null;
-  ui.ctrl = connectOnline(handlers, { t: 'join', room, auth: ui.auth, deck });
+  ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'join', room, auth: ui.auth, deck });
 }
 // Partie classée contre l'IA : jouée par le serveur, l'IA est plus forte à chaque palier.
 function goRanked() {
   if (!deckReady()) return;
   ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = true; ui.sheet = null; ui.lastTurn = 0;
-  ui.ctrl = connectOnline(handlers, { t: 'ranked', auth: ui.auth });
+  ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'ranked', auth: ui.auth });
 }
 function goSolo() {
   if (!deckReady()) return;
@@ -616,6 +619,7 @@ function renderGame() {
   return `
   <div class="top">${turnHTML(mode)}
     ${muteBtn()}<button class="btn" data-act="log">Journal</button><button class="btn" data-act="set">Cartes</button></div>
+  ${linkHTML(v)}
   ${pbar(f, false, v.connected[1 - v.seat])}
   <div class="board">${board}</div>
   ${pbar(m, true, true, canGen)}
@@ -624,6 +628,23 @@ function renderGame() {
   <div class="dock">${toast}<button class="btn icon" data-act="quit" aria-label="Quitter la partie" title="Quitter la partie">${QUIT_ICON}</button>${sealsHTML(seals)}
     <button class="btn primary grow" data-act="go" ${play && (ui.mode !== 'tuto' || ui.ctrl?.canSubmit(ui)) ? '' : 'disabled'}>${goLabel}</button></div>`;
 }
+// Partie en ligne : bandeau quand l'un des deux joueurs a perdu la connexion. Sa place lui est gardée, la partie reprend à son retour.
+// Au-delà de 60 secondes sans revenir, le joueur déconnecté perd par forfait : le serveur donne le temps qui reste (view.away).
+function linkHTML(v) {
+  if (ui.mode !== 'online') return '';
+  const playing = v.phase !== 'over';
+  if (ui.offline) return `<div class="link-lost" role="status">Connexion perdue, reconnexion en cours…${ui.ctrl?.queued() ? ' Votre tour partira dès le retour du réseau.' : ''}${playing ? ' Sans retour sous 60 secondes, la partie est perdue.' : ''}</div>`;
+  if (playing && !v.connected[1 - v.seat]) {
+    const until = ui.awayUntil?.[1 - v.seat];
+    return `<div class="link-lost foe" role="status">${esc(v.foe.name)} s'est déconnecté : ${until
+      ? `victoire par forfait s'il ne revient pas dans ${countdown(until)}.` : 'la partie reprend dès son retour.'}</div>`;
+  }
+  return '';
+}
+// Compte à rebours en secondes, mis à jour chaque seconde sans redessiner l'écran.
+const secsLeft = until => `${Math.max(0, Math.ceil((until - Date.now()) / 1000))} s`;
+const countdown = until => `<b class="num" data-until="${until}">${secsLeft(until)}</b>`;
+setInterval(() => document.querySelectorAll('[data-until]').forEach(el => { el.textContent = secsLeft(+el.dataset.until); }), 1000);
 // Bulle du tutoriel : à la place de l'encadré d'info, ou en haut de l'écran par-dessus une carte ouverte en grand.
 const coachHTML = (c, float = false) => `<div class="coach ${float ? 'float' : ''}" role="status" aria-live="polite"><span class="eyebrow">Tutoriel</span><p>${rich(c.text)}</p>
   ${c.info ? '<div class="row"><button class="btn primary sm" data-act="tuto-next">Suivant</button></div>' : ''}</div>`;
@@ -969,8 +990,9 @@ function toggleTerrain(k) {
   render();
 }
 function renderLobby() {
+  const lost = ui.offline ? '<div class="link-lost" role="status">Connexion perdue, reconnexion en cours…</div>' : '';
   if (ui.friendFoe) return `
-  <div class="top"><span class="title">Partie entre amis</span></div>
+  <div class="top"><span class="title">Partie entre amis</span></div>${lost}
   <div class="card-box" style="text-align:center;justify-items:center">
     <span class="eyebrow">Contre ${esc(ui.friendFoe)}</span>
     <p class="wait">${esc(ui.friendFoe)} choisit son deck. La partie commence dès que son choix est fait.</p>
@@ -978,7 +1000,7 @@ function renderLobby() {
   </div>`;
   const link = `${location.origin}${location.pathname}?code=${ui.room}`;
   return `
-  <div class="top"><span class="title">Partie en attente</span></div>
+  <div class="top"><span class="title">Partie en attente</span></div>${lost}
   <div class="card-box" style="text-align:center;justify-items:center">
     <span class="eyebrow">Code à donner à votre ami</span>
     <span class="code">${esc(ui.room)}</span>
@@ -1399,7 +1421,7 @@ app.addEventListener('click', e => {
     else if (a === 'copy') { const link = document.getElementById('link');
       navigator.clipboard.writeText(link.value).then(() => { t.textContent = 'Lien copié'; }).catch(() => { link.select(); }); }
     else if (a === 'go') { if (!canPlay()) return; play('validate');
-      ui.ctrl.submit({ cards: ui.pending.map(p => ({ uid: p.uid, zone: p.zone })), moves: ui.moves.slice(), general: ui.genZone }); ui.sel = null; ui.moveSel = null; }
+      ui.ctrl.submit({ cards: ui.pending.map(p => ({ uid: p.uid, zone: p.zone })), moves: ui.moves.slice(), general: ui.genZone }); ui.sel = null; ui.moveSel = null; if (ui.offline) render(); }
     // Activer le général (ou l'annuler) depuis sa carte en grand.
     else if (a === 'zgen') {
       if (!canPlay()) return;
