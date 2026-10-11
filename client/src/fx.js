@@ -19,7 +19,7 @@ export function banner(board, title, sub = '', tone = '') {
   for (const old of document.querySelectorAll('.fxl.fxbanner')) old.remove();
   const r = board.getBoundingClientRect(), h = 64;
   layer({ left: r.left, top: r.top + r.height / 2 - h / 2, width: r.width, height: h }, `fxbanner ${tone}`,
-    `<div class="fxb-in"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</div>`, 1300);
+    `<div class="fxb-in"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</div>`, 2100);
 }
 
 // Nombre qui s'envole au-dessus d'un élément : +2 en vert, −1 en rouge, ou la couleur d'un camp (`me`, `foe`).
