@@ -13,6 +13,7 @@ import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
 import { artBg, artHTML, terrainBg, terrainHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
+import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti } from './fx.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { SEASONS, PASS_TIERS, seasonOfCard, seasonStarted, releaseMonth } from '@jeu/engine/pass';
@@ -508,7 +509,7 @@ const canPlay = () => ui.view && ui.view.phase === 'plan' && !ui.view.ready.me;
 
 // ---- Rendu ----
 function miniCard(c, opts = {}) {
-  if (c.hidden) return `<div class="mc back back-${esc(badgeOf(1 - ui.view.seat)?.back || 'classique')}" aria-label="Carte cachée"></div>`;
+  if (c.hidden) return `<div class="mc back back-${esc(badgeOf(1 - ui.view.seat)?.back || 'classique')}" data-hid="${c.uid}" aria-label="Carte cachée"></div>`;
   const d = CARDS[c.id]; const pw = c.revealed ? c.power : (opts.power ?? d.power);
   const cls = c.revealed ? (pw > d.power ? 'up' : pw < d.power ? 'down' : '') : '';
   const mv = opts.mine && moveOf(c.uid);
@@ -1135,7 +1136,7 @@ function sheetHTML() {
     const r = ui.view.result, s = ui.view.seat;
     const t = r.winner === s ? 'Victoire' : r.winner < 0 ? 'Match nul' : 'Défaite';
     const reason = renderLog(r.reason, s, ui.view.names);
-    const zs = [0, 1, 2].map(z => `<div><div class="eyebrow">${ZONE_NAMES[z]}</div><b>${ui.view.me.zonePower[z]}</b> contre ${ui.view.foe.zonePower[z]}</div>`).join('');
+    const zs = [0, 1, 2].map(z => `<div class="${['', 'me', 'foe'][zoneSide(ui.view, z)]}"><div class="eyebrow">${ZONE_NAMES[z]}</div><b>${ui.view.me.zonePower[z]}</b> contre ${ui.view.foe.zonePower[z]}</div>`).join('');
     if (ui.mode === 'tuto') return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p><div class="zs">${zs}</div>
       <p style="margin:0">Tutoriel terminé : vous connaissez les bases. Le codex, dans « Apprendre » sur l'accueil, explique tous les autres mots-clés.</p><div class="row">
       <button class="btn primary" data-act="quit">Retour à l'accueil</button><button class="btn" data-act="again">Rejouer le tutoriel</button><button class="btn" data-act="codex">Ouvrir le codex</button></div></div></div>`;
@@ -1174,7 +1175,6 @@ const SPEAKER = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" str
 const QUIT_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>';
 const muteBtn = () => `<button class="btn icon" data-act="mute" aria-pressed="${isMuted()}" aria-label="${isMuted() ? 'Activer le son' : 'Couper le son'}" title="${isMuted() ? 'Activer le son' : 'Couper le son'}">${SPEAKER}${isMuted() ? '<path d="m16 9 5 6m0-6-5 6"/>' : '<path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>'}</svg></button>`;
 const cardSel = uid => `[data-card="${uid}"]`;
-const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 function cardsOf(view) {
   const m = new Map();
   for (const side of ['me', 'foe']) view[side].board.forEach((col, z) => col.forEach(c => m.set(c.uid, { ...c, side, z })));
@@ -1198,48 +1198,81 @@ function burstAt(el) {
   b.innerHTML = Array.from({ length: 12 }, (_, i) => `<i style="--r:${i * 30}deg;--d:${(i % 3) * 70}ms"></i>`).join('');
   document.body.append(b); setTimeout(() => b.remove(), 1400);
 }
+// Camp qui mène une zone : 1 pour soi, 2 pour l'adversaire, 0 à égalité.
+const zoneSide = (view, z) => { const d = view.me.zonePower[z] - view.foe.zonePower[z]; return d > 0 ? 1 : d < 0 ? 2 : 0; };
+const SIDES = ['', 'me', 'foe'];
+const turnBanner = view => (view.turn === view.turns ? ['Dernier tour', `Tour ${view.turn}`, 'last'] : [`Tour ${view.turn}`, `sur ${view.turns}`, '']);
 // Compare la vue précédente à la nouvelle : prépare les animations du prochain rendu et joue les bruitages.
+// `after` : effets posés par-dessus la table une fois le rendu fait (ils ont besoin de la place des éléments).
 function viewEffects(prev, view) {
-  const list = [], sounds = [], burst = [];
+  const list = [], sounds = [], burst = [], after = [];
   const fxOf = c => c && c.id && hasFx(levelIn(c.side === 'me' ? view.seat : 1 - view.seat, c.id));
+  const at = sel => app.querySelector(sel);
   let flip = null;
   if (!prev || view.turn < prev.turn || (prev.phase === 'over' && view.phase !== 'over')) {
     // Début de partie : la main arrive carte par carte.
     view.me.hand.forEach((c, i) => list.push([`[data-hand="${c.uid}"]`, 'drawn', i * 70]));
-    ui.fx = { list }; play('draw'); return;
+    if (view.phase === 'plan') after.push(() => banner(at('.board'), ...turnBanner(view)));
+    ui.fx = { list, after }; play('draw'); return;
   }
-  const before = cardsOf(prev), after = cardsOf(view), f = view.flash;
+  const before = cardsOf(prev), after2 = cardsOf(view), f = view.flash;
+  // Début de la révélation : les cartes cachées de l'adversaire arrivent, les siennes sont scellées.
+  if (prev.phase === 'plan' && view.phase === 'reveal') {
+    after.push(() => banner(at('.board'), 'Révélation', '', 'reveal'));
+    let i = 0;
+    for (const [uid, b] of after2) if (!before.has(uid)) list.push(b.side === 'foe' ? [`[data-hid="${uid}"]`, 'dealt', (i++) * 90] : [cardSel(uid), 'sealed']);
+    sounds.push('deal');
+  }
   if (f !== null && f !== undefined) {
-    const a = before.get(f), b = after.get(f);
+    const a = before.get(f), b = after2.get(f);
     if (!b) {
-      sounds.push('spell'); if (fxOf(a)) { burstAt(app.querySelector(cardSel(f))); sounds.push('astral'); }
+      sounds.push('spell'); if (fxOf(a)) { burstAt(at(cardSel(f))); sounds.push('astral'); }
       ghostOut(f, 'spellout'); if (a) list.push([`.zone[data-z="${a.z}"]`, 'spellcast']); }
-    else if (a && a.revealed) { sounds.push('place'); const el = app.querySelector(cardSel(f)); if (el) flip = { uid: f, rect: el.getBoundingClientRect() }; }
+    else if (a && a.revealed) { sounds.push('place'); const el = at(cardSel(f)); if (el) flip = { uid: f, rect: el.getBoundingClientRect() }; }
     else {
       sounds.push(b.side === 'me' ? 'reveal' : 'revealFoe'); list.push([cardSel(f), b.side === 'me' ? 'reveal' : 'reveal-foe']);
+      // Carte de l'adversaire : son dos se retourne d'abord, sa face apparaît ensuite.
+      if (b.side === 'foe' && at(`[data-hid="${f}"]`) && !reduceMotion()) { backFlip(at(`[data-hid="${f}"]`)); list.push([cardSel(f), 'after-back']); }
       if (fxOf(b)) { list.push([cardSel(f), 'astral-in']); burst.push(cardSel(f)); sounds.push('astral'); }
     }
   }
   let gone = false, up = false, down = false;
-  for (const [uid, a] of before) if (a.revealed && uid !== f && !after.has(uid)) { ghostOut(uid, 'shatter'); gone = true; }
-  for (const [uid, b] of after) { const a = before.get(uid);
-    if (a && a.revealed && b.revealed && a.power !== b.power && uid !== f) { const u = b.power > a.power; list.push([`${cardSel(uid)} .p`, u ? 'pup' : 'pdown']); if (u) up = true; else down = true; } }
+  for (const [uid, a] of before) if (a.revealed && uid !== f && !after2.has(uid)) { ghostOut(uid, 'shatter'); gone = true; }
+  for (const [uid, b] of after2) { const a = before.get(uid);
+    if (a && a.revealed && b.revealed && a.power !== b.power && uid !== f) {
+      const u = b.power > a.power; list.push([`${cardSel(uid)} .p`, u ? 'pup' : 'pdown']); if (u) up = true; else down = true;
+      after.push(() => floatNum(at(cardSel(uid)), b.power - a.power)); } }
   for (const side of ['me', 'foe']) for (const z of [0, 1, 2]) {
-    if (prev[side].zonePower[z] !== view[side].zonePower[z]) list.push([`.zone[data-z="${z}"] .v.${side}`, 'bump']);
+    const d = view[side].zonePower[z] - prev[side].zonePower[z];
+    if (d) { list.push([`.zone[data-z="${z}"] .v.${side}`, 'bump']); after.push(() => floatNum(at(`.zone[data-z="${z}"] .v.${side}`), d, side)); }
     if (!prev[side].terrains[z] && view[side].terrains[z]) { list.push([`.zone[data-z="${z}"] .terrain.set.${side}`, 'terrain-in']); sounds.push('terrain'); }
   }
-  if ((!prev.me.generalUsed && view.me.generalUsed) || (!prev.foe.generalUsed && view.foe.generalUsed)) sounds.push('general');
+  // Une zone change de camp pendant la révélation : elle s'illumine à la couleur de son nouveau meneur.
+  let swing = false;
+  if (view.phase !== 'over') for (const z of [0, 1, 2]) {
+    const was = zoneSide(prev, z), now = zoneSide(view, z);
+    if (now && now !== was) { swing = true; after.push(() => zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[now])); }
+  }
+  for (const side of ['me', 'foe']) if (!prev[side].generalUsed && view[side].generalUsed) {
+    sounds.push('general'); after.push(() => generalFire(at(`.pbar.${side} [data-general]`)));
+  }
+  if (!prev.ready.foe && view.ready.foe && view.phase === 'plan') list.push(['.pbar.foe .chip.ok', 'pop']);
   if (gone) sounds.push('destroy'); else if (up) sounds.push('up'); else if (down) sounds.push('down');
+  if (swing && sounds.length < 3) sounds.push('swing');
   if (view.phase === 'plan' && view.turn !== prev.turn) {
     const had = new Set(prev.me.hand.map(c => c.uid));
-    view.me.hand.filter(c => !had.has(c.uid)).forEach((c, i) => list.push([`[data-hand="${c.uid}"]`, 'drawn', i * 70]));
-    sounds.push('draw');
+    view.me.hand.filter(c => !had.has(c.uid)).forEach((c, i) => list.push([`[data-hand="${c.uid}"]`, 'drawn', 200 + i * 70]));
+    after.push(() => banner(at('.board'), ...turnBanner(view)));
+    sounds.push('turn', 'draw');
   }
   if (view.phase === 'over' && prev.phase !== 'over' && view.result) {
-    sounds.push(view.result.winner === view.seat ? 'win' : view.result.winner < 0 ? 'tie' : 'lose');
+    const win = view.result.winner === view.seat;
+    sounds.push(win ? 'win' : view.result.winner < 0 ? 'tie' : 'lose');
     list.push(['.panel.end', 'end-in']);
+    // Les zones s'allument une à une à la couleur de leur gagnant, puis les confettis en cas de victoire.
+    after.push(() => { [0, 1, 2].forEach(z => { const s = zoneSide(view, z); if (s) zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[s], z * 220, true); }); if (win) setTimeout(confetti, 450); });
   }
-  ui.fx = { list, flip, burst };
+  ui.fx = { list, flip, burst, after };
   [...new Set(sounds)].slice(0, 3).forEach((s, i) => i ? setTimeout(() => play(s), i * 110) : play(s));
 }
 // Applique une seule fois les animations préparées, sur les éléments du rendu qui vient d'avoir lieu.
@@ -1251,11 +1284,19 @@ function applyFx() {
   }
   for (const sel of fx.burst || []) burstAt(app.querySelector(sel));
   // Déplacement : la carte glisse depuis son ancienne place.
-  if (fx.flip && !reduceMotion()) {
-    const el = app.querySelector(cardSel(fx.flip.uid)); if (!el || !el.animate) return;
-    const r = el.getBoundingClientRect(), dx = fx.flip.rect.left - r.left, dy = fx.flip.rect.top - r.top;
-    el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(1.08)`, zIndex: 2 }, { transform: 'none', zIndex: 2 }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
-  }
+  if (fx.flip) flyFrom(app.querySelector(cardSel(fx.flip.uid)), fx.flip.rect, { ms: 420 });
+  // Carte posée ou reprise en main : elle vole de là où elle était jusqu'à sa nouvelle place.
+  for (const [sel, rect] of fx.fly || []) flyFrom(app.querySelector(sel), rect);
+  for (const f of fx.after || []) f();
+}
+// Place à l'écran d'un élément avant le prochain rendu (pour l'y faire voler ensuite).
+const rectOf = sel => app.querySelector(sel)?.getBoundingClientRect() || null;
+// Reprend en main une carte posée ce tour : elle revient de sa case vers la main.
+function unplace(uid) {
+  const from = rectOf(cardSel(uid));
+  ui.pending = ui.pending.filter(p => p.uid !== uid);
+  if (from) ui.fx = { list: [], fly: [[`[data-hand="${uid}"]`, from]] };
+  play('unplace');
 }
 
 // ---- Glisser-déposer (en plus du toucher) ----
@@ -1298,15 +1339,16 @@ function endDrag(e, cancel) {
   if (!drag || e.pointerId !== drag.pid) return;
   const d = drag; drag = null;
   if (!d.ghost) return;
-  d.ghost.remove(); ui.drag = null; swallowClick = true; setTimeout(() => { swallowClick = false; }, 60);
-  const over = !cancel && zoneAt(e.clientX, e.clientY);
+  ui.drag = null; swallowClick = true; setTimeout(() => { swallowClick = false; }, 60);
+  const over = !cancel && zoneAt(e.clientX, e.clientY), from = d.ghost.getBoundingClientRect();
+  d.ghost.remove();
+  // Lâchée hors d'une zone, ou dépôt refusé : la carte revient à sa place depuis l'endroit où elle a été lâchée.
+  const back = () => { ui.sel = null; ui.moveSel = null; ui.fx = { list: [], fly: [[d.kind === 'hand' ? `[data-hand="${d.uid}"]` : cardSel(d.uid), from]] }; render(); };
   if (over) {
-    tryPlace(+over.dataset.z);
-    // Dépôt refusé : la carte revient en main, le message explique pourquoi.
-    if (ui.sel === d.uid || ui.moveSel === d.uid) { ui.sel = null; ui.moveSel = null; render(); }
-  } else {
-    ui.sel = null; ui.moveSel = null; render();
-  }
+    dropRect = from; tryPlace(+over.dataset.z); dropRect = null;
+    // Dépôt refusé : le message explique pourquoi.
+    if (ui.sel === d.uid || ui.moveSel === d.uid) back();
+  } else back();
 }
 window.addEventListener('pointerup', e => endDrag(e, false));
 window.addEventListener('pointercancel', e => endDrag(e, true));
@@ -1320,6 +1362,8 @@ function doubleTap(key) {
   const now = Date.now(), dbl = lastTap && lastTap.key === key && now - lastTap.t < DOUBLE_TAP_MS;
   lastTap = dbl ? null : { key, t: now }; return dbl;
 }
+// Carte lâchée par un glisser-déposer : elle part de là où le doigt l'a lâchée.
+let dropRect = null;
 function tryPlace(z) {
   if (!canPlay()) return;
   if (ui.moveSel !== null) {
@@ -1334,7 +1378,10 @@ function tryPlace(z) {
   const d = CARDS[c.id], left = sealsLeft();
   if (freeSlots(z) <= 0) ui.msg = `La zone ${ZONE_NAMES[z]} est pleine de votre côté.`;
   else if (d.x ? left <= 0 : c.cost > left) ui.msg = d.x ? `Il ne vous reste aucun sceau pour ${d.name}.` : `Pas assez de sceaux : ${d.name} coûte ${c.cost}, il vous en reste ${left}.`;
-  else { ui.pending.push({ uid: c.uid, id: c.id, zone: z }); ui.sel = null; ui.msg = ''; ui.fx = { list: [[cardSel(c.uid), 'dropin']] }; play('place'); }
+  else {
+    const from = dropRect || rectOf(`[data-hand="${c.uid}"]`);
+    ui.pending.push({ uid: c.uid, id: c.id, zone: z }); ui.sel = null; ui.msg = '';
+    ui.fx = from && !reduceMotion() ? { list: [], fly: [[cardSel(c.uid), from]] } : { list: [[cardSel(c.uid), 'dropin']] }; play('place'); }
   if (ui.msg) { play('deny'); msgFades(); }
   render();
 }
@@ -1385,7 +1432,7 @@ app.addEventListener('click', e => {
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
       tryPlace(+ds.zone); }
-    else if (a === 'zback') { ui.pending = ui.pending.filter(p => p.uid !== ui.zoom.uid); ui.sheet = null; ui.zoom = null; ui.msg = ''; play('unplace'); render(); }
+    else if (a === 'zback') { unplace(ui.zoom.uid); ui.sheet = null; ui.zoom = null; ui.msg = ''; render(); }
     else if (a === 'zstay') { ui.moves = ui.moves.filter(m => m.uid !== ui.zoom.uid); ui.sheet = null; ui.zoom = null; play('unplace'); render(); }
     else if (a === 'log' || a === 'set' || a === 'learn') { ui.sheet = a; render(); }
     else if (a === 'play-friend') { ui.sheet = a; ui.error = ''; render(); }
@@ -1476,7 +1523,7 @@ app.addEventListener('click', e => {
       ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; clearTimeout(pendingTap?.timer);
       pendingTap = { uid, timer: setTimeout(() => { pendingTap = null;
         if (!canPlay() || ui.sheet || !ui.pending.some(p => p.uid === uid)) return;
-        ui.pending = ui.pending.filter(p => p.uid !== uid); ui.sel = uid; play('unplace'); render(); }, DOUBLE_TAP_MS) };
+        unplace(uid); ui.sel = uid; render(); }, DOUBLE_TAP_MS) };
       return; }
     if (ds.mobile && canPlay() && ui.sel === null && (ui.moveSel === null || ui.moveSel === uid)) {
       ui.focus = { kind: 'card', id: ds.id }; ui.msg = '';
