@@ -563,15 +563,9 @@ body:has(#app.ingame) { margin: 0; }
 .btn.big { padding-block: 12px; font-size: 17px; }
 .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .top .chip[data-act] { font-size: 13px; padding: 4px 10px; font-weight: 600; }
-.mdetails summary { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; cursor: pointer; font-family: var(--display); font-weight: 700; font-size: 16px; list-style: none; }
-.mdetails summary::-webkit-details-marker { display: none; }
-.mdetails summary::after { content: '▾'; color: var(--muted); }
-.mdetails[open] summary::after { content: '▴'; }
-.mdetails summary small { margin-left: auto; font-family: var(--body); font-weight: 400; }
-.mdetails[open] { display: grid; gap: 10px; }
-.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: 56px repeat(4, minmax(0, 1fr)); max-width: 760px; margin-inline: auto;
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 760px; margin-inline: auto;
   background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
-.tabbar button { position: relative; border: 0; background: none; padding: 14px 2px; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.tabbar button { position: relative; border: 0; background: none; padding: 8px 2px 7px; display: grid; justify-items: center; gap: 2px; font-size: 12px; font-weight: 600; color: var(--ink); }
 .tabbar button + button { border-left: 1px solid var(--line); }
 .tabbar button svg { display: block; margin-inline: auto; }
 .tabbar button.on { color: var(--accent); box-shadow: inset 0 3px 0 var(--accent); }
@@ -749,3 +743,39 @@ body:has(#app.ingame) { margin: 0; }
 .artthemes li .num { grid-row: 1 / span 2; grid-column: 2; font-family: var(--display); font-size: 18px; }
 .artthemes li.done { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
 .artthemes li.done .num { color: var(--accent); }
+
+/* salon (accueil) : bandeau du joueur, vitrine du deck joué avec son général en grand, bouton Jouer, tuiles */
+.hud { gap: 8px; }
+.hud-id { min-width: 0; margin-right: auto; display: grid; gap: 3px; text-align: left; border: 0; background: none; padding: 0; color: inherit; }
+.hud-id b { font-family: var(--display); font-size: 16px; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hud-lv { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.hud-lv .bar { width: 56px; height: 6px; }
+.showcase { position: relative; height: clamp(220px, 40dvh, 400px); border-radius: 10px; overflow: hidden; isolation: isolate;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--fam, var(--accent)) 45%, #000), #000 75%); }
+.sc-art, .hero-art { position: absolute; inset: 0; }
+.hero-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; }
+.sc-init { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--famfont, var(--display)); font-size: 120px; color: rgb(255 255 255 / .25); }
+.showcase::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(transparent 45%, rgb(0 0 0 / .85)); }
+.sc-deck { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: grid; justify-items: start; gap: 1px; padding: 16px 112px 16px 16px; border: 0; background: none; color: #fff; text-align: left; }
+.sc-deck b { font-family: var(--famfont, var(--display)); font-size: clamp(20px, 6.5vw, 28px); line-height: 1.1; text-shadow: 0 2px 6px #000; }
+.sc-deck small { font-size: 14px; color: rgb(255 255 255 / .8); }
+.sc-deck .eyebrow { color: rgb(255 255 255 / .75); }
+.sc-change { position: absolute; right: 16px; bottom: 16px; font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px; background: rgb(0 0 0 / .55); border: 1px solid rgb(255 255 255 / .35); }
+.sc-rank { position: absolute; top: 10px; right: 10px; z-index: 2; display: grid; justify-items: end; gap: 2px; border: 0; background: none; padding: 0; color: #fff; }
+.sc-rank .rank { font-family: var(--display); font-size: 16px; }
+.sc-rank small { font-size: 11px; text-shadow: 0 1px 3px #000; }
+.sc-rank .rstars { text-shadow: 0 1px 3px #000; }
+.playbtn { display: grid; justify-items: center; gap: 0; width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
+.playbtn span { font-family: var(--display); font-size: 30px; font-weight: 700; line-height: 1.1; letter-spacing: .08em; text-transform: uppercase; }
+.playbtn small { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tile { min-width: 0; min-height: 96px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 12px; text-align: left; color: inherit; font: inherit;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.tile b { font-family: var(--display); font-size: 18px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.tile .eyebrow { font-size: 10.5px; }
+.tile-foot { margin-top: auto; font-size: 12.5px; color: var(--muted); }
+.tile .bar { width: 100%; height: 6px; }
+.tile.todo { border-color: var(--accent); }
+.tile.todo .tile-foot { color: var(--accent); font-weight: 700; }
+.lobby .card-box.booster { padding: 8px 10px 8px 14px; gap: 8px; }
+.lobby .card-box.booster h2 { font-size: 17px; }

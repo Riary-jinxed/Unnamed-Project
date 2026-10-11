@@ -47,21 +47,56 @@ h2 { font-weight: 700; letter-spacing: .04em; color: var(--gold); }
 .chip { background: #1a120c; border-color: #6a4f2a; }
 input, textarea, .field select { background: #0e0a07; border: 1px solid #6a4f2a; color: var(--ink); border-radius: 4px; box-shadow: inset 0 2px 4px #000; }
 
-/* barre d'onglets : socle de bois sombre, l'onglet actif s'illumine */
+/* barre d'onglets : socle de bois sombre, icônes gravées ; l'onglet actif devient un médaillon doré */
 .tabbar { background: linear-gradient(180deg, var(--leather), var(--bg)); border-top: 2px solid var(--rim); box-shadow: 0 -6px 20px rgb(0 0 0 / .6); }
-.tabbar button { font-family: "Alegreya SC", var(--display); font-size: 15px; letter-spacing: .02em; color: #cdb48a; }
-.tabbar button + button { border-left-color: rgb(122 90 44 / .5); }
-.tabbar button.on { color: var(--gold-hi); box-shadow: inset 0 3px 0 var(--gold); background: radial-gradient(ellipse at 50% 0, rgb(227 181 82 / .25), transparent 70%); text-shadow: 0 0 10px rgb(227 181 82 / .6); }
+.tabbar button { font-family: "Alegreya SC", var(--display); font-size: 12.5px; letter-spacing: .02em; color: #a8916a; transition: color .15s; }
+.tabbar button + button { border-left: 0; }
+.tabbar button svg { transition: transform .2s cubic-bezier(.3,1.6,.5,1); }
+.tabbar button.on { color: var(--gold-hi); box-shadow: none; background: radial-gradient(ellipse at 50% 30%, rgb(227 181 82 / .3), transparent 70%); text-shadow: 0 0 10px rgb(227 181 82 / .6); }
+.tabbar button.on svg { transform: translateY(-3px) scale(1.15); filter: drop-shadow(0 0 6px rgb(227 181 82 / .8)); }
+
+/* salon */
+.hud-id b { color: var(--gold-hi); text-shadow: 0 1px 0 #000; }
+.showcase { border: 1px solid var(--rim); box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6), inset 0 0 0 2px rgb(251 227 160 / .15); }
+.showcase::before { content: ''; position: absolute; inset: 5px; z-index: 3; pointer-events: none; border: 1px solid rgb(227 181 82 / .35); border-radius: 7px; }
+.sc-change { font-family: var(--display); background: linear-gradient(180deg, #4a3826, #2a1e14); border-color: #8a6a3a; color: var(--gold-hi); }
+.playbtn { position: relative; overflow: hidden; border: 1px solid #5a3a10; color: #2a1606;
+  background: linear-gradient(180deg, #fff0b8 0%, #f0c25c 30%, #c8902f 70%, var(--gold-lo) 100%);
+  box-shadow: inset 0 2px 0 #fff8dc, inset 0 -4px 0 rgb(90 50 10 / .55), 0 0 0 1px #000, 0 0 28px -4px rgb(227 181 82 / .6); text-shadow: 0 1px 0 rgb(255 255 255 / .5);
+  transition: transform .08s, filter .15s; animation: playglow 2.6s ease-in-out infinite; }
+.playbtn::after { content: ''; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / .55) 50%, transparent 65%); background-size: 250% 100%; animation: playshine 3.5s ease-in-out infinite; pointer-events: none; }
+.playbtn:active { transform: translateY(2px) scale(.99); filter: brightness(.95); }
+@keyframes playglow { 50% { box-shadow: inset 0 2px 0 #fff8dc, inset 0 -4px 0 rgb(90 50 10 / .55), 0 0 0 1px #000, 0 0 40px 0 rgb(227 181 82 / .75); } }
+@keyframes playshine { 0%, 60% { background-position: 130% 0; } 100% { background-position: -130% 0; } }
+.tile { background: linear-gradient(180deg, var(--leather), var(--leather-lo)); border-color: var(--rim);
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px rgb(251 227 160 / .08), 0 4px 12px rgb(0 0 0 / .45); transition: transform .08s, filter .15s; }
+.tile:active { transform: translateY(2px); }
+.tile.todo { border-color: var(--gold); box-shadow: 0 0 0 1px #000, 0 0 16px -4px var(--gold), inset 0 0 20px -8px rgb(227 181 82 / .35); }
+.tile b { color: var(--gold-hi); }
+@media (prefers-reduced-motion: reduce) { .playbtn, .playbtn::after { animation: none; } }
 
 /* jauges : rainure creusée, remplissage doré */
 .bar { background: #0b0806; border: 1px solid #5a4530; box-shadow: inset 0 1px 3px #000; }
 .bar > span { background: linear-gradient(90deg, var(--gold-lo), #f0c25c); }
 
-/* en partie : zones creusées dans la pierre, cartes en main bordées de bronze */
-.zone { background: linear-gradient(180deg, rgb(13 9 7 / .85), rgb(30 20 14 / .85)); border-color: #3e2e1e; box-shadow: inset 0 0 20px #000; }
-.hc { border-color: #8a6a3a; box-shadow: inset 0 0 0 1px #000, 0 3px 8px rgb(0 0 0 / .5); }
+/* en partie : une table sombre éclairée par le haut, des zones creusées dans la pierre,
+   des cartes à cadre de bronze avec le coût en sceau d'or et la puissance en médaillon */
+body:has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, #3a2a1c, #120d0a 70%), var(--bg); }
+.zone { background: linear-gradient(180deg, rgb(13 9 7 / .85), rgb(30 20 14 / .85)); border-color: #4a3622; box-shadow: inset 0 0 20px #000, 0 0 0 1px #000; }
+.terrain.set { background: linear-gradient(180deg, #3a2c1e, #1c140e); border-color: #8a6a3a; color: var(--gold-hi); font-weight: 700; box-shadow: 0 2px 4px rgb(0 0 0 / .6); }
+.hc, .mc { border: 2px solid #8a6a3a; border-top: 4px solid var(--fam, var(--f-neutre)); box-shadow: 0 0 0 1px #000, 0 4px 10px rgb(0 0 0 / .55); }
+.hc { border-radius: 8px; }
+.hc .n { font-family: "Alegreya SC", var(--display); font-size: 13.5px; }
+.hc .seal { width: 24px; height: 24px; font-size: 13px; background: radial-gradient(circle at 35% 30%, #fff0b8, #e3b552 45%, #8f5f1c); color: #2a1606; box-shadow: 0 0 0 1.5px #2a1606, 0 2px 4px rgb(0 0 0 / .7); }
+.hc .p { min-width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; font-size: 18px; color: var(--gold-hi);
+  background: radial-gradient(circle at 40% 30%, #4a3020, #140c07 75%); box-shadow: 0 0 0 2px #c8902f, 0 2px 4px #000; }
+.hc.sel { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold), 0 0 18px 2px rgb(227 181 82 / .55); transform: translateY(-8px) scale(1.04); }
+.mc { border-width: 1.5px; border-top-width: 3px; }
 .dock { background: linear-gradient(180deg, rgb(28 20 14 / .6), var(--leather-lo)); border-top: 1px solid var(--rim); }
+.dock .btn.primary.grow { font-size: 18px; padding-inline: 22px; }
+.dock .btn.primary.grow:not(:disabled) { animation: playglow 2.6s ease-in-out infinite; }
 .tturn b, .tseals b { color: var(--gold-hi); }
+@media (prefers-reduced-motion: reduce) { .dock .btn.primary.grow { animation: none; } }
 
 /* transitions : chaque nouvel écran se lève doucement, chaque feuille monte depuis le bas */
 #app.screen-in > :not(.sheet, .tabbar) { animation: screenin .32s cubic-bezier(.2,.8,.2,1) backwards; }
