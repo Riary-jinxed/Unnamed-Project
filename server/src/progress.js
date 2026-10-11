@@ -4,7 +4,7 @@
 // Chaque récompense gagnée est aussi rangée dans la boîte « inbox » du compte, que l'appli affiche puis vide.
 import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, ACHIEVEMENTS, familyReward, SET_REWARDS, TITLES, FRAMES, BACKS,
   xpToNext, familyOf, statValue, missionLabel, MAX_CARD_LEVEL, levelCost, loginCalendar, loginReward, monthDays } from '@jeu/engine/rewards';
-import { SETS, STARTERS, OWNABLE, allowedGenerals, today } from '@jeu/engine/collection';
+import { SETS, OWNABLE, today } from '@jeu/engine/collection';
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { TIERS, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics } from '@jeu/engine/ranked';
 import { ARTS, artExists, THEME_IDS } from '@jeu/engine/arts';
@@ -139,18 +139,25 @@ export function createProgress(store) {
   function missions(a) {
     const c = cfg(), day = today();
     if (a.missions?.date === day) return a.missions;
-    const ids = shuffle(Object.keys(MISSIONS).filter(id => c.missions[id].on)).slice(0, c.missionsPerDay);
-    a.missions = { date: day, rerolls: 0, list: ids.map(id => newMission(a, id)) };
+    a.missions = { date: day, rerolls: 0, list: draw(a, Object.keys(MISSIONS).filter(id => c.missions[id].on), c.missionsPerDay) };
     return a.missions;
   }
-  // Mission « famille » : une famille dont le joueur possède un général.
-  function newMission(a, id) {
-    const m = cfg().missions[id], mission = { id, target: m.target, xp: m.xp, shards: m.shards, n: 0, done: false };
-    if (id === 'fam') {
-      const fams = [...new Set(allowedGenerals(a).map(k => GENERALS[k].fam).filter(Boolean))];
-      mission.fam = shuffle(fams.length ? fams : [DECKS[a.starter || STARTERS[0]].fam])[0];
+  // n missions au hasard parmi ids, sans celles que le joueur ne peut pas faire avec sa collection
+  // ni deux d'un même groupe (en comptant celles de keep, déjà là).
+  function draw(a, ids, n, keep = []) {
+    const list = [], group = id => MISSIONS[id].group || id, taken = new Set(keep.map(m => group(m.id)));
+    for (const id of shuffle(ids)) {
+      if (list.length >= n) break;
+      if (taken.has(group(id))) continue;
+      const m = newMission(a, id); if (m) { list.push(m); taken.add(group(id)); }
     }
-    return mission;
+    return list;
+  }
+  // Famille ou carte demandée : tirée parmi les cartes du joueur (pick, rewards.js) ; null s'il n'en a pas assez.
+  function newMission(a, id) {
+    const m = cfg().missions[id], pick = MISSIONS[id].pick ? MISSIONS[id].pick(a) : {};
+    if (!pick) return null;
+    return { id, target: m.target, xp: m.xp, shards: m.shards, n: 0, done: false, ...pick };
   }
   function advance(a, test) {
     for (const m of missions(a).list) {
@@ -166,9 +173,9 @@ export function createProgress(store) {
     const ms = missions(a), c = cfg(), m = ms.list[index];
     if (!m || m.done) throw new HttpError(400, 'Cette mission ne peut pas être remplacée.');
     if (ms.rerolls >= c.missionRerolls) throw new HttpError(409, 'Plus de remplacement possible aujourd\'hui.');
-    const pool = Object.keys(MISSIONS).filter(id => c.missions[id].on && !ms.list.some(x => x.id === id));
-    if (!pool.length) throw new HttpError(409, 'Aucune autre mission disponible.');
-    ms.list[index] = newMission(a, shuffle(pool)[0]); ms.rerolls++;
+    const [next] = draw(a, Object.keys(MISSIONS).filter(id => c.missions[id].on && !ms.list.some(x => x.id === id)), 1, ms.list.filter(x => x !== m));
+    if (!next) throw new HttpError(409, 'Aucune autre mission disponible.');
+    ms.list[index] = next; ms.rerolls++;
   }
 
   // ---- Parties ----
@@ -189,9 +196,8 @@ export function createProgress(store) {
     const shards = rewarded ? (win ? (pvp ? c.shardsPvpWin : c.shardsPveWin) : c.shardsLoss) : 0;
     a.shards = (a.shards || 0) + shards;
     const doneBefore = missions(a).list.filter(m => m.done).length;
-    advance(a, m => ({
+    advance(a, m => (MISSIONS[m.id]?.count ? MISSIONS[m.id].count(m, played) : {
       play: 1, win: win ? 1 : 0, win_pvp: win && pvp ? 1 : 0, win_pve: win && !pvp ? 1 : 0, sweep: win && sweep ? 1 : 0,
-      fam: played.filter(id => CARDS[id] && familyOf(id) === m.fam).length, spells: played.filter(id => CARDS[id]?.type === 'S').length,
     }[m.id] || 0));
     addXp(a, xp);
     const P = pass(a);

@@ -60,18 +60,46 @@ export const REWARD_LIMITS = {
 export const xpToNext = (level, r = DEFAULT_REWARDS) => Math.min(r.xpCap, r.xpBase + r.xpStep * (level - 1));
 
 // ---- Missions quotidiennes ----
-// event : ce qui fait avancer la mission (voir progressMission). Cible, XP et Éclats se règlent dans /admin.
+// Cible, XP et Éclats se règlent dans /admin. label(objectif, famille, nom de la carte).
+// count(mission, cartes jouées) : de combien la mission avance en fin de partie (les autres avancent dans progress.js).
+// pick(compte) : ce que la mission demande (famille, carte), tiré parmi les cartes que le joueur possède,
+// ou null s'il n'en a pas assez pour la faire : la mission n'est alors pas tirée.
+// group : deux missions du même groupe ne sont pas tirées le même jour.
+const plays = test => (m, played) => played.filter(id => CARDS[id] && test(CARDS[id], id, m)).length;
+// Cartes possédées (hors généraux et jetons) qui vérifient test.
+const ownedCards = (a, test = () => true) => Object.keys(a.cards || {}).filter(id => a.cards[id] && CARDS[id] && !CARDS[id].token && test(CARDS[id], id));
+const rnd = list => list[Math.floor(Math.random() * list.length)];
+// Une famille dont le joueur possède au moins min cartes qui vérifient test ; plus il en a, plus elle a de chances d'être tirée.
+function ownedFam(a, min, test) {
+  const by = {};
+  for (const id of ownedCards(a, test)) { const f = familyOf(id); if (f) by[f] = (by[f] || 0) + 1; }
+  const pool = Object.entries(by).filter(([, n]) => n >= min).flatMap(([fam, n]) => Array(n).fill(fam));
+  return pool.length ? { fam: rnd(pool) } : null;
+}
+const enough = (min, test) => a => (ownedCards(a, test).length >= min ? {} : null);
+const isC = d => d.type === 'C', isS = d => d.type === 'S', big = d => d.cost >= 4, cheap = d => d.cost <= 1 && !d.x;
+const sameFam = (d, id, m) => familyOf(id) === m.fam;
 export const MISSIONS = {
   play:    { label: n => `Jouer ${n} partie${n > 1 ? 's' : ''}`, target: 3, xp: 100, shards: 25 },
   win:     { label: n => `Gagner ${n} partie${n > 1 ? 's' : ''}`, target: 2, xp: 150, shards: 35 },
   win_pvp: { label: n => `Gagner ${n > 1 ? `${n} parties` : 'une partie'} en ligne`, target: 1, xp: 150, shards: 35 },
   win_pve: { label: n => `Battre l'IA ${n} fois`, target: 2, xp: 100, shards: 25 },
-  fam:     { label: (n, f) => `Jouer ${n} cartes ${f}`, target: 8, xp: 120, shards: 30 },
-  spells:  { label: n => `Jouer ${n} sorts`, target: 4, xp: 100, shards: 25 },
+  fam:     { label: (n, f) => `Jouer ${n} cartes ${f}`, target: 8, xp: 120, shards: 30, group: 'fam', pick: a => ownedFam(a, 5), count: plays(sameFam) },
+  spells:  { label: n => `Jouer ${n} sorts`, target: 4, xp: 100, shards: 25, pick: enough(2, isS), count: plays(isS) },
+  creatures: { label: n => `Jouer ${n} créatures`, target: 10, xp: 100, shards: 25, pick: enough(5, isC), count: plays(isC) },
+  fam_creatures: { label: (n, f) => `Jouer ${n} créatures ${f}`, target: 5, xp: 110, shards: 25, group: 'fam', pick: a => ownedFam(a, 4, isC), count: plays((d, id, m) => isC(d) && sameFam(d, id, m)) },
+  fam_spells: { label: (n, f) => `Jouer ${n} sort${n > 1 ? 's' : ''} ${f}`, target: 2, xp: 110, shards: 25, group: 'fam', pick: a => ownedFam(a, 2, isS), count: plays((d, id, m) => isS(d) && sameFam(d, id, m)) },
+  big:     { label: n => `Jouer ${n} carte${n > 1 ? 's' : ''} coûtant 4 sceaux ou plus`, target: 3, xp: 110, shards: 25, pick: enough(3, big), count: plays(big) },
+  cheap:   { label: n => `Jouer ${n} carte${n > 1 ? 's' : ''} coûtant 1 sceau ou moins`, target: 4, xp: 100, shards: 25, pick: enough(3, cheap), count: plays(cheap) },
+  // Une carte précise : de préférence une carte d'un de ses decks.
+  card:    { label: (n, f, c) => `Jouer ${c} ${n > 1 ? `${n} fois` : 'une fois'}`, target: 2, xp: 100, shards: 25,
+    pick: a => { const owned = ownedCards(a), inDecks = owned.filter(id => (a.decks || []).some(d => d.cards?.includes(id)));
+      return owned.length ? { card: rnd(inDecks.length ? inDecks : owned) } : null; },
+    count: (m, played) => played.filter(id => id === m.card).length },
   sweep:   { label: () => 'Gagner une partie en remportant les 3 zones', target: 1, xp: 150, shards: 35 },
   booster: { label: () => 'Ouvrir le booster du jour', target: 1, xp: 50, shards: 10 },
 };
-export const missionLabel = m => MISSIONS[m.id]?.label(m.target, m.fam) || m.id;
+export const missionLabel = m => MISSIONS[m.id]?.label(m.target, m.fam, CARDS[m.card]?.name || m.card) || m.id;
 
 // ---- Cosmétiques ----
 export const FRAMES = {
