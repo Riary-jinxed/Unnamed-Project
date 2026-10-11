@@ -11,13 +11,15 @@ import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
-import { artBg, artHTML, terrainBg, terrainHTML } from './art.js';
+import { artBg, artHTML, portraitHTML, terrainBg, terrainHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
+import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti } from './fx.js';
+import { openPack, openChest } from './opening.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { SEASONS, PASS_TIERS, seasonOfCard, seasonStarted, releaseMonth } from '@jeu/engine/pass';
-import { ARTS, artsOf, artExists, rarityKey, rarityName } from '@jeu/engine/arts';
+import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName } from '@jeu/engine/arts';
 
 const famVar = kw => famStyle(kw[0]);
 const kwLine = d => (d.token ? 'Jeton · ' : '') + (d.kw.join(' · ') || 'Neutre');
@@ -36,7 +38,7 @@ const ui = {
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
   drag: null, fx: null, zoom: null, soloReward: null, avatars: null, friendFoe: null, rankedAi: false, rankedData: null,
-  codexQuery: '', zoomBack: null, coach: null, coachShown: null, gotArt: null,
+  codexQuery: '', zoomBack: null, coach: null, coachShown: null, gotArt: null, offline: false,
 };
 const app = document.getElementById('app');
 // Amis et défis (friends.js) : écran, bandeau de défi, choix du deck pour une partie entre amis.
@@ -53,6 +55,7 @@ const handlers = {
   onView(view, room) {
     if (room) ui.room = room;
     if (view.avatars) ui.avatars = view.avatars;
+    ui.awayUntil = (view.away || []).map(ms => (ms == null ? null : Date.now() + ms));
     const prev = ui.screen === 'game' ? ui.view : null;
     if (view.phase !== 'plan' || view.turn !== ui.lastTurn) { ui.pending = []; ui.moves = []; ui.moveSel = null; ui.genZone = null; ui.sel = null; }
     if (view.phase === 'plan' && view.turn !== ui.lastTurn) ui.msg = '';
@@ -62,7 +65,9 @@ const handlers = {
     viewEffects(prev, view);
     render();
   },
-  onError(msg) { ui.error = msg; render(); },
+  onError(msg) { ui.error = msg; ui.offline = false; render(); },
+  // Partie en ligne : connexion perdue ou retrouvée (net.js se reconnecte seul et reprend la partie).
+  onLink(ok) { ui.offline = !ok; render(); },
   // Partie contre l'IA terminée : le serveur l'enregistre et renvoie ce qu'elle a rapporté.
   onSoloOver(result) {
     if (!ui.auth) return;
@@ -85,18 +90,18 @@ function deckReady() {
 function goOnline(action) {
   if (!deckReady()) return;
   ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = false; ui.sheet = null;
-  ui.ctrl = connectOnline(handlers, action === 'create' ? { t: 'create', auth: ui.auth } : { t: 'join', room: ui.joinCode, auth: ui.auth });
+  ui.offline = false; ui.ctrl = connectOnline(handlers, action === 'create' ? { t: 'create', auth: ui.auth } : { t: 'join', room: ui.joinCode, auth: ui.auth });
 }
 // Défi accepté : on entre dans le salon réservé avec le deck choisi.
 function startFriendMatch(room, deck, foe) {
   ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = foe; ui.rankedAi = false; ui.sheet = null;
-  ui.ctrl = connectOnline(handlers, { t: 'join', room, auth: ui.auth, deck });
+  ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'join', room, auth: ui.auth, deck });
 }
 // Partie classée contre l'IA : jouée par le serveur, l'IA est plus forte à chaque palier.
 function goRanked() {
   if (!deckReady()) return;
   ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = true; ui.sheet = null; ui.lastTurn = 0;
-  ui.ctrl = connectOnline(handlers, { t: 'ranked', auth: ui.auth });
+  ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'ranked', auth: ui.auth });
 }
 function goSolo() {
   if (!deckReady()) return;
@@ -157,10 +162,18 @@ function doLogout() {
   api('POST', '/api/logout', {}, token).catch(() => {});
 }
 // Affiche les cartes reçues (booster du jour, booster ou carte achetés en boutique).
-function showCards(r) { ui.booster = r; ui.sheet = 'booster'; play('reveal'); render(); }
+// Un booster s'ouvre d'abord comme en vrai (opening.js) : paquet à déchirer, cartes retournées une à une ; le récapitulatif suit.
+function showCards(r, set = 'base') {
+  const summary = () => { ui.booster = { ...r, opened: r.cards.length > 1 }; ui.sheet = 'booster'; render(); };
+  if (r.cards.length < 2) { play('reveal'); summary(); return; }
+  const dup = `Doublon · +${shardRate()} Éclats${lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}`;
+  openPack({ title: r.title, set, setName: esc(SETS.find(x => x.id === set)?.name || ''), back: prog().back,
+    cards: r.cards.map((id, i) => ({ html: anyCard(id, myLevel(id), mySel(id)), fresh: !!r.fresh[i], general: !!GENERALS[id],
+      tag: r.fresh[i] ? (GENERALS[id] ? 'Nouveau général !' : 'Nouvelle carte !') : dup })) }, summary);
+}
 async function openBoosterNow() {
   const r = await call('POST', '/api/booster');
-  if (r) showCards(r);
+  if (r) showCards(r, SETS.find(x => x.daily)?.id);
 }
 async function openShop(tab = ui.shopTab || 'sets') {
   ui.screen = 'shop'; ui.shopTab = tab; ui.error = ''; render();
@@ -169,14 +182,17 @@ async function openShop(tab = ui.shopTab || 'sets') {
 }
 async function buy(path, body) {
   const r = await call('POST', path, body);
-  if (r) { ui.shop = r.shop; showCards(r); }
+  if (r) { ui.shop = r.shop; showCards(r, body.set); }
 }
 // Art alternatif acheté ou sorti du coffre : montré en grand, prêt à être choisi pour sa carte.
 async function buyArt(path, body) {
   const r = await call('POST', path, body);
   if (!r) return;
-  ui.shop = r.shop; ui.gotArt = { id: r.art, chest: !!r.chest }; ui.sheet = 'art'; ui.msg = '';
-  play(['epique', 'legendaire'].includes(ARTS[r.art].rarity) ? 'astral' : 'reveal'); render();
+  ui.shop = r.shop; ui.msg = '';
+  const art = ARTS[r.art], show = () => { ui.gotArt = { id: r.art, chest: !!r.chest }; ui.sheet = 'art'; render(); };
+  // Coffre : on le frappe, il s'ouvre (opening.js), puis l'art s'affiche, prêt à être choisi.
+  if (r.chest) { openChest({ rarity: art.rarity, html: artHTML(art.card, nameOf(art.card), 1, '', art.id), chip: rarChip(art), name: esc(art.name), sub: esc(nameOf(art.card)) }, show); return; }
+  play(['epique', 'legendaire'].includes(art.rarity) ? 'astral' : 'reveal'); show();
 }
 // Prismes changés en Éclats (jamais l'inverse) : demande confirmation, le change ne s'annule pas.
 async function convertPrisms() {
@@ -363,6 +379,7 @@ const hiddenCard = id => { const x = seasonOfCard(id); return !!x && !seasonStar
 function passGift(r) {
   const parts = [
     r.card ? `<button class="chip pgift" data-zoom="${zoomKey(r.card)}">Carte · ${esc(nameOf(r.card))}</button>` : '',
+    r.art && ARTS[r.art] ? `<button class="chip pgift" data-zoom="${zoomKey(ARTS[r.art].card, r.art)}">Art Promo · ${esc(ARTS[r.art].name)}</button>` : '',
     r.title ? `<span class="pgift">Titre « ${esc(TITLES[r.title] || r.title)} »</span>` : '',
     r.frame ? `<span class="pgift"><span class="frame frame-${r.frame} swatch"></span>${esc(FRAMES[r.frame] || r.frame)}</span>` : '',
     r.back ? `<span class="pgift"><span class="mc back back-${r.back}"></span>${esc(BACKS[r.back] || r.back)}</span>` : '',
@@ -404,15 +421,17 @@ function renderPass() {
   </div>
   <div class="card-box"><span class="eyebrow">Cartes uniques de la saison</span>
     <p class="hint" style="margin:0">Elles ne sortent d'aucun booster pendant la saison. Elles rejoindront le Set de base en ${esc(seasonName(releaseMonth(P.cards[0], P.cardMonths)))}.</p>
-    <div class="gallery">${P.cards.map(id => `<div class="offer"><button class="ccard" data-zoom="${zoomKey(id)}">${anyCard(id)}</button><small class="hint">Palier ${cardTier(id)}${owned(id) ? ' · obtenue ✓' : ''}</small></div>`).join('')}</div></div>
+    <div class="gallery">${P.cards.map(id => `<div class="offer"><button class="ccard" data-zoom="${zoomKey(id)}">${anyCard(id)}</button><small class="hint">Palier ${cardTier(id)}${owned(id) ? ' · obtenue ✓' : ''}</small></div>`).join('')}</div>
+    <span class="eyebrow">Arts Promo de la saison</span>
+    <p class="hint" style="margin:0">Sur la piste gratuite : on les gagne en montant les paliers.</p>
+    <div class="promos">${P.promo.map(x => { const art = ARTS[x.art];
+      return `<div class="promo ${x.got ? 'got' : ''}"><button class="ccard artthumb" data-zoom="${zoomKey(art.card, art.id)}" aria-label="Voir ${esc(art.name)} en grand">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</button>
+        <div><span class="eyebrow">Art Promo</span><b>${esc(art.name)}</b><small class="hint num">${x.got ? 'Obtenu ✓' : `Palier ${x.tier}`}</small></div></div>`; }).join('')}</div></div>
   <div class="card-box"><span class="eyebrow">Missions</span>
     <p class="hint" style="margin:0">Elles se valident toutes seules et donnent l'XP de saison qui fait monter les paliers. Chaque partie en donne aussi : ${P.xpWin} pour une victoire, ${P.xpLoss} sinon (dans la limite des parties récompensées du jour).</p>
     <div class="gal-h">Du jour</div><p class="hint" style="margin:0">Nouvelles missions chaque jour à minuit.</p>${passMissions(P.daily)}
     <div class="gal-h">De la semaine</div><p class="hint" style="margin:0">Jusqu'au ${esc(frDate(P.weekEnds))} à minuit.</p>${passMissions(P.weekly)}
     <div class="gal-h">De la saison · ${doneSeason}/${P.seasonal.length}</div><p class="hint" style="margin:0">Tout le mois pour les accomplir.</p>
-    <div class="promos">${P.promo.map(x => { const art = ARTS[x.art];
-      return `<div class="promo ${x.got ? 'got' : ''}"><button class="ccard artthumb" data-zoom="${zoomKey(art.card, art.id)}" aria-label="Voir ${esc(art.name)} en grand">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</button>
-        <div><span class="eyebrow">Art Promo</span><b>${esc(art.name)}</b><small class="hint num">${x.got ? 'Obtenu ✓' : `${Math.min(doneSeason, x.after)}/${x.after} missions de saison`}</small></div></div>`; }).join('')}</div>
     ${passMissions(P.seasonal)}</div>
   <div class="card-box"><span class="eyebrow">Paliers</span>
     <p class="hint" style="margin:0">${PASS_TIERS} paliers. Chaque palier atteint donne sa récompense tout de suite : la piste gratuite pour tous, la piste premium avec le passe premium.</p>
@@ -467,6 +486,8 @@ const mySel = id => { const x = ui.account?.artSel?.[id]; return x && ui.account
 const myArts = id => artsOf(id).filter(x => ui.account?.arts?.[x.id]);
 // Pastille de rareté (style.css, « .rar-… »).
 const rarChip = art => `<span class="rarchip rar-${rarityKey(art)}">${esc(rarityName(art))}</span>`;
+// Famille d'arts d'un art (arts.js, ART_THEMES), pour les sous-titres.
+const themeOf = art => (art.theme ? ART_THEMES[art.theme].name : '');
 async function selectArt(card, art) {
   const r = await call('PUT', '/api/arts/select', { card, art: art || null });
   if (!r) return;
@@ -481,7 +502,7 @@ function artsHTML(id) {
     <span class="artsw ${art ? `rar-${rarityKey(art)}` : ''}"></span><span><b>${esc(label)}</b>${sub ? ` <small class="hint">${sub}</small>` : ''}</span>${cur === (art?.id || null) ? '<span class="ok">✓</span>' : ''}</button>`;
   return `<div class="zacts artbox"><span class="eyebrow">Arts de la carte · ${mine.length + 1}/${all.length + 1}</span>
     <p class="hint">Purement cosmétique. Votre adversaire voit l'art choisi quand la carte est révélée.</p>
-    <div class="artopts">${opt(null, 'Illustration d\'origine', '')}${mine.map(x => opt(x, x.name, esc(rarityName(x)))).join('')}</div>
+    <div class="artopts">${opt(null, 'Illustration d\'origine', '')}${mine.map(x => opt(x, x.name, esc([rarityName(x), themeOf(x) && `famille ${themeOf(x)}`].filter(Boolean).join(' · ')))).join('')}</div>
     ${missing ? `<p class="hint">${missing} autre${missing > 1 ? 's' : ''} art${missing > 1 ? 's' : ''} à trouver en boutique${all.some(x => x.edition === 'promo' && !ui.account.arts?.[x.id]) ? ' ou en récompense' : ''}.</p>` : ''}</div>`;
 }
 
@@ -504,7 +525,7 @@ const canPlay = () => ui.view && ui.view.phase === 'plan' && !ui.view.ready.me;
 
 // ---- Rendu ----
 function miniCard(c, opts = {}) {
-  if (c.hidden) return `<div class="mc back back-${esc(badgeOf(1 - ui.view.seat)?.back || 'classique')}" aria-label="Carte cachée"></div>`;
+  if (c.hidden) return `<div class="mc back back-${esc(badgeOf(1 - ui.view.seat)?.back || 'classique')}" data-hid="${c.uid}" aria-label="Carte cachée"></div>`;
   const d = CARDS[c.id]; const pw = c.revealed ? c.power : (opts.power ?? d.power);
   const cls = c.revealed ? (pw > d.power ? 'up' : pw < d.power ? 'down' : '') : '';
   const mv = opts.mine && moveOf(c.uid);
@@ -537,14 +558,22 @@ const levelIn = (seat, id) => (seat === ui.view.seat ? myLevel(id) : badgeOf(sea
 const artIn = (seat, id) => (seat === ui.view.seat ? mySel(id) : badgeOf(seat)?.arts?.[id] || null);
 // Image de profil : envoyée une fois par le serveur en ligne ; contre l'IA, la sienne seulement.
 const avatarOf = seat => (ui.mode === 'online' ? ui.avatars?.[seat] : null) || (seat === ui.view.seat ? ui.account?.avatar : null) || null;
-// Carte du général, toujours visible à côté du joueur. La sienne brille quand elle peut être activée.
+// Carte du général, toujours visible à côté du joueur : portrait, nom, et ce qu'il fait ou peut faire maintenant.
+// La sienne brille quand elle peut être activée ; une double touche l'ouvre en grand avec son effet.
 function genSlot(side, isMe, canGen) {
-  const g = GENERALS[side.general];
-  const state = isMe && ui.genZone !== null ? 'armed' : g.activate && side.generalUsed ? 'used' : isMe && canGen ? 'ready' : '';
-  const note = state === 'armed' ? 'Activé ce tour' : state === 'used' ? 'Utilisé' : g.activate ? `Activable${g.activateCost ? ` · ${g.activateCost} sceau` : ''}` : g.kind;
-  const lv = lvCls(levelIn(isMe ? ui.view.seat : 1 - ui.view.seat, side.general));
-  return `<button class="gencard${lv} ${state}" style="${famVar([g.fam])}" data-general="${side.general}" data-side="${isMe ? 'me' : 'foe'}" aria-label="Général : ${esc(g.name)}">
-    <span class="gk">Général</span><span class="gn">${esc(g.name)}</span><span class="gs">${esc(note)}</span></button>`;
+  const g = GENERALS[side.general], seat = isMe ? ui.view.seat : 1 - ui.view.seat;
+  const state = isMe && ui.genZone !== null ? 'armed' : side.generalUsed ? 'used' : isMe && canGen ? 'ready' : '';
+  const cost = g.activateCost ? ` · ${g.activateCost} sceau${g.activateCost > 1 ? 'x' : ''}` : '';
+  const note = state === 'armed' ? 'Activé ce tour' : state === 'used' ? (g.activate ? 'Utilisé' : 'Déclenché')
+    : state === 'ready' ? `Activer${cost}` : g.activate ? `Activable${cost}` : g.kind;
+  // « Séraphine, Main de l'Aube » : le nom, puis le titre en petit. Sans virgule, le nom entier sur deux lignes.
+  const [short, epithet] = g.name.split(/,\s*/);
+  const pic = portraitHTML(side.general, artIn(seat, side.general)) || `<span class="gport-init" aria-hidden="true">${esc(short[0])}</span>`;
+  return `<button class="gencard${lvCls(levelIn(seat, side.general))} ${state}" style="${famVar([g.fam])}" data-general="${side.general}" data-side="${isMe ? 'me' : 'foe'}"
+    aria-label="Général : ${esc(g.name)}, ${esc(note)}" title="${esc(g.text)}">
+    <span class="gport">${pic}</span>
+    <span class="gtx"><span class="gk">Général</span><span class="gn ${epithet ? '' : 'two'}">${esc(short)}</span>${epithet ? `<span class="ge">${esc(epithet)}</span>` : ''}
+    <span class="gs">${g.activate ? '<i class="gdot" aria-hidden="true"></i>' : ''}${esc(note)}</span></span></button>`;
 }
 function pbar(side, isMe, connected, canGen = false) {
   const seat = isMe ? ui.view.seat : 1 - ui.view.seat, b = badgeOf(seat);
@@ -612,6 +641,7 @@ function renderGame() {
   return `
   <div class="top">${turnHTML(mode)}
     ${muteBtn()}<button class="btn" data-act="log">Journal</button><button class="btn" data-act="set">Cartes</button></div>
+  ${linkHTML(v)}
   ${pbar(f, false, v.connected[1 - v.seat])}
   <div class="board">${board}</div>
   ${pbar(m, true, true, canGen)}
@@ -620,6 +650,23 @@ function renderGame() {
   <div class="dock">${toast}<button class="btn icon" data-act="quit" aria-label="Quitter la partie" title="Quitter la partie">${QUIT_ICON}</button>${sealsHTML(seals)}
     <button class="btn primary grow" data-act="go" ${play && (ui.mode !== 'tuto' || ui.ctrl?.canSubmit(ui)) ? '' : 'disabled'}>${goLabel}</button></div>`;
 }
+// Partie en ligne : bandeau quand l'un des deux joueurs a perdu la connexion. Sa place lui est gardée, la partie reprend à son retour.
+// Au-delà de 60 secondes sans revenir, le joueur déconnecté perd par forfait : le serveur donne le temps qui reste (view.away).
+function linkHTML(v) {
+  if (ui.mode !== 'online') return '';
+  const playing = v.phase !== 'over';
+  if (ui.offline) return `<div class="link-lost" role="status">Connexion perdue, reconnexion en cours…${ui.ctrl?.queued() ? ' Votre tour partira dès le retour du réseau.' : ''}${playing ? ' Sans retour sous 60 secondes, la partie est perdue.' : ''}</div>`;
+  if (playing && !v.connected[1 - v.seat]) {
+    const until = ui.awayUntil?.[1 - v.seat];
+    return `<div class="link-lost foe" role="status">${esc(v.foe.name)} s'est déconnecté : ${until
+      ? `victoire par forfait s'il ne revient pas dans ${countdown(until)}.` : 'la partie reprend dès son retour.'}</div>`;
+  }
+  return '';
+}
+// Compte à rebours en secondes, mis à jour chaque seconde sans redessiner l'écran.
+const secsLeft = until => `${Math.max(0, Math.ceil((until - Date.now()) / 1000))} s`;
+const countdown = until => `<b class="num" data-until="${until}">${secsLeft(until)}</b>`;
+setInterval(() => document.querySelectorAll('[data-until]').forEach(el => { el.textContent = secsLeft(+el.dataset.until); }), 1000);
 // Bulle du tutoriel : à la place de l'encadré d'info, ou en haut de l'écran par-dessus une carte ouverte en grand.
 const coachHTML = (c, float = false) => `<div class="coach ${float ? 'float' : ''}" role="status" aria-live="polite"><span class="eyebrow">Tutoriel</span><p>${rich(c.text)}</p>
   ${c.info ? '<div class="row"><button class="btn primary sm" data-act="tuto-next">Suivant</button></div>' : ''}</div>`;
@@ -779,7 +826,7 @@ function artShopHTML(A) {
   if (!A) return '';
   const tile = o => { const art = ARTS[o.id];
     return `<div class="offer artoffer"><button class="ccard artthumb" data-zoom="${zoomKey(art.card, art.id)}" aria-label="Voir ${esc(art.name)} en grand">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</button>
-      <div class="artmeta">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}${owned(art.card) ? '' : ' · carte pas encore obtenue'}</small></div>
+      <div class="artmeta">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}${art.theme ? ` · famille ${esc(themeOf(art))}` : ''}${owned(art.card) ? '' : ' · carte pas encore obtenue'}</small></div>
       <button class="btn ${o.owned ? '' : 'primary'}" data-act="buy-art" data-id="${o.id}" ${o.owned || A.prisms < o.price || ui.busy ? 'disabled' : ''}>${o.owned ? 'Dans votre collection' : `Acheter · ${o.price} Prismes`}</button></div>`; };
   const rates = A.chest.rates.map(r => `<li><span class="rarchip rar-${r.rarity}">${esc(r.name)}</span><span class="num">${String(r.pct).replace('.', ',')} %</span></li>`).join('');
   return `<section class="card-box shopset artshop">
@@ -789,6 +836,10 @@ function artShopHTML(A) {
     <div class="gal-h">Arts du jour</div>
     ${A.offers.length ? `<p class="hint" style="margin:0">Choisis pour vous parmi les arts que vous n'avez pas, renouvelés chaque jour à minuit.</p>
       <div class="gallery">${A.offers.map(o => tile(o)).join('')}</div>` : '<p class="hint" style="margin:0">Vous avez tous les arts en vente. Revenez quand de nouveaux arriveront.</p>'}
+    <div class="gal-h">Familles d'arts</div>
+    <p class="hint" style="margin:0">Des arts au même thème et au même style, sur des cartes de familles différentes. Réunissez une famille pour gagner son titre.</p>
+    <ul class="artthemes">${THEME_IDS.map(t => { const all = themeArts(t), got = all.filter(x => ui.account?.arts?.[x.id]).length;
+      return all.length ? `<li class="${got === all.length ? 'done' : ''}"><b>${esc(ART_THEMES[t].name)}</b><small class="hint">${all.map(x => esc(nameOf(x.card))).join(', ')}</small><span class="num">${got}/${all.length}</span></li>` : ''; }).join('')}</ul>
     <div class="gal-h">Coffre d'arts</div>
     <div class="row chest"><div style="flex:1;display:grid;gap:6px"><p class="hint" style="margin:0">Un art que vous n'avez pas encore, au hasard. Chances selon la rareté :</p>
       ${rates ? `<ul class="rates">${rates}</ul>` : ''}</div>
@@ -964,8 +1015,9 @@ function toggleTerrain(k) {
   render();
 }
 function renderLobby() {
+  const lost = ui.offline ? '<div class="link-lost" role="status">Connexion perdue, reconnexion en cours…</div>' : '';
   if (ui.friendFoe) return `
-  <div class="top"><span class="title">Partie entre amis</span></div>
+  <div class="top"><span class="title">Partie entre amis</span></div>${lost}
   <div class="card-box" style="text-align:center;justify-items:center">
     <span class="eyebrow">Contre ${esc(ui.friendFoe)}</span>
     <p class="wait">${esc(ui.friendFoe)} choisit son deck. La partie commence dès que son choix est fait.</p>
@@ -973,7 +1025,7 @@ function renderLobby() {
   </div>`;
   const link = `${location.origin}${location.pathname}?code=${ui.room}`;
   return `
-  <div class="top"><span class="title">Partie en attente</span></div>
+  <div class="top"><span class="title">Partie en attente</span></div>${lost}
   <div class="card-box" style="text-align:center;justify-items:center">
     <span class="eyebrow">Code à donner à votre ami</span>
     <span class="code">${esc(ui.room)}</span>
@@ -1124,13 +1176,13 @@ function sheetHTML() {
     const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats${ui.booster.essence ? ` et ${ui.booster.essence} essence` : ''} gagnés avec les doublons` : '', xp ? `${xp} XP` : ''].filter(Boolean).join(', ');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${esc(title)}</h2><button class="btn" data-act="close">Fermer</button></div>
       <p class="hint" style="margin:0">${sum}.</p>
-      <div class="gallery">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats${lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}</span>`}${anyCard(id, myLevel(id), mySel(id))}</div>`).join('')}</div></div></div>`;
+      <div class="gallery ${ui.booster.opened ? 'opened' : ''}">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats${lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}</span>`}${anyCard(id, myLevel(id), mySel(id))}</div>`).join('')}</div></div></div>`;
   }
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;
     const t = r.winner === s ? 'Victoire' : r.winner < 0 ? 'Match nul' : 'Défaite';
     const reason = renderLog(r.reason, s, ui.view.names);
-    const zs = [0, 1, 2].map(z => `<div><div class="eyebrow">${ZONE_NAMES[z]}</div><b>${ui.view.me.zonePower[z]}</b> contre ${ui.view.foe.zonePower[z]}</div>`).join('');
+    const zs = [0, 1, 2].map(z => `<div class="${['', 'me', 'foe'][zoneSide(ui.view, z)]}"><div class="eyebrow">${ZONE_NAMES[z]}</div><b>${ui.view.me.zonePower[z]}</b> contre ${ui.view.foe.zonePower[z]}</div>`).join('');
     if (ui.mode === 'tuto') return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p><div class="zs">${zs}</div>
       <p style="margin:0">Tutoriel terminé : vous connaissez les bases. Le codex, dans « Apprendre » sur l'accueil, explique tous les autres mots-clés.</p><div class="row">
       <button class="btn primary" data-act="quit">Retour à l'accueil</button><button class="btn" data-act="again">Rejouer le tutoriel</button><button class="btn" data-act="codex">Ouvrir le codex</button></div></div></div>`;
@@ -1176,7 +1228,6 @@ const SPEAKER = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" str
 const QUIT_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>';
 const muteBtn = () => `<button class="btn icon" data-act="mute" aria-pressed="${isMuted()}" aria-label="${isMuted() ? 'Activer le son' : 'Couper le son'}" title="${isMuted() ? 'Activer le son' : 'Couper le son'}">${SPEAKER}${isMuted() ? '<path d="m16 9 5 6m0-6-5 6"/>' : '<path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>'}</svg></button>`;
 const cardSel = uid => `[data-card="${uid}"]`;
-const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 function cardsOf(view) {
   const m = new Map();
   for (const side of ['me', 'foe']) view[side].board.forEach((col, z) => col.forEach(c => m.set(c.uid, { ...c, side, z })));
@@ -1200,48 +1251,81 @@ function burstAt(el) {
   b.innerHTML = Array.from({ length: 12 }, (_, i) => `<i style="--r:${i * 30}deg;--d:${(i % 3) * 70}ms"></i>`).join('');
   document.body.append(b); setTimeout(() => b.remove(), 1400);
 }
+// Camp qui mène une zone : 1 pour soi, 2 pour l'adversaire, 0 à égalité.
+const zoneSide = (view, z) => { const d = view.me.zonePower[z] - view.foe.zonePower[z]; return d > 0 ? 1 : d < 0 ? 2 : 0; };
+const SIDES = ['', 'me', 'foe'];
+const turnBanner = view => (view.turn === view.turns ? ['Dernier tour', `Tour ${view.turn}`, 'last'] : [`Tour ${view.turn}`, `sur ${view.turns}`, '']);
 // Compare la vue précédente à la nouvelle : prépare les animations du prochain rendu et joue les bruitages.
+// `after` : effets posés par-dessus la table une fois le rendu fait (ils ont besoin de la place des éléments).
 function viewEffects(prev, view) {
-  const list = [], sounds = [], burst = [];
+  const list = [], sounds = [], burst = [], after = [];
   const fxOf = c => c && c.id && hasFx(levelIn(c.side === 'me' ? view.seat : 1 - view.seat, c.id));
+  const at = sel => app.querySelector(sel);
   let flip = null;
   if (!prev || view.turn < prev.turn || (prev.phase === 'over' && view.phase !== 'over')) {
     // Début de partie : la main arrive carte par carte.
     view.me.hand.forEach((c, i) => list.push([`[data-hand="${c.uid}"]`, 'drawn', i * 70]));
-    ui.fx = { list }; play('draw'); return;
+    if (view.phase === 'plan') after.push(() => banner(at('.board'), ...turnBanner(view)));
+    ui.fx = { list, after }; play('draw'); return;
   }
-  const before = cardsOf(prev), after = cardsOf(view), f = view.flash;
+  const before = cardsOf(prev), after2 = cardsOf(view), f = view.flash;
+  // Début de la révélation : les cartes cachées de l'adversaire arrivent, les siennes sont scellées.
+  if (prev.phase === 'plan' && view.phase === 'reveal') {
+    after.push(() => banner(at('.board'), 'Révélation', '', 'reveal'));
+    let i = 0;
+    for (const [uid, b] of after2) if (!before.has(uid)) list.push(b.side === 'foe' ? [`[data-hid="${uid}"]`, 'dealt', (i++) * 90] : [cardSel(uid), 'sealed']);
+    sounds.push('deal');
+  }
   if (f !== null && f !== undefined) {
-    const a = before.get(f), b = after.get(f);
+    const a = before.get(f), b = after2.get(f);
     if (!b) {
-      sounds.push('spell'); if (fxOf(a)) { burstAt(app.querySelector(cardSel(f))); sounds.push('astral'); }
+      sounds.push('spell'); if (fxOf(a)) { burstAt(at(cardSel(f))); sounds.push('astral'); }
       ghostOut(f, 'spellout'); if (a) list.push([`.zone[data-z="${a.z}"]`, 'spellcast']); }
-    else if (a && a.revealed) { sounds.push('place'); const el = app.querySelector(cardSel(f)); if (el) flip = { uid: f, rect: el.getBoundingClientRect() }; }
+    else if (a && a.revealed) { sounds.push('place'); const el = at(cardSel(f)); if (el) flip = { uid: f, rect: el.getBoundingClientRect() }; }
     else {
       sounds.push(b.side === 'me' ? 'reveal' : 'revealFoe'); list.push([cardSel(f), b.side === 'me' ? 'reveal' : 'reveal-foe']);
+      // Carte de l'adversaire : son dos se retourne d'abord, sa face apparaît ensuite.
+      if (b.side === 'foe' && at(`[data-hid="${f}"]`) && !reduceMotion()) { backFlip(at(`[data-hid="${f}"]`)); list.push([cardSel(f), 'after-back']); }
       if (fxOf(b)) { list.push([cardSel(f), 'astral-in']); burst.push(cardSel(f)); sounds.push('astral'); }
     }
   }
   let gone = false, up = false, down = false;
-  for (const [uid, a] of before) if (a.revealed && uid !== f && !after.has(uid)) { ghostOut(uid, 'shatter'); gone = true; }
-  for (const [uid, b] of after) { const a = before.get(uid);
-    if (a && a.revealed && b.revealed && a.power !== b.power && uid !== f) { const u = b.power > a.power; list.push([`${cardSel(uid)} .p`, u ? 'pup' : 'pdown']); if (u) up = true; else down = true; } }
+  for (const [uid, a] of before) if (a.revealed && uid !== f && !after2.has(uid)) { ghostOut(uid, 'shatter'); gone = true; }
+  for (const [uid, b] of after2) { const a = before.get(uid);
+    if (a && a.revealed && b.revealed && a.power !== b.power && uid !== f) {
+      const u = b.power > a.power; list.push([`${cardSel(uid)} .p`, u ? 'pup' : 'pdown']); if (u) up = true; else down = true;
+      after.push(() => floatNum(at(cardSel(uid)), b.power - a.power)); } }
   for (const side of ['me', 'foe']) for (const z of [0, 1, 2]) {
-    if (prev[side].zonePower[z] !== view[side].zonePower[z]) list.push([`.zone[data-z="${z}"] .v.${side}`, 'bump']);
+    const d = view[side].zonePower[z] - prev[side].zonePower[z];
+    if (d) { list.push([`.zone[data-z="${z}"] .v.${side}`, 'bump']); after.push(() => floatNum(at(`.zone[data-z="${z}"] .v.${side}`), d, side)); }
     if (!prev[side].terrains[z] && view[side].terrains[z]) { list.push([`.zone[data-z="${z}"] .terrain.set.${side}`, 'terrain-in']); sounds.push('terrain'); }
   }
-  if ((!prev.me.generalUsed && view.me.generalUsed) || (!prev.foe.generalUsed && view.foe.generalUsed)) sounds.push('general');
+  // Une zone change de camp pendant la révélation : elle s'illumine à la couleur de son nouveau meneur.
+  let swing = false;
+  if (view.phase !== 'over') for (const z of [0, 1, 2]) {
+    const was = zoneSide(prev, z), now = zoneSide(view, z);
+    if (now && now !== was) { swing = true; after.push(() => zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[now])); }
+  }
+  for (const side of ['me', 'foe']) if (!prev[side].generalUsed && view[side].generalUsed) {
+    sounds.push('general'); after.push(() => generalFire(at(`.pbar.${side} [data-general]`)));
+  }
+  if (!prev.ready.foe && view.ready.foe && view.phase === 'plan') list.push(['.pbar.foe .chip.ok', 'pop']);
   if (gone) sounds.push('destroy'); else if (up) sounds.push('up'); else if (down) sounds.push('down');
+  if (swing && sounds.length < 3) sounds.push('swing');
   if (view.phase === 'plan' && view.turn !== prev.turn) {
     const had = new Set(prev.me.hand.map(c => c.uid));
-    view.me.hand.filter(c => !had.has(c.uid)).forEach((c, i) => list.push([`[data-hand="${c.uid}"]`, 'drawn', i * 70]));
-    sounds.push('draw');
+    view.me.hand.filter(c => !had.has(c.uid)).forEach((c, i) => list.push([`[data-hand="${c.uid}"]`, 'drawn', 200 + i * 70]));
+    after.push(() => banner(at('.board'), ...turnBanner(view)));
+    sounds.push('turn', 'draw');
   }
   if (view.phase === 'over' && prev.phase !== 'over' && view.result) {
-    sounds.push(view.result.winner === view.seat ? 'win' : view.result.winner < 0 ? 'tie' : 'lose');
+    const win = view.result.winner === view.seat;
+    sounds.push(win ? 'win' : view.result.winner < 0 ? 'tie' : 'lose');
     list.push(['.panel.end', 'end-in']);
+    // Les zones s'allument une à une à la couleur de leur gagnant, puis les confettis en cas de victoire.
+    after.push(() => { [0, 1, 2].forEach(z => { const s = zoneSide(view, z); if (s) zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[s], z * 220, true); }); if (win) setTimeout(confetti, 450); });
   }
-  ui.fx = { list, flip, burst };
+  ui.fx = { list, flip, burst, after };
   [...new Set(sounds)].slice(0, 3).forEach((s, i) => i ? setTimeout(() => play(s), i * 110) : play(s));
 }
 // Applique une seule fois les animations préparées, sur les éléments du rendu qui vient d'avoir lieu.
@@ -1253,11 +1337,19 @@ function applyFx() {
   }
   for (const sel of fx.burst || []) burstAt(app.querySelector(sel));
   // Déplacement : la carte glisse depuis son ancienne place.
-  if (fx.flip && !reduceMotion()) {
-    const el = app.querySelector(cardSel(fx.flip.uid)); if (!el || !el.animate) return;
-    const r = el.getBoundingClientRect(), dx = fx.flip.rect.left - r.left, dy = fx.flip.rect.top - r.top;
-    el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(1.08)`, zIndex: 2 }, { transform: 'none', zIndex: 2 }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
-  }
+  if (fx.flip) flyFrom(app.querySelector(cardSel(fx.flip.uid)), fx.flip.rect, { ms: 420 });
+  // Carte posée ou reprise en main : elle vole de là où elle était jusqu'à sa nouvelle place.
+  for (const [sel, rect] of fx.fly || []) flyFrom(app.querySelector(sel), rect);
+  for (const f of fx.after || []) f();
+}
+// Place à l'écran d'un élément avant le prochain rendu (pour l'y faire voler ensuite).
+const rectOf = sel => app.querySelector(sel)?.getBoundingClientRect() || null;
+// Reprend en main une carte posée ce tour : elle revient de sa case vers la main.
+function unplace(uid) {
+  const from = rectOf(cardSel(uid));
+  ui.pending = ui.pending.filter(p => p.uid !== uid);
+  if (from) ui.fx = { list: [], fly: [[`[data-hand="${uid}"]`, from]] };
+  play('unplace');
 }
 
 // ---- Glisser-déposer (en plus du toucher) ----
@@ -1300,15 +1392,16 @@ function endDrag(e, cancel) {
   if (!drag || e.pointerId !== drag.pid) return;
   const d = drag; drag = null;
   if (!d.ghost) return;
-  d.ghost.remove(); ui.drag = null; swallowClick = true; setTimeout(() => { swallowClick = false; }, 60);
-  const over = !cancel && zoneAt(e.clientX, e.clientY);
+  ui.drag = null; swallowClick = true; setTimeout(() => { swallowClick = false; }, 60);
+  const over = !cancel && zoneAt(e.clientX, e.clientY), from = d.ghost.getBoundingClientRect();
+  d.ghost.remove();
+  // Lâchée hors d'une zone, ou dépôt refusé : la carte revient à sa place depuis l'endroit où elle a été lâchée.
+  const back = () => { ui.sel = null; ui.moveSel = null; ui.fx = { list: [], fly: [[d.kind === 'hand' ? `[data-hand="${d.uid}"]` : cardSel(d.uid), from]] }; render(); };
   if (over) {
-    tryPlace(+over.dataset.z);
-    // Dépôt refusé : la carte revient en main, le message explique pourquoi.
-    if (ui.sel === d.uid || ui.moveSel === d.uid) { ui.sel = null; ui.moveSel = null; render(); }
-  } else {
-    ui.sel = null; ui.moveSel = null; render();
-  }
+    dropRect = from; tryPlace(+over.dataset.z); dropRect = null;
+    // Dépôt refusé : le message explique pourquoi.
+    if (ui.sel === d.uid || ui.moveSel === d.uid) back();
+  } else back();
 }
 window.addEventListener('pointerup', e => endDrag(e, false));
 window.addEventListener('pointercancel', e => endDrag(e, true));
@@ -1322,6 +1415,8 @@ function doubleTap(key) {
   const now = Date.now(), dbl = lastTap && lastTap.key === key && now - lastTap.t < DOUBLE_TAP_MS;
   lastTap = dbl ? null : { key, t: now }; return dbl;
 }
+// Carte lâchée par un glisser-déposer : elle part de là où le doigt l'a lâchée.
+let dropRect = null;
 function tryPlace(z) {
   if (!canPlay()) return;
   if (ui.moveSel !== null) {
@@ -1336,7 +1431,10 @@ function tryPlace(z) {
   const d = CARDS[c.id], left = sealsLeft();
   if (freeSlots(z) <= 0) ui.msg = `La zone ${ZONE_NAMES[z]} est pleine de votre côté.`;
   else if (d.x ? left <= 0 : c.cost > left) ui.msg = d.x ? `Il ne vous reste aucun sceau pour ${d.name}.` : `Pas assez de sceaux : ${d.name} coûte ${c.cost}, il vous en reste ${left}.`;
-  else { ui.pending.push({ uid: c.uid, id: c.id, zone: z }); ui.sel = null; ui.msg = ''; ui.fx = { list: [[cardSel(c.uid), 'dropin']] }; play('place'); }
+  else {
+    const from = dropRect || rectOf(`[data-hand="${c.uid}"]`);
+    ui.pending.push({ uid: c.uid, id: c.id, zone: z }); ui.sel = null; ui.msg = '';
+    ui.fx = from && !reduceMotion() ? { list: [], fly: [[cardSel(c.uid), from]] } : { list: [[cardSel(c.uid), 'dropin']] }; play('place'); }
   if (ui.msg) { play('deny'); msgFades(); }
   render();
 }
@@ -1388,7 +1486,7 @@ app.addEventListener('click', e => {
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
       tryPlace(+ds.zone); }
-    else if (a === 'zback') { ui.pending = ui.pending.filter(p => p.uid !== ui.zoom.uid); ui.sheet = null; ui.zoom = null; ui.msg = ''; play('unplace'); render(); }
+    else if (a === 'zback') { unplace(ui.zoom.uid); ui.sheet = null; ui.zoom = null; ui.msg = ''; render(); }
     else if (a === 'zstay') { ui.moves = ui.moves.filter(m => m.uid !== ui.zoom.uid); ui.sheet = null; ui.zoom = null; play('unplace'); render(); }
     else if (a === 'log' || a === 'set' || a === 'learn') { ui.sheet = a; render(); }
     else if (a === 'play-friend') { ui.sheet = a; ui.error = ''; render(); }
@@ -1402,7 +1500,7 @@ app.addEventListener('click', e => {
     else if (a === 'copy') { const link = document.getElementById('link');
       navigator.clipboard.writeText(link.value).then(() => { t.textContent = 'Lien copié'; }).catch(() => { link.select(); }); }
     else if (a === 'go') { if (!canPlay()) return; play('validate');
-      ui.ctrl.submit({ cards: ui.pending.map(p => ({ uid: p.uid, zone: p.zone })), moves: ui.moves.slice(), general: ui.genZone }); ui.sel = null; ui.moveSel = null; }
+      ui.ctrl.submit({ cards: ui.pending.map(p => ({ uid: p.uid, zone: p.zone })), moves: ui.moves.slice(), general: ui.genZone }); ui.sel = null; ui.moveSel = null; if (ui.offline) render(); }
     // Activer le général (ou l'annuler) depuis sa carte en grand.
     else if (a === 'zgen') {
       if (!canPlay()) return;
@@ -1479,7 +1577,7 @@ app.addEventListener('click', e => {
       ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; clearTimeout(pendingTap?.timer);
       pendingTap = { uid, timer: setTimeout(() => { pendingTap = null;
         if (!canPlay() || ui.sheet || !ui.pending.some(p => p.uid === uid)) return;
-        ui.pending = ui.pending.filter(p => p.uid !== uid); ui.sel = uid; play('unplace'); render(); }, DOUBLE_TAP_MS) };
+        unplace(uid); ui.sel = uid; render(); }, DOUBLE_TAP_MS) };
       return; }
     if (ds.mobile && canPlay() && ui.sel === null && (ui.moveSel === null || ui.moveSel === uid)) {
       ui.focus = { kind: 'card', id: ds.id }; ui.msg = '';

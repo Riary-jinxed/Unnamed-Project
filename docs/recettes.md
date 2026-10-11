@@ -54,7 +54,7 @@ Une nouvelle rareté s'ajoute dans `ART_RARITIES` (nom, prix, poids) avec sa cou
 ## Préparer une saison du passe
 
 1. Les cartes uniques (2 ou 3) dans `engine.js` avec `set: 'saison'` : elles ne sortent d'aucun booster et rejoignent le Set de base `passCardMonths` mois après le début de leur saison (onglet Récompenses de `/admin`, 3 par défaut).
-2. Une entrée dans `SEASONS` (`packages/engine/src/pass.js`) : `id` (le mois, `AAAA-MM`), nom, `theme`, présentation, familles des missions, cartes, titres, cadres et dos (gratuits et premium), arts Promo et missions de saison.
+2. Une entrée dans `SEASONS` (`packages/engine/src/pass.js`) : `id` (le mois, `AAAA-MM`), nom, `theme`, présentation, familles des missions, cartes, titres, cadres et dos (gratuits et premium), arts Promo (avec leur palier sur la piste gratuite, à choisir parmi les paliers à Éclats) et missions de saison.
 3. Les arts Promo dans `ARTS` (`arts.js`) avec `edition: 'promo'` et `season` : ils restent cachés avant la saison.
 4. Le style dans `client/src/style.css` : couleurs `.theme-<theme>` (`--sa`, `--sb`), `.frame-<id>` et `.mc.back.back-<id>`.
 

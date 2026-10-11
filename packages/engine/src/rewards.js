@@ -3,6 +3,7 @@
 import { CARDS, GENERALS, FAMILIES } from './engine.js';
 import { TIERS } from './ranked.js';
 import { SEASON_TITLES, SEASON_FRAMES, SEASON_BACKS } from './pass.js';
+import { ARTS, ART_THEMES } from './arts.js';
 
 // ---- Réglages chiffrés ----
 // Les valeurs par défaut sont justifiées dans la proposition d'économie (recompenses/economie.md).
@@ -177,6 +178,9 @@ export const ACHIEVEMENTS = [
   A('art10', 'Arts alternatifs', 'Posséder 10 arts alternatifs', 'arts', 10, 300, { prisms: 10 }),
   A('art20', 'Arts alternatifs', 'Posséder 20 arts alternatifs', 'arts', 20, 600, { chests: 1, title: 'Mécène' }),
   A('artLeg', 'Arts alternatifs', 'Obtenir un art légendaire', 'legendArts', 1, 200, { prisms: 10, title: 'Œil d\'or' }),
+  // Familles d'arts (arts.js) : posséder tous les arts d'une famille.
+  ...Object.entries(ART_THEMES).map(([t, x]) => A(`theme_${t}`, 'Arts alternatifs', `Compléter la famille d'arts ${x.name}`, `artThemes.${t}`,
+    Object.values(ARTS).filter(a => a.theme === t).length, 300, { prisms: 10, title: x.title })),
   A('chest10', 'Arts alternatifs', 'Ouvrir 10 coffres d\'arts', 'chests', 10, 200, { prisms: 10 }),
   A('up1', 'Niveaux de carte', 'Monter une carte au niveau 2', 'upgraded', 1, 50, { prisms: 1 }),
   A('up10', 'Niveaux de carte', 'Monter 10 cartes au niveau 2 ou plus', 'upgraded', 10, 200, { prisms: 5 }),
