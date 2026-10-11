@@ -24,7 +24,7 @@ const ROOM_TTL_MS = 2 * 60 * 60 * 1000;
 // Joueur déconnecté en pleine partie : au-delà de ce délai sans revenir, il perd par forfait.
 const AWAY_FORFEIT_MS = 60_000;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
-  '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.ico': 'image/x-icon' };
+  '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.ico': 'image/x-icon', '.mp3': 'audio/mpeg' };
 
 const store = await openStore();
 const accounts = createAccounts(store);
@@ -49,7 +49,7 @@ async function staticFile(path) {
   try { body = await readFile(join(DIST, path)); } catch { return null; }
   const ext = extname(path);
   const file = { body, gz: COMPRESSIBLE.has(ext) && body.length > 1024 ? gzipSync(body) : null, type: MIME[ext] || 'application/octet-stream',
-    cache: path.startsWith('assets/') ? 'public, max-age=31536000, immutable' : 'no-cache' };
+    cache: path.startsWith('assets/') ? 'public, max-age=31536000, immutable' : path.startsWith('music/') ? 'public, max-age=86400' : 'no-cache' };
   files.set(path, file);
   return file;
 }
@@ -61,11 +61,20 @@ const server = http.createServer(async (req, res) => {
   let path;
   try { path = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, ''); } catch { path = '..'; }
   if (path.includes('..')) { res.writeHead(400); res.end(); return; }
-  // Adresse inconnue : l'appli (index.html) s'en charge.
-  const file = await staticFile(path || 'index.html') || await staticFile('index.html');
-  if (!file) { res.writeHead(404); res.end('Appli non compilée : lancez « npm run build ».'); return; }
+  // Adresse inconnue : l'appli (index.html) s'en charge. Sauf une musique absente : l'appli passe au morceau suivant.
+  const music = path.startsWith('music/');
+  const file = await staticFile(path || 'index.html') || (music ? null : await staticFile('index.html'));
+  if (!file) { res.writeHead(404); res.end(music ? '' : 'Appli non compilée : lancez « npm run build ».'); return; }
+  // Le lecteur audio lit les musiques par morceaux (Safari l'exige) : requête « Range: bytes=début-fin ».
+  const range = file.type.startsWith('audio/') && /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+  if (range && (range[1] || range[2])) {
+    const size = file.body.length, start = range[1] ? +range[1] : Math.max(0, size - +range[2]), end = range[1] && range[2] ? Math.min(+range[2], size - 1) : size - 1;
+    if (start >= size || start > end) { res.writeHead(416, { 'content-range': `bytes */${size}` }); res.end(); return; }
+    res.writeHead(206, { 'content-type': file.type, 'cache-control': file.cache, 'accept-ranges': 'bytes', 'content-range': `bytes ${start}-${end}/${size}` });
+    res.end(file.body.subarray(start, end + 1)); return;
+  }
   const gz = file.gz && /\bgzip\b/.test(req.headers['accept-encoding'] || '');
-  res.writeHead(200, { 'content-type': file.type, 'cache-control': file.cache, vary: 'accept-encoding', ...(gz ? { 'content-encoding': 'gzip' } : {}) });
+  res.writeHead(200, { 'content-type': file.type, 'cache-control': file.cache, vary: 'accept-encoding', ...(file.type.startsWith('audio/') ? { 'accept-ranges': 'bytes' } : {}), ...(gz ? { 'content-encoding': 'gzip' } : {}) });
   res.end(gz ? file.gz : file.body);
 });
 

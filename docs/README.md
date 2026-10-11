@@ -8,6 +8,7 @@ Ce dossier explique comment le jeu est construit, pour pouvoir le modifier sans 
 | [Moteur de règles](moteur.md) | `packages/engine` : état d'une partie, déroulé d'un tour, crochets des cartes, IA, collection, catalogue, récompenses, outils d'équilibrage. |
 | [Serveur](serveur.md) | `server` : stockage (Neon ou fichier), comptes et sessions, routes de l'API, salons en ligne et protocole WebSocket, progression, statistiques. |
 | [Appli et administration](client.md) | `client` : rendu de l'appli, écrans, partie en ligne et contre l'IA, animations, service worker, page `/admin`. |
+| [Musiques](musique.md) | Musiques d'ambiance : fichiers attendus, lecture, et [prompts Suno](prompts-suno.md) pour les créer. |
 | [Recettes](recettes.md) | Ajouter une carte, un général, un terrain, un set, une mission, un succès, une route ; vérifier qu'un changement ne casse rien. |
 
 ## En deux minutes

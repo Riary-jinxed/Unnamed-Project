@@ -13,6 +13,7 @@ export function unlockAudio() {
   const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
 }
 export const isMuted = () => muted;
+export const audioContext = () => ctx;
 export function setMuted(m) { muted = m; try { localStorage.setItem('jeu-muted', String(m)); } catch { /* stockage indisponible */ } }
 
 // Note simple avec enveloppe : fréquence de départ, arrivée éventuelle, durée, forme d'onde, volume, décalage.

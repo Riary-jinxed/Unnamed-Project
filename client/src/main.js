@@ -13,6 +13,7 @@ import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
 import { artBg, artHTML, portraitHTML, terrainBg, terrainHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
+import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
 import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti } from './fx.js';
 import { openPack, openChest } from './opening.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
@@ -972,6 +973,9 @@ function renderProfile() {
       <div class="field"><label class="eyebrow" for="profile-name">Pseudo</label><input id="profile-name" maxlength="20" value="${esc(ui.nameDraft)}"></div>
       <div class="row"><button class="btn primary" type="submit" ${ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === a.name ? 'disabled' : ''}>Enregistrer le pseudo</button></div>
     </form>
+    <div class="card-box"><div class="field"><label class="eyebrow" for="music-volume">Volume de la musique · <span id="music-pct" class="num">${Math.round(musicVolume() * 100)} %</span></label>
+      <input id="music-volume" type="range" min="0" max="100" step="5" value="${Math.round(musicVolume() * 100)}"></div>
+      ${isMuted() ? '<p class="hint" style="margin:0">Le son est coupé : touchez le haut-parleur de l\'accueil pour l\'entendre.</p>' : ''}</div>
     <div class="card-box"><div><span class="eyebrow">Statistiques</span><h2 style="font-size:22px">Victoires</h2></div>${stats}</div>`,
     collection: () => `<div class="card-box"><div><span class="eyebrow">Collection</span><h2 style="font-size:22px">${complete} set${complete > 1 ? 's' : ''} complété${complete > 1 ? 's' : ''}</h2></div>
       <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.filter(id => !hiddenCard(id)).length}, généraux compris.</p>${sets}${ui.progressInfo ? familiesHTML() : '<p class="wait">Chargement…</p>'}
@@ -1201,6 +1205,7 @@ function render() {
   ui.coach = ui.screen === 'game' && ui.mode === 'tuto' && ui.ctrl ? ui.ctrl.coach(ui) : null;
   const body = screens[ui.screen]() + (ui.screen in TABBED ? tabbar(TABBED[ui.screen]) : '');
   app.classList.toggle('ingame', ui.screen === 'game');
+  setMusic(musicFor());
   app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
   if (ui.sheet === 'rename') { const r = document.getElementById('rename-input'); if (r && document.activeElement !== r) { r.focus(); r.select(); } }
   const h2 = document.getElementById('hand'); if (h2) h2.scrollLeft = sx;
@@ -1210,6 +1215,12 @@ function render() {
   const hl = ui.coach?.hl ? [...app.querySelectorAll(ui.coach.hl)] : [];
   hl.forEach(el => el.classList.add('coach-hl'));
   if (ui.coach && ui.coach.text !== ui.coachShown) { ui.coachShown = ui.coach.text; if (hl[0] && !ui.sheet) hl[0].scrollIntoView({ block: 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' }); }
+}
+
+// Musique de l'écran : la partie ou les menus, dans la version de la saison en cours si elle existe (music.js).
+function musicFor() {
+  const scene = ui.screen === 'game' ? 'partie' : 'menu', theme = prog().pass?.theme;
+  return theme ? [`${scene}-${theme}`, scene] : [scene];
 }
 
 // ---- Animations et bruitages ----
@@ -1345,7 +1356,7 @@ function unplace(uid) {
 let drag = null, swallowClick = false;
 const zoneAt = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest('.zone.target'); };
 app.addEventListener('pointerdown', e => {
-  unlockAudio();
+  unlockAudio(); wakeMusic();
   if ((e.pointerType === 'mouse' && e.button !== 0) || !ui.view || !canPlay() || ui.screen !== 'game') return;
   const h = e.target.closest('[data-hand]'), m = e.target.closest('[data-mobile]');
   if (!h && !m) return;
@@ -1446,6 +1457,7 @@ app.addEventListener('input', e => {
   if (e.target.id === 'profile-name') { ui.nameDraft = e.target.value; const b = e.target.form?.querySelector('[type=submit]');
     if (b) b.disabled = ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === ui.account.name; }
   if (e.target.id === 'codex-q') { ui.codexQuery = e.target.value; document.getElementById('codex-list').innerHTML = codexHTML(ui.codexQuery); }
+  if (e.target.id === 'music-volume') { setMusicVolume(e.target.value / 100); document.getElementById('music-pct').textContent = `${e.target.value} %`; }
   if (e.target.id === 'code') { ui.joinCode = e.target.value.toUpperCase(); e.target.value = ui.joinCode; }
 });
 app.addEventListener('change', e => {
