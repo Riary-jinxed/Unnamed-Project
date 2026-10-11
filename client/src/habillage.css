@@ -1,0 +1,79 @@
+/* Habillage « Grimoire doré » : ce qui donne à l'appli l'allure d'un jeu plutôt que d'un site.
+   Cuir sombre et filets dorés pour les panneaux, plaques gravées pour les boutons, lingot d'or pour le bouton principal,
+   titres en Cinzel. Chargé après style.css, il ne touche qu'à l'apparence : la mise en page reste celle de style.css. */
+:root { --gold-hi: #fff3cf; --gold: #e3b552; --gold-lo: #8f5f1c; --leather: #2c2017; --leather-lo: #1c140e; --rim: #7a5a2c; }
+
+/* fond : lueur dorée en haut, braise en bas, grain de bois très léger */
+body { background:
+  radial-gradient(ellipse at 50% -10%, rgb(227 181 82 / .16), transparent 60%),
+  radial-gradient(ellipse at 50% 120%, rgb(120 40 20 / .25), transparent 60%),
+  repeating-linear-gradient(90deg, rgb(255 255 255 / .012) 0 2px, transparent 2px 7px),
+  var(--bg);
+  background-attachment: fixed; }
+
+/* titres gravés dans l'or */
+h2 { font-weight: 700; letter-spacing: .04em; color: var(--gold); }
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  h2 { background: linear-gradient(var(--gold-hi), var(--gold) 60%, #a8742a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+}
+.eyebrow { font-family: var(--display); font-weight: 700; color: #c8a66a; letter-spacing: .16em; }
+.top .title { font-weight: 700; font-size: 20px; letter-spacing: .06em; color: var(--gold-hi); text-shadow: 0 2px 0 #000, 0 0 14px rgb(227 181 82 / .35); }
+
+/* panneaux : cuir sombre bordé d'or, avec un second filet intérieur */
+.card-box, .sheet .panel, .pbar, .deckopt {
+  background: linear-gradient(180deg, var(--leather), var(--leather-lo)); border-color: var(--rim);
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px rgb(251 227 160 / .1), inset 0 20px 40px -20px rgb(251 227 160 / .12), 0 6px 18px rgb(0 0 0 / .5); }
+.card-box { position: relative; }
+.card-box::before { content: ''; position: absolute; inset: 4px; border: 1px solid rgb(227 181 82 / .16); border-radius: 3px; pointer-events: none; }
+.card-box.booster.ready, .deckopt.sel { border-color: var(--gold); box-shadow: 0 0 0 1px #000, 0 0 22px -4px var(--gold), inset 0 0 30px -10px rgb(227 181 82 / .35); }
+.pbar { border-left-width: 4px; }
+.sheet { background: rgb(8 5 3 / .75); backdrop-filter: blur(2px); }
+
+/* boutons : plaque de bronze en relief, qui s'enfonce au toucher */
+.btn { background: linear-gradient(180deg, #4a3826, #2a1e14); border-color: #8a6a3a; color: var(--ink); border-radius: 4px; font-weight: 700; text-shadow: 0 1px 0 #000;
+  box-shadow: inset 0 1px 0 rgb(255 240 200 / .25), inset 0 -2px 0 rgb(0 0 0 / .4), 0 2px 0 #000; transition: transform .08s, filter .15s, box-shadow .08s; }
+.btn:hover:not(:disabled) { filter: brightness(1.15); }
+.btn:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 1px 0 rgb(255 240 200 / .2), 0 0 0 #000; }
+.btn.on, .seg button.on { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold), inset 0 0 14px -4px var(--gold); }
+/* bouton principal : lingot d'or */
+.btn.primary { background: linear-gradient(180deg, #fff0b8 0%, #f0c25c 30%, #c8902f 70%, var(--gold-lo) 100%); color: #2a1606; border-color: #5a3a10;
+  font-family: var(--display); letter-spacing: .04em; text-shadow: 0 1px 0 rgb(255 255 255 / .5);
+  box-shadow: inset 0 1px 0 #fff8dc, inset 0 -3px 0 rgb(90 50 10 / .55), 0 0 0 1px #000, 0 4px 12px rgb(227 181 82 / .25); }
+.btn.primary:active:not(:disabled) { box-shadow: inset 0 1px 0 #fff8dc, 0 0 0 1px #000; }
+.btn.big { font-size: 20px; padding-block: 14px; }
+.seg { border-color: var(--rim); }
+.seg button { background: linear-gradient(180deg, #3a2c1e, #241a13); }
+.seg button.on { background: linear-gradient(180deg, #f0c25c, #c8902f); color: #2a1606; }
+.chip { background: #1a120c; border-color: #6a4f2a; }
+input, textarea, .field select { background: #0e0a07; border: 1px solid #6a4f2a; color: var(--ink); border-radius: 4px; box-shadow: inset 0 2px 4px #000; }
+
+/* barre d'onglets : socle de bois sombre, l'onglet actif s'illumine */
+.tabbar { background: linear-gradient(180deg, var(--leather), var(--bg)); border-top: 2px solid var(--rim); box-shadow: 0 -6px 20px rgb(0 0 0 / .6); }
+.tabbar button { font-family: "Alegreya SC", var(--display); font-size: 15px; letter-spacing: .02em; color: #cdb48a; }
+.tabbar button + button { border-left-color: rgb(122 90 44 / .5); }
+.tabbar button.on { color: var(--gold-hi); box-shadow: inset 0 3px 0 var(--gold); background: radial-gradient(ellipse at 50% 0, rgb(227 181 82 / .25), transparent 70%); text-shadow: 0 0 10px rgb(227 181 82 / .6); }
+
+/* jauges : rainure creusée, remplissage doré */
+.bar { background: #0b0806; border: 1px solid #5a4530; box-shadow: inset 0 1px 3px #000; }
+.bar > span { background: linear-gradient(90deg, var(--gold-lo), #f0c25c); }
+
+/* en partie : zones creusées dans la pierre, cartes en main bordées de bronze */
+.zone { background: linear-gradient(180deg, rgb(13 9 7 / .85), rgb(30 20 14 / .85)); border-color: #3e2e1e; box-shadow: inset 0 0 20px #000; }
+.hc { border-color: #8a6a3a; box-shadow: inset 0 0 0 1px #000, 0 3px 8px rgb(0 0 0 / .5); }
+.dock { background: linear-gradient(180deg, rgb(28 20 14 / .6), var(--leather-lo)); border-top: 1px solid var(--rim); }
+.tturn b, .tseals b { color: var(--gold-hi); }
+
+/* transitions : chaque nouvel écran se lève doucement, chaque feuille monte depuis le bas */
+#app.screen-in > :not(.sheet, .tabbar) { animation: screenin .32s cubic-bezier(.2,.8,.2,1) backwards; }
+#app.screen-in > :nth-child(2) { animation-delay: .04s; } #app.screen-in > :nth-child(3) { animation-delay: .08s; } #app.screen-in > :nth-child(n+4) { animation-delay: .12s; }
+@keyframes screenin { from { opacity: 0; transform: translateY(10px); } }
+.sheet.sheet-in { animation: sheetfade .2s ease-out; }
+.sheet.sheet-in > .panel { animation: sheetup .3s cubic-bezier(.2,.9,.3,1.1); }
+@keyframes sheetfade { from { opacity: 0; } }
+@keyframes sheetup { from { opacity: 0; transform: translateY(24px) scale(.97); } }
+@media (prefers-reduced-motion: reduce) { #app.screen-in > *, .sheet.sheet-in, .sheet.sheet-in > .panel { animation: none; } .btn { transition: none; } }
+
+/* ouverture des boosters et coffres : même fond de cuir et de braise que le reste */
+body .op { background: radial-gradient(circle at 50% 42%, #3a2a1a 0, #1a120c 55%, #080503 100%); }
+body .op .op-skip { font-family: var(--display); font-weight: 700; color: var(--ink); background: linear-gradient(180deg, #4a3826, #2a1e14); border-color: #8a6a3a; }
+body .pack-notch { background: #080503; }

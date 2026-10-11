@@ -1,5 +1,6 @@
 // Appli web : connexion, collection et deck, accueil, salon en ligne, partie (en ligne ou contre l'IA).
 import './style.css';
+import './habillage.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
 import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, allowedGenerals, allowedTerrains, starterGenerals, deckError } from '@jeu/engine/collection';
 import { api } from './api.js';
@@ -1207,6 +1208,10 @@ function render() {
   app.classList.toggle('ingame', ui.screen === 'game');
   setMusic(musicFor());
   app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
+  // Transitions (habillage.css) : seulement quand l'écran ou la feuille change, pas à chaque rafraîchissement.
+  app.classList.toggle('screen-in', ui.screen !== ui.shownScreen);
+  if (ui.sheet && ui.sheet !== ui.shownSheet) app.querySelector(':scope > .sheet')?.classList.add('sheet-in');
+  ui.shownScreen = ui.screen; ui.shownSheet = ui.sheet;
   if (ui.sheet === 'rename') { const r = document.getElementById('rename-input'); if (r && document.activeElement !== r) { r.focus(); r.select(); } }
   const h2 = document.getElementById('hand'); if (h2) h2.scrollLeft = sx;
   const lb = document.getElementById('logbox'); if (lb) lb.parentElement.scrollTop = lb.scrollHeight;

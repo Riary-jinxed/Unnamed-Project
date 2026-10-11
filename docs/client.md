@@ -12,6 +12,10 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 
 `call(méthode, chemin, corps)` appelle l'API avec la session, garde le compte renvoyé (`setAccount`), affiche l'erreur éventuelle et renvoie à l'écran de connexion si la session a expiré.
 
+## Habillage
+
+`style.css` pose la mise en page et une seule palette sombre (cuir, pierre et or), quel que soit le réglage clair ou sombre du téléphone. `habillage.css`, chargé juste après, donne l'allure de jeu « Grimoire doré » : panneaux de cuir bordés d'or, boutons en relief qui s'enfoncent au toucher, bouton principal doré, titres en Cinzel, barre d'onglets et jauges assorties. Il ne touche qu'à l'apparence : changer de style revient à remplacer ce fichier. Il porte aussi les transitions : `render()` ajoute `.screen-in` à `#app` quand l'écran change (le contenu se lève en cascade) et `.sheet-in` à la feuille qui vient de s'ouvrir (elle monte depuis le bas).
+
 ## Écrans
 
 | `ui.screen` | Fonction | Contenu |
