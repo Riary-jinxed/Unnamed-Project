@@ -2,3 +2,4 @@ node_modules
 client/dist
 server/data
 .DS_Store
+equilibrage-resultats.json

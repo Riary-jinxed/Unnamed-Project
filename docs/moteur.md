@@ -144,6 +144,9 @@ Le rang d'un joueur tient en un nombre d'étoiles `r` : 3 étoiles par division,
 ```bash
 npm run sim -- 60            # taux de victoire de chaque deck contre chaque deck (60 parties par duel)
 npm run sim -- 20 generaux   # chaque général avec le deck de sa famille, contre tous les decks
+npm run equilibrage -- decks 150     # matrice des decks sur tous les cœurs (300 parties par paire)
+npm run equilibrage -- generaux 60   # apport de chaque général face au même deck sans général (Cartographe)
+npm run equilibrage -- cartes 60     # apport de chaque carte face à une créature sans effet du même coût
 npm run eco                  # jours pour compléter un set selon la façon de jouer, puis niveaux de carte atteints
 npm run empreinte            # empreinte de 144 parties à hasard fixé (voir Recettes)
 ```
