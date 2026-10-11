@@ -1,0 +1,87 @@
+/* Habillage de l'appli : fond, panneaux, boutons et barre du bas, posés par-dessus style.css (chargé après lui).
+   Direction : un grimoire de table de jeu. Fond sombre texturé, panneaux à liseré doré et coins ornés, or pour l'action.
+   Les couleurs restent celles de style.css (--accent, --surface…) : ce fichier ne change que la matière. */
+
+:root {
+  /* Coins ornés des panneaux : une équerre dorée finie par un losange. */
+  --orn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c99a1e' stroke-width='1.2'%3E%3Cpath d='M1.5 15V5.5a4 4 0 0 1 4-4H15' opacity='.9'/%3E%3Cpath d='M5 19V8a3 3 0 0 1 3-3h11' opacity='.45'/%3E%3Cpath d='M1.5 19.5l1.6 1.6-1.6 1.6-1.6-1.6z M19.5 1.5l1.6 1.6-1.6 1.6-1.6-1.6z' fill='%23c99a1e' stroke='none'/%3E%3C/svg%3E");
+  /* Grain du fond : un bruit très léger, pour que les aplats ne fassent pas « écran plat ». */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .4 0 0 0 0 .3 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --gold-1: #f3d37a; --gold-2: #d6a440; --gold-3: #9a6a16;
+  --panel-hi: rgb(255 255 255 / .55); --panel-edge: color-mix(in srgb, var(--accent) 30%, var(--line));
+  --panel-shadow: 0 1px 2px rgb(60 40 10 / .12), 0 6px 18px -8px rgb(60 40 10 / .25);
+  --page: radial-gradient(120% 60% at 50% -10%, rgb(255 236 190 / .7), transparent 60%), linear-gradient(#efe6d3, #e4d8bf);
+  --fond: var(--fond-clair, none);
+  /* Cadres illustrés (cosmetics.js) : le trou rond fait --ring-hole de l'image de l'anneau, le portrait est réduit à --ring-fit
+     de sa place ; l'anneau dépasse donc de la place du portrait de --ring-out de chaque côté. */
+  --ring-hole: .7; --ring-fit: .88; --ring-out: calc((1 - var(--ring-fit) / var(--ring-hole)) / 2 * 100%);
+  /* Clair : un parchemin chaud plutôt que le gris bleuté. */
+  --bg: #ebe2cf; --surface: #f8f2e4; --sunk: #ddd0b4; --ink: #261d12; --muted: #6a5c47; --line: #cdbd9a;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --panel-hi: rgb(255 230 170 / .06); --panel-edge: color-mix(in srgb, var(--accent) 26%, var(--line));
+  --panel-shadow: 0 1px 0 rgb(0 0 0 / .4), 0 10px 26px -10px rgb(0 0 0 / .7);
+  --page: radial-gradient(110% 55% at 50% -12%, rgb(214 164 64 / .16), transparent 62%), radial-gradient(140% 90% at 50% 110%, rgb(70 30 90 / .28), transparent 60%), linear-gradient(#141821, #0b0e14);
+  --fond: var(--fond-sombre, none);
+  --bg: #10131a; --surface: #191e29; --sunk: #0b0e14; --line: #2c3344;
+} }
+:root[data-theme="dark"] {
+  --panel-hi: rgb(255 230 170 / .06); --panel-edge: color-mix(in srgb, var(--accent) 26%, var(--line));
+  --panel-shadow: 0 1px 0 rgb(0 0 0 / .4), 0 10px 26px -10px rgb(0 0 0 / .7);
+  --page: radial-gradient(110% 55% at 50% -12%, rgb(214 164 64 / .16), transparent 62%), radial-gradient(140% 90% at 50% 110%, rgb(70 30 90 / .28), transparent 60%), linear-gradient(#141821, #0b0e14);
+  --fond: var(--fond-sombre, none);
+  --bg: #10131a; --surface: #191e29; --sunk: #0b0e14; --line: #2c3344;
+}
+
+/* ---- Fond de page ---- */
+html { background: var(--bg); }
+body { background: var(--grain), var(--page); background-attachment: fixed; }
+/* Fond illustré (cosmetiques/fond/) : fixe, voilé pour rester derrière l'interface. */
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--fond) center / cover no-repeat; opacity: .5;
+  -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 70%, transparent); mask-image: linear-gradient(transparent, #000 18%, #000 70%, transparent); }
+
+/* ---- Titres ---- */
+h1, h2 { color: color-mix(in srgb, var(--accent) 22%, var(--ink)); }
+.top .title { letter-spacing: .04em; }
+.eyebrow { letter-spacing: .14em; }
+
+/* ---- Panneaux : liseré doré, reflet en haut, coins ornés ---- */
+.card-box, .sheet .panel { border-color: var(--panel-edge); box-shadow: var(--panel-shadow);
+  background-image: var(--orn), none, linear-gradient(180deg, var(--panel-hi), transparent 40%); background-position: top 3px left 3px, 0 0, 0 0; background-size: 16px, auto, auto; background-repeat: no-repeat; background-color: var(--surface); position: relative; }
+/* Coin droit : le même dessin, retourné. */
+.card-box::after, .sheet .panel::after { content: ""; position: absolute; top: 3px; right: 3px; width: 16px; height: 16px; background: var(--orn) center / contain no-repeat; transform: scaleX(-1); pointer-events: none; }
+.sheet .panel { border-radius: 12px; }
+.card-box.booster.ready { box-shadow: inset 0 0 0 1px var(--accent), 0 0 22px -6px color-mix(in srgb, var(--accent) 70%, transparent), var(--panel-shadow); }
+.card-box.play { border-top-width: 1px; box-shadow: inset 0 2px 0 var(--accent), var(--panel-shadow); }
+
+/* ---- Boutons ---- */
+.btn { background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 88%, #fff), var(--surface)); border-color: color-mix(in srgb, var(--accent) 18%, var(--line));
+  box-shadow: inset 0 1px 0 var(--panel-hi), 0 1px 2px rgb(0 0 0 / .18); transition: transform .08s, filter .15s, box-shadow .15s; }
+.btn:not(:disabled):active { transform: translateY(1px); }
+.btn:not(:disabled):hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.btn.primary { background: linear-gradient(180deg, var(--gold-1), var(--gold-2) 55%, color-mix(in srgb, var(--gold-2) 70%, var(--gold-3))); color: #2a1a04; border-color: var(--gold-3);
+  text-shadow: 0 1px 0 rgb(255 240 200 / .5); box-shadow: inset 0 1px 0 rgb(255 250 225 / .7), inset 0 -2px 0 rgb(120 80 10 / .25), 0 2px 8px -2px rgb(150 100 20 / .55); }
+.btn.primary:not(:disabled):hover { filter: brightness(1.06); }
+.btn:disabled { box-shadow: none; }
+.seg { border-color: var(--panel-edge); box-shadow: 0 1px 2px rgb(0 0 0 / .15); }
+.seg button.on { background: linear-gradient(180deg, var(--gold-1), var(--gold-2)); color: #2a1a04; }
+.chip { border-color: var(--panel-edge); }
+
+/* ---- Barre du bas : verre sombre, onglet actif doré ---- */
+.tabbar { background: color-mix(in srgb, var(--surface) 82%, transparent); -webkit-backdrop-filter: blur(10px) saturate(1.2); backdrop-filter: blur(10px) saturate(1.2);
+  border-top-color: var(--panel-edge); box-shadow: 0 -8px 24px -12px rgb(0 0 0 / .5); }
+.tabbar button + button { border-left-color: color-mix(in srgb, var(--line) 60%, transparent); }
+.tabbar button.on { box-shadow: none; text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent); }
+.tabbar button.on::before { content: ""; position: absolute; top: 0; left: 18%; right: 18%; height: 3px; border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, transparent, var(--gold-1), var(--gold-2), transparent); box-shadow: 0 0 10px var(--accent); }
+
+/* ---- Fiches (sheet) : voile plus sombre derrière ---- */
+.sheet { background: color-mix(in srgb, var(--sunk) 78%, transparent); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+
+/* ---- Cosmétiques ---- */
+/* Dos de carte dans la personnalisation : un peu plus grand, avec du relief. */
+.pickc .mc.back { width: 52px; height: 72px; box-shadow: 0 3px 8px -2px rgb(0 0 0 / .5); }
+.mc.back { box-shadow: inset 0 0 0 1px rgb(0 0 0 / .25); }
+/* Les anneaux illustrés dépassent du portrait : on laisse la place dans les vignettes de choix. */
+.pickc { padding-top: 14px; overflow: visible; }
+.pickc .frame { margin-block: 4px; }
