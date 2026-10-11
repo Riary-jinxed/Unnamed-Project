@@ -69,6 +69,7 @@ Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDu
 | `games.js` | `createGames(store, accounts)` : enregistre les parties (JcJ par le serveur, JcE envoyées par l'appli), calcule les stats de `/admin` et du profil. |
 | `friends.js` | `createFriends(store, accounts, salons)` : amis et demandes, présence (qui est connecté, qui est en partie), défis entre amis. |
 | `mail.js` | `createMail(store, accounts, { notify })` : courrier (messages de `/admin` à tous ou à quelques joueurs, avec récompense facultative, documents `courrier`) et codes cadeaux (document `codes`, 10 codes faux par heure au plus). Comptes : `mail = { read, got, hidden }`, `redeemed`. Routes `/api/mail…`, `/api/redeem`, `/api/admin/mail…`, `/api/admin/codes…`. |
+| `notes-maj.js` | `NOTES_MAJ` : notes de mise à jour, envoyées une seule fois dans le courrier de tous les comptes existants au premier démarrage du serveur qui les contient (`publishNotes`, identifiants retenus dans `courrier.notes`). Pour une nouvelle note : l'ajouter en fin de liste avec un identifiant nouveau. |
 | `cards.js` | `createCatalog(store, accounts)` : brouillon du catalogue, publication (refusée si elle retire une carte qu'un joueur possède), catalogue public. |
 | `index.js` | Assemble le tout, sert les fichiers, gère les salons et les WebSockets. |
 

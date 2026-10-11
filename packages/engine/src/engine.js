@@ -25,15 +25,15 @@ export const CARDS = {
                  aura: (s, t) => t.owner === s.owner && t.zone === s.zone && t !== s ? 1 : 0 },
   messagere:   { name: 'Messagère', type: 'C', cost: 2, power: 2, kw: ['Ange'], text: 'Grâce : une autre de vos créatures ici gagne +1.',
                  grace: (c, st) => { const o = creaturesAt(st, c.owner, c.zone).filter(x => x !== c); if (o.length) buff(st, pick(o), 1); } },
-  annonciatrice:{ name: 'Annonciatrice', type: 'C', cost: 2, power: 1, kw: ['Ange'], text: 'Révélation : +1 sceau au tour suivant.',
+  annonciatrice:{ name: 'Annonciatrice', type: 'C', cost: 2, power: 2, kw: ['Ange'], text: 'Révélation : +1 sceau au tour suivant.',
                  onReveal: (c, st) => { st.p[c.owner].bonusSeals++; log(st, `${who(st, c.owner)} : +1 sceau au tour suivant.`, 'up'); } },
   heraut:      { name: 'Héraut céleste', type: 'C', cost: 3, power: 3, kw: ['Ange'], text: 'Révélation : vos autres Anges gagnent +1.',
                  onReveal: (c, st) => mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)) },
   juge:        { name: 'Juge céleste', type: 'C', cost: 3, power: 4, kw: ['Ange'], text: 'Grâce : la créature adverse la plus puissante ici perd 1.',
                  grace: (c, st) => { const s = strongest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (s) buff(st, s, -1); } },
-  dominion:    { name: 'Dominion', type: 'C', cost: 4, power: 4, kw: ['Ange'], text: 'Grâce : vos autres Anges gagnent +1.',
+  dominion:    { name: 'Dominion', type: 'C', cost: 5, power: 4, kw: ['Ange'], text: 'Grâce : vos autres Anges gagnent +1.',
                  grace: (c, st) => mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)) },
-  seraphin:    { name: 'Séraphin', type: 'C', cost: 5, power: 5, kw: ['Ange'], text: 'Révélation : +1 par tour précédent où vous avez dépensé tous vos sceaux.',
+  seraphin:    { name: 'Séraphin', type: 'C', cost: 5, power: 6, kw: ['Ange'], text: 'Révélation : +1 par tour précédent où vous avez dépensé tous vos sceaux.',
                  onReveal: (c, st) => { const n = st.p[c.owner].perfectTurns; if (n) buff(st, c, n); } },
   archange:    { name: 'Archange', type: 'C', cost: 6, power: 8, kw: ['Ange'], text: 'Révélation : vos autres créatures ici gagnent +1.',
                  onReveal: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => x !== c).forEach(x => buff(st, x, 1)) },
@@ -68,8 +68,8 @@ export const CARDS = {
                  onReveal: (c, st) => horde(st, c.owner, c.zone, 2) },
   chaman:      { name: 'Chaman gobelin', type: 'C', cost: 2, power: 2, kw: ['Gobelin'], text: 'Fin de tour : votre Horde ici gagne +1.',
                  onEndTurn: (c, st) => { const h = hordeAt(st, c.owner, c.zone); if (h) buff(st, h, 1); else return false; } },
-  pyromane:    { name: 'Gobelin pyromane', type: 'C', cost: 2, power: 2, kw: ['Gobelin'], text: 'Révélation : détruisez la créature adverse la plus faible ici si sa puissance est 2 ou moins.',
-                 onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (w && power(st, w) <= 2) destroy(st, w, c.owner); } },
+  pyromane:    { name: 'Gobelin pyromane', type: 'C', cost: 2, power: 2, kw: ['Gobelin'], text: 'Révélation : détruisez la créature adverse la plus faible ici si sa puissance est 3 ou moins.',
+                 onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (w && power(st, w) <= 3) destroy(st, w, c.owner); } },
   proliferation:{ name: 'Prolifération', type: 'S', cost: 2, power: 0, kw: ['Gobelin'], text: 'Chacune de vos Hordes gagne +2.',
                  onReveal: (c, st) => hordes(st, c.owner).forEach(h => buff(st, h, 2)) },
   chef:        { name: 'Chef de bande', type: 'C', cost: 3, power: 3, kw: ['Gobelin'], text: 'Révélation : Horde 1 dans chacune de vos zones.',
@@ -92,10 +92,10 @@ export const CARDS = {
                    if (to !== null && to !== undefined && move(st, w, to)) buff(st, w, 1); } },
   rodeuse:     { name: 'Rôdeuse', type: 'C', cost: 2, power: 3, kw: ['Elfe'], mobile: true, text: 'Déplaçable. Déplacement : la créature adverse la plus faible de la zone d\'arrivée perd 1.',
                  onMove: (c, st) => { const w = weakest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (w) buff(st, w, -1); } },
-  druidesse:   { name: 'Druidesse', type: 'C', cost: 2, power: 2, kw: ['Elfe'], text: 'Révélation : déplacez une autre de vos créatures d\'ici vers une autre zone.',
+  druidesse:   { name: 'Druidesse', type: 'C', cost: 2, power: 3, kw: ['Elfe'], text: 'Révélation : déplacez une autre de vos créatures d\'ici vers une autre zone.',
                  onReveal: (c, st) => { const o = creaturesAt(st, c.owner, c.zone).filter(x => x !== c); const to = bestZone(st, c.owner, c.zone);
                    if (o.length && to !== null) move(st, weakest(st, o), to); } },
-  sentier:     { name: 'Sentier caché', type: 'S', cost: 2, power: 0, kw: ['Elfe'], text: 'Vos créatures ici deviennent Déplaçables.',
+  sentier:     { name: 'Sentier caché', type: 'S', cost: 1, power: 0, kw: ['Elfe'], text: 'Vos créatures ici deviennent Déplaçables.',
                  onReveal: (c, st) => { const o = creaturesAt(st, c.owner, c.zone); o.forEach(x => { x.mobile = true; }); if (o.length) log(st, `${o.length} créature(s) deviennent Déplaçables.`); } },
   archere:     { name: 'Archère des cimes', type: 'C', cost: 3, power: 5, kw: ['Elfe'], mobile: true, text: 'Déplaçable.' },
   canopee:     { name: 'Gardien de la canopée', type: 'C', cost: 3, power: 3, kw: ['Elfe'], text: 'Fin de tour : vos créatures qui se sont déplacées ce tour gagnent +1.',
@@ -117,7 +117,7 @@ export const CARDS = {
                  onStartTurn: (c, st) => { if (st.turn === 6 && st.p[c.owner].treasure) buff(st, c, st.p[c.owner].treasure); } },
   drake:       { name: 'Drake avide', type: 'C', cost: 3, power: 3, kw: ['Dragon'], text: 'Révélation : +1 par tranche de 2 de votre Trésor.',
                  onReveal: (c, st) => { const n = half(st.p[c.owner].treasure); if (n) buff(st, c, n); } },
-  souffle:     { name: 'Souffle de feu', type: 'S', cost: 3, power: 0, kw: ['Dragon'], text: 'Les créatures adverses ici perdent 1.',
+  souffle:     { name: 'Souffle de feu', type: 'S', cost: 2, power: 0, kw: ['Dragon'], text: 'Les créatures adverses ici perdent 1.',
                  onReveal: (c, st) => creaturesAt(st, 1 - c.owner, c.zone).forEach(x => buff(st, x, -1)) },
   wyverne:     { name: 'Wyverne', type: 'C', cost: 4, power: 5, kw: ['Dragon'], text: 'Révélation : +3 si vous avez un autre Dragon en jeu.',
                  onReveal: (c, st) => { if (mine(st, c.owner).some(x => x !== c && hasKw(x, 'Dragon'))) buff(st, c, 3); } },
@@ -127,7 +127,7 @@ export const CARDS = {
                  self: (c, st) => Math.floor(st.p[c.owner].treasure / 3) },
   ancien:      { name: 'Dragon ancien', type: 'C', cost: 6, power: 9, kw: ['Dragon'], text: 'Coûte 1 de moins par tranche de 3 de votre Trésor.',
                  costFn: (st, p) => -Math.floor(st.p[p].treasure / 3) },
-  dragon_or:   { name: 'Dragon d\'or', type: 'C', cost: 7, power: 12, kw: ['Dragon'], text: 'Coûte 1 de moins par tranche de 3 de votre Trésor.',
+  dragon_or:   { name: 'Dragon d\'or', type: 'C', cost: 7, power: 11, kw: ['Dragon'], text: 'Coûte 1 de moins par tranche de 3 de votre Trésor.',
                  costFn: (st, p) => -Math.floor(st.p[p].treasure / 3) },
 
   // NEUTRES
@@ -157,7 +157,7 @@ export const CARDS = {
                  self: (c, st) => half(st.p[c.owner].discard.length) },
   seigneur_os: { set: 'set2', name: 'Seigneur des os', type: 'C', cost: 6, power: 8, kw: ['Mort-vivant'], text: 'Révélation : Défausse 2, puis vos autres Morts-vivants en jeu gagnent +2.',
                  onReveal: (c, st) => { discardFromHand(st, c.owner, 2); mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Mort-vivant')).forEach(x => buff(st, x, 2)); } },
-  danse_macabre:{ set: 'set2', name: 'Danse macabre', type: 'S', cost: 1, power: 0, kw: ['Mort-vivant'], text: 'Défausse 2, puis piochez 2 cartes.',
+  danse_macabre:{ set: 'set2', name: 'Danse macabre', type: 'S', cost: 2, power: 0, kw: ['Mort-vivant'], text: 'Défausse 2, puis piochez 2 cartes.',
                  onReveal: (c, st) => { discardFromHand(st, c.owner, 2); draw(st, c.owner, 2, true); } },
   reanimation: { set: 'set2', name: 'Réanimation', type: 'S', cost: 2, power: 0, kw: ['Mort-vivant'], text: 'Exhumation ici de la créature la plus puissante de votre défausse.',
                  onReveal: (c, st) => exhume(st, c.owner, c.zone) },
@@ -332,12 +332,12 @@ export const CARDS = {
 // ---- Généraux : rattachés à une famille pour le thème, sans restreindre le deck ----
 // kind : texte affiché ; activate + needsZone : effet activable une fois par partie ; activateCost : sceaux dépensés.
 export const GENERALS = {
-  seraphine: { name: 'Séraphine, Main de l\'Aube', fam: 'Ange', kind: 'Activable', activateCost: 1,
-               text: 'Activable, une fois par partie, coûte 1 sceau : si vous avez 0 sceau à la fin du tour, vos créatures qui déclenchent un effet de fin de tour gagnent +1.',
+  seraphine: { name: 'Séraphine, Main de l\'Aube', fam: 'Ange', kind: 'Activable',
+               text: 'Activable, une fois par partie : si vous avez 0 sceau à la fin du tour, vos créatures qui déclenchent un effet de fin de tour gagnent +2.',
                activate: (p, st) => { st.p[p].angelBoost = st.turn; } },
   aurelia:   { name: 'Aurélia, Gardienne du Serment', fam: 'Ange', kind: 'Fin de partie',
-               text: 'Fin de partie : si vous avez dépensé tous vos sceaux à chaque tour, vos zones perdantes gagnent +2.',
-               onEndGame: (p, st) => { if (st.p[p].perfectTurns >= TURNS) [0, 1, 2].forEach(z => { if (zonePower(st, p, z) < zonePower(st, 1 - p, z)) addZone(st, p, z, 2); }); } },
+               text: 'Fin de partie : si vous avez dépensé tous vos sceaux à au moins 5 tours, vos zones perdantes gagnent +2.',
+               onEndGame: (p, st) => { if (st.p[p].perfectTurns >= 5) [0, 1, 2].forEach(z => { if (zonePower(st, p, z) < zonePower(st, 1 - p, z)) addZone(st, p, z, 2); }); } },
   morgrath:  { name: 'Morgrath, Seigneur des Fosses', fam: 'Démon', kind: 'Persistant',
                text: 'Quand une de vos créatures est détruite, une zone adjacente gagne +1.',
                onAllyDestroyed: (p, st, dead, z) => { const adj = z === 1 ? [0, 2] : [1];
@@ -380,18 +380,19 @@ export const GENERALS = {
                text: 'Quand une carte est défaussée de votre main, votre zone la plus faible gagne +1.',
                onDiscard: (p, st) => addZone(st, p, [0, 1, 2].reduce((a, b) => margin(st, p, b) < margin(st, p, a) ? b : a), 1) },
   ossa:      { set: 'set2', name: 'Ossa la Nécromancienne', fam: 'Mort-vivant', kind: 'Activable', needsZone: true,
-               text: 'Activable, une fois par partie : Exhumation, dans la zone choisie, de la créature la plus puissante de votre défausse ; elle gagne +2.',
-               activate: (p, st, z) => { const c = exhume(st, p, z); if (c) buff(st, c, 2); } },
+               text: 'Activable, une fois par partie : Exhumation, dans la zone choisie, de la créature la plus puissante de votre défausse (à défaut, la première créature de votre deck est invoquée) ; elle gagne +2.',
+               activate: (p, st, z) => { let c = exhume(st, p, z); if (!c && free(st, p, z) > 0) { const i = st.p[p].deck.findIndex(isCreature); if (i >= 0) { [c] = st.p[p].deck.splice(i, 1); enter(st, c, z); } } if (c) buff(st, c, 2); } },
   valdric:   { set: 'set2', name: 'Comte Valdric', fam: 'Vampire', kind: 'Fin de tour',
-               text: 'Fin de tour : si vous avez révélé un Vampire ce tour, Drain 1 sur une créature au hasard de la main adverse, au profit de votre Vampire le plus faible.',
-               onEndTurn: (p, st) => { const v = mine(st, p).filter(x => hasKw(x, 'Vampire')); if (v.some(x => x.enteredTurn === st.turn)) drainHand(st, weakest(st, v), 1, 1); } },
+               text: 'Fin de tour, 3 fois par partie : si vous avez révélé un Vampire ce tour, Drain 1 sur une créature au hasard de la main adverse, au profit de votre Vampire le plus faible.',
+               onEndTurn: (p, st) => { const P = st.p[p], v = mine(st, p).filter(x => hasKw(x, 'Vampire'));
+                 if ((P.generalUses || 0) < 3 && v.some(x => x.enteredTurn === st.turn)) { P.generalUses = (P.generalUses || 0) + 1; drainHand(st, weakest(st, v), 1, 1); } } },
   carmilla:  { set: 'set2', name: 'Dame Carmilla', fam: 'Vampire', kind: 'Activable', needsZone: true,
-               text: 'Activable, une fois par partie : Drain 1 sur chaque créature adverse de la zone choisie, au profit de votre Vampire le plus faible de cette zone.',
+               text: 'Activable, une fois par partie : Drain 2 sur chaque créature adverse de la zone choisie, au profit de votre Vampire le plus faible de cette zone.',
                activate: (p, st, z) => { const v = weakest(st, creaturesAt(st, p, z).filter(x => hasKw(x, 'Vampire')));
-                 creaturesAt(st, 1 - p, z).forEach(x => drain(st, v, x, 1)); } },
+                 creaturesAt(st, 1 - p, z).forEach(x => drain(st, v, x, 2)); } },
   gorbag:    { set: 'set2', name: 'Gorbag le Ripailleur', fam: 'Gobelin', kind: 'Début de tour',
-               text: 'Début de tour : Festin 1 dans la zone où vous êtes le plus en retard.',
-               onStartTurn: (p, st) => { const zs = [0, 1, 2].filter(z => free(st, p, z) > 0 || feastAt(st, p, z)); if (!zs.length) return;
+               text: 'Début de tour, aux tours pairs : Festin 1 dans la zone où vous êtes le plus en retard.',
+               onStartTurn: (p, st) => { if (st.turn % 2) return; const zs = [0, 1, 2].filter(z => free(st, p, z) > 0 || feastAt(st, p, z)); if (!zs.length) return;
                  feast(st, p, zs.reduce((a, b) => margin(st, p, b) < margin(st, p, a) ? b : a), 1); } },
   ophaniel:  { set: 'set2', name: 'Ophaniel, Voix des Cieux', fam: 'Ange', kind: 'Persistant',
                text: 'Quand vous piochez un Ange en dehors de la pioche du début de tour, il gagne +1.',
@@ -406,8 +407,9 @@ export const GENERALS = {
                text: 'Quand vous révélez un sort, votre zone où il est joué gagne +2.',
                onSpell: (p, st, z) => addZone(st, p, z, 2) },
   intendant: { set: 'set2', name: 'L\'Intendant', fam: null, kind: 'Début de partie',
-               text: 'Début de partie : +1 sceau au premier tour.',
-               onStart: (p, st) => { st.p[p].bonusSeals++; } },
+               text: 'Début de partie : +1 sceau aux deux premiers tours.',
+               onStart: (p, st) => { st.p[p].bonusSeals++; },
+               onStartTurn: (p, st) => { if (st.turn === 1) st.p[p].bonusSeals++; } },
 };
 
 // ---- Terrains ----
@@ -866,7 +868,7 @@ export function endTurn(st) {
   for (const p of [st.leader, 1 - st.leader]) {
     const P = st.p[p];
     P.terrains.forEach((t, z) => { if (t && TERRAINS[t].onEndTurn) TERRAINS[t].onEndTurn(p, st, z); });
-    if (P.angelBoost === st.turn && P.seals === 0) [...fired].filter(c => c.owner === p && stillThere(st, c)).forEach(c => buff(st, c, 1));
+    if (P.angelBoost === st.turn && P.seals === 0) [...fired].filter(c => c.owner === p && stillThere(st, c)).forEach(c => buff(st, c, 2));
     if (P.returnMoves === st.turn) movedThisTurn(st, p).forEach(c => { if (c.turnStartZone !== undefined && c.turnStartZone !== c.zone) move(st, c, c.turnStartZone); });
     const g = GENERALS[P.general]; if (g.onEndTurn) g.onEndTurn(p, st);
   }
