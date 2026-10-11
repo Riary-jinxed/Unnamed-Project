@@ -52,6 +52,7 @@ const handlers = {
   onView(view, room) {
     if (room) ui.room = room;
     if (view.avatars) ui.avatars = view.avatars;
+    ui.awayUntil = (view.away || []).map(ms => (ms == null ? null : Date.now() + ms));
     const prev = ui.screen === 'game' ? ui.view : null;
     if (view.phase !== 'plan' || view.turn !== ui.lastTurn) { ui.pending = []; ui.moves = []; ui.moveSel = null; ui.genZone = null; ui.sel = null; }
     if (view.phase === 'plan' && view.turn !== ui.lastTurn) ui.msg = '';
@@ -628,12 +629,22 @@ function renderGame() {
     <button class="btn primary grow" data-act="go" ${play && (ui.mode !== 'tuto' || ui.ctrl?.canSubmit(ui)) ? '' : 'disabled'}>${goLabel}</button></div>`;
 }
 // Partie en ligne : bandeau quand l'un des deux joueurs a perdu la connexion. Sa place lui est gardée, la partie reprend à son retour.
+// Au-delà de 60 secondes sans revenir, le joueur déconnecté perd par forfait : le serveur donne le temps qui reste (view.away).
 function linkHTML(v) {
   if (ui.mode !== 'online') return '';
-  if (ui.offline) return `<div class="link-lost" role="status">Connexion perdue, reconnexion en cours…${ui.ctrl?.queued() ? ' Votre tour partira dès le retour du réseau.' : ''}</div>`;
-  if (v.phase !== 'over' && !v.connected[1 - v.seat]) return `<div class="link-lost foe" role="status">${esc(v.foe.name)} s'est déconnecté : la partie reprend dès son retour.</div>`;
+  const playing = v.phase !== 'over';
+  if (ui.offline) return `<div class="link-lost" role="status">Connexion perdue, reconnexion en cours…${ui.ctrl?.queued() ? ' Votre tour partira dès le retour du réseau.' : ''}${playing ? ' Sans retour sous 60 secondes, la partie est perdue.' : ''}</div>`;
+  if (playing && !v.connected[1 - v.seat]) {
+    const until = ui.awayUntil?.[1 - v.seat];
+    return `<div class="link-lost foe" role="status">${esc(v.foe.name)} s'est déconnecté : ${until
+      ? `victoire par forfait s'il ne revient pas dans ${countdown(until)}.` : 'la partie reprend dès son retour.'}</div>`;
+  }
   return '';
 }
+// Compte à rebours en secondes, mis à jour chaque seconde sans redessiner l'écran.
+const secsLeft = until => `${Math.max(0, Math.ceil((until - Date.now()) / 1000))} s`;
+const countdown = until => `<b class="num" data-until="${until}">${secsLeft(until)}</b>`;
+setInterval(() => document.querySelectorAll('[data-until]').forEach(el => { el.textContent = secsLeft(+el.dataset.until); }), 1000);
 // Bulle du tutoriel : à la place de l'encadré d'info, ou en haut de l'écran par-dessus une carte ouverte en grand.
 const coachHTML = (c, float = false) => `<div class="coach ${float ? 'float' : ''}" role="status" aria-live="polite"><span class="eyebrow">Tutoriel</span><p>${rich(c.text)}</p>
   ${c.info ? '<div class="row"><button class="btn primary sm" data-act="tuto-next">Suivant</button></div>' : ''}</div>`;

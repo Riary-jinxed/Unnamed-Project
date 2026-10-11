@@ -146,7 +146,7 @@ Messages JSON, champ `t` pour le type.
 | Du serveur | Contenu |
 | --- | --- |
 | `lobby` | `{ room, seat, token, names }` |
-| `state` | `{ room, view }` : `viewFor` + `flash` (carte à animer), `ready`, `names`, `connected`, `badges` (titre, cadre, dos, niveau, et `looks` : niveau des cartes du deck joué ; pour l'adversaire, seulement son général et les cartes qu'il a déjà révélées, voir `shownBadge`), `avatars` (images de profil, seulement dans le premier message de la partie ou après une reconnexion), `reward` (fin de partie) |
+| `state` | `{ room, view }` : `viewFor` + `flash` (carte à animer), `ready`, `names`, `connected`, `badges` (titre, cadre, dos, niveau, et `looks` : niveau des cartes du deck joué ; pour l'adversaire, seulement son général et les cartes qu'il a déjà révélées, voir `shownBadge`), `away` (par siège : millisecondes avant le forfait d'un joueur déconnecté, sinon `null`), `avatars` (images de profil, seulement dans le premier message de la partie ou après une reconnexion), `reward` (fin de partie) |
 | `error` | `{ msg }` (session expirée, deck injouable, code inconnu, salon complet) |
 | `gone`, `left` | Salon expiré, adversaire parti |
 
