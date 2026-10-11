@@ -7,6 +7,7 @@ import { pick, CARDS, GENERALS } from '@jeu/engine';
 import { ART_RARITIES, RARITY_IDS } from '@jeu/engine/arts';
 import { createProgress } from './progress.js';
 import { createArts } from './arts.js';
+import { createActivity } from './activity.js';
 
 const MAX_SESSIONS = 10;
 // scrypt en asynchrone : le calcul (volontairement lent) ne bloque pas les parties en cours pendant une connexion.
@@ -74,7 +75,7 @@ export function createAccounts(store) {
   // Un compte désactivé n'a plus de session valable.
   const byToken = token => { const login = sessions.get(String(token || '')); const a = login && store.get(login); return a && !a.disabled ? a : null; };
   const cfg = () => ({ ...DEFAULT_SETTINGS, ...store.doc('jeu') });
-  const progress = createProgress(store), arts = createArts(store, cfg);
+  const progress = createProgress(store), arts = createArts(store, cfg), activity = createActivity(store);
   // Version du catalogue de cartes publié : l'appli recharge les cartes quand elle change.
   let catalogVersion = 0;
   // Courrier (mail.js) : messages non lus ou récompenses à récupérer, pour la pastille de l'accueil.
@@ -130,6 +131,7 @@ export function createAccounts(store) {
     const got = add(a, cards);
     a.lastBooster = today();
     progress.onBooster(a);
+    activity.count('boosterDaily');
     await store.put(a);
     return { title: 'Booster du jour', cards, ...got, account: me(a) };
   }
@@ -164,6 +166,7 @@ export function createAccounts(store) {
     if (day.bought.includes(card) || a.cards[card]) throw new HttpError(409, 'Vous possédez déjà cette carte.');
     pay(a, cfg().cardPrice);
     day.bought.push(card);
+    activity.count('cardsBought');
     const got = add(a, [card]);
     await store.put(a);
     return { title: 'Achat', cards: [card], ...got, shop: shopView(a), account: me(a) };
@@ -177,6 +180,7 @@ export function createAccounts(store) {
       a.freeBoosters--;
     } else pay(a, c.boosterPrice);
     const cards = Array.from({ length: c.boosterSize }, () => pick(set.cards)), got = add(a, cards);
+    activity.count(free ? 'boosterFree' : 'boosterBought');
     await store.put(a);
     return { title: `${free ? 'Booster offert' : 'Booster'} ${set.name}`, cards, ...got, shop: shopView(a), account: me(a) };
   }
@@ -188,6 +192,7 @@ export function createAccounts(store) {
   async function buyArt(a, body) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
     const art = arts.buy(a, body || {}, payPrisms);
+    activity.count('artsBought');
     progress.check(a);
     await store.put(a);
     return { art: art.id, shop: shopView(a), account: me(a) };
@@ -197,6 +202,7 @@ export function createAccounts(store) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
     const art = arts.chest(a, free ? useFreeChest : payPrisms);
     a.stats.chests = (a.stats.chests || 0) + 1;
+    activity.count('chests');
     progress.check(a);
     await store.put(a);
     return { art: art.id, chest: true, shop: shopView(a), account: me(a) };
@@ -411,7 +417,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, arts, giveReward, setMailCount: f => { mailCount = f; }, passView, buyPass, buyArt, openChest, convertPrisms, claimDay, selectArt, adminArt, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, passView, buyPass, buyArt, openChest, convertPrisms, claimDay, selectArt, adminArt, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -490,6 +496,7 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
         if (given.length !== want.length || !timingSafeEqual(given, want)) throw new HttpError(401, 'Clé d\'administration incorrecte.');
       } else if (key !== 'POST /api/login' && !open.includes(key)) {
         acc = accounts.byToken(token); if (!acc) throw new HttpError(401, 'Session expirée : reconnectez-vous.');
+        accounts.activity.seen(acc);
       }
       let body = {};
       if (req.method !== 'GET') {

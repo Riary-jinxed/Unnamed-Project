@@ -42,6 +42,10 @@
     .crow .tags { display: flex; flex-direction: column; gap: 4px; align-items: end; }
     .chip.warn { color: var(--accent); border-color: var(--accent); }
     .card-box.draft { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+    .bars { display: flex; align-items: flex-end; gap: 2px; height: 90px; border-bottom: 1px solid var(--line); }
+    .bars span { flex: 1; min-width: 1px; height: max(var(--h), 1px); background: var(--accent); border-radius: 4px 4px 0 0; }
+    .bars span:hover { background: var(--ink); }
+    .bars-axis { justify-content: space-between; margin: 2px 0 8px; }
     .check { display: inline-flex; gap: 6px; align-items: center; }
   </style>
 </head>

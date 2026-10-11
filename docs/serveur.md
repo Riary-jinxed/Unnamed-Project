@@ -28,6 +28,7 @@ Documents de la table `reglages` :
 | `recompenses` | onglet Récompenses | Valeurs qui remplacent `DEFAULT_REWARDS` (dont le calendrier : `loginShards`, `loginChests`, `loginPrisms` ; le passe de saison : `pass…`), missions, Éclats, Prismes et coffres des succès, objectifs des missions du passe (`passPool`) et missions de saison (`passMissions`). |
 | `brouillon` | onglets Cartes et Sets | Catalogue en cours de modification. |
 | `catalogue` | « Publier dans le jeu » | Catalogue publié, appliqué au moteur. |
+| `compteurs` | `activity.js` | Par jour (`AAAA-MM-JJ`, heure de Paris, 400 jours au plus) : boosters du jour, achetés et offerts ouverts, cartes du jour achetées, coffres d'arts ouverts, arts achetés. Pour l'onglet Stats. |
 
 ## Compte joueur
 
@@ -57,6 +58,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `friends`, `friendsIn`, `friendsOut` | Identifiants des amis, des demandes reçues et des demandes envoyées (100 amis au plus). |
 | `seasonPass` | Passe de saison du mois : `{ season, xp, premium, free, prem, day, week, sm, done }` (XP de saison, premium acheté, derniers paliers donnés sur chaque piste, missions du jour et de la semaine, avancement et missions de saison accomplies, `bonus` : coffres de fin de passe ouverts). Repart à zéro chaque saison. |
 | `ranked` | Mode classé : `{ season, r, best, games, wins, streak }` (saison `AAAA-MM`, rang en étoiles, meilleur rang de la saison, parties, victoires et série en classé). |
+| `activeDays` | Derniers jours (90 au plus) où le joueur a utilisé l'appli connecté, ajoutés à sa première requête du jour. Pour l'onglet Stats ; jamais remis à zéro. |
 
 Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDuplicates`, `migrateDecks`, `grantStarterGenerals`, `progress.init`) ; rien n'est jamais supprimé de la base par ces mises à niveau.
 
@@ -67,6 +69,7 @@ Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDu
 | `accounts.js` | `createAccounts(store)` : sessions, connexion, deck de départ, booster quotidien, boutique, decks, profil, administration des comptes et de la boutique. `apiHandler` : le routeur de l'API. |
 | `progress.js` | `createProgress(store)` : XP et niveaux, missions, succès, complétions, cosmétiques, rang classé et saisons, réglages des récompenses. Appelé par `accounts.js` (nouvelles cartes, booster, fin de partie). |
 | `games.js` | `createGames(store, accounts)` : enregistre les parties (JcJ par le serveur, JcE envoyées par l'appli), calcule les stats de `/admin` et du profil. |
+| `activity.js` | `createActivity(store)` : jours d'activité des joueurs (`seen`, appelé par le routeur), compteurs du jour (`count`, appelé par `accounts.js`), et leur synthèse pour l'onglet Stats (`stats`). |
 | `friends.js` | `createFriends(store, accounts, salons)` : amis et demandes, présence (qui est connecté, qui est en partie), défis entre amis. |
 | `mail.js` | `createMail(store, accounts, { notify })` : courrier (messages de `/admin` à tous ou à quelques joueurs, avec récompense facultative, documents `courrier`) et codes cadeaux (document `codes`, 10 codes faux par heure au plus). Comptes : `mail = { read, got, hidden }`, `redeemed`. Routes `/api/mail…`, `/api/redeem`, `/api/admin/mail…`, `/api/admin/codes…`. |
 | `notes-maj.js` | `NOTES_MAJ` : notes de mise à jour, envoyées une seule fois dans le courrier de tous les comptes existants au premier démarrage du serveur qui les contient (`publishNotes`, identifiants retenus dans `courrier.notes`). Pour une nouvelle note : l'ajouter en fin de liste avec un identifiant nouveau. |
@@ -126,7 +129,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `GET/POST /api/admin/settings` | Réglages de la boutique, prix des arts alternatifs compris (`renew: true` renouvelle les offres de tous). |
 | `GET /api/admin/arts`, `POST /api/admin/account/art` | Catalogue des arts avec le nombre de joueurs qui les ont ; donner (`give: true`, pour les Promo) ou retirer un art à un compte. |
 | `GET/POST /api/admin/rewards` | Réglages des récompenses (`reset: true` revient aux valeurs par défaut). |
-| `GET /api/admin/stats?mode=&days=` | Stats des parties (`all`, `pvp`, `pve` ; sur N jours, 0 = tout). |
+| `GET /api/admin/stats?mode=&days=` | Stats des parties (`all`, `pvp`, `pve` ; sur N jours, 0 = tout), plus `activity` : comptes, joueurs actifs (aujourd'hui, 7 et 30 jours), compteurs de la période et courbe par jour (joueurs actifs, boosters ouverts). |
 | `GET/PUT /api/admin/catalog`, `POST …/publish`, `POST …/discard` | Brouillon du catalogue, publication, abandon du brouillon. |
 
 ## Parties en ligne (WebSocket `/ws`)
