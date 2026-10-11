@@ -55,7 +55,8 @@ export const ARTS = Object.fromEntries([
   A('grand_chef_totem', 'grand_chef', 'Grand-chef du totem', 'epique'),
   // Elfes
   A('sylvaen_automne', 'sylvaen', 'Sylvaën d\'automne', 'rare', { theme: 'saisons' }),
-  A('lirael_tempete', 'lirael', 'Lirael dans la tempête', 'epique', { theme: 'eclipse' }),
+  A('lirael_tempete', 'lirael', 'Lirael dans la tempête', 'epique'),
+  A('rodeuse_eclipse', 'rodeuse', 'Rôdeuse de l\'éclipse', 'rare', { theme: 'eclipse' }),
   A('lirael_vitrail', 'lirael', 'Lirael en vitrail', 'rare', { theme: 'vitraux' }),
   A('feu_follet_lanterne', 'feu_follet', 'Feu follet des lanternes', 'rare'),
   A('reine_couronne_fleurs', 'reine', 'Reine aux mille fleurs', 'legendaire', { theme: 'saisons' }),
