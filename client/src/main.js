@@ -11,7 +11,7 @@ import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
-import { artBg, artHTML, terrainBg, terrainHTML } from './art.js';
+import { artBg, artHTML, portraitHTML, terrainBg, terrainHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
@@ -541,14 +541,22 @@ const levelIn = (seat, id) => (seat === ui.view.seat ? myLevel(id) : badgeOf(sea
 const artIn = (seat, id) => (seat === ui.view.seat ? mySel(id) : badgeOf(seat)?.arts?.[id] || null);
 // Image de profil : envoyée une fois par le serveur en ligne ; contre l'IA, la sienne seulement.
 const avatarOf = seat => (ui.mode === 'online' ? ui.avatars?.[seat] : null) || (seat === ui.view.seat ? ui.account?.avatar : null) || null;
-// Carte du général, toujours visible à côté du joueur. La sienne brille quand elle peut être activée.
+// Carte du général, toujours visible à côté du joueur : portrait, nom, et ce qu'il fait ou peut faire maintenant.
+// La sienne brille quand elle peut être activée ; une double touche l'ouvre en grand avec son effet.
 function genSlot(side, isMe, canGen) {
-  const g = GENERALS[side.general];
-  const state = isMe && ui.genZone !== null ? 'armed' : g.activate && side.generalUsed ? 'used' : isMe && canGen ? 'ready' : '';
-  const note = state === 'armed' ? 'Activé ce tour' : state === 'used' ? 'Utilisé' : g.activate ? `Activable${g.activateCost ? ` · ${g.activateCost} sceau` : ''}` : g.kind;
-  const lv = lvCls(levelIn(isMe ? ui.view.seat : 1 - ui.view.seat, side.general));
-  return `<button class="gencard${lv} ${state}" style="${famVar([g.fam])}" data-general="${side.general}" data-side="${isMe ? 'me' : 'foe'}" aria-label="Général : ${esc(g.name)}">
-    <span class="gk">Général</span><span class="gn">${esc(g.name)}</span><span class="gs">${esc(note)}</span></button>`;
+  const g = GENERALS[side.general], seat = isMe ? ui.view.seat : 1 - ui.view.seat;
+  const state = isMe && ui.genZone !== null ? 'armed' : side.generalUsed ? 'used' : isMe && canGen ? 'ready' : '';
+  const cost = g.activateCost ? ` · ${g.activateCost} sceau${g.activateCost > 1 ? 'x' : ''}` : '';
+  const note = state === 'armed' ? 'Activé ce tour' : state === 'used' ? (g.activate ? 'Utilisé' : 'Déclenché')
+    : state === 'ready' ? `Activer${cost}` : g.activate ? `Activable${cost}` : g.kind;
+  // « Séraphine, Main de l'Aube » : le nom, puis le titre en petit. Sans virgule, le nom entier sur deux lignes.
+  const [short, epithet] = g.name.split(/,\s*/);
+  const pic = portraitHTML(side.general, artIn(seat, side.general)) || `<span class="gport-init" aria-hidden="true">${esc(short[0])}</span>`;
+  return `<button class="gencard${lvCls(levelIn(seat, side.general))} ${state}" style="${famVar([g.fam])}" data-general="${side.general}" data-side="${isMe ? 'me' : 'foe'}"
+    aria-label="Général : ${esc(g.name)}, ${esc(note)}" title="${esc(g.text)}">
+    <span class="gport">${pic}</span>
+    <span class="gtx"><span class="gk">Général</span><span class="gn ${epithet ? '' : 'two'}">${esc(short)}</span>${epithet ? `<span class="ge">${esc(epithet)}</span>` : ''}
+    <span class="gs">${g.activate ? '<i class="gdot" aria-hidden="true"></i>' : ''}${esc(note)}</span></span></button>`;
 }
 function pbar(side, isMe, connected, canGen = false) {
   const seat = isMe ? ui.view.seat : 1 - ui.view.seat, b = badgeOf(seat);
@@ -1228,7 +1236,8 @@ function viewEffects(prev, view) {
     if (prev[side].zonePower[z] !== view[side].zonePower[z]) list.push([`.zone[data-z="${z}"] .v.${side}`, 'bump']);
     if (!prev[side].terrains[z] && view[side].terrains[z]) { list.push([`.zone[data-z="${z}"] .terrain.set.${side}`, 'terrain-in']); sounds.push('terrain'); }
   }
-  if ((!prev.me.generalUsed && view.me.generalUsed) || (!prev.foe.generalUsed && view.foe.generalUsed)) sounds.push('general');
+  // Général activé ou déclenché : sa carte s'illumine.
+  for (const side of ['me', 'foe']) if (!prev[side].generalUsed && view[side].generalUsed) { sounds.push('general'); list.push([`.pbar.${side} .gencard`, 'gen-fire']); }
   if (gone) sounds.push('destroy'); else if (up) sounds.push('up'); else if (down) sounds.push('down');
   if (view.phase === 'plan' && view.turn !== prev.turn) {
     const had = new Set(prev.me.hand.map(c => c.uid));

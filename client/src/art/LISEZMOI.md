@@ -13,6 +13,9 @@ Le décor est coupé à cette fenêtre ; le personnage en sort (192 px en haut, 
 
 Une carte sans dossier s'affiche sans illustration. Rien d'autre à déclarer : `client/src/art.js` trouve les fichiers tout seul.
 
+Généraux : en partie, leur carte montre un portrait recadré sur le visage. Pour un nouveau général, ajoutez la position du visage
+(en % de la largeur et de la hauteur de l'image) dans `FACES`, en haut de `portraitHTML` (`client/src/art.js`) ; sans elle, le portrait est centré en haut de l'image.
+
 ## Arts alternatifs
 
 Chaque art alternatif est déclaré dans `packages/engine/src/arts.js` (`ARTS` : carte, nom, rareté, édition Promo).

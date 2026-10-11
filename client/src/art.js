@@ -53,6 +53,16 @@ const layers = (a, name, lvl, cls, spell) => { const perso = !spell && a.perso;
     <div class="art-clip"><img class="art-decor" src="${a.decor}" alt="" loading="lazy" decoding="async"></div>
     ${perso ? `<img class="art-perso" src="${a.perso}" alt="" loading="lazy" decoding="async">` : ''}
     <span class="art-name">${esc(name)}</span></div>`; };
+// Portrait du général en partie : l'illustration (décor et personnage) agrandie et centrée sur le visage.
+// FACES : position du visage dans l'image, en % de sa largeur et de sa hauteur ; par défaut, en haut au centre.
+// artId : art alternatif choisi ; tant que ses images manquent, l'illustration d'origine. Sans illustration : rien.
+const FACES = { seraphine: [47, 43], aurelia: [50, 20], morgrath: [52, 30], vorgoth: [52, 26], grisk: [45, 37], snagg: [40, 42],
+  sylvaen: [47, 22], lirael: [42, 22], vaelthar: [49, 17], ignaroth: [40, 17] };
+export function portraitHTML(id, artId = null) {
+  const a = (artId && ALT[artId]?.decor ? ALT[artId] : null) || ART[id]; if (!a?.decor) return '';
+  const [x, y] = FACES[id] || [50, 25];
+  return `<span class="gport-art" style="--fx: ${x}; --fy: ${y}" aria-hidden="true"><img src="${a.decor}" alt="" decoding="async">${a.perso ? `<img src="${a.perso}" alt="" decoding="async">` : ''}</span>`;
+}
 // Art alternatif : ses images avec un liseré de rareté, ou l'art provisoire.
 function altHTML(alt, name, lvl, cls) {
   const rar = `rar rar-${rarityKey(alt)}`;
