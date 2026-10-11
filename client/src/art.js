@@ -56,7 +56,7 @@ const layers = (a, name, lvl, cls, spell) => { const perso = !spell && a.perso;
 // Portrait du général en partie : l'illustration (décor et personnage) agrandie et centrée sur le visage.
 // FACES : position du visage dans l'image, en % de sa largeur et de sa hauteur ; par défaut, en haut au centre.
 // Le portrait montre environ 40 % de la largeur et 33 % de la hauteur de l'image : le centre est borné pour ne jamais sortir de l'image.
-const FACES = { seraphine: [52, 44], aurelia: [48, 10], morgrath: [53, 29], vorgoth: [50, 25], grisk: [48, 39], snagg: [55, 46],
+const FACES = { seraphine: [52, 44], aurelia: [48, 23], morgrath: [53, 29], vorgoth: [50, 25], grisk: [48, 39], snagg: [55, 46],
   sylvaen: [44, 24], lirael: [34, 25], vaelthar: [55, 8], ignaroth: [45, 13] };
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // artId : art alternatif choisi ; tant que ses images manquent, l'illustration d'origine. Sans illustration : rien.
