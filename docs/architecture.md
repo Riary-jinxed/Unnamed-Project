@@ -49,6 +49,8 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `client/src/sfx.js` | ~70 | Bruitages synthétisés (Web Audio). |
 | `client/src/opening.js` | ~200 | Ouverture d'un booster (paquet à déchirer, cartes retournées une à une) et d'un coffre d'arts (coffre à frapper), avec `opening.css`. |
 | `client/src/opening-stage.js` | ~210 | Effets PixiJS de ces ouvertures (étincelles, rayons, lumière), seulement avec WebGL. |
+| `client/src/shop.js` | ~65 | Étal de la boutique (boosters, coffre), vitrines des sélections du jour, chargement de leurs décors PixiJS. |
+| `client/src/shop-stage.js` | ~290 | Décors PixiJS de la boutique : étal (auvent, lanternes, rayons) et vitrines (velours, projecteurs), poussière, éclats au toucher. |
 | `client/src/admin*.js` | ~720 | Page `/admin` : comptes, boutique, stats, cartes et sets, récompenses. |
 | `client/src/style.css` | | Styles de l'appli et de `/admin` (thème clair et sombre). |
 | `client/public/` | | Icône, manifeste PWA, service worker. |

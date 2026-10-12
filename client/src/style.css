@@ -310,6 +310,11 @@ body:has(#app.ingame) { margin: 0; }
 .starters .deckopt { border-top: 4px solid var(--fam); }
 .card-box.booster { grid-template-columns: 1fr auto; align-items: center; }
 .card-box.booster.ready { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.card-box.booster.gifts h2 span { display: block; }
+.card-box.booster .giftbtns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.card-box.booster.gifts:has(.giftbtns > :nth-child(2)) { grid-template-columns: 1fr; }
+.card-box.booster.gifts:has(.giftbtns > :nth-child(2)) .giftbtns { justify-content: stretch; }
+.card-box.booster.gifts:has(.giftbtns > :nth-child(2)) .giftbtns .btn { flex: 1 1 140px; }
 .famseg { flex-wrap: wrap; align-self: start; }
 .ccard { position: relative; display: grid; padding: 0; border: 0; background: none; text-align: left; }
 .ccard .fc { height: 100%; box-sizing: border-box; }

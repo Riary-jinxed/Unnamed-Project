@@ -32,24 +32,26 @@ function close(root) { root.classList.add('out'); setTimeout(() => { root._fx?.u
 
 // Face du paquet, dessinée comme un objet de jeu : feuille métallisée aux couleurs du set, reflets irisés, cadre doré,
 // blason qui rayonne, bandeau du set, titre gravé et plaque du nombre de cartes. viewBox 230×320 (sous la bande à déchirer).
-const packSVG = (setName, n) => `<svg class="pack-art" viewBox="0 0 230 320" aria-hidden="true"><defs>
-  <linearGradient id="opp-f" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--pk1)"/><stop offset=".55" style="stop-color:var(--pk3)"/><stop offset="1" style="stop-color:var(--pk1)"/></linearGradient>
-  <linearGradient id="opp-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3c0"/><stop offset=".5" stop-color="#f0c454"/><stop offset="1" stop-color="#a26a1a"/></linearGradient>
-  <linearGradient id="opp-h" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff6ad5" stop-opacity="0"/><stop offset=".3" stop-color="#ff6ad5"/><stop offset=".45" stop-color="#7afcff"/><stop offset=".6" stop-color="#fffb7a"/><stop offset=".75" stop-color="#ff6ad5" stop-opacity="0"/></linearGradient>
-  <radialGradient id="opp-r"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".5" style="stop-color:var(--pk2)" stop-opacity=".6"/><stop offset="1" style="stop-color:var(--pk2)" stop-opacity="0"/></radialGradient></defs>
-  <rect width="230" height="320" fill="url(#opp-f)"/>
-  <rect width="230" height="320" fill="url(#opp-h)" opacity=".16" class="pack-holo"/>
-  <circle cx="115" cy="132" r="92" fill="url(#opp-r)" opacity=".55"/>
+// Aussi exposé dans l'étal de la boutique (shop.js) : `id` préfixe ses dégradés, pour que deux paquets d'une même page ne
+// partagent pas les couleurs du premier.
+export const packSVG = (setName, n, id = 'opp') => `<svg class="pack-art" viewBox="0 0 230 320" aria-hidden="true"><defs>
+  <linearGradient id="${id}-f" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--pk1)"/><stop offset=".55" style="stop-color:var(--pk3)"/><stop offset="1" style="stop-color:var(--pk1)"/></linearGradient>
+  <linearGradient id="${id}-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3c0"/><stop offset=".5" stop-color="#f0c454"/><stop offset="1" stop-color="#a26a1a"/></linearGradient>
+  <linearGradient id="${id}-h" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff6ad5" stop-opacity="0"/><stop offset=".3" stop-color="#ff6ad5"/><stop offset=".45" stop-color="#7afcff"/><stop offset=".6" stop-color="#fffb7a"/><stop offset=".75" stop-color="#ff6ad5" stop-opacity="0"/></linearGradient>
+  <radialGradient id="${id}-r"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".5" style="stop-color:var(--pk2)" stop-opacity=".6"/><stop offset="1" style="stop-color:var(--pk2)" stop-opacity="0"/></radialGradient></defs>
+  <rect width="230" height="320" fill="url(#${id}-f)"/>
+  <rect width="230" height="320" fill="url(#${id}-h)" opacity=".16" class="pack-holo"/>
+  <circle cx="115" cy="132" r="92" fill="url(#${id}-r)" opacity=".55"/>
   <g class="pack-rays" style="transform-origin:115px 132px">${Array.from({ length: 12 }, (_, i) => `<path d="M115 132 L${115 + Math.cos(i * Math.PI / 6 - .1) * 110} ${132 + Math.sin(i * Math.PI / 6 - .1) * 110} L${115 + Math.cos(i * Math.PI / 6 + .1) * 110} ${132 + Math.sin(i * Math.PI / 6 + .1) * 110}Z"/>`).join('')}</g>
-  <rect x="9" y="6" width="212" height="300" rx="10" fill="none" stroke="url(#opp-g)" stroke-width="4"/>
+  <rect x="9" y="6" width="212" height="300" rx="10" fill="none" stroke="url(#${id}-g)" stroke-width="4"/>
   <rect x="16" y="13" width="198" height="286" rx="6" fill="none" stroke="#f0c454" stroke-width="1" opacity=".5"/>
   <path d="M40 22 H190 L182 36 L190 50 H40 L48 36 Z" style="fill:var(--pk2)" stroke="#1a0f05" stroke-width="2.5" stroke-linejoin="round"/>
   <text x="115" y="41" text-anchor="middle" class="pack-settxt">${setName}</text>
-  <circle cx="115" cy="132" r="44" fill="url(#opp-g)" stroke="#1a0f05" stroke-width="4"/>
+  <circle cx="115" cy="132" r="44" fill="url(#${id}-g)" stroke="#1a0f05" stroke-width="4"/>
   <circle cx="115" cy="132" r="34" style="fill:var(--pk3)" stroke="#a26a1a" stroke-width="2"/>
-  <path d="M115 104 L122 124 L143 124 L126 137 L132 158 L115 145 L98 158 L104 137 L87 124 L108 124 Z" fill="url(#opp-g)" stroke="#1a0f05" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M115 104 L122 124 L143 124 L126 137 L132 158 L115 145 L98 158 L104 137 L87 124 L108 124 Z" fill="url(#${id}-g)" stroke="#1a0f05" stroke-width="2" stroke-linejoin="round"/>
   <text x="115" y="224" text-anchor="middle" class="pack-title" textLength="176" lengthAdjust="spacingAndGlyphs">BOOSTER</text>
-  <rect x="68" y="244" width="94" height="28" rx="14" fill="#1a0f05" stroke="url(#opp-g)" stroke-width="2.5"/>
+  <rect x="68" y="244" width="94" height="28" rx="14" fill="#1a0f05" stroke="url(#${id}-g)" stroke-width="2.5"/>
   <text x="115" y="263" text-anchor="middle" class="pack-count">${n} CARTES</text></svg>`;
 
 // Booster. cards : [{ html, fresh, general, tag }] dans l'ordre reçu ; set : 'base', 'set2'… (couleurs du paquet) ;
@@ -175,33 +177,33 @@ export function openPack({ title, setName, set, back, cards }, done) {
 const TIERS = ['rare', 'epique', 'legendaire'];
 // Le coffre, dessiné comme un objet de jeu : contour épais, bois verni, ferrures dorées, serrure à gemme (couleur de la rareté).
 // Couvercle fermé (.c-lid) et couvercle ouvert basculé vers l'arrière, face intérieure visible (.c-lidopen), derrière le corps ;
-// entre les deux, l'intérieur du coffre qui s'illumine (.c-mouth). viewBox 200×200, fente à y = 100.
-const CHEST_SVG = `<svg class="chest-svg" viewBox="0 0 200 200" aria-hidden="true"><defs>
-  <linearGradient id="opc-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8743a"/><stop offset="1" stop-color="#5e3013"/></linearGradient>
-  <linearGradient id="opc-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d48e48"/><stop offset="1" stop-color="#7a4219"/></linearGradient>
-  <linearGradient id="opc-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3c0"/><stop offset=".45" stop-color="#f0c454"/><stop offset="1" stop-color="#a26a1a"/></linearGradient>
-  <linearGradient id="opc-i" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1406"/><stop offset="1" stop-color="#4a2810"/></linearGradient>
-  <radialGradient id="opc-m"><stop offset="0" stop-color="#fff"/><stop offset=".45" style="stop-color:var(--rar)"/><stop offset="1" style="stop-color:var(--rar)" stop-opacity="0"/></radialGradient>
-  <clipPath id="opc-lc"><path d="M22 100 V72 Q22 36 100 34 Q178 36 178 72 V100 Z"/></clipPath></defs>
+// entre les deux, l'intérieur du coffre qui s'illumine (.c-mouth). viewBox 200×200, fente à y = 100. Aussi dans l'étal de la boutique.
+export const chestSVG = (id = 'opc') => `<svg class="chest-svg" viewBox="0 0 200 200" aria-hidden="true"><defs>
+  <linearGradient id="${id}-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8743a"/><stop offset="1" stop-color="#5e3013"/></linearGradient>
+  <linearGradient id="${id}-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d48e48"/><stop offset="1" stop-color="#7a4219"/></linearGradient>
+  <linearGradient id="${id}-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3c0"/><stop offset=".45" stop-color="#f0c454"/><stop offset="1" stop-color="#a26a1a"/></linearGradient>
+  <linearGradient id="${id}-i" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1406"/><stop offset="1" stop-color="#4a2810"/></linearGradient>
+  <radialGradient id="${id}-m"><stop offset="0" stop-color="#fff"/><stop offset=".45" style="stop-color:var(--rar)"/><stop offset="1" style="stop-color:var(--rar)" stop-opacity="0"/></radialGradient>
+  <clipPath id="${id}-lc"><path d="M22 100 V72 Q22 36 100 34 Q178 36 178 72 V100 Z"/></clipPath></defs>
   <ellipse class="c-shadow" cx="100" cy="186" rx="82" ry="10" fill="#000" opacity=".5"/>
-  <g class="c-lidopen"><path d="M24 100 L36 30 Q100 16 164 30 L176 100 Z" fill="url(#opc-i)" stroke="#1e0e04" stroke-width="5" stroke-linejoin="round"/>
-    <path d="M36 30 Q100 16 164 30 L162 42 Q100 29 38 42 Z" fill="url(#opc-g)" stroke="#5a3a0a" stroke-width="2"/>
+  <g class="c-lidopen"><path d="M24 100 L36 30 Q100 16 164 30 L176 100 Z" fill="url(#${id}-i)" stroke="#1e0e04" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M36 30 Q100 16 164 30 L162 42 Q100 29 38 42 Z" fill="url(#${id}-g)" stroke="#5a3a0a" stroke-width="2"/>
     <path d="M44 62 Q100 52 156 62 M48 82 Q100 74 152 82" stroke="#160a02" stroke-width="2" fill="none" opacity=".7"/>
-    <path d="M58 40 L54 100 M142 40 L146 100" stroke="url(#opc-g)" stroke-width="10"/></g>
-  <ellipse class="c-mouth" cx="100" cy="100" rx="78" ry="14" fill="url(#opc-m)"/>
-  <g class="c-body"><path d="M24 98 H176 V170 Q176 180 166 180 H34 Q24 180 24 170 Z" fill="url(#opc-w)" stroke="#2a1406" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M58 40 L54 100 M142 40 L146 100" stroke="url(#${id}-g)" stroke-width="10"/></g>
+  <ellipse class="c-mouth" cx="100" cy="100" rx="78" ry="14" fill="url(#${id}-m)"/>
+  <g class="c-body"><path d="M24 98 H176 V170 Q176 180 166 180 H34 Q24 180 24 170 Z" fill="url(#${id}-w)" stroke="#2a1406" stroke-width="5" stroke-linejoin="round"/>
     <path d="M28 126 H172 M28 152 H172" stroke="#3a1c08" stroke-width="2.5" opacity=".6"/>
     <path d="M32 106 H168" stroke="#eab078" stroke-width="2.5" opacity=".45" stroke-linecap="round"/>
-    <rect x="48" y="98" width="18" height="82" fill="url(#opc-g)" stroke="#5a3a0a" stroke-width="2"/><rect x="134" y="98" width="18" height="82" fill="url(#opc-g)" stroke="#5a3a0a" stroke-width="2"/>
-    <rect x="22" y="166" width="156" height="14" rx="5" fill="url(#opc-g)" stroke="#5a3a0a" stroke-width="2.5"/>
-    <path d="M24 136 V170 Q24 180 34 180 H52 V170 H34 V136 Z M176 136 V170 Q176 180 166 180 H148 V170 H166 V136 Z" fill="url(#opc-g)" stroke="#5a3a0a" stroke-width="2"/>
+    <rect x="48" y="98" width="18" height="82" fill="url(#${id}-g)" stroke="#5a3a0a" stroke-width="2"/><rect x="134" y="98" width="18" height="82" fill="url(#${id}-g)" stroke="#5a3a0a" stroke-width="2"/>
+    <rect x="22" y="166" width="156" height="14" rx="5" fill="url(#${id}-g)" stroke="#5a3a0a" stroke-width="2.5"/>
+    <path d="M24 136 V170 Q24 180 34 180 H52 V170 H34 V136 Z M176 136 V170 Q176 180 166 180 H148 V170 H166 V136 Z" fill="url(#${id}-g)" stroke="#5a3a0a" stroke-width="2"/>
     <g fill="#5a3a0a"><circle cx="57" cy="114" r="2.5"/><circle cx="57" cy="150" r="2.5"/><circle cx="143" cy="114" r="2.5"/><circle cx="143" cy="150" r="2.5"/></g></g>
-  <g class="c-lid"><path d="M22 100 V72 Q22 36 100 34 Q178 36 178 72 V100 Z" fill="url(#opc-l)" stroke="#2a1406" stroke-width="5" stroke-linejoin="round"/>
-    <g clip-path="url(#opc-lc)"><rect x="48" y="30" width="18" height="72" fill="url(#opc-g)" stroke="#5a3a0a" stroke-width="2"/><rect x="134" y="30" width="18" height="72" fill="url(#opc-g)" stroke="#5a3a0a" stroke-width="2"/>
+  <g class="c-lid"><path d="M22 100 V72 Q22 36 100 34 Q178 36 178 72 V100 Z" fill="url(#${id}-l)" stroke="#2a1406" stroke-width="5" stroke-linejoin="round"/>
+    <g clip-path="url(#${id}-lc)"><rect x="48" y="30" width="18" height="72" fill="url(#${id}-g)" stroke="#5a3a0a" stroke-width="2"/><rect x="134" y="30" width="18" height="72" fill="url(#${id}-g)" stroke="#5a3a0a" stroke-width="2"/>
       <path d="M22 62 Q100 50 178 62" stroke="#4a2410" stroke-width="2.5" fill="none" opacity=".55"/></g>
     <path d="M34 70 Q36 46 96 42" stroke="#f6c690" stroke-width="5" fill="none" stroke-linecap="round" opacity=".55"/>
-    <rect x="18" y="88" width="164" height="14" rx="5" fill="url(#opc-g)" stroke="#5a3a0a" stroke-width="2.5"/></g>
-  <g class="c-lock"><path d="M82 82 H118 V108 Q118 122 100 130 Q82 122 82 108 Z" fill="url(#opc-g)" stroke="#5a3a0a" stroke-width="3" stroke-linejoin="round"/>
+    <rect x="18" y="88" width="164" height="14" rx="5" fill="url(#${id}-g)" stroke="#5a3a0a" stroke-width="2.5"/></g>
+  <g class="c-lock"><path d="M82 82 H118 V108 Q118 122 100 130 Q82 122 82 108 Z" fill="url(#${id}-g)" stroke="#5a3a0a" stroke-width="3" stroke-linejoin="round"/>
     <circle class="c-gem" cx="100" cy="104" r="10" stroke="#3a2006" stroke-width="2.5"/><circle cx="96.5" cy="100.5" r="3.2" fill="#fff" opacity=".85"/></g></svg>`;
 export function openChest({ rarity, html, chip, name, sub }, done) {
   const top = Math.max(0, TIERS.indexOf(rarity));
@@ -214,7 +216,7 @@ export function openChest({ rarity, html, chip, name, sub }, done) {
     <button class="op-skip" type="button">Passer</button>
     <div class="op-stage">
       <div class="oprays"></div><div class="opflash"></div>
-      <div class="chest">${CHEST_SVG}</div>
+      <div class="chest">${chestSVG()}</div>
       <div class="opsparks">${opsparks}</div>
       <div class="opreward"><div class="opreward-card">${html}</div>
         <div class="opreward-meta">${chip}<b>${name}</b><small>${sub}</small></div></div>

@@ -20,10 +20,11 @@ import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
 import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, sparkle, shards, trail, ending, clearEnding } from './fx.js';
 import { openPack, openChest } from './opening.js';
 import { setHome } from './lobby.js';
+import { stallHTML, vitrineHTML, setShop } from './shop.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { SEASONS, PASS_TIERS, seasonOfCard, seasonStarted, releaseMonth } from '@jeu/engine/pass';
-import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName } from '@jeu/engine/arts';
+import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName, chestPool } from '@jeu/engine/arts';
 
 const famVar = kw => famStyle(kw[0]);
 const kwLine = d => (d.token ? 'Jeton · ' : '') + (d.kw.join(' · ') || 'Neutre');
@@ -314,10 +315,10 @@ function calendarHTML(cal) {
   return `<div class="sheet" data-act="close"><div class="panel calendar" data-stop="1" role="dialog" aria-label="Calendrier du mois"><div class="ph"><h2>Calendrier de ${esc(cal.name)}</h2><button class="btn" data-act="close">Fermer</button></div>
     <p class="hint" style="margin:0">Connectez-vous chaque jour pour récupérer sa récompense : des Éclats ${ico('shard')} en semaine, un coffre d'arts ${ico('chest')} chaque dimanche, et des Prismes ${ico('prism')} en plus un dimanche sur deux. Un jour manqué est perdu ; tout repart le 1er du mois.</p>
     <div class="calgrid">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span class="calh">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${cal.days.map(cell).join('')}</div>
-    ${g ? `<p role="status" style="margin:0"><b>Récupéré : ${gains(g)}.</b>${g.chests ? ' Le coffre vous attend dans la boutique, onglet Arts.' : ''}</p>` : ''}
+    ${g ? `<p role="status" style="margin:0"><b>Récupéré : ${gains(g)}.</b>${g.chests ? ' Le coffre vous attend à l\'accueil et dans la boutique, onglet Arts.' : ''}</p>` : ''}
     ${errLine()}
     <div class="row">${cal.ready ? `<button class="btn primary" data-act="claim-day" ${ui.busy ? 'disabled' : ''}>Récupérer la récompense du jour</button>`
-      : g?.chests ? '<button class="btn primary" data-act="shop-arts">Ouvrir le coffre</button>' : '<span class="hint">Revenez demain pour la suite.</span>'}
+      : g?.chests ? `<button class="btn primary" data-act="${chestPool(ui.account.arts).length && prog().freeChests ? 'chest-free' : 'shop-arts'}" ${ui.busy ? 'disabled' : ''}>Ouvrir le coffre</button>` : '<span class="hint">Revenez demain pour la suite.</span>'}
       <button class="btn" data-act="close">Fermer</button></div></div></div>`;
 }
 function closeInbox() {
@@ -766,16 +767,23 @@ function renderHome() {
   const a = ui.account, d = a.deck, g = d && GENERALS[d.general], p = prog();
   const deckErr = d ? deckError(d, a) : 'Aucun deck.';
   const left = p.missions.filter(m => !m.done).length;
-  // Booster du jour et boosters offerts : un seul bandeau, seulement quand il y a quelque chose à ouvrir.
+  // Booster du jour, boosters et coffres offerts : un seul bandeau, seulement quand il y a quelque chose à ouvrir.
+  // Les cadeaux s'ouvrent ici même (un bouton par set ouvert), sans passer par la boutique.
+  const plural = (n, w) => `${n} ${w}${n > 1 ? 's' : ''}`, dis = ui.busy ? 'disabled' : '';
+  const openSets = SETS.filter(x => x.open && x.cards.length), chests = p.freeChests && chestPool(a.arts).length ? p.freeChests : 0;
+  const giftBtns = [
+    ...(p.freeBoosters ? openSets.map(x => `<button class="btn primary" data-act="free-booster" data-set="${x.id}" ${dis}>${openSets.length > 1 ? `Booster ${esc(x.name)}` : 'Ouvrir un booster'}</button>`) : []),
+    chests ? `<button class="btn primary" data-act="chest-free" ${dis}>Ouvrir un coffre</button>` : '',
+  ].join('');
+  // Un coffre offert reste en attente tant que le joueur a tous les arts du coffre : rien à ouvrir alors.
+  const giftTitle = [p.freeBoosters ? `${plural(p.freeBoosters, 'booster')} offert${p.freeBoosters > 1 ? 's' : ''}` : '',
+    chests ? `${plural(chests, 'coffre')} d'arts offert${chests > 1 ? 's' : ''}` : ''].filter(Boolean).map(x => `<span>${x}</span>`).join('');
   const gift = a.boosterReady ? `<div class="card-box booster ready">
       <div><span class="eyebrow">Bonjour ${esc(a.name)}</span><h2>Booster du jour</h2></div>
-      <button class="btn primary" data-act="booster" ${ui.busy ? 'disabled' : ''}>Ouvrir</button></div>`
-    : p.freeBoosters ? `<div class="card-box booster ready">
-      <div><span class="eyebrow">Récompense</span><h2>${p.freeBoosters} booster${p.freeBoosters > 1 ? 's' : ''} offert${p.freeBoosters > 1 ? 's' : ''}</h2></div>
-      <button class="btn primary" data-act="shop">Ouvrir</button></div>`
-    : p.freeChests ? `<div class="card-box booster ready">
-      <div><span class="eyebrow">Récompense</span><h2>${p.freeChests} coffre${p.freeChests > 1 ? 's' : ''} d'arts offert${p.freeChests > 1 ? 's' : ''}</h2></div>
-      <button class="btn primary" data-act="shop-arts">Ouvrir</button></div>` : '';
+      <button class="btn primary" data-act="booster" ${dis}>Ouvrir</button></div>`
+    : giftBtns ? `<div class="card-box booster ready gifts">
+      <div><span class="eyebrow">Récompense</span><h2>${giftTitle}</h2></div>
+      <div class="giftbtns">${giftBtns}</div></div>` : '';
   // Salon de jeu, à la manière des jeux de cartes mobiles : le général du deck joué en grand, un gros bouton Jouer,
   // et autour des tuiles (passe, missions, calendrier) qui ouvrent chacune leur écran ou leur feuille.
   const hero = g ? heroHTML(d.general, mySel(d.general)) : '';
@@ -856,40 +864,52 @@ function renderShop() {
   const top = `<div class="top"><span class="title">Boutique</span><span class="chip num cur" title="Éclats" aria-label="${a.shards} Éclats">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="Prismes" aria-label="${sh.arts.prisms} Prismes">${ico('prism')}${sh.arts.prisms}</span>` : ''}</div>
     ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}</div>` : ''}`;
   if (!sh) return `${top}${errLine()}<p class="wait">Chargement…</p>`;
-  if (tab === 'arts') return `${top}${errLine()}${artShopHTML(sh.arts)}`;
+  if (tab === 'arts') return `${top}${artStall(sh.arts)}${errLine()}${artShopHTML(sh.arts)}`;
   const P = sh.prices;
-  const offer = (set, o) => {
-    const label = o.bought ? 'Achetée' : o.owned ? 'Déjà dans votre collection' : `Acheter · ${P.cardPrice} Éclats`;
-    return `<div class="offer"><button class="ccard" data-zoom="${zoomKey(o.id)}">${anyCard(o.id)}</button>
-      <button class="btn ${o.bought || o.owned ? '' : 'primary'}" data-act="buy-card" data-set="${set.id}" data-id="${o.id}" ${o.bought || o.owned || a.shards < P.cardPrice || ui.busy ? 'disabled' : ''}>${label}</button></div>`;
-  };
+  // Étal : un booster par set ouvert ; le toucher l'achète, ou ouvre un booster offert s'il en reste.
+  const stall = stallHTML(sh.sets.filter(x => x.open).map(set => sh.freeBoosters
+    ? { kind: 'pack', act: 'free-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, free: sh.freeBoosters, tag: 'Ouvrir', off: ui.busy, label: `Ouvrir un booster ${esc(set.name)} offert` }
+    : { kind: 'pack', act: 'buy-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, tag: `${ico('shard')}${P.boosterPrice}`, off: a.shards < P.boosterPrice || ui.busy, label: `Acheter un booster ${esc(set.name)} pour ${P.boosterPrice} Éclats` }));
+  // Sélection du jour en vitrine (shop.js) : illustration, coût, « Nouvelle » si le joueur ne l'a pas, prix ou « Vendue ».
+  const offers = set => vitrineHTML({ title: 'Sélection du jour', sub: 'Cartes à l\'unité', slots: set.offers.map(o => {
+    const d = CARDS[o.id], gen = GENERALS[o.id], name = esc(nameOf(o.id));
+    return { art: artHTML(o.id, nameOf(o.id)), zoom: zoomKey(o.id), name, caption: false, sub: gen ? `Général · ${esc(gen.kind)}` : `${typeName(d)} · ${kwLine(d)}`, cost: gen ? null : d.x ? 'X' : d.cost,
+      style: `${famVar(gen ? [gen.fam] : d.kw)};--glow:var(--fam)`, badge: o.owned || o.bought ? '' : 'Nouvelle',
+      state: o.bought ? 'sold' : o.owned ? 'owned' : 'sale', act: 'buy-card', id: o.id, set: set.id, off: a.shards < P.cardPrice || ui.busy,
+      price: `${ico('shard')}${P.cardPrice}`, label: `Acheter ${name} pour ${P.cardPrice} Éclats` }; }) });
   const section = set => set.open ? `<section class="card-box shopset">
       <div><span class="eyebrow">${set.size} cartes</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
-      <div class="gal-h">Cartes du jour</div><p class="hint" style="margin:0">${set.offers.length > 1 ? `${set.offers.length} cartes choisies` : 'Une carte choisie'} pour vous, renouvelées chaque jour à minuit.</p>
-      <div class="gallery">${set.offers.map(o => offer(set, o)).join('')}</div>
+      ${offers(set)}
+      <p class="hint" style="margin:0">${set.offers.length > 1 ? `${set.offers.length} cartes choisies` : 'Une carte choisie'} pour vous, en priorité parmi celles qui vous manquent, renouvelées chaque jour à minuit.</p>
       <div class="gal-h">Booster du set</div>
       <div class="row"><p class="hint" style="margin:0;flex:1">${P.boosterSize} cartes au hasard parmi les ${set.size} du set, toutes avec la même chance. Chaque doublon rapporte ${shardRate()} Éclats et ${lvInfo().essenceRate} essence de la carte.</p>
         <button class="btn primary" data-act="buy-booster" data-set="${set.id}" ${a.shards < P.boosterPrice || ui.busy ? 'disabled' : ''}>Acheter · ${P.boosterPrice} Éclats</button>
         ${sh.freeBoosters ? `<button class="btn primary" data-act="free-booster" data-set="${set.id}" ${ui.busy ? 'disabled' : ''}>Ouvrir un booster offert (${sh.freeBoosters})</button>` : ''}</div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
       <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`;
-  return `${top}${errLine()}${sh.sets.map(section).join('')}${mail.codeForm()}`;
+  return `${top}${stall}${errLine()}${sh.sets.map(section).join('')}${mail.codeForm()}`;
+}
+// Étal du rayon Arts : le coffre, ouvert gratuitement s'il en reste d'offerts.
+function artStall(A) {
+  if (!A) return '';
+  const C = A.chest, free = C.free && C.left;
+  return stallHTML([free ? { kind: 'chest', act: 'chest-free', free: C.free, tag: 'Ouvrir', off: ui.busy, label: 'Ouvrir un coffre d\'arts offert' }
+    : { kind: 'chest', act: 'chest', tag: C.left ? `${ico('prism')}${C.price}` : 'Vide', off: !C.left || A.prisms < C.price || ui.busy, label: C.left ? `Ouvrir un coffre d'arts pour ${C.price} Prismes` : 'Coffre vide pour vous' }]);
 }
 // Arts alternatifs en boutique : offres du jour et coffre, payés en Prismes (monnaie rare : saisons classées, succès).
 function artShopHTML(A) {
   if (!A) return '';
-  const tile = o => { const art = ARTS[o.id];
-    return `<div class="offer artoffer"><button class="ccard artthumb" data-zoom="${zoomKey(art.card, art.id)}" aria-label="Voir ${esc(art.name)} en grand">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</button>
-      <div class="artmeta">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}${art.theme ? ` · famille ${esc(themeOf(art))}` : ''}${owned(art.card) ? '' : ' · carte pas encore obtenue'}</small></div>
-      <button class="btn ${o.owned ? '' : 'primary'}" data-act="buy-art" data-id="${o.id}" ${o.owned || A.prisms < o.price || ui.busy ? 'disabled' : ''}>${o.owned ? 'Dans votre collection' : `Acheter · ${o.price} Prismes`}</button></div>`; };
+  const vit = vitrineHTML({ title: 'Arts du jour', sub: 'Arts à l\'unité', slots: A.offers.map(o => { const art = ARTS[o.id], name = esc(art.name);
+    return { art: artHTML(art.card, nameOf(art.card), 1, '', art.id), zoom: zoomKey(art.card, art.id), name, cls: `rar-${rarityKey(art)}`, style: '--glow:var(--rar)',
+      sub: `${esc(nameOf(art.card))}${art.theme ? ` · ${esc(themeOf(art))}` : ''}`, badge: esc(rarityName(art)), state: o.owned ? 'owned' : 'sale',
+      act: 'buy-art', id: o.id, off: A.prisms < o.price || ui.busy, price: `${ico('prism')}${o.price}`, label: `Acheter l'art ${name} pour ${o.price} Prismes` }; }) });
   const rates = A.chest.rates.map(r => `<li><span class="rarchip rar-${r.rarity}">${esc(r.name)}</span><span class="num">${String(r.pct).replace('.', ',')} %</span></li>`).join('');
   return `<section class="card-box shopset artshop">
     <div><span class="eyebrow">Cosmétique</span><h2 style="font-size:22px">Arts alternatifs</h2></div>
     <p class="hint" style="margin:0">D'autres illustrations pour vos cartes, à choisir ensuite dans la collection. Votre adversaire les voit quand vos cartes sont révélées.
       Ils se paient en Prismes, gagnés en fin de saison classée, avec les succès et le calendrier du mois.</p>
-    <div class="gal-h">Arts du jour</div>
-    ${A.offers.length ? `<p class="hint" style="margin:0">Choisis pour vous parmi les arts que vous n'avez pas, renouvelés chaque jour à minuit.</p>
-      <div class="gallery">${A.offers.map(o => tile(o)).join('')}</div>` : '<p class="hint" style="margin:0">Vous avez tous les arts en vente. Revenez quand de nouveaux arriveront.</p>'}
+    ${A.offers.length ? `${vit}<p class="hint" style="margin:0">Choisis pour vous parmi les arts que vous n'avez pas, renouvelés chaque jour à minuit.${A.offers.some(o => !owned(ARTS[o.id].card)) ? ' Certains vont sur une carte que vous n\'avez pas encore.' : ''}</p>`
+      : '<p class="hint" style="margin:0">Vous avez tous les arts en vente. Revenez quand de nouveaux arriveront.</p>'}
     <div class="gal-h">Familles d'arts</div>
     <p class="hint" style="margin:0">Des arts au même thème et au même style, sur des cartes de familles différentes. Réunissez une famille pour gagner son titre.</p>
     <ul class="artthemes">${THEME_IDS.map(t => { const all = themeArts(t), got = all.filter(x => ui.account?.arts?.[x.id]).length;
@@ -1272,7 +1292,7 @@ function render() {
   setInGame(app, ui.screen === 'game');
   setMusic(musicFor());
   app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
-  setHome(app);
+  setHome(app); setShop(app);
   // Transitions (habillage.css) : seulement quand l'écran ou la feuille change, pas à chaque rafraîchissement.
   app.classList.toggle('screen-in', ui.screen !== ui.shownScreen);
   if (ui.sheet && ui.sheet !== ui.shownSheet) app.querySelector(':scope > .sheet')?.classList.add('sheet-in');
