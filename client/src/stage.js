@@ -31,7 +31,8 @@ async function makeApp(z) {
 }
 
 async function init() {
-  table = await makeApp('0'); over = await makeApp('9');
+  // Table sous tout le contenu de la page (z-index négatif), effets sous les feuilles (z-index 10) : panneau de fin, carte en grand.
+  table = await makeApp('-1'); over = await makeApp('9');
   COL = { me: cssColor('--mine'), foe: cssColor('--foe'), gold: cssColor('--accent') };
   glowTex = radial(256, [[0, 'rgba(255,255,255,1)'], [0.35, 'rgba(255,255,255,.35)'], [1, 'rgba(255,255,255,0)']]);
   sparkTex = radial(32, [[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(255,255,255,.8)'], [1, 'rgba(255,255,255,0)']]);
@@ -99,7 +100,10 @@ function ember(s, anywhere) {
 }
 
 // Une particule d'effet : position, vitesse (px par image à 60 i/s), durée de vie en images.
+const MAX_PARTS = 160;
 function spawn(tex, x, y, o) {
+  // Plafond : quand trop d'effets se chevauchent, les nouvelles particules sont simplement omises.
+  if (parts.length >= MAX_PARTS) return;
   const s = new Sprite(tex); s.anchor.set(0.5); s.position.set(x, y); s.tint = o.tint ?? 0xffffff; s.blendMode = o.blend ?? 'add';
   s.scale.set(o.scale ?? 1); s.rotation = o.rot ?? 0; s.alpha = o.alpha ?? 1; over.stage.addChild(s);
   parts.push({ s, vx: o.vx ?? 0, vy: o.vy ?? 0, g: o.g ?? 0, drag: o.drag ?? 0.96, spin: o.spin ?? 0, ttl: o.ttl ?? 40, age: 0, fade: o.fade ?? true, a0: s.alpha, grow: o.grow ?? 0, sc0: s.scale.x });
@@ -128,8 +132,8 @@ export const active = () => !!table && document.body.classList.contains('staged'
 export function reveal(el, color) {
   if (!active() || !el) return;
   const { r, x, y } = centerOf(el), tint = toNum(color || COL.gold);
-  spawn(glowTex, x, y, { tint, scale: Math.max(r.width, r.height) / 90, ttl: 22, grow: 0.6, alpha: 0.9 });
-  for (let i = 0; i < 26; i++) { const a = rnd(0, TAU), v = rnd(1.5, 5);
+  spawn(glowTex, x, y, { tint, scale: Math.max(r.width, r.height) / 130, ttl: 20, grow: 0.3, alpha: 0.6 });
+  for (let i = 0; i < 12; i++) { const a = rnd(0, TAU), v = rnd(1.2, 3.5);
     spawn(sparkTex, x + rnd(-r.width / 3, r.width / 3), y + rnd(-r.height / 3, r.height / 3), { tint: i % 3 ? tint : 0xffffff, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.5, g: 0.08, scale: rnd(0.25, 0.6), ttl: rnd(30, 55) }); }
 }
 // Carte détruite : elle vole en éclats qui retombent.
@@ -145,10 +149,9 @@ export function shatter(rect, color) {
 export function zone(el, side, strong = false) {
   if (!active() || !el) return;
   const { r, x } = centerOf(el), tint = toNum(COL[side] || COL.gold);
-  if (!strong) shake(2, 200);
-  spawn(glowTex, x, r.top + r.height / 2, { tint, scale: r.width / 110, ttl: strong ? 80 : 45, grow: 0.4, alpha: strong ? 0.9 : 0.6 });
-  for (let i = 0; i < (strong ? 60 : 28); i++) spawn(sparkTex, r.left + rnd(0, r.width), r.bottom - rnd(0, r.height * 0.3),
-    { tint: i % 4 ? tint : 0xffffff, vx: rnd(-0.4, 0.4), vy: rnd(-5, -1.5), drag: 0.985, scale: rnd(0.2, 0.55), ttl: rnd(40, strong ? 90 : 60) });
+  spawn(glowTex, x, r.top + r.height / 2, { tint, scale: r.width / 120, ttl: strong ? 70 : 40, grow: 0.25, alpha: strong ? 0.6 : 0.35 });
+  for (let i = 0; i < (strong ? 22 : 8); i++) spawn(sparkTex, r.left + rnd(0, r.width), r.bottom - rnd(0, r.height * 0.3),
+    { tint: i % 4 ? tint : 0xffffff, vx: rnd(-0.3, 0.3), vy: rnd(-3, -1), drag: 0.985, scale: rnd(0.15, 0.35), ttl: rnd(35, strong ? 70 : 50) });
 }
 // Le général entre en action : deux ondes de choc et des étincelles à la couleur de sa famille.
 export function general(el, color) {
@@ -174,15 +177,13 @@ export function shake(px = 3, ms = 260) {
   const f = []; for (let i = 0; i < 7; i++) { const k = 1 - i / 7; f.push({ transform: `translate(${rnd(-px, px) * k}px, ${rnd(-px, px) * k}px)` }); }
   f.push({ transform: 'none' }); root.animate(f, { duration: ms, easing: 'linear' });
 }
-// Carte qui tombe sur le plateau : onde de choc au sol et poussière qui s'écarte, puis un léger tremblement si elle frappe fort.
+// Carte qui tombe sur le plateau : onde de choc au sol, et un léger tremblement si elle frappe fort.
 export function impact(el, color, power = 0) {
   if (!active() || !el) return;
-  const { r, x, y } = centerOf(el), tint = toNum(color || COL.gold);
-  const ring = new Graphics().ellipse(0, 0, 40, 22).stroke({ width: 3, color: 0xffffff }); ring.position.set(x, r.bottom - 4); ring.tint = tint; ring.blendMode = 'add'; over.stage.addChild(ring);
-  tween(420, k => { ring.scale.set(0.3 + ease(k) * (1.2 + r.width / 80)); ring.alpha = 1 - k; }, () => ring.destroy());
-  for (let i = 0; i < 14; i++) { const a = rnd(-0.3, Math.PI + 0.3), v = rnd(1, 3);
-    spawn(glowTex, x + Math.cos(a) * r.width * 0.3, r.bottom - 6, { tint: 0x8a7458, blend: 'normal', vx: Math.cos(a) * v, vy: -Math.abs(Math.sin(a)) * v * 0.4, drag: 0.93, scale: rnd(0.04, 0.08), grow: 0.12, alpha: 0.3, ttl: rnd(30, 45) }); }
-  if (power >= 5) shake(Math.min(6, power - 2));
+  const { r, x } = centerOf(el), tint = toNum(color || COL.gold);
+  const ring = new Graphics().ellipse(0, 0, 40, 18).stroke({ width: 2, color: 0xffffff }); ring.position.set(x, r.bottom - 4); ring.tint = tint; ring.blendMode = 'add'; ring.alpha = 0; over.stage.addChild(ring);
+  tween(360, k => { ring.scale.set(0.4 + ease(k) * (0.6 + r.width / 110)); ring.alpha = 0.8 * (1 - k); }, () => ring.destroy());
+  if (power >= 5) shake(Math.min(5, power - 3));
 }
 // Traînée d'étincelles derrière une carte qu'on fait glisser.
 export function trail(x, y) {
@@ -208,7 +209,7 @@ export function banner(board, title, sub = '', tone = '') {
   const sweep = new Sprite(glowTex); sweep.anchor.set(0.5); sweep.height = h * 1.4; sweep.width = 60; sweep.alpha = 0.7; sweep.blendMode = 'add';
   c.addChild(glow, band, t, sweep); if (st) c.addChild(st);
   if (tone === 'reveal') flash(edge, 0.18);
-  tween(1900, k => {
+  tween(1400, k => {
     const open = Math.min(1, k / 0.12), out = k > 0.8 ? (k - 0.8) / 0.2 : 0;
     band.scale.y = ease(open); glow.alpha = 0.35 * ease(open) * (1 - out);
     t.x = cx + (1 - ease(Math.min(1, k / 0.2))) * -60; t.style.letterSpacing = 4 + (1 - ease(Math.min(1, k / 0.25))) * 18;

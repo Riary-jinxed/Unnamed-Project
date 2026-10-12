@@ -1,5 +1,5 @@
 // Effets visuels de la partie posés par-dessus la table (bandeaux, nombres, lueurs, confettis).
-// Ils vivent dans <body>, hors de #app : le rendu suivant (une vue toutes les 600 ms pendant la révélation) ne les coupe pas.
+// Ils vivent dans <body>, hors de #app : le rendu suivant (une vue toutes les 850 ms pendant la révélation) ne les coupe pas.
 import './fx.css';
 
 export const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;

@@ -113,8 +113,11 @@ body .op { background: radial-gradient(circle at 50% 42%, #3a2a1a 0, #1a120c 55%
 body .op .op-skip { font-family: var(--display); font-weight: 700; color: var(--ink); background: linear-gradient(180deg, #4a3826, #2a1e14); border-color: #8a6a3a; }
 body .pack-notch { background: #080503; }
 
-/* plateau PixiJS (stage.js) : la table est dessinée sur une toile sous #app, qui passe donc au-dessus d'elle */
-body.staged #app.ingame { position: relative; z-index: 1; }
+/* plateau PixiJS (stage.js) : la table est dessinée sur une toile sous la page, les effets sur une toile sous les feuilles.
+   Le reflet CSS d'une carte révélée est retiré : les étincelles PixiJS le remplacent, sans s'y superposer. */
 body.staged:has(#app.ingame) { background: #120d0a; }
+body.staged .mc.reveal::after, body.staged .mc.reveal-foe::after { display: none; }
+/* fin de partie : le voile ne couvre que le bas de l'écran, pour laisser voir le titre et les rayons PixiJS au-dessus du panneau */
+body.staged .sheet:has(> .panel.end) { background: linear-gradient(rgb(8 5 3 / .25), rgb(8 5 3 / .45) 30%, rgb(8 5 3 / .85) 60%); backdrop-filter: none; }
 /* fin de partie : le titre est joué en grand par PixiJS (stage.js, ending) ; celui du panneau reste pour les lecteurs d'écran */
 body.staged .panel.end > h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

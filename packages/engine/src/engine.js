@@ -983,7 +983,7 @@ export async function runTurn(st, plans, emit, wait) {
   const steps = revealSteps(st, gen);
   // Le bandeau « Révélation » (1,5 s côté appli) disparaît avant que la première carte soit révélée.
   emit(null); await wait(1600);
-  for (const s of steps) { const c = doStep(st, s); emit(c ? c.uid : null); await wait(600); }
+  for (const s of steps) { const c = doStep(st, s); emit(c ? c.uid : null); await wait(850); }
   endTurn(st);
   if (st.over) { st.phase = 'over'; emit(null); return; }
   emit(null); await wait(350);
