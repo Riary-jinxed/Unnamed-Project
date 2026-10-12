@@ -79,7 +79,7 @@ const STEPS = [
 
   { turn: 5, hl: '.mc[data-mobile]', done: t => t.ui.moves.length > 0,
     text: t => (t.ui.moveSel !== null ? 'Touchez maintenant la zone où l\'envoyer.'
-      : 'Tour 5. Vos créatures marquées ⇄ peuvent changer de zone. Touchez-en une, puis une autre zone : elle s\'y déplacera à la révélation, avant vos nouvelles cartes.') },
+      : 'Tour 5. Vos créatures marquées ⇄ peuvent changer de zone. Touchez-en une, puis une autre zone : elle y passe aussitôt et libère sa place pour une nouvelle carte.') },
   { info: true, hl: '.pbar.me .gencard',
     text: 'Votre général est à droite de votre bandeau : touchez-le deux fois pour lire son effet. L\'Érudit vous a fait piocher une carte de plus en début de partie ; d\'autres s\'activent une fois par partie.' },
   { free: true, text: 'À vous de jouer : posez d\'autres cartes si vous voulez, puis validez. Le Journal raconte tout ce qui s\'est passé.' },

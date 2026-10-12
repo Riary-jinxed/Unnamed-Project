@@ -4,7 +4,7 @@ Deux pages compilées par Vite : `index.html` (l'appli des joueurs, `src/main.js
 
 ## Boucle de l'appli (`main.js`)
 
-Tout l'état de l'interface tient dans un objet `ui` : écran affiché (`ui.screen`), session (`ui.auth`), compte (`ui.account`), feuille ouverte par-dessus l'écran (`ui.sheet` : carte en grand, booster, journal, fin de partie, récompenses…), et pendant une partie la vue reçue (`ui.view`) avec la préparation en cours (`ui.pending`, `ui.moves`, `ui.genZone`).
+Tout l'état de l'interface tient dans un objet `ui` : écran affiché (`ui.screen`), session (`ui.auth`), compte (`ui.account`), feuille ouverte par-dessus l'écran (`ui.sheet` : carte en grand, booster, journal, fin de partie, récompenses…), et pendant une partie la vue reçue (`ui.view`) avec la préparation en cours (`ui.pending`, `ui.moves`, `ui.genZone`). Un déplacement prévu s'affiche aussitôt dans sa zone d'arrivée (`planZone`), avec la puissance de zone estimée (`planPower`) ; les places libres (`freeSlots`) se comptent comme en fin de tour, donc une zone vidée peut être remplie le même tour. Reprendre la carte et la reposer dans sa zone de départ annule le déplacement.
 
 Le principe est toujours le même : **modifier `ui`, puis appeler `render()`**. `render()` choisit la fonction de l'écran (`renderHome`, `renderGame`…), remplace le contenu de `#app`, rétablit le défilement de la main et du journal, puis lance les animations préparées (`applyFx`).
 
