@@ -188,7 +188,7 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
 @keyframes endin { from { transform: translateY(30px) scale(.9); opacity: 0; } }
 @keyframes endtitle { 0% { letter-spacing: .4em; opacity: 0; } 100% { letter-spacing: .02em; } }
 /* carte en grand */
-.sheet.zoom { place-items: center; }
+.sheet.zoom { place-items: center; grid-template-rows: minmax(0, 1fr); } /* rangée à la hauteur de l'écran : sans elle, le max-height de .zoomwrap ne s'applique pas et la fiche déborde sans défiler */
 .zoomcard { width: min(360px, 100%) !important; border-top: 6px solid var(--fam, var(--f-neutre)) !important; gap: 8px !important; }
 .zoomcard .zh { display: flex; align-items: center; gap: 10px; }
 .zoomcard .zh h2 { font-size: 24px; flex: 1; line-height: 1.15; }
@@ -238,8 +238,10 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
 .timer.low { color: var(--down); font-weight: 700; }
 
 /* panneaux */
-.sheet { position: fixed; inset: 0; background: color-mix(in srgb, var(--sunk) 70%, transparent); display: grid; place-items: end center; z-index: 10; padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
-.sheet .panel { width: min(720px, 100%); max-height: 82%; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; align-content: start; }
+.sheet { position: fixed; inset: 0; background: color-mix(in srgb, var(--sunk) 70%, transparent); display: grid; place-items: end center; z-index: 10; padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; }
+/* Fenêtre ouverte : la page derrière ne défile plus (sur téléphone, le doigt faisait défiler la collection). */
+html:has(#app > .sheet) { overflow: hidden; }
+.sheet .panel { width: min(720px, 100%); max-height: 82%; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; align-content: start; overscroll-behavior: contain; }
 .panel .ph { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .log { display: grid; gap: 2px; font-size: 13.5px; }
 .log .turn { font-family: var(--display); margin-top: 8px; color: var(--accent); }
