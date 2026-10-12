@@ -1,5 +1,6 @@
 // Appli web : connexion, collection et deck, accueil, salon en ligne, partie (en ligne ou contre l'IA).
 import './style.css';
+import './habillage.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
 import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, allowedGenerals, allowedTerrains, starterGenerals, deckError } from '@jeu/engine/collection';
 import { api } from './api.js';
@@ -11,10 +12,10 @@ import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
-import { artBg, artHTML, portraitHTML, terrainBg, terrainHTML } from './art.js';
+import { artBg, artHTML, heroHTML, portraitHTML, terrainBg, terrainHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
-import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti } from './fx.js';
+import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, sparkle, shards, trail, ending, clearEnding } from './fx.js';
 import { openPack, openChest } from './opening.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
@@ -719,41 +720,44 @@ function renderHome() {
   const left = p.missions.filter(m => !m.done).length;
   // Booster du jour et boosters offerts : un seul bandeau, seulement quand il y a quelque chose à ouvrir.
   const gift = a.boosterReady ? `<div class="card-box booster ready">
-      <div><span class="eyebrow">Bonjour ${esc(a.name)}</span><h2 style="font-size:20px">Booster du jour</h2></div>
+      <div><span class="eyebrow">Bonjour ${esc(a.name)}</span><h2>Booster du jour</h2></div>
       <button class="btn primary" data-act="booster" ${ui.busy ? 'disabled' : ''}>Ouvrir</button></div>`
     : p.freeBoosters ? `<div class="card-box booster ready">
-      <div><span class="eyebrow">Récompense</span><h2 style="font-size:20px">${p.freeBoosters} booster${p.freeBoosters > 1 ? 's' : ''} offert${p.freeBoosters > 1 ? 's' : ''}</h2></div>
+      <div><span class="eyebrow">Récompense</span><h2>${p.freeBoosters} booster${p.freeBoosters > 1 ? 's' : ''} offert${p.freeBoosters > 1 ? 's' : ''}</h2></div>
       <button class="btn primary" data-act="shop">Ouvrir</button></div>`
     : p.freeChests ? `<div class="card-box booster ready">
-      <div><span class="eyebrow">Récompense</span><h2 style="font-size:20px">${p.freeChests} coffre${p.freeChests > 1 ? 's' : ''} d'arts offert${p.freeChests > 1 ? 's' : ''}</h2></div>
+      <div><span class="eyebrow">Récompense</span><h2>${p.freeChests} coffre${p.freeChests > 1 ? 's' : ''} d'arts offert${p.freeChests > 1 ? 's' : ''}</h2></div>
       <button class="btn primary" data-act="shop-arts">Ouvrir</button></div>` : '';
+  // Salon de jeu, à la manière des jeux de cartes mobiles : le général du deck joué en grand, un gros bouton Jouer,
+  // et autour des tuiles (passe, missions, calendrier) qui ouvrent chacune leur écran ou leur feuille.
+  const hero = g ? heroHTML(d.general, mySel(d.general)) : '';
+  const cal = p.calendar;
   return `
-  <div class="top hometop"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button><span class="title">Jeu de cartes</span>
+  <div class="top hometop hud"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button>
+    <button class="hud-id" data-act="profile"><b>${esc(a.name)}</b><span class="hud-lv num">Niv. ${p.level}<span class="bar" aria-hidden="true"><span style="width:${pct(p.xp, p.xpNext)}%"></span></span></span></button>
     <span class="wallet">${walletHTML()}</span>${mail.button()}${muteBtn()}</div>
-  <div class="setup home">
+  <div class="setup home lobby">
     ${gift}
-    <div class="card-box play">
-      <button class="deckline" data-act="decks"><span class="eyebrow">Deck joué</span><b>${esc(d ? d.name : 'Aucun deck')}</b>${g ? `<small class="hint">${esc(g.name)}</small>` : ''}<span class="hint">Changer</span></button>
-      ${deckErr ? `<p class="err" style="margin:0">${esc(deckErr)}</p>` : ''}
-      ${p.ranked ? `<div class="row" style="justify-content:space-between"><span class="eyebrow">Classé · ${esc(p.ranked.seasonName)}</span><button class="btn sm" data-act="ranked">Classement</button></div>
-      <div>${rankHTML(p.ranked.rank)}</div>
-      <button class="btn primary big" data-act="ranked-play">Partie classée</button>` : ''}
-      <div class="duo"><button class="btn ${p.ranked ? '' : 'primary'}" data-act="solo">Contre l'IA</button><button class="btn" data-act="play-friend">Avec un ami</button></div>
-    </div>
-    ${p.pass ? `<button class="card-box passline theme-${p.pass.theme}" data-act="pass">
-      <span class="eyebrow">Passe de saison · encore ${p.pass.daysLeft} jour${p.pass.daysLeft > 1 ? 's' : ''}${p.pass.premium ? ' · Premium' : ''}</span>
-      <b>${esc(p.pass.name)}</b>
-      <div class="lvl"><span class="lvlnum num">Palier ${p.pass.tier}/${p.pass.tiers}</span><div class="bar" aria-hidden="true"><span style="width:${pct(p.pass.xp, p.pass.next)}%"></span></div>
-        <small class="hint num">${p.pass.tier >= p.pass.tiers ? 'Coffre de fin de passe' : p.pass.todo ? `${p.pass.todo} mission${p.pass.todo > 1 ? 's' : ''} à faire` : 'Tout est fait ✓'}</small></div></button>` : ''}
+    <section class="showcase" style="${g ? famVar([g.fam]) : ''}">
+      <div class="sc-art">${hero || `<span class="sc-init" aria-hidden="true">${esc((g?.name || '?')[0])}</span>`}</div>
+      ${p.ranked ? `<button class="sc-rank" data-act="ranked" aria-label="Classement">${rankHTML(p.ranked.rank)}<small>${esc(p.ranked.seasonName)}</small></button>` : ''}
+      <button class="sc-deck" data-act="decks"><span class="eyebrow">Deck joué</span><b>${esc(d ? d.name : 'Aucun deck')}</b>${g ? `<small>${esc(g.name)}</small>` : ''}<span class="sc-change">Changer</span></button>
+    </section>
+    ${deckErr ? `<p class="err" style="margin:0">${esc(deckErr)}</p>` : ''}
+    <button class="playbtn" data-act="${p.ranked ? 'ranked-play' : 'solo'}"><span>Jouer</span><small>${p.ranked ? 'Partie classée' : "Contre l'IA"}</small></button>
+    <div class="duo">${p.ranked ? `<button class="btn" data-act="solo">Contre l'IA</button>` : `<button class="btn" data-act="learn">Apprendre</button>`}<button class="btn" data-act="play-friend">Avec un ami</button></div>
     ${errLine()}
-    <div class="card-box">
-      <div class="row" style="justify-content:space-between"><span class="eyebrow">Progression${p.title ? ` · <span class="ptitle">${esc(titleLabel(p.title))}</span>` : ''}</span><button class="btn sm" data-act="profile" data-tab="succes">Succès</button></div>
-      ${levelBar(p)}
-      ${p.missions.length ? `<details class="mdetails" ${ui.missionsOpen ? 'open' : ''}><summary><span>Missions du jour</span><small class="hint num">${left ? `${left} à faire` : 'Toutes faites ✓'}</small></summary>${missionsHTML()}</details>` : ''}
-      ${p.calendar ? `<button class="calline" data-act="calendar"><span>Calendrier de ${esc(p.calendar.name.split(' ')[0])}</span>
-        <small class="hint num">${p.calendar.ready ? '<b class="calready">Récompense du jour à récupérer</b>' : `${p.calendar.got} jour${p.calendar.got > 1 ? 's' : ''} sur ${p.calendar.days.length}`}</small></button>` : ''}
+    <div class="tiles">
+      ${p.pass ? `<button class="tile passline theme-${p.pass.theme}" data-act="pass"><span class="eyebrow">Passe · ${p.pass.daysLeft} j</span><b>${esc(p.pass.name)}</b>
+        <span class="tile-foot num">Palier ${p.pass.tier}/${p.pass.tiers}</span><span class="bar" aria-hidden="true"><span style="width:${pct(p.pass.xp, p.pass.next)}%"></span></span></button>` : ''}
+      ${p.missions.length ? `<button class="tile ${left ? 'todo' : ''}" data-act="missions"><span class="eyebrow">Missions du jour</span><b class="num">${p.missions.length - left}/${p.missions.length}</b>
+        <span class="tile-foot">${left ? `${left} à faire` : 'Toutes faites ✓'}</span></button>` : ''}
+      ${cal ? `<button class="tile ${cal.ready ? 'todo' : ''}" data-act="calendar"><span class="eyebrow">Calendrier</span><b>${esc(cal.name.split(' ')[0])}</b>
+        <span class="tile-foot num">${cal.ready ? 'Récompense à récupérer' : `${cal.got} jour${cal.got > 1 ? 's' : ''} sur ${cal.days.length}`}</span></button>` : ''}
+      <button class="tile" data-act="profile" data-tab="succes"><span class="eyebrow">Progression${p.title ? ` · ${esc(titleLabel(p.title))}` : ''}</span><b class="num">Niv. ${p.level}</b>
+        <span class="tile-foot num">${p.xp}/${p.xpNext} XP · Succès</span></button>
     </div>
-    <button class="learnline" data-act="learn">Apprendre à jouer : tutoriel et codex des mots-clés</button>
+    ${p.ranked ? '<button class="learnline" data-act="learn">Apprendre à jouer : tutoriel et codex des mots-clés</button>' : ''}
   </div>`;
 }
 // Monnaies du joueur, en haut de l'accueil : chacune ouvre le rayon de la boutique où elle se dépense.
@@ -763,13 +767,15 @@ function walletHTML() {
     <button class="chip num cur prism" data-act="shop-arts" aria-label="${a.prisms} Prismes, ouvrir les arts de la boutique" title="Prismes">${ico('prism')}${a.prisms}</button>`;
 }
 // Barre du bas, sur l'accueil et les écrans du menu : on passe de l'un à l'autre sans revenir à l'accueil.
-const HOME_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>';
+const HOME_PATH = 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z';
+const tabIcon = d => `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
 // Écrans qui ont la barre du bas, et l'onglet allumé sur chacun (aucun pour les sous-écrans de l'accueil).
 const TABBED = { home: 'home', collection: 'collection', decks: 'decks', shop: 'shop', friends: 'friends', profile: '', ranked: '', pass: '', mail: '' };
 function tabbar(cur) {
   const upgradable = OWNABLE.filter(canUpgrade).length, asks = friends.pending();
   const nav = (act, label, badge, extra = '') => `<button data-act="${act}" ${cur === act ? 'class="on" aria-current="page"' : ''} ${extra}>${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
-  return `<nav class="tabbar" aria-label="Menu">${nav('home', HOME_ICON, 0, 'aria-label="Accueil" title="Accueil"')}${nav('collection', 'Collection', upgradable)}${nav('decks', 'Decks')}${nav('shop', 'Boutique')}${nav('friends', 'Amis', asks)}</nav>`;
+  const tab = (act, icon, label, badge) => nav(act, `${tabIcon(icon)}<span>${label}</span>`, badge);
+  return `<nav class="tabbar" aria-label="Menu">${tab('home', HOME_PATH, 'Accueil')}${tab('collection', 'M7 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM12 8l2 3-2 3-2-3z', 'Collection', upgradable)}${tab('decks', 'M8 2h11a1 1 0 0 1 1 1v15M5 5h11a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z', 'Decks')}${tab('shop', 'M5 8h14l-1 12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zM9 8V6a3 3 0 0 1 6 0v2', 'Boutique')}${tab('friends', 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20c0-3.5 3-6 7-6s7 2.5 7 6M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14c2.4.6 4 2.8 4 6', 'Amis', asks)}</nav>`;
 }
 // Cartes de récompense : on dit comment les obtenir.
 function lockLabel(id) {
@@ -1139,6 +1145,10 @@ function sheetHTML() {
         <input id="code" maxlength="4" autocapitalize="characters" autocomplete="off" value="${esc(ui.joinCode)}" placeholder="ABCD"></div>
         <button class="btn" data-act="join" style="align-self:end">Rejoindre</button></div>${errLine()}</div></div>`;
   }
+  if (ui.sheet === 'missions') {
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Missions du jour</h2><button class="btn" data-act="close">Fermer</button></div>
+      ${levelBar(prog())}${missionsHTML()}</div></div>`;
+  }
   if (ui.sheet === 'learn') {
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Apprendre</h2><button class="btn" data-act="close">Fermer</button></div>
       <p class="hint" style="margin:0">Le tutoriel vous guide pendant une partie contre l'IA. Le codex explique chaque mot-clé des cartes.</p>
@@ -1205,8 +1215,13 @@ function render() {
   ui.coach = ui.screen === 'game' && ui.mode === 'tuto' && ui.ctrl ? ui.ctrl.coach(ui) : null;
   const body = screens[ui.screen]() + (ui.screen in TABBED ? tabbar(TABBED[ui.screen]) : '');
   app.classList.toggle('ingame', ui.screen === 'game');
+  setInGame(app, ui.screen === 'game');
   setMusic(musicFor());
   app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
+  // Transitions (habillage.css) : seulement quand l'écran ou la feuille change, pas à chaque rafraîchissement.
+  app.classList.toggle('screen-in', ui.screen !== ui.shownScreen);
+  if (ui.sheet && ui.sheet !== ui.shownSheet) app.querySelector(':scope > .sheet')?.classList.add('sheet-in');
+  ui.shownScreen = ui.screen; ui.shownSheet = ui.sheet;
   if (ui.sheet === 'rename') { const r = document.getElementById('rename-input'); if (r && document.activeElement !== r) { r.focus(); r.select(); } }
   const h2 = document.getElementById('hand'); if (h2) h2.scrollLeft = sx;
   const lb = document.getElementById('logbox'); if (lb) lb.parentElement.scrollTop = lb.scrollHeight;
@@ -1238,6 +1253,7 @@ function ghostOut(uid, cls) {
   const el = app.querySelector(cardSel(uid)); if (!el || reduceMotion()) return;
   const r = el.getBoundingClientRect(), g = el.cloneNode(true);
   g.classList.add('fxghost', cls);
+  if (cls === 'shatter') shards(r);
   Object.assign(g.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
   document.body.append(g); setTimeout(() => g.remove(), 900);
 }
@@ -1264,6 +1280,7 @@ function viewEffects(prev, view) {
   let flip = null;
   if (!prev || view.turn < prev.turn || (prev.phase === 'over' && view.phase !== 'over')) {
     // Début de partie : la main arrive carte par carte.
+    clearEnding();
     view.me.hand.forEach((c, i) => list.push([`[data-hand="${c.uid}"]`, 'drawn', i * 70]));
     if (view.phase === 'plan') after.push(() => banner(at('.board'), ...turnBanner(view)));
     ui.fx = { list, after }; play('draw'); return;
@@ -1285,7 +1302,9 @@ function viewEffects(prev, view) {
     else {
       sounds.push(b.side === 'me' ? 'reveal' : 'revealFoe'); list.push([cardSel(f), b.side === 'me' ? 'reveal' : 'reveal-foe']);
       // Carte de l'adversaire : son dos se retourne d'abord, sa face apparaît ensuite.
-      if (b.side === 'foe' && at(`[data-hid="${f}"]`) && !reduceMotion()) { backFlip(at(`[data-hid="${f}"]`)); list.push([cardSel(f), 'after-back']); }
+      const back = b.side === 'foe' && at(`[data-hid="${f}"]`) && !reduceMotion();
+      if (back) { backFlip(at(`[data-hid="${f}"]`)); list.push([cardSel(f), 'after-back']); }
+      after.push(() => setTimeout(() => sparkle(at(cardSel(f)), b.power), back ? 200 : 60));
       if (fxOf(b)) { list.push([cardSel(f), 'astral-in']); burst.push(cardSel(f)); sounds.push('astral'); }
     }
   }
@@ -1323,7 +1342,8 @@ function viewEffects(prev, view) {
     sounds.push(win ? 'win' : view.result.winner < 0 ? 'tie' : 'lose');
     list.push(['.panel.end', 'end-in']);
     // Les zones s'allument une à une à la couleur de leur gagnant, puis les confettis en cas de victoire.
-    after.push(() => { [0, 1, 2].forEach(z => { const s = zoneSide(view, z); if (s) zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[s], z * 220, true); }); if (win) setTimeout(confetti, 450); });
+    after.push(() => { [0, 1, 2].forEach(z => { const s = zoneSide(view, z); if (s) zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[s], z * 220, true); });
+      setTimeout(() => ending(win ? 'win' : view.result.winner < 0 ? 'tie' : 'lose'), 700); if (win) setTimeout(confetti, 450); });
   }
   ui.fx = { list, flip, burst, after };
   [...new Set(sounds)].slice(0, 3).forEach((s, i) => i ? setTimeout(() => play(s), i * 110) : play(s));
@@ -1382,7 +1402,7 @@ window.addEventListener('pointermove', e => {
     if (drag.touch && drag.kind === 'hand' && Math.abs(dx) > Math.abs(dy)) { drag = null; return; }
     startDrag(e);
   }
-  e.preventDefault();
+  e.preventDefault(); trail(e.clientX, e.clientY);
   drag.ghost.style.transform = `translate(${e.clientX - drag.dx - parseFloat(drag.ghost.style.left)}px, ${e.clientY - drag.dy - parseFloat(drag.ghost.style.top)}px) rotate(${Math.max(-8, Math.min(8, dx / 20))}deg) scale(1.06)`;
   const over = zoneAt(e.clientX, e.clientY);
   for (const z of app.querySelectorAll('.zone.over')) if (z !== over) z.classList.remove('over');
@@ -1472,7 +1492,6 @@ app.addEventListener('submit', e => {
   else if (e.target.id === 'rename-form') renameDeck();
 });
 // Les missions repliées ou dépliées le restent d'un affichage à l'autre.
-app.addEventListener('toggle', e => { if (e.target.classList?.contains('mdetails')) ui.missionsOpen = e.target.open; }, true);
 app.addEventListener('click', e => {
   const t = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-frame],[data-back],[data-stop]');
   if (!t) return;
@@ -1488,7 +1507,7 @@ app.addEventListener('click', e => {
       tryPlace(+ds.zone); }
     else if (a === 'zback') { unplace(ui.zoom.uid); ui.sheet = null; ui.zoom = null; ui.msg = ''; render(); }
     else if (a === 'zstay') { ui.moves = ui.moves.filter(m => m.uid !== ui.zoom.uid); ui.sheet = null; ui.zoom = null; play('unplace'); render(); }
-    else if (a === 'log' || a === 'set' || a === 'learn') { ui.sheet = a; render(); }
+    else if (a === 'log' || a === 'set' || a === 'learn' || a === 'missions') { ui.sheet = a; render(); }
     else if (a === 'play-friend') { ui.sheet = a; ui.error = ''; render(); }
     else if (a === 'create') goOnline('create');
     else if (a === 'join') { if (ui.joinCode.length !== 4) { ui.error = 'Le code fait 4 lettres.'; render(); } else goOnline('join'); }

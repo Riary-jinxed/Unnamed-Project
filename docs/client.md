@@ -12,6 +12,10 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 
 `call(méthode, chemin, corps)` appelle l'API avec la session, garde le compte renvoyé (`setAccount`), affiche l'erreur éventuelle et renvoie à l'écran de connexion si la session a expiré.
 
+## Habillage
+
+`style.css` pose la mise en page et une seule palette sombre (cuir, pierre et or), quel que soit le réglage clair ou sombre du téléphone. `habillage.css`, chargé juste après, donne l'allure de jeu « Grimoire doré » : panneaux de cuir bordés d'or, boutons en relief qui s'enfoncent au toucher, bouton principal doré, titres en Cinzel, barre d'onglets et jauges assorties. Il ne touche qu'à l'apparence : changer de style revient à remplacer ce fichier. L'accueil est un salon de jeu (`renderHome`) : bandeau du joueur, vitrine du deck joué avec son général en grand (`heroHTML`, `art.js`), gros bouton Jouer, puis des tuiles (passe, missions du jour en feuille `missions`, calendrier, progression) ; la barre du bas a une icône par onglet. Il porte aussi les transitions : `render()` ajoute `.screen-in` à `#app` quand l'écran change (le contenu se lève en cascade) et `.sheet-in` à la feuille qui vient de s'ouvrir (elle monte depuis le bas).
+
 ## Écrans
 
 | `ui.screen` | Fonction | Contenu |
@@ -54,6 +58,12 @@ Pendant la préparation, l'appli refait les calculs simples pour guider le joueu
 Ouvertures (`opening.js`, `opening.css`, calque dans `<body>` comme `fx.js`) : un booster de plusieurs cartes (`showCards`) s'ouvre d'abord comme en vrai avec `openPack` : paquet aux couleurs du set qui penche sous le doigt, haut à déchirer en glissant (un appui le déchire d'un coup), puis pile face cachée au dos de carte du joueur ; les doublons se retournent seuls, les nouvelles cartes brillent avant d'être retournées (en or pour un général) et sont rangées au fond du paquet. On jette chaque carte d'un appui ou d'un glissé ; « Tout révéler » ou Échap passe au récapitulatif (feuille `booster`). Un coffre d'arts (`buyArt` quand la réponse a `chest`) passe par `openChest` : trois coups sur le coffre, la lueur de la fente monte du bleu (rare) jusqu'à la rareté de l'art, puis le couvercle saute et l'art sort, avant la feuille `art`. Bruitages `tear`, `rip`, `flip`, `toss`, `shimmer`, `fresh`, `knock`, `chestUp`, `chestOpen` (`sfx.js`) et vibrations sur téléphone. Avec « réduire les animations », on passe directement au récapitulatif.
 
 Le glisser-déposer d'une carte vers une zone s'ajoute au toucher (sélectionner, puis toucher la zone). En partie, une touche sélectionne une carte de la main ou une créature ⇄ (une deuxième la désélectionne), une touche sur une carte posée ce tour la reprend en main, et une double touche (`doubleTap`) ouvre n'importe quelle carte en grand.
+
+## Plateau PixiJS (`stage.js`)
+
+En partie, la table et les effets sont dessinés avec PixiJS (WebGL), sur deux toiles plein écran : la table sous `#app` (planches de bois éclairées par une lampe, braises qui montent, halo de la zone que chaque camp mène, lu sur `.score .v.lead`) et les effets par-dessus (étincelles d'une carte révélée, éclats d'une carte détruite, colonne de lumière d'une zone qui change de camp ou est gagnée, onde du général, confettis). Les cartes et les zones restent en HTML : toucher, glisser-déposer, tutoriel et accessibilité ne changent pas, PixiJS lit leur place à l'écran pour s'y caler.
+
+`fx.js` fait le lien : `render()` appelle `setInGame(app, en partie ?)`, qui charge `stage.js` (et PixiJS, dans un fichier à part, environ 70 Ko compressés) à la première partie, montre les toiles en partie et les cache dans les menus (leurs boucles s'arrêtent). `banner`, `zoneGlow`, `generalFire` et `confetti` passent par PixiJS quand il est prêt (bandeau sombre aux filets d'or et reflet qui le traverse, éclair à la révélation). N'existent que sur PixiJS : `sparkle` (étincelles et onde au sol d'une carte révélée, tremblement de l'écran si sa puissance atteint 5), `shards` (éclats et tremblement d'une carte détruite), `trail` (étincelles derrière une carte qu'on fait glisser) et `ending` (rayons qui tournent derrière un grand titre Victoire, Défaite ou Égalité ; le titre du panneau de fin reste alors seulement pour les lecteurs d'écran). Une brume dérive sur la table. Les animations libres passent par `tween` ; une animation dont l'objet a disparu s'arrête seule. Sans WebGL, avec « réduire les animations », ou si le chargement échoue (hors ligne), rien n'est chargé et les effets CSS d'avant restent.
 
 ## Amis (`friends.js`)
 

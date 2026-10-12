@@ -4,6 +4,20 @@ import './fx.css';
 
 export const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// Plateau PixiJS (stage.js) : chargé à la première partie, seulement avec WebGL et sans « réduire les animations ».
+// Tant qu'il n'est pas prêt, ou s'il ne peut pas l'être, chaque effet garde sa version en CSS ci-dessous.
+let stage = null, inGame = false;
+const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
+const staged = () => stage?.active() ? stage : null;
+// Appelé à chaque rendu : la table PixiJS apparaît en partie et disparaît dans les menus.
+export function setInGame(app, on) {
+  if (on === inGame) return; inGame = on;
+  if (!on) { stage?.leave(); return; }
+  if (reduceMotion() || !webgl()) return;
+  import('./stage.js').then(m => m.enter(app).then(ok => { if (!ok) return; stage = m; if (!inGame) m.leave(); })).catch(err => console.warn('Plateau PixiJS indisponible', err));
+}
+const famOf = el => el && getComputedStyle(el).getPropertyValue('--fam').trim();
+
 // Calque fixe posé sur un rectangle de l'écran, retiré après `ms`.
 function layer(rect, cls, html = '', ms = 1000) {
   const d = document.createElement('div');
@@ -16,6 +30,7 @@ function layer(rect, cls, html = '', ms = 1000) {
 // Bandeau d'annonce au milieu du plateau : « Tour 3 », « Révélation », « Dernier tour ».
 export function banner(board, title, sub = '', tone = '') {
   if (!board) return;
+  if (staged()?.banner(board, title, sub, tone)) return;
   for (const old of document.querySelectorAll('.fxl.fxbanner')) old.remove();
   const r = board.getBoundingClientRect(), h = 64;
   layer({ left: r.left, top: r.top + r.height / 2 - h / 2, width: r.width, height: h }, `fxbanner ${tone}`,
@@ -33,6 +48,7 @@ export function floatNum(el, delta, tone = delta > 0 ? 'up' : 'down', delay = 0)
 // Lueur sur une zone : la zone change de camp, ou est gagnée en fin de partie.
 export function zoneGlow(el, side, delay = 0, strong = false) {
   if (!el || reduceMotion()) return;
+  const st = staged(); if (st) { setTimeout(() => st.zone(el, side, strong), delay); return; }
   const d = layer(el.getBoundingClientRect(), `fxzone ${side} ${strong ? 'strong' : ''}`, '', (strong ? 1800 : 900) + delay);
   if (delay) d.style.animationDelay = `${delay}ms`;
 }
@@ -40,6 +56,7 @@ export function zoneGlow(el, side, delay = 0, strong = false) {
 // Le général entre en action : anneau et éclat à la couleur de sa famille.
 export function generalFire(el) {
   if (!el || reduceMotion()) return;
+  const st = staged(); if (st) { st.general(el, famOf(el)); return; }
   const r = el.getBoundingClientRect(), s = Math.max(r.width, r.height);
   const d = layer(r, 'fxgen', '<i></i><i></i>', 1100);
   d.style.setProperty('--s', `${s}px`);
@@ -70,6 +87,7 @@ export function flyFrom(el, from, { lift = 1.08, ms = 380 } = {}) {
 // Victoire : pluie de confettis aux couleurs du joueur et de l'accent.
 export function confetti() {
   if (reduceMotion()) return;
+  const st = staged(); if (st) { st.confetti(); return; }
   const colors = ['var(--mine)', 'var(--accent)', 'var(--up)', '#fff'];
   const bits = Array.from({ length: 46 }, (_, i) => {
     const x = Math.random() * 100, drift = (Math.random() - 0.5) * 120, rot = Math.round(Math.random() * 720 - 360);
@@ -78,3 +96,11 @@ export function confetti() {
   }).join('');
   layer({ left: 0, top: 0, width: innerWidth, height: innerHeight }, 'fxconfetti', bits, 2900);
 }
+
+// Effets sans équivalent CSS, joués seulement sur le plateau PixiJS : étincelles et impact d'une carte révélée
+// (tremblement si sa puissance est grande), éclats d'une carte détruite, traînée d'une carte glissée, fin de partie.
+export function sparkle(el, power = 0) { const st = staged(); if (st && el) { st.reveal(el, famOf(el) || null); st.impact(el, famOf(el) || null, power); } }
+export function shards(rect) { const st = staged(); if (st && rect) st.shatter(rect); }
+export function trail(x, y) { if (Math.random() < 0.5) staged()?.trail(x, y); }
+export function ending(result) { staged()?.ending(result); }
+export function clearEnding() { staged()?.clearEnding(); }

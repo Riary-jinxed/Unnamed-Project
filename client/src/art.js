@@ -65,6 +65,11 @@ export function portraitHTML(id, artId = null) {
   const [fx, fy] = FACES[id] || [50, 25], x = clamp(fx, 21, 79), y = clamp(fy, 17, 83);
   return `<span class="gport-art" style="--fx: ${x}; --fy: ${y}" aria-hidden="true"><img src="${a.decor}" alt="" decoding="async">${a.perso ? `<img src="${a.perso}" alt="" decoding="async">` : ''}</span>`;
 }
+// Général du deck joué, en grand sur l'accueil : décor et personnage entiers, sans cadre ni nom. Sans illustration : rien.
+export function heroHTML(id, artId = null) {
+  const a = (artId && ALT[artId]?.decor ? ALT[artId] : null) || ART[id]; if (!a?.decor) return '';
+  return `<span class="hero-art" aria-hidden="true"><img src="${a.decor}" alt="" decoding="async">${a.perso ? `<img src="${a.perso}" alt="" decoding="async">` : ''}</span>`;
+}
 // Art alternatif : ses images avec un liseré de rareté, ou l'art provisoire.
 function altHTML(alt, name, lvl, cls) {
   const rar = `rar rar-${rarityKey(alt)}`;
