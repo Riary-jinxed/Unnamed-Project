@@ -2,7 +2,7 @@
 // posée derrière les objets HTML (qui restent cliquables, lisibles au clavier et par les lecteurs d'écran) :
 // - Étal (`.stall`) : mur de planches et comptoir de bois cerclé d'or avec deux piles de pièces (dessinés une fois dans un
 //   canevas 2D), auvent rayé dont le bord festonné ondule, deux lanternes qui se balancent et dont la flamme vacille, rayons
-//   qui tournent derrière chaque paquet ou coffre, flaque de lumière dessous.
+//   qui tournent derrière le coffre (pas derrière les boosters), flaque de lumière dessous.
 // - Vitrine des sélections du jour (`.vitrine`) : velours plissé, un projecteur au-dessus de chaque offre qui oscille
 //   doucement, un halo à sa couleur (famille de la carte, rareté de l'art), une flaque de lumière dessous ; une offre vendue
 //   ou déjà possédée reste dans la pénombre.
@@ -186,7 +186,7 @@ function measure(sc) {
   els.forEach((el, k) => {
     const o = sc.objs[k], r = el.getBoundingClientRect(), slot = el.closest('.stall-item, .vit-slot');
     Object.assign(o, { el, x: r.left - hr.left + r.width / 2, y: r.top - hr.top + r.height / 2, w: r.width, h: r.height,
-      off: slot?.disabled || (slot?.classList.contains('vit-slot') && !slot.classList.contains('sale')),
+      off: slot?.disabled || (slot?.classList.contains('vit-slot') && !slot.classList.contains('sale')), pack: !!slot?.classList.contains('is-pack'),
       tint: toNum(getComputedStyle(el).getPropertyValue('--glow').trim() || '#f0c454') });
     o.ray.tint = o.tint; o.halo.tint = o.tint; o.pool.tint = sc.kind === 'stall' ? 0xffc060 : o.tint;
   });
@@ -239,6 +239,7 @@ function tick(sc, t) {
     if (stall) {
       o.ray.position.set(o.x, o.y); o.ray.rotation = now / 9000 + o.i; o.ray.alpha = o.off ? 0.06 : 0.2 + 0.06 * Math.sin(now / 800 + o.i);
       o.ray.width = o.ray.height = Math.max(o.w, o.h) * 2.1;
+      o.ray.visible = !o.pack; // pas de rayons derrière les boosters (choix de Roitel), seulement derrière le coffre
       o.halo.visible = false;
       o.pool.position.set(o.x, o.y + o.h / 2 + 6); o.pool.width = o.w * 1.8; o.pool.height = 26; o.pool.alpha = o.off ? 0.15 : 0.4 * flick;
     } else {
