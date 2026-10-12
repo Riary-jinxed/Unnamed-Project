@@ -98,15 +98,27 @@ body:has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, 
 .tturn b, .tseals b { color: var(--gold-hi); }
 @media (prefers-reduced-motion: reduce) { .dock .btn.primary.grow { animation: none; } }
 
-/* transitions : chaque nouvel écran se lève doucement, chaque feuille monte depuis le bas */
-#app.screen-in > :not(.sheet, .tabbar) { animation: screenin .32s cubic-bezier(.2,.8,.2,1) backwards; }
+/* transitions (transition.js) : l'écran qui part glisse et s'efface (.screen-ghost), le nouveau arrive du côté opposé
+   (--dx, --dy posés par render() : de côté entre deux menus, d'un peu plus bas sinon) ; une feuille monte depuis le bas
+   et y redescend en se fermant ; l'onglet allumé glisse de l'ancien au nouveau. */
+#app.screen-in > :not(.sheet, .tabbar) { animation: screenin .34s cubic-bezier(.2,.8,.2,1) backwards; }
 #app.screen-in > :nth-child(2) { animation-delay: .04s; } #app.screen-in > :nth-child(3) { animation-delay: .08s; } #app.screen-in > :nth-child(n+4) { animation-delay: .12s; }
-@keyframes screenin { from { opacity: 0; transform: translateY(10px); } }
+@keyframes screenin { from { opacity: 0; transform: translate(var(--dx, 0), var(--dy, 10px)); } }
+.screen-ghost { position: fixed; z-index: 1; box-sizing: border-box; display: flex; flex-direction: column; pointer-events: none;
+  animation: screenout .24s cubic-bezier(.4,0,1,1) forwards; }
+@keyframes screenout { to { opacity: 0; transform: translateX(calc(var(--dir) * -36px)); } }
 .sheet.sheet-in { animation: sheetfade .2s ease-out; }
 .sheet.sheet-in > .panel { animation: sheetup .3s cubic-bezier(.2,.9,.3,1.1); }
 @keyframes sheetfade { from { opacity: 0; } }
 @keyframes sheetup { from { opacity: 0; transform: translateY(24px) scale(.97); } }
-@media (prefers-reduced-motion: reduce) { #app.screen-in > *, .sheet.sheet-in, .sheet.sheet-in > .panel { animation: none; } .btn { transition: none; } }
+.sheet.sheet-out { pointer-events: none; animation: sheetfade .22s ease-in reverse forwards; }
+.sheet.sheet-out > .panel { animation: sheetdown .22s cubic-bezier(.4,0,1,1) forwards; }
+@keyframes sheetdown { to { opacity: 0; transform: translateY(28px) scale(.97); } }
+.tabbar.slid::before { content: ''; position: absolute; top: 0; bottom: 0; left: calc(var(--tab) * 20%); width: 20%; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 30%, rgb(227 181 82 / .3), transparent 70%); box-shadow: inset 0 2px 0 var(--gold);
+  animation: tabslide .3s cubic-bezier(.3,.9,.3,1) forwards; }
+@keyframes tabslide { from { transform: translateX(calc((var(--from) - var(--tab)) * 100%)); } 70% { opacity: 1; } to { transform: none; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #app.screen-in > *, .sheet.sheet-in, .sheet.sheet-in > .panel { animation: none; } .screen-ghost, .sheet.sheet-out, .tabbar.slid::before { display: none; } .btn { transition: none; } }
 
 /* ouverture des boosters et coffres : même fond de cuir et de braise que le reste */
 body .op { background: radial-gradient(circle at 50% 42%, #3a2a1a 0, #1a120c 55%, #080503 100%); }
@@ -137,6 +149,7 @@ body[data-season="halloween"] .playbtn { animation-name: playglow-hw; }
   50% { box-shadow: inset 0 2px 0 #fff8dc, inset 0 -4px 0 rgb(90 50 10 / .55), 0 0 0 1px #000, 0 0 42px 0 rgb(160 80 255 / .7); } }
 body[data-season="halloween"] .tile.todo { border-color: #ff8a2a; box-shadow: 0 0 0 1px #000, 0 0 16px -4px #ff8a2a, inset 0 0 20px -8px rgb(160 80 255 / .4); }
 body[data-season="halloween"] .tabbar button.on { background: radial-gradient(ellipse at 50% 30%, rgb(255 130 40 / .3), transparent 70%); text-shadow: 0 0 10px rgb(255 130 40 / .6); }
+body[data-season="halloween"] .tabbar.slid::before { background: radial-gradient(ellipse at 50% 30%, rgb(255 130 40 / .3), transparent 70%); box-shadow: inset 0 2px 0 rgb(255 130 40); }
 body[data-season="halloween"] .tabbar button.on svg { filter: drop-shadow(0 0 6px rgb(255 130 40 / .85)); }
 body[data-season="halloween"]:has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, #2e1f30, #120c16 70%), #120c16; }
 body.staged[data-season="halloween"]:has(#app.ingame) { background: #120c16; }

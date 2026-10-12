@@ -20,7 +20,7 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 
 | `ui.screen` | Fonction | Contenu |
 | --- | --- | --- |
-| `loading`, `login` | `renderLoading`, `renderLogin` | Démarrage, connexion. |
+| `loading`, `login` | `renderLoading`, `renderLogin` | Démarrage (sous le voile de chargement, voir plus bas ; l'écran ne se voit qu'en cas d'erreur, avec « Réessayer »), connexion. |
 | `starter` | `renderStarter` | Choix du deck de départ (première connexion). |
 | `home` | `renderHome` | Booster du jour, niveau et missions, deck joué, boutique, rang classé, parties, tutoriel et codex. |
 | `collection` | `renderCollection` | Toutes les cartes, par famille, celles qui manquent grisées ; niveau de chaque carte. Une carte ouverte en grand y change d'art (`artsHTML`) et monte de niveau (`upgradeHTML`). |
@@ -58,6 +58,16 @@ Pendant la préparation, l'appli refait les calculs simples pour guider le joueu
 Ouvertures (`opening.js`, `opening.css`, calque dans `<body>` comme `fx.js`) : un booster de plusieurs cartes (`showCards`) s'ouvre d'abord comme en vrai avec `openPack` : paquet aux couleurs du set qui penche sous le doigt, haut à déchirer en glissant (un appui le déchire d'un coup), puis pile face cachée au dos de carte du joueur ; les doublons se retournent seuls, les nouvelles cartes brillent avant d'être retournées (en or pour un général) et sont rangées au fond du paquet. On jette chaque carte d'un appui ou d'un glissé ; « Tout révéler » ou Échap passe au récapitulatif (feuille `booster`). Un coffre d'arts (`buyArt` quand la réponse a `chest`) passe par `openChest` : trois coups sur le coffre, la lueur de la fente monte du bleu (rare) jusqu'à la rareté de l'art, puis le couvercle saute et l'art sort, avant la feuille `art`. Bruitages `tear`, `rip`, `flip`, `toss`, `shimmer`, `fresh`, `knock`, `chestUp`, `chestOpen` (`sfx.js`) et vibrations sur téléphone. Avec WebGL, `opening-stage.js` (PixiJS, chargé à la première ouverture) ajoute deux toiles au calque, l'une derrière son contenu et l'autre devant : poussière dorée dans la lumière, miettes de papier et étincelles le long de la déchirure, lumière qui jaillit du paquet, halo qui pulse derrière une nouvelle carte encore cachée, rayons qui tournent et gerbe d'étincelles quand elle se retourne (or vif et pluie d'étincelles pour un général), copeaux de bois et poussière à chaque coup sur le coffre, lueur de la fente, onde de choc quand la rareté monte, colonne de lumière, rayons et pièces d'or à l'ouverture. Prêtes, elles remplacent les effets CSS (classe `.px`) ; sans WebGL, ceux-ci restent. Avec « réduire les animations », on passe directement au récapitulatif.
 
 Le glisser-déposer d'une carte vers une zone s'ajoute au toucher (sélectionner, puis toucher la zone). En partie, une touche sélectionne une carte de la main ou une créature ⇄ (une deuxième la désélectionne), une touche sur une carte posée ce tour la reprend en main, et une double touche (`doubleTap`) ouvre n'importe quelle carte en grand.
+
+## Chargement et transitions (`veil.js`, `transition.js`)
+
+Voile de chargement (`veil.js`, `veil.css`) : fond de cuir, braises qui montent, dos de carte dont le sceau d'or tourne, titre, barre dorée avec ce qui se passe, et une astuce en bas qui change toutes les 5 secondes (`TIPS` : `jeu` pour les règles et les familles, `menu` pour la collection et la boutique ; une astuce de famille prend sa couleur). Il est en HTML et CSS, pas en PixiJS, pour s'afficher avant tout script : il est déjà écrit dans `index.html`, qui charge `veil.css`. `cover({ label, tips, run, until, ready, min })` le fait monter, lance `run()` dessous, puis `check()`, appelé à la fin de chaque `render()`, l'efface dès que `until()` est vrai, après `ready()` et au moins `min` ms (au plus 12 s en tout). Trois usages :
+
+- Ouverture (`boot`) : « Chargement des cartes… », puis « Connexion à votre compte… » ; il s'efface sur le premier écran, une fois les polices chargées (et le plateau si l'on reprend une partie), ou sur une erreur.
+- Entrée en partie (`toTable` : contre l'IA, classée, salon en ligne, défi d'un ami, tutoriel) : astuces de jeu ; il s'efface quand la table est prête (`stageReady()` de `fx.js` : PixiJS chargé), quand le salon d'attente s'affiche, ou sur une erreur. Au moins 0,9 s, le temps de lire.
+- Retour au salon depuis une partie (`quit`) : astuces de menu.
+
+Transitions entre menus (`transition.js`, CSS dans `habillage.css`) : quand l'écran change, `render()` déplace l'ancien contenu de `#app` dans un calque fixe posé à sa place exacte (`ghostScreen`), qui glisse et s'efface pendant que le nouveau arrive de l'autre côté (`--dx` sur `#app`). Le sens suit la barre du bas (vers la droite, l'écran part à gauche) ; un écran hors barre (profil, classé, passe, courrier, éditeur de deck) arrive en avançant et se quitte en reculant (`screenDir`). La page remonte en haut. Une feuille fermée redescend au lieu de disparaître (`ghostSheet`), l'onglet allumé glisse de l'ancien au nouveau (`.tabbar.slid`). Rien de tout ça sous le voile ni avec « réduire les animations ».
 
 ## Plateau PixiJS (`stage.js`)
 
