@@ -139,7 +139,8 @@ async function endMatch(room) {
     room.rewards = await Promise.all(room.seats.map(async (s, i) => {
       const acc = accounts.byToken(s.auth); if (!acc) return null;
       const reward = await accounts.recordGame(acc, { mode, result: result(i), played: room.st.p[i].played,
-        general: room.st.p[i].general, sweep: !room.st.result.forfeit && winner === i && zones.every(z => z === i), friend: !!room.invite, ranked: !!room.ranked }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
+        general: room.st.p[i].general, sweep: !room.st.result.forfeit && winner === i && zones.every(z => z === i),
+        zones: room.st.result.forfeit ? 0 : zones.filter(z => z === i).length, friend: !!room.invite, ranked: !!room.ranked }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
       return reward && ranks[i] ? { ...reward, ranked: ranks[i] } : reward;
     }));
   }

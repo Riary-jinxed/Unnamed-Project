@@ -12,7 +12,7 @@ import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
-import { artBg, artHTML, heroHTML, portraitHTML, terrainBg, terrainHTML, holoCard, setHoloOff } from './art.js';
+import { artBg, artHTML, heroHTML, portraitHTML, terrainBg, terrainHTML, holoCard, setHoloOff, popCard, setPopOff } from './art.js';
 import './holo.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
@@ -499,9 +499,26 @@ async function toggleHolo(card) {
 function holoHTML(id) {
   if (!owned(id) || !holoCard(myLevel(id), mySel(id))) return '';
   const on = holoOn(id);
-  return `<div class="zacts holobox"><button class="artopt holotgl ${on ? 'on' : ''}" data-act="holo-toggle" data-card="${id}" role="switch" aria-checked="${on}" ${ui.busy ? 'disabled' : ''}>
-    <span class="holosw" aria-hidden="true"></span><span><b>Reflet holographique</b> <small class="hint">${on ? 'Activé : il bouge quand vous inclinez le téléphone' : 'Désactivé sur cette carte'}</small></span></button></div>`;
+  return `<button class="artopt holotgl ${on ? 'on' : ''}" data-act="holo-toggle" data-card="${id}" role="switch" aria-checked="${on}" ${ui.busy ? 'disabled' : ''}>
+    <span class="holosw" aria-hidden="true"></span><span><b>Reflet holographique</b> <small class="hint">${on ? 'Activé : il bouge quand vous inclinez le téléphone' : 'Désactivé sur cette carte'}</small></span></button>`;
 }
+// Débordement du personnage (art.js, niveau Or et plus) : allumé sauf sur les cartes où le joueur l'a coupé.
+setPopOff(() => ui.account?.popOff || {});
+const popOn = id => !ui.account?.popOff?.[id];
+async function togglePop(card) {
+  const on = !popOn(card);
+  if (!await call('PUT', '/api/arts/pop', { card, on })) return;
+  ui.msg = on ? `${nameOf(card)} sort de nouveau du cadre.` : `${nameOf(card)} reste dans son cadre.`; play('pick'); render();
+}
+// Interrupteur du débordement, sur la carte ouverte en grand depuis la collection, une fois le débordement débloqué.
+function popHTML(id) {
+  if (!owned(id) || !popCard(id, myLevel(id), mySel(id))) return '';
+  const on = popOn(id);
+  return `<button class="artopt holotgl ${on ? 'on' : ''}" data-act="pop-toggle" data-card="${id}" role="switch" aria-checked="${on}" ${ui.busy ? 'disabled' : ''}>
+    <span class="holosw" aria-hidden="true"></span><span><b>Personnage hors du cadre</b> <small class="hint">${on ? 'Activé : il déborde de l\'illustration' : 'Désactivé : il reste dans le cadre'}</small></span></button>`;
+}
+// Effets de la carte (reflet, débordement) : un bloc d'interrupteurs, s'il y en a.
+const fxHTML = id => { const h = holoHTML(id) + popHTML(id); return h ? `<div class="zacts holobox">${h}</div>` : ''; };
 // Pastille de rareté (style.css, « .rar-… »).
 const rarChip = art => `<span class="rarchip rar-${rarityKey(art)}">${esc(rarityName(art))}</span>`;
 // Famille d'arts d'un art (arts.js, ART_THEMES), pour les sous-titres.
@@ -600,7 +617,7 @@ function genSlot(side, isMe, canGen) {
   const [short, epithet] = g.name.split(/,\s*/);
   const pic = portraitHTML(side.general, artIn(seat, side.general)) || `<span class="gport-init" aria-hidden="true">${esc(short[0])}</span>`;
   // --gt : le portrait respire sans à-coup d'un rendu à l'autre (ses animations CSS reprennent là où elles en étaient).
-  return `<button class="gencard${lvCls(levelIn(seat, side.general))} ${state}" style="${famVar([g.fam])}; --gt: -${Math.round(performance.now())}ms" data-general="${side.general}" data-fam="${g.fam || ''}" data-side="${isMe ? 'me' : 'foe'}"
+  return `<button class="gencard${lvCls(levelIn(seat, side.general))} ${state}" style="${famVar([g.fam])}; --gt: -${Math.round(performance.now())}ms" data-general="${side.general}" data-gfam="${g.fam || ''}" data-side="${isMe ? 'me' : 'foe'}"
     aria-label="Général : ${esc(g.name)}, ${esc(note)}" title="${esc(g.text)}">
     <span class="gport">${pic}</span>
     <span class="gtx"><span class="gk">Général</span><span class="gn ${epithet ? '' : 'two'}">${esc(short)}</span>${epithet ? `<span class="ge">${esc(epithet)}</span>` : ''}
@@ -768,7 +785,7 @@ function renderHome() {
     <span class="wallet">${walletHTML()}</span>${mail.button()}${muteBtn()}</div>
   <div class="setup home lobby">
     ${gift}
-    <section class="showcase" style="${g ? famVar([g.fam]) : ''}">
+    <section class="showcase" style="${g ? famVar([g.fam]) : ''}" data-fam="${esc(g?.fam || '')}">
       <div class="sc-art">${hero || `<span class="sc-init" aria-hidden="true">${esc((g?.name || '?')[0])}</span>`}</div>
       ${p.ranked ? `<button class="sc-rank" data-act="ranked" aria-label="Classement">${rankHTML(p.ranked.rank)}<small>${esc(p.ranked.seasonName)}</small></button>` : ''}
       <button class="sc-deck" data-act="decks"><span class="eyebrow">Deck joué</span><b>${esc(d ? d.name : 'Aucun deck')}</b>${g ? `<small>${esc(g.name)}</small>` : ''}<span class="sc-change">Changer</span></button>
@@ -1110,7 +1127,7 @@ function zoomHTML() {
     body = `
       <div class="zh"><span class="seal" title="Coût">${cost}</span><h2>${esc(d.name)}</h2>${d.type === 'C' ? `<span class="zp num ${pcls}" title="Puissance">${pw}</span>` : ''}</div>
       <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · puissance de base ${d.power}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span>
-      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? holoHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
+      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? fxHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
   } else if (zm.kind === 'general') {
     const g = GENERALS[zm.id]; style = famVar([g.fam]);
     const acts = [];
@@ -1125,7 +1142,7 @@ function zoomHTML() {
     const seat = ui.view && zm.side ? (zm.mine ? ui.view.seat : 1 - ui.view.seat) : null;
     lvl = seat !== null ? levelIn(seat, zm.id) : myLevel(zm.id);
     art = zm.art || (seat !== null ? artIn(seat, zm.id) : mySel(zm.id));
-    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? holoHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
+    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? fxHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
   } else {
     const t = TERRAINS[zm.id]; style = famVar([t.fam]);
     body = `<div class="zh"><h2>${t.name}</h2></div><span class="k">Terrain${t.fam ? ` · ${t.fam}` : ''}</span><p class="x">${rich(t.text)}</p>`;
@@ -1234,6 +1251,7 @@ function sheetHTML() {
   }
   return '';
 }
+const SEASON_OVERRIDE = (q => q === null ? null : q === 'base' ? '' : q)(new URLSearchParams(location.search).get('saison'));
 function render() {
   const h = document.getElementById('hand'); const sx = h ? h.scrollLeft : 0;
   // Défilement de la fenêtre ouverte, gardé quand elle se redessine (ex. : après une amélioration, en bas de la fiche).
@@ -1248,6 +1266,8 @@ function render() {
   ui.coach = ui.screen === 'game' && ui.mode === 'tuto' && ui.ctrl ? ui.ctrl.coach(ui) : null;
   const body = screens[ui.screen]() + (ui.screen in TABBED ? tabbar(TABBED[ui.screen]) : '');
   app.classList.toggle('ingame', ui.screen === 'game');
+  // Thème de saison (décors PixiJS, habillage.css) : celui du passe du mois, ou ?saison=… dans l'adresse pour en essayer un (« base » : aucun).
+  document.body.dataset.season = SEASON_OVERRIDE ?? (SEASONS.find(x => x.id === seasonId())?.theme || '');
   setInGame(app, ui.screen === 'game');
   setMusic(musicFor());
   app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
@@ -1600,6 +1620,7 @@ app.addEventListener('click', e => {
     else if (a === 'claim-day' && !ui.busy) claimDay();
     else if (a === 'art-pick' && !ui.busy) selectArt(ds.card, ds.art);
     else if (a === 'holo-toggle' && !ui.busy) toggleHolo(ds.card);
+    else if (a === 'pop-toggle' && !ui.busy) togglePop(ds.card);
     else if (a === 'reroll' && !ui.busy) call('POST', '/api/missions/reroll', { index: +ds.i });
     else if (a === 'edit') { editDeck(ui.account.active, ui.screen === 'collection' ? 'collection' : 'home'); render(); }
     else if (a === 'home') { ui.screen = 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }

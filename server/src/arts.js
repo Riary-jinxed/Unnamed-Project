@@ -1,7 +1,8 @@
 // Arts alternatifs : offres du jour propres à chaque joueur, coffre, choix de l'art de chaque carte, dons depuis /admin (Promo).
 // Payés en Prismes, la monnaie rare des arts, ou avec un coffre offert (pay est fourni par accounts.js).
 // Compte : arts = { idArt: { at, gift? } }, artSel = { idCarte: idArt }, artShop = offres du jour,
-// holoOff = { idCarte: true } pour les cartes dont le joueur a coupé le reflet holographique.
+// holoOff = { idCarte: true } pour les cartes dont le joueur a coupé le reflet holographique,
+// popOff = { idCarte: true } pour celles dont il a coupé le débordement du personnage.
 import { CARDS, GENERALS } from '@jeu/engine';
 import { ARTS, artExists, isClassic, artPrice, artOffers, chestPool, chestRates, weightedPick, rarityName } from '@jeu/engine/arts';
 import { today } from '@jeu/engine/collection';
@@ -58,11 +59,14 @@ export function createArts(store, cfg) {
     a.artSel = { ...(a.artSel || {}), [card]: id };
   }
   // Reflet holographique (arts alternatifs, cartes Or et Astral) : allumé par défaut, le joueur peut le couper carte par carte.
-  function holo(a, { card, on }) {
+  const holo = (a, body) => toggle(a, 'holoOff', body);
+  // Débordement du personnage (niveau Or et plus) : allumé par défaut, le joueur peut le couper carte par carte.
+  const pop = (a, body) => toggle(a, 'popOff', body);
+  function toggle(a, field, { card, on }) {
     if (!CARDS[card] && !GENERALS[card]) throw new HttpError(400, 'Carte inconnue.');
-    const off = { ...(a.holoOff || {}) };
+    const off = { ...(a[field] || {}) };
     if (on) delete off[card]; else off[card] = true;
-    a.holoOff = off;
+    a[field] = off;
   }
 
   // ---- Administration ----
@@ -80,5 +84,5 @@ export function createArts(store, cfg) {
     for (const [card, sel] of Object.entries(a.artSel || {})) if (sel === id) delete a.artSel[card];
   }
 
-  return { view, buy, chest, select, holo, adminList, adminGive };
+  return { view, buy, chest, select, holo, pop, adminList, adminGive };
 }

@@ -38,7 +38,7 @@ export function startSolo(handlers, { name, deck }) {
       ready = false; emit(null);
       if (!st.over) startThinking();
       // Fin de partie : résultat envoyé au serveur pour les statistiques.
-      if (st.over && !stopped && handlers.onSoloOver) handlers.onSoloOver({ winner: st.result.winner, reason: st.result.reason, played: st.p[0].played,
+      if (st.over && !stopped && handlers.onSoloOver) handlers.onSoloOver({ winner: st.result.winner, reason: st.result.reason, zones: st.result.zones, played: st.p[0].played,
         ai: { deckKey: st.p[1].deckKey, general: st.p[1].general, played: st.p[1].played } });
     },
     rematch: begin,
