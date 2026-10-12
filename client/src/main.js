@@ -14,6 +14,7 @@ import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
 import { artBg, artHTML, heroHTML, portraitHTML, terrainBg, terrainHTML, holoCard, setHoloOff } from './art.js';
 import './holo.js';
+import './cosmetics.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
 import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, sparkle, shards, trail, ending, clearEnding } from './fx.js';
