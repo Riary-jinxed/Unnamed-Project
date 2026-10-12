@@ -4,7 +4,7 @@
 // rendu CSS, et tout reste en CSS sans WebGL.
 // Pour ne pas ralentir le démarrage : PixiJS arrive après le premier rendu, et les images sont gardées dans le cache du
 // navigateur, si bien que les visites suivantes les posent tout de suite sans rien redessiner. Changer un dessin : augmenter VERSION.
-const VERSION = 2, CACHE = 'cosmetiques', DPR = () => Math.min(2, Math.max(1, devicePixelRatio || 1));
+const VERSION = 3, CACHE = 'cosmetiques', DPR = () => Math.min(2, Math.max(1, devicePixelRatio || 1));
 const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
 const key = (kind, id) => `/__cosmetiques/v${VERSION}/x${DPR()}/${kind}/${id}.png`;
 
@@ -12,7 +12,7 @@ const key = (kind, id) => `/__cosmetiques/v${VERSION}/x${DPR()}/${kind}/${id}.pn
 export async function renderAll() {
   const [{ autoDetectRenderer, Rectangle }, art] = await Promise.all([import('pixi.js'), import('./cosmetics-art.js')]);
   const renderer = await autoDetectRenderer({ preference: 'webgl', backgroundAlpha: 0, width: 8, height: 8, antialias: true });
-  const jobs = [['icon', art.ICON_IDS, art.drawIcon, art.ICON_S, art.ICON_S, 0.75], ['back', art.BACK_IDS, art.drawBack, art.BACK_W, art.BACK_H, 0.5],
+  const jobs = [['icon', art.ICON_IDS, art.drawIcon, art.ICON_S, art.ICON_S, 0.75], ['back', art.BACK_IDS, art.drawBack, art.BACK_W, art.BACK_H, 1],
     ['frame', art.FRAME_IDS, art.drawFrame, art.FRAME_S, art.FRAME_S, 0.5]];
   const out = { icon: {}, back: {}, frame: {} }, blobs = [];
   for (const [kind, ids, draw, w, h, scale] of jobs) for (const id of ids) {

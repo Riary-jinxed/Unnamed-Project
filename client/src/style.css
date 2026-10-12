@@ -279,6 +279,9 @@ body:has(#app.ingame) { margin: 0; }
 #app.ingame .slots { grid-template-rows: repeat(2, minmax(42px, 1fr)); }
 #app.ingame .slot, #app.ingame .mc { height: auto; min-height: 0; max-height: 104px; }
 #app.ingame .mc .p { position: absolute; right: 4px; bottom: 3px; } /* la puissance ne force pas la hauteur de la case */
+/* Carte cachée : elle garde la forme d'une carte (le dos dessiné, cosmetics.js, est en 240 × 336), centrée dans sa case.
+   Sur ordinateur les cases sont presque carrées : étiré, le dos était rogné et son cadre apparaissait en rectangle dans un carré. */
+#app.ingame .mc.back { justify-self: center; width: auto; max-width: 100%; aspect-ratio: 240 / 336; box-sizing: border-box; padding: 0; }
 /* Écran court : main un peu plus basse, pour défiler le moins possible. */
 @media (max-height: 720px) {
   #app.ingame .hand { min-height: 104px; } #app.ingame .hc { height: 100px; } #app.ingame .hc .x { -webkit-line-clamp: 2; }
@@ -783,7 +786,11 @@ body:has(#app.ingame) { margin: 0; }
 .showcase { position: relative; height: clamp(220px, 40dvh, 400px); border-radius: 10px; overflow: hidden; isolation: isolate;
   background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--fam, var(--accent)) 45%, #000), #000 75%); }
 .sc-art, .hero-art { position: absolute; inset: 0; }
-.hero-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; }
+/* Illustration du général (960 × 1424) qui couvre le bandeau, cadrée sur le visage (--fx, --fy : sa place dans l'image, de 0 à 1,
+   art.js) : le visage vient au tiers haut du bandeau, sans jamais laisser de bord vide. Même calage dans lobby-stage.js. */
+.hero-art { container-type: size; overflow: hidden; --iw: max(100cqw, 100cqh * 960 / 1424); --ih: calc(var(--iw) * 1424 / 960); }
+.hero-art img { position: absolute; width: var(--iw); height: var(--ih); max-width: none;
+  left: clamp(100cqw - var(--iw), 50cqw - var(--fx, .5) * var(--iw), 0px); top: clamp(100cqh - var(--ih), 40cqh - var(--fy, .25) * var(--ih), 0px); }
 .sc-init { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--famfont, var(--display)); font-size: 120px; color: rgb(255 255 255 / .25); }
 .showcase::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(transparent 45%, rgb(0 0 0 / .85)); }
 .sc-deck { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: grid; justify-items: start; gap: 1px; padding: 16px 112px 16px 16px; border: 0; background: none; color: #fff; text-align: left; }

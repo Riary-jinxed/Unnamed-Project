@@ -76,14 +76,15 @@ function bat(W, H) {
   bats.addChild(b);
 }
 
-// Calage des images comme l'illustration HTML (object-fit: cover, cadrée à 12 % du haut), avec une marge pour la parallaxe.
+// Calage des images comme l'illustration HTML (style.css, .hero-art) : elles couvrent la vitrine, avec une marge pour la
+// parallaxe, et le visage du général (cur.fx, cur.fy, de 0 à 1) vient au milieu en largeur et au tiers haut en hauteur.
 let lay = null;
 function fit() {
   if (!host || !cur) return;
   const W = host.clientWidth, H = host.clientHeight; if (!W || !H) return;
   if (app.screen.width !== W || app.screen.height !== H) app.renderer.resize(W, H);
   const iw = cur.decor.width, ih = cur.decor.height, s = Math.max((W + MARGIN * 2) / iw, (H + MARGIN * 2) / ih);
-  const left = (W - iw * s) / 2, top = -MARGIN + (H + MARGIN * 2 - ih * s) * 0.12;
+  const left = clamp(W / 2 - cur.fx * iw * s, W + MARGIN - iw * s, -MARGIN), top = clamp(H * 0.4 - cur.fy * ih * s, H + MARGIN - ih * s, -MARGIN);
   lay = { W, H, s, cx: left + iw * s / 2, cy: top + ih * s / 2, bottom: top + ih * s };
   glow.width = W * 1.3; glow.height = H * 1.1; hearth.width = W * 1.4; hearth.height = H * 0.5;
   tick();
@@ -145,11 +146,11 @@ function attach(w) {
 // ---- API utilisée par lobby.js ----
 export function show(w) {
   pending = w;
-  if (cur && cur.key === w.decor + '|' + w.perso && app) { attach(w); return; }
+  if (cur && cur.key === w.decor + '|' + w.perso && app) { Object.assign(cur, { fx: w.fx, fy: w.fy }); attach(w); return; }
   ready ||= boot();
   Promise.all([ready, load(w.decor), load(w.perso)]).then(([, d, p]) => {
     const now = pending; if (!now || now.decor !== w.decor || now.perso !== w.perso || !d) return;
-    cur = { key: w.decor + '|' + w.perso, decor: d };
+    cur = { key: w.decor + '|' + w.perso, decor: d, fx: now.fx, fy: now.fy };
     decor.texture = d; perso.visible = !!p; if (p) perso.texture = p;
     let tint = 0xe3b552; try { if (w.fam) tint = new Color(w.fam).toNumber(); } catch { /* couleur illisible : or */ }
     glow.tint = tint;
