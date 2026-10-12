@@ -30,6 +30,7 @@ function layer(rect, cls, html = '', ms = 1000) {
 // Bandeau d'annonce au milieu du plateau : « Tour 3 », « Révélation », « Dernier tour ».
 export function banner(board, title, sub = '', tone = '') {
   if (!board) return;
+  if (staged()?.banner(board, title, sub, tone)) return;
   for (const old of document.querySelectorAll('.fxl.fxbanner')) old.remove();
   const r = board.getBoundingClientRect(), h = 64;
   layer({ left: r.left, top: r.top + r.height / 2 - h / 2, width: r.width, height: h }, `fxbanner ${tone}`,
@@ -96,7 +97,10 @@ export function confetti() {
   layer({ left: 0, top: 0, width: innerWidth, height: innerHeight }, 'fxconfetti', bits, 2900);
 }
 
-// Effets sans équivalent CSS, joués seulement sur le plateau PixiJS : étincelles d'une carte révélée,
-// éclats d'une carte détruite (en plus de son animation CSS).
-export function sparkle(el) { const st = staged(); if (st && el) st.reveal(el, famOf(el) || null); }
+// Effets sans équivalent CSS, joués seulement sur le plateau PixiJS : étincelles et impact d'une carte révélée
+// (tremblement si sa puissance est grande), éclats d'une carte détruite, traînée d'une carte glissée, fin de partie.
+export function sparkle(el, power = 0) { const st = staged(); if (st && el) { st.reveal(el, famOf(el) || null); st.impact(el, famOf(el) || null, power); } }
 export function shards(rect) { const st = staged(); if (st && rect) st.shatter(rect); }
+export function trail(x, y) { if (Math.random() < 0.5) staged()?.trail(x, y); }
+export function ending(result) { staged()?.ending(result); }
+export function clearEnding() { staged()?.clearEnding(); }

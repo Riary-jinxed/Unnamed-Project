@@ -4,12 +4,15 @@
 // onde du général, confettis). Les cartes et les zones restent en HTML (main.js) : toucher, glisser-déposer, tutoriel et
 // lecteurs d'écran ne changent pas ; PixiJS lit leur place à l'écran (getBoundingClientRect) pour s'y caler.
 // Sans WebGL ou avec « réduire les animations », rien n'est chargé et fx.js garde ses effets en CSS.
-import { Application, Color, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { Application, Color, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 
 let table = null, over = null, root = null, ready = null, embers = null, pools = [], parts = [], glowTex = null, sparkTex = null, shardTex = null;
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a);
 const cssColor = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#e3b552';
-let COL = {};
+let COL = {}, anims = [], fog = [], cine = null;
+// Animation libre : update(k) avec k de 0 à 1 sur `ms` millisecondes, puis done().
+const tween = (ms, update, done) => anims.push({ t: 0, ms, update, done });
+const ease = k => 1 - Math.pow(1 - k, 3);
 
 // Texture ronde et floue (halo) dessinée une fois dans un canevas 2D.
 function radial(size, stops) {
@@ -40,6 +43,9 @@ async function init() {
   const lamp = new Sprite(glowTex); lamp.anchor.set(0.5); lamp.tint = 0xffc070; lamp.alpha = 0.22; lamp.blendMode = 'add'; table.stage.addChild(lamp);
   // Lumière de la zone : un halo par zone, à la couleur du camp qui la mène.
   pools = [0, 1, 2].map(() => { const s = new Sprite(glowTex); s.anchor.set(0.5); s.alpha = 0; s.blendMode = 'add'; table.stage.addChild(s); return s; });
+  // Brume : deux nappes de nuages très pâles qui dérivent lentement au-dessus des planches.
+  const cloud = cloudTexture();
+  fog = [0, 1].map(i => { const f = new Sprite(cloud); f.anchor.set(0.5); f.alpha = 0.09; f.tint = i ? 0xd8b890 : 0xa0b0c0; table.stage.addChild(f); return Object.assign(f, { phase: i * 3, speed: i ? 0.00011 : 0.00007 }); });
   embers = new Container(); table.stage.addChild(embers);
   const drawTable = () => {
     const w = innerWidth, h = innerHeight; wood.clear().rect(0, 0, w, h).fill({ color: 0x140e0a });
@@ -55,6 +61,8 @@ async function init() {
     const dt = t.deltaTime;
     for (const e of embers.children) { e.y -= e.vy * dt; e.x += Math.sin((e.y + e.seed) / 40) * 0.3 * dt; e.alpha = Math.min(1, e.life) * 0.7; e.life -= 0.003 * dt;
       if (e.y < -10 || e.life <= 0) ember(e, false); }
+    const now = performance.now();
+    fog.forEach(f => { f.width = innerWidth * 2.2; f.height = innerHeight * 0.9; f.x = innerWidth / 2 + Math.sin(now * f.speed + f.phase) * innerWidth * 0.35; f.y = innerHeight * (0.3 + 0.35 * f.phase / 3) + Math.cos(now * f.speed * 1.3) * 30; });
     const zones = root?.querySelectorAll('.board > .zone') || [];
     pools.forEach((p, z) => {
       const el = zones[z]; if (!el) { p.alpha = 0; return; }
@@ -67,12 +75,22 @@ async function init() {
   });
   over.ticker.add(t => {
     const dt = t.deltaTime;
+    // Une animation dont l'objet a été retiré entre-temps (bandeau remplacé, sortie de partie) s'arrête sans bloquer les autres.
+    for (let i = anims.length - 1; i >= 0; i--) { const a = anims[i]; a.t += t.deltaMS; const k = Math.min(1, a.t / a.ms);
+      try { a.update(k); if (k >= 1) { anims.splice(i, 1); a.done?.(); } } catch { anims.splice(i, 1); } }
     for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.age += dt;
       if (p.age >= p.ttl) { p.s.destroy(); parts.splice(i, 1); continue; }
       p.vx *= p.drag; p.vy = p.vy * p.drag + p.g * dt; p.s.x += p.vx * dt; p.s.y += p.vy * dt; p.s.rotation += p.spin * dt;
       const k = p.age / p.ttl; p.s.alpha = p.fade ? (1 - k) * p.a0 : p.a0; if (p.grow) p.s.scale.set(p.sc0 + p.grow * k);
     }
   });
+}
+// Nuage : quelques halos superposés dans un canevas 2D, flou et sans bord.
+function cloudTexture() {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+  for (let i = 0; i < 18; i++) { const x = rnd(80, 432), y = rnd(80, 176), r = rnd(40, 110), grd = g.createRadialGradient(x, y, 0, x, y, r);
+    grd.addColorStop(0, 'rgba(255,255,255,.35)'); grd.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = grd; g.fillRect(0, 0, 512, 256); }
+  return Texture.from(c);
 }
 // Braise : repart du bas de l'écran (ou de n'importe où, au début) et monte en ondulant.
 function ember(s, anywhere) {
@@ -102,6 +120,7 @@ export function leave() {
   if (!table) return;
   table.stop(); over.stop(); table.canvas.style.display = over.canvas.style.display = 'none';
   for (const p of parts) p.s.destroy(); parts = [];
+  anims = []; over.stage.removeChildren().forEach(c => c.destroy()); cine = null; root?.style.removeProperty('transform');
 }
 export const active = () => !!table && document.body.classList.contains('staged');
 
@@ -120,11 +139,13 @@ export function shatter(rect, color) {
   for (let i = 0; i < 18; i++) spawn(shardTex, rect.left + rnd(0, rect.width), rect.top + rnd(0, rect.height),
     { tint, blend: 'normal', vx: rnd(-3, 3), vy: rnd(-4, -1), g: 0.22, drag: 0.99, spin: rnd(-0.25, 0.25), rot: rnd(0, TAU), scale: rnd(0.6, 1.3), ttl: rnd(40, 60) });
   for (let i = 0; i < 10; i++) spawn(sparkTex, rect.left + rnd(0, rect.width), rect.top + rnd(0, rect.height), { tint: 0xffb060, vx: rnd(-2, 2), vy: rnd(-3, 0), scale: rnd(0.2, 0.4), ttl: 30 });
+  shake(4);
 }
 // Zone qui change de camp, ou gagnée en fin de partie : colonne de lumière qui monte, poussière dorée.
 export function zone(el, side, strong = false) {
   if (!active() || !el) return;
   const { r, x } = centerOf(el), tint = toNum(COL[side] || COL.gold);
+  if (!strong) shake(2, 200);
   spawn(glowTex, x, r.top + r.height / 2, { tint, scale: r.width / 110, ttl: strong ? 80 : 45, grow: 0.4, alpha: strong ? 0.9 : 0.6 });
   for (let i = 0; i < (strong ? 60 : 28); i++) spawn(sparkTex, r.left + rnd(0, r.width), r.bottom - rnd(0, r.height * 0.3),
     { tint: i % 4 ? tint : 0xffffff, vx: rnd(-0.4, 0.4), vy: rnd(-5, -1.5), drag: 0.985, scale: rnd(0.2, 0.55), ttl: rnd(40, strong ? 90 : 60) });
@@ -146,3 +167,83 @@ export function confetti() {
   for (let i = 0; i < 90; i++) setTimeout(() => spawn(shardTex, rnd(0, innerWidth), -20,
     { tint: tints[i % 4], blend: 'normal', vx: rnd(-1.5, 1.5), vy: rnd(1, 3), g: 0.05, drag: 0.995, spin: rnd(-0.2, 0.2), rot: rnd(0, TAU), scale: rnd(0.6, 1.1), ttl: rnd(120, 170), fade: false }), rnd(0, 600));
 }
+
+// Tremblement de l'écran : le plateau (HTML) est secoué quelques images, d'autant plus fort que le coup est grand.
+export function shake(px = 3, ms = 260) {
+  if (!active() || !root?.animate) return;
+  const f = []; for (let i = 0; i < 7; i++) { const k = 1 - i / 7; f.push({ transform: `translate(${rnd(-px, px) * k}px, ${rnd(-px, px) * k}px)` }); }
+  f.push({ transform: 'none' }); root.animate(f, { duration: ms, easing: 'linear' });
+}
+// Carte qui tombe sur le plateau : onde de choc au sol et poussière qui s'écarte, puis un léger tremblement si elle frappe fort.
+export function impact(el, color, power = 0) {
+  if (!active() || !el) return;
+  const { r, x, y } = centerOf(el), tint = toNum(color || COL.gold);
+  const ring = new Graphics().ellipse(0, 0, 40, 22).stroke({ width: 3, color: 0xffffff }); ring.position.set(x, r.bottom - 4); ring.tint = tint; ring.blendMode = 'add'; over.stage.addChild(ring);
+  tween(420, k => { ring.scale.set(0.3 + ease(k) * (1.2 + r.width / 80)); ring.alpha = 1 - k; }, () => ring.destroy());
+  for (let i = 0; i < 14; i++) { const a = rnd(-0.3, Math.PI + 0.3), v = rnd(1, 3);
+    spawn(glowTex, x + Math.cos(a) * r.width * 0.3, r.bottom - 6, { tint: 0x8a7458, blend: 'normal', vx: Math.cos(a) * v, vy: -Math.abs(Math.sin(a)) * v * 0.4, drag: 0.93, scale: rnd(0.04, 0.08), grow: 0.12, alpha: 0.3, ttl: rnd(30, 45) }); }
+  if (power >= 5) shake(Math.min(6, power - 2));
+}
+// Traînée d'étincelles derrière une carte qu'on fait glisser.
+export function trail(x, y) {
+  if (!active()) return;
+  spawn(sparkTex, x + rnd(-10, 10), y + rnd(-10, 10), { tint: toNum(COL.gold), vx: rnd(-0.4, 0.4), vy: rnd(-0.6, 0.2), scale: rnd(0.2, 0.4), ttl: rnd(18, 30) });
+}
+// Annonce au milieu du plateau (Tour 3, Révélation, Dernier tour) : bandeau sombre qui s'ouvre, filets d'or,
+// titre qui glisse en se resserrant, reflet de lumière qui le traverse, puis tout s'efface vers le haut.
+export function banner(board, title, sub = '', tone = '') {
+  if (!active() || !board) return false;
+  for (const c of over.stage.children.filter(c => c.label === 'banner')) c.destroy({ children: true });
+  const r = board.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, w = innerWidth, h = 78;
+  const edge = toNum(tone === 'reveal' ? COL.foe : tone === 'last' ? '#f07a66' : COL.gold);
+  const c = new Container(); c.label = 'banner'; c.position.set(0, cy); over.stage.addChild(c);
+  const band = new Graphics().rect(0, -h / 2, w, h).fill({ color: 0x0c0806, alpha: 0.82 })
+    .rect(0, -h / 2, w, 2).fill({ color: edge }).rect(0, h / 2 - 2, w, 2).fill({ color: edge });
+  const glow = new Sprite(glowTex); glow.anchor.set(0.5); glow.position.set(cx, 0); glow.width = w * 1.2; glow.height = h * 2.2; glow.tint = edge; glow.alpha = 0.35; glow.blendMode = 'add';
+  const t = new Text({ text: title.toUpperCase(), style: { fontFamily: 'Cinzel, Alegreya SC, serif', fontWeight: '700', fontSize: 34, fill: tone === 'last' ? 0xffb0a0 : 0xffe8b0,
+    stroke: { color: 0x2a1606, width: 4 }, dropShadow: { color: edge, blur: 12, distance: 0, alpha: 0.9 }, letterSpacing: 4 } });
+  t.anchor.set(0.5); t.position.set(cx, sub ? -8 : 0);
+  const st = sub ? new Text({ text: sub.toUpperCase(), style: { fontFamily: 'Alegreya Sans, sans-serif', fontWeight: '700', fontSize: 12, fill: edge, letterSpacing: 3 } }) : null;
+  if (st) { st.anchor.set(0.5); st.position.set(cx, 22); }
+  const sweep = new Sprite(glowTex); sweep.anchor.set(0.5); sweep.height = h * 1.4; sweep.width = 60; sweep.alpha = 0.7; sweep.blendMode = 'add';
+  c.addChild(glow, band, t, sweep); if (st) c.addChild(st);
+  if (tone === 'reveal') flash(edge, 0.18);
+  tween(1900, k => {
+    const open = Math.min(1, k / 0.12), out = k > 0.8 ? (k - 0.8) / 0.2 : 0;
+    band.scale.y = ease(open); glow.alpha = 0.35 * ease(open) * (1 - out);
+    t.x = cx + (1 - ease(Math.min(1, k / 0.2))) * -60; t.style.letterSpacing = 4 + (1 - ease(Math.min(1, k / 0.25))) * 18;
+    sweep.x = -80 + (w + 160) * Math.min(1, Math.max(0, (k - 0.15) / 0.4));
+    c.alpha = 1 - out; c.y = cy - out * 12;
+  }, () => c.destroy({ children: true }));
+  return true;
+}
+// Éclair plein écran, très bref.
+export function flash(color = 0xffffff, alpha = 0.25) {
+  if (!active()) return;
+  const g = new Graphics().rect(0, 0, innerWidth, innerHeight).fill({ color }); g.alpha = alpha; g.blendMode = 'add'; over.stage.addChild(g);
+  tween(260, k => { g.alpha = alpha * (1 - k); }, () => g.destroy());
+}
+// Fin de partie : rayons de lumière qui tournent derrière un grand titre, en haut de l'écran, au-dessus du résultat.
+// Or pour une victoire, rouge sombre pour une défaite, gris pour une égalité. Ils restent jusqu'à la sortie de la partie.
+export function ending(result) {
+  if (!active()) return;
+  cine?.destroy({ children: true });
+  const tint = result === 'win' ? 0xffd070 : result === 'lose' ? 0xb03a2a : 0xa0a8b8, x = innerWidth / 2, y = Math.min(innerHeight * 0.2, 170);
+  const c = cine = new Container(); over.stage.addChild(c);
+  const rays = new Container(); rays.position.set(x, y);
+  for (let i = 0; i < 14; i++) { const a = (i / 14) * TAU, len = Math.max(innerWidth, innerHeight);
+    rays.addChild(new Graphics().poly([0, 0, Math.cos(a - 0.09) * len, Math.sin(a - 0.09) * len, Math.cos(a + 0.09) * len, Math.sin(a + 0.09) * len]).fill({ color: 0xffffff, alpha: 0.13 })); }
+  rays.tint = tint; rays.blendMode = 'add';
+  const halo = new Sprite(glowTex); halo.anchor.set(0.5); halo.position.set(x, y); halo.width = halo.height = 360; halo.tint = tint; halo.blendMode = 'add'; halo.alpha = 0.7;
+  const label = result === 'win' ? 'Victoire' : result === 'lose' ? 'Défaite' : 'Égalité';
+  const t = new Text({ text: label.toUpperCase(), style: { fontFamily: 'Cinzel, Alegreya SC, serif', fontWeight: '900', fontSize: 52, fill: result === 'win' ? 0xfff0c0 : 0xf1e6cf,
+    stroke: { color: 0x1a0c04, width: 6 }, dropShadow: { color: tint, blur: 18, distance: 0, alpha: 1 }, letterSpacing: 6 } });
+  t.anchor.set(0.5); t.position.set(x, y);
+  c.addChild(rays, halo, t);
+  if (result === 'win') flash(0xffe0a0, 0.3);
+  tween(900, k => { const e = ease(k); t.scale.set(1.8 - 0.8 * e); t.alpha = e; rays.alpha = e; halo.alpha = 0.7 * e; });
+  over.ticker.add(function spin(tk) { if (c.destroyed) { over.ticker.remove(spin); return; } rays.rotation += 0.0025 * tk.deltaTime; halo.alpha = 0.55 + Math.sin(performance.now() / 500) * 0.15; });
+  for (let i = 0; i < 40; i++) { const a = rnd(0, TAU), v = rnd(1, 4); spawn(sparkTex, x, y, { tint, vx: Math.cos(a) * v, vy: Math.sin(a) * v, scale: rnd(0.3, 0.6), ttl: rnd(50, 90) }); }
+}
+// Nouvelle partie (revanche) : la fin de partie s'efface.
+export function clearEnding() { cine?.destroy({ children: true }); cine = null; }

@@ -15,7 +15,7 @@ import { esc, famStyle, rich } from './common.js';
 import { artBg, artHTML, heroHTML, portraitHTML, terrainBg, terrainHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
-import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, sparkle, shards } from './fx.js';
+import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, sparkle, shards, trail, ending, clearEnding } from './fx.js';
 import { openPack, openChest } from './opening.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
@@ -1280,6 +1280,7 @@ function viewEffects(prev, view) {
   let flip = null;
   if (!prev || view.turn < prev.turn || (prev.phase === 'over' && view.phase !== 'over')) {
     // Début de partie : la main arrive carte par carte.
+    clearEnding();
     view.me.hand.forEach((c, i) => list.push([`[data-hand="${c.uid}"]`, 'drawn', i * 70]));
     if (view.phase === 'plan') after.push(() => banner(at('.board'), ...turnBanner(view)));
     ui.fx = { list, after }; play('draw'); return;
@@ -1303,7 +1304,7 @@ function viewEffects(prev, view) {
       // Carte de l'adversaire : son dos se retourne d'abord, sa face apparaît ensuite.
       const back = b.side === 'foe' && at(`[data-hid="${f}"]`) && !reduceMotion();
       if (back) { backFlip(at(`[data-hid="${f}"]`)); list.push([cardSel(f), 'after-back']); }
-      after.push(() => setTimeout(() => sparkle(at(cardSel(f))), back ? 200 : 60));
+      after.push(() => setTimeout(() => sparkle(at(cardSel(f)), b.power), back ? 200 : 60));
       if (fxOf(b)) { list.push([cardSel(f), 'astral-in']); burst.push(cardSel(f)); sounds.push('astral'); }
     }
   }
@@ -1341,7 +1342,8 @@ function viewEffects(prev, view) {
     sounds.push(win ? 'win' : view.result.winner < 0 ? 'tie' : 'lose');
     list.push(['.panel.end', 'end-in']);
     // Les zones s'allument une à une à la couleur de leur gagnant, puis les confettis en cas de victoire.
-    after.push(() => { [0, 1, 2].forEach(z => { const s = zoneSide(view, z); if (s) zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[s], z * 220, true); }); if (win) setTimeout(confetti, 450); });
+    after.push(() => { [0, 1, 2].forEach(z => { const s = zoneSide(view, z); if (s) zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[s], z * 220, true); });
+      setTimeout(() => ending(win ? 'win' : view.result.winner < 0 ? 'tie' : 'lose'), 700); if (win) setTimeout(confetti, 450); });
   }
   ui.fx = { list, flip, burst, after };
   [...new Set(sounds)].slice(0, 3).forEach((s, i) => i ? setTimeout(() => play(s), i * 110) : play(s));
@@ -1400,7 +1402,7 @@ window.addEventListener('pointermove', e => {
     if (drag.touch && drag.kind === 'hand' && Math.abs(dx) > Math.abs(dy)) { drag = null; return; }
     startDrag(e);
   }
-  e.preventDefault();
+  e.preventDefault(); trail(e.clientX, e.clientY);
   drag.ghost.style.transform = `translate(${e.clientX - drag.dx - parseFloat(drag.ghost.style.left)}px, ${e.clientY - drag.dy - parseFloat(drag.ghost.style.top)}px) rotate(${Math.max(-8, Math.min(8, dx / 20))}deg) scale(1.06)`;
   const over = zoneAt(e.clientX, e.clientY);
   for (const z of app.querySelectorAll('.zone.over')) if (z !== over) z.classList.remove('over');
