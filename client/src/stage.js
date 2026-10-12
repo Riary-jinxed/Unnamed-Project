@@ -5,7 +5,7 @@
 // onde du général, confettis). Les cartes et les zones restent en HTML (main.js) : toucher, glisser-déposer, tutoriel et
 // lecteurs d'écran ne changent pas ; PixiJS lit leur place à l'écran (getBoundingClientRect) pour s'y caler.
 // Sans WebGL ou avec « réduire les animations », rien n'est chargé et fx.js garde ses effets en CSS.
-import { Application, Color, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
+import { Application, Color, Container, Graphics, Sprite, Text, Texture, UPDATE_PRIORITY } from 'pixi.js';
 import { palette } from './season.js';
 
 let table = null, over = null, root = null, ready = null, embers = null, pools = [], parts = [], glowTex = null, sparkTex = null, shardTex = null, gameBg = null;
@@ -24,9 +24,11 @@ function radial(size, stops) {
   stops.forEach(([at, col]) => grd.addColorStop(at, col)); g.fillStyle = grd; g.fillRect(0, 0, size, size);
   return Texture.from(c);
 }
-async function makeApp(z) {
+// Toile plein écran. La table n'a que des lueurs floues et des planches sombres : elle est dessinée en définition 1, sans lissage,
+// ce qui divise par quatre les pixels à remplir sur un téléphone (écran de définition 2 ou 3) sans différence visible.
+async function makeApp(z, sharp = true) {
   const a = new Application();
-  await a.init({ backgroundAlpha: 0, resizeTo: window, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 2), preference: 'webgl' });
+  await a.init({ backgroundAlpha: 0, resizeTo: window, antialias: sharp, autoDensity: true, resolution: sharp ? Math.min(devicePixelRatio || 1, 2) : 1, preference: 'webgl' });
   Object.assign(a.canvas.style, { position: 'fixed', inset: '0', width: '100vw', height: '100vh', zIndex: z, pointerEvents: 'none' });
   a.canvas.setAttribute('aria-hidden', 'true'); a.canvas.className = 'stage';
   document.body.append(a.canvas);
@@ -35,7 +37,16 @@ async function makeApp(z) {
 
 async function init() {
   // Table sous tout le contenu de la page (z-index négatif), effets sous les feuilles (z-index 10) : panneau de fin, carte en grand.
-  table = await makeApp('-1'); over = await makeApp('9');
+  table = await makeApp('-1', false); over = await makeApp('9');
+  // La table ne bouge que lentement (braises, brume, lumière des zones) : 30 images par seconde lui suffisent.
+  table.ticker.maxFPS = 30;
+  // Les effets ne sont dessinés que quand il y a quelque chose à montrer (plus une dernière fois pour effacer la toile) :
+  // la plupart du temps la toile est vide et le téléphone n'a rien à redessiner.
+  let drawn = false;
+  over.ticker.remove(over.render, over);
+  // Un conteneur vide gardé d'une scène à l'autre (chauves-souris des menus) ne compte pas.
+  const shows = c => c.visible && !(c.constructor === Container && !c.children.length);
+  over.ticker.add(() => { const busy = over.stage.children.some(shows); if (busy || drawn) over.render(); drawn = busy; }, null, UPDATE_PRIORITY.LOW);
   COL = { me: cssColor('--mine'), foe: cssColor('--foe'), gold: cssColor('--accent') };
   glowTex = radial(256, [[0, 'rgba(255,255,255,1)'], [0.35, 'rgba(255,255,255,.35)'], [1, 'rgba(255,255,255,0)']]);
   sparkTex = radial(32, [[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(255,255,255,.8)'], [1, 'rgba(255,255,255,0)']]);
@@ -69,10 +80,11 @@ async function init() {
       if (e.y < -10 || e.life <= 0) ember(e, false); }
     const now = performance.now();
     fog.forEach((f, i) => { f.tint = palette().fog[i]; f.width = innerWidth * 2.2; f.height = innerHeight * 0.9; f.x = innerWidth / 2 + Math.sin(now * f.speed + f.phase) * innerWidth * 0.35; f.y = innerHeight * (0.3 + 0.35 * f.phase / 3) + Math.cos(now * f.speed * 1.3) * 30; });
-    const zones = root?.querySelectorAll('.board > .zone') || [];
+    // Place et camp de chaque zone relus quelques fois par seconde seulement (lire la page à chaque image force le navigateur à la remettre en page).
+    if ((zoneRead -= t.deltaMS) <= 0) { zoneRead = 120; readZones(); }
     pools.forEach((p, z) => {
-      const el = zones[z]; if (!el) { p.alpha = 0; return; }
-      const r = el.getBoundingClientRect(), lead = el.querySelector('.v.lead.me') ? 'me' : el.querySelector('.v.lead.foe') ? 'foe' : null;
+      const zs = zoneState[z]; if (!zs) { p.alpha = 0; return; }
+      const { r, lead } = zs;
       p.position.set(r.left + r.width / 2, lead === 'me' ? r.bottom - r.height * 0.25 : r.top + r.height * 0.25);
       p.width = r.width * 1.9; p.height = r.height * 0.9;
       if (lead) p.tint = COL[lead];
@@ -90,6 +102,13 @@ async function init() {
       const k = p.age / p.ttl; p.s.alpha = p.fade ? (1 - k) * p.a0 : p.a0; if (p.grow) p.s.scale.set(p.sc0 + p.grow * k);
     }
   });
+}
+// Zones du plateau : rectangle à l'écran et camp qui la mène.
+let zoneState = [], zoneRead = 0;
+function readZones() {
+  const zones = root?.querySelectorAll('.board > .zone') || [];
+  zoneState = [0, 1, 2].map(z => { const el = zones[z]; if (!el) return null;
+    return { r: el.getBoundingClientRect(), lead: el.querySelector('.v.lead.me') ? 'me' : el.querySelector('.v.lead.foe') ? 'foe' : null }; });
 }
 // Nuage : quelques halos superposés dans un canevas 2D, flou et sans bord.
 function cloudTexture() {
@@ -118,7 +137,7 @@ const toNum = c => { try { return new Color(c).toNumber(); } catch { return 0xe3
 
 // ---- API utilisée par fx.js ----
 // Charge PixiJS et pose les toiles sous #app, pour une partie ('game') ou les menus ('menu'). Renvoie false si ce n'est pas possible.
-// Dans les menus, la boucle tourne à 30 images par seconde pour ménager la batterie.
+// La table tourne toujours à 30 images par seconde ; les effets aussi dans les menus, pour ménager la batterie.
 export function enter(app, scene = 'game') {
   root = app;
   ready ||= init().then(() => true, err => { console.warn('Plateau PixiJS indisponible', err); return false; });
@@ -126,7 +145,7 @@ export function enter(app, scene = 'game') {
     if (!ok) return ok;
     if (mode !== scene) clear();
     mode = scene; gameBg.visible = scene === 'game';
-    for (const a of [table, over]) { a.ticker.maxFPS = scene === 'game' ? 0 : 30; a.canvas.style.display = ''; a.start(); }
+    for (const a of [table, over]) { a.ticker.maxFPS = scene === 'game' && a === over ? 0 : 30; a.canvas.style.display = ''; a.start(); }
     document.body.classList.toggle('staged', scene === 'game');
     return ok;
   });
@@ -230,7 +249,9 @@ export function banner(board, title, sub = '', tone = '') {
   tween(1400, k => {
     const open = Math.min(1, k / 0.12), out = k > 0.8 ? (k - 0.8) / 0.2 : 0;
     band.scale.y = ease(open); glow.alpha = 0.35 * ease(open) * (1 - out);
-    t.x = cx + (1 - ease(Math.min(1, k / 0.2))) * -60; t.style.letterSpacing = 4 + (1 - ease(Math.min(1, k / 0.25))) * 18;
+    t.x = cx + (1 - ease(Math.min(1, k / 0.2))) * -60;
+    // Changer l'espacement redessine tout le texte (et son ombre) puis le renvoie à la carte graphique : seulement quand il change vraiment.
+    const ls = Math.round(4 + (1 - ease(Math.min(1, k / 0.25))) * 18); if (ls !== t.style.letterSpacing) t.style.letterSpacing = ls;
     sweep.x = -80 + (w + 160) * Math.min(1, Math.max(0, (k - 0.15) / 0.4));
     c.alpha = 1 - out; c.y = cy - out * 12;
   }, () => c.destroy({ children: true }));

@@ -935,8 +935,10 @@ function evalFor(st, p) {
   }
   return s;
 }
-export function aiPlan(st, p, tries) {
-  tries = tries || 250;
+export function aiPlan(st, p, tries) { return aiSearch(st, p, tries || 250).plan; }
+// Même recherche, avec la note du meilleur plan : la partie contre l'IA (solo.js) la découpe en petites tranches
+// pendant que le joueur prépare son tour, pour ne jamais bloquer l'écran.
+export function aiSearch(st, p, tries) {
   const P = st.p[p]; let best = { cards: [], moves: [], general: null }, bestV = -Infinity;
   const g = GENERALS[P.general];
   const mobiles = mine(st, p).filter(c => isMobile(st, c));
@@ -964,7 +966,7 @@ export function aiPlan(st, p, tries) {
     const v = evalFor(sim, p) + Math.random() * 0.01;
     if (v > bestV) { bestV = v; best = plan; }
   }
-  return best;
+  return { plan: best, value: bestV };
 }
 
 // ---- Tour complet (serveur et partie contre l'IA) ----

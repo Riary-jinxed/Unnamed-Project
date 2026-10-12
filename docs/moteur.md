@@ -108,7 +108,7 @@ Les messages du journal sont écrits une fois pour les deux joueurs avec des mar
 
 ## IA (`aiPlan`)
 
-`aiPlan(st, p, essais)` tire au hasard `essais` plans possibles (cartes jouables, zones, déplacements, général parfois), simule chacun sur une copie de l'état (ses propres révélations puis la fin de tour) et garde le plan le mieux noté par `evalFor` : avance dans chaque zone (lissée par `tanh`), plus la valeur future du Trésor (Dragon) et des tours parfaits (Ange). Le plan de l'adversaire n'est pas deviné.
+`aiPlan(st, p, essais)` tire au hasard `essais` plans possibles (cartes jouables, zones, déplacements, général parfois), simule chacun sur une copie de l'état (ses propres révélations puis la fin de tour) et garde le plan le mieux noté par `evalFor` : avance dans chaque zone (lissée par `tanh`), plus la valeur future du Trésor (Dragon) et des tours parfaits (Ange). Le plan de l'adversaire n'est pas deviné. `aiSearch(st, p, essais)` fait la même recherche et renvoie aussi la note du meilleur plan (`{ plan, value }`) : on peut ainsi la découper en tranches et garder le meilleur de toutes (partie contre l'IA dans la page, `solo.js`).
 
 Réglages : 250 essais contre un joueur (`client/src/solo.js`), de 15 (Bronze) à 500 (Maître) en partie classée (`TIERS`, `ranked.js`), 80 dans `npm run sim`, 60 dans `npm run empreinte`. La copie de l'état (`clone`) laisse de côté le journal ; c'est la partie la plus coûteuse de l'IA.
 
