@@ -71,7 +71,7 @@ P = {
   deck: [carte], hand: [carte], discard: [carte], board: [[carte], [carte], [carte]],
   terrains: [id|null ×3], terrainPlan: [{ t, z, turn }], zoneBonus: [n ×3],
   seals, bonusSeals, treasure, lastUnspent, perfectTurns, lost, stolen, feasts, spells,
-  moves: [{ uid, zone }], played: [id],   // déplacements prévus ; cartes révélées (stats)
+  moves: [{ uid, zone, from }], played: [id],   // déplacements prévus ; cartes révélées (stats)
 }
 carte = { uid, id, owner, zone, buff, revealed, pending, order, ... }
 ```
@@ -85,6 +85,9 @@ startTurn   tour +1 ; sceaux = tour + bonus ; chacun pioche 1 ; terrain du tour 
             calcul du meneur ; onStartTurn des cartes, des terrains et des généraux.
 (plan)      chaque joueur prépare : applyPlan pose les cartes face cachée (placeHidden),
             note les déplacements et l'activation du général.
+            Les places se comptent en fin de tour (4 par zone) : une carte qui part libère sa place
+            pour une carte posée ou une autre arrivée le même tour. Une zone peut donc compter
+            plus de 4 cartes le temps que ses déplacements se fassent pendant la révélation.
 revealSteps liste des étapes : pour le meneur puis l'autre joueur, général, déplacements, cartes posées (dans l'ordre de pose).
 doStep      résout une étape : révélation, sacrifice, onReveal, terrain, réactions aux sorts (un sort part ensuite à la défausse).
 endTurn     onEndTurn et Grâce des cartes ; Festins dévorés ; effets de fin de tour des terrains et généraux ;

@@ -754,8 +754,9 @@ function callFromDeck(st, p, z) {
   const [c] = P.deck.splice(i, 1); enter(st, c, z);
 }
 // Déplacement : la créature change de zone de son côté, si un emplacement est libre.
-function move(st, c, to) {
-  const P = st.p[c.owner]; if (to === c.zone || free(st, c.owner, to) <= 0 || !P.board[c.zone].includes(c)) return false;
+// room : places libres déjà vérifiées par l'appelant (déplacement prévu par le joueur), sinon la zone doit avoir une place libre.
+function move(st, c, to, room) {
+  const P = st.p[c.owner]; if (to === c.zone || (room ?? free(st, c.owner, to)) <= 0 || !P.board[c.zone].includes(c)) return false;
   if (c.movedTurn !== st.turn) c.turnStartZone = c.zone;
   P.board[c.zone] = P.board[c.zone].filter(x => x !== c); c.zone = to; P.board[to].push(c); c.movedTurn = st.turn;
   log(st, `${nm(c.id)} se déplace vers ${ZONE_NAMES[to]}.`);
@@ -804,11 +805,12 @@ export function startTurn(st) {
   }
 }
 
-export function placeHidden(st, p, uid, z) {
+// room : places libres de la zone en fin de tour (déplacements prévus compris), par défaut celles du plateau.
+export function placeHidden(st, p, uid, z, room) {
   const P = st.p[p]; const i = P.hand.findIndex(c => c.uid === uid); if (i < 0) return false;
   const c = P.hand[i]; const d = CARDS[c.id];
   const cost = d.x ? P.seals : costOf(st, c);
-  if (free(st, p, z) <= 0 || cost > P.seals) return false;
+  if ((room ?? free(st, p, z)) <= 0 || cost > P.seals) return false;
   P.hand.splice(i, 1); P.seals -= cost; if (d.x) c.xPaid = cost;
   c.zone = z; c.revealed = false; c.order = st.order++; c.pending = true;
   P.board[z].push(c); return true;
@@ -835,7 +837,9 @@ export function doStep(st, s) {
   if (s.kind === 'move') {
     const c = [0, 1, 2].flatMap(z => P.board[z]).find(x => x.uid === s.uid);
     if (!c || !isMobile(st, c) || c.playerMoved === st.turn) return null;
-    c.playerMoved = st.turn; move(st, c, s.zone); return c;
+    // Les cartes de la zone d'arrivée qui doivent encore en partir lui laissent leur place (une zone vidée et remplie le même tour).
+    const leaving = P.moves.filter(m => m.zone !== s.zone && P.board[s.zone].some(x => x.uid === m.uid && x.playerMoved !== st.turn)).length;
+    c.playerMoved = st.turn; move(st, c, s.zone, SLOTS - P.board[s.zone].length + leaving); return c;
   }
   const c = [0, 1, 2].flatMap(z => P.board[z]).find(x => x.uid === s.uid); if (!c) return null;
   c.pending = false; c.revealed = true; c.enteredTurn = st.turn; P.played.push(c.id);
@@ -943,7 +947,7 @@ export function aiPlan(st, p, tries) {
     }
     for (const c of mobiles) if (Math.random() < 0.3) {
       const zs = [0, 1, 2].filter(z => z !== c.zone && used[z] < SLOTS); if (!zs.length) continue;
-      const z = pick(zs); used[z]++; plan.moves.push({ uid: c.uid, zone: z });
+      const z = pick(zs); used[z]++; used[c.zone]--; plan.moves.push({ uid: c.uid, zone: z });
     }
     for (const c of shuffle(P.hand)) {
       const d = CARDS[c.id], cost = d.x ? seals : costOf(st, c);
@@ -965,6 +969,7 @@ export function aiPlan(st, p, tries) {
 
 // ---- Tour complet (serveur et partie contre l'IA) ----
 // Applique un plan : coût du général, déplacements prévus, cartes posées face cachée.
+// Les places se comptent en fin de tour : une carte qui quitte une zone y libère sa place pour une carte posée ou une autre arrivée.
 // Renvoie la zone d'activation du général (0 pour un général sans zone), ou null.
 export function applyPlan(st, p, plan) {
   const P = st.p[p]; const g = GENERALS[P.general];
@@ -976,9 +981,13 @@ export function applyPlan(st, p, plan) {
   for (const m of (plan && Array.isArray(plan.moves) ? plan.moves : []).slice(0, 12)) {
     const c = mine(st, p).find(x => x.uid === m.uid);
     if (!c || seen.has(c.uid) || !isMobile(st, c) || c.playerMoved === st.turn || ![0, 1, 2].includes(m.zone) || m.zone === c.zone) continue;
-    seen.add(c.uid); P.moves.push({ uid: c.uid, zone: m.zone });
+    seen.add(c.uid); P.moves.push({ uid: c.uid, zone: m.zone, from: c.zone });
   }
-  for (const x of (plan && Array.isArray(plan.cards) ? plan.cards : []).slice(0, 12)) placeHidden(st, p, x.uid, x.zone);
+  // Une zone qui dépasserait SLOTS en fin de tour : ses derniers déplacements entrants sont refusés.
+  const used = () => [0, 1, 2].map(z => P.board[z].length - P.moves.filter(m => m.from === z).length + P.moves.filter(m => m.zone === z).length);
+  for (let n = used(), z; (z = n.findIndex(v => v > SLOTS)) >= 0; n = used()) P.moves.splice(P.moves.findLastIndex(m => m.zone === z), 1);
+  const n = used();
+  for (const x of (plan && Array.isArray(plan.cards) ? plan.cards : []).slice(0, 12)) if ([0, 1, 2].includes(x.zone) && placeHidden(st, p, x.uid, x.zone, SLOTS - n[x.zone])) n[x.zone]++;
   return gz;
 }
 
@@ -990,7 +999,7 @@ export async function runTurn(st, plans, emit, wait) {
   const steps = revealSteps(st, gen);
   // Le bandeau « Révélation » (1,5 s côté appli) disparaît avant que la première carte soit révélée.
   emit(null); await wait(1600);
-  for (const s of steps) { const c = doStep(st, s); emit(c ? c.uid : null); await wait(600); }
+  for (const s of steps) { const c = doStep(st, s); emit(c ? c.uid : null); await wait(850); }
   endTurn(st);
   if (st.over) { st.phase = 'over'; emit(null); return; }
   emit(null); await wait(350);

@@ -520,8 +520,17 @@ function planCosts() {
   return { left: s, costs };
 }
 const sealsLeft = () => planCosts().left;
-const freeSlots = z => SLOTS - me().board[z].length - ui.pending.filter(p => p.zone === z).length - ui.moves.filter(m => m.zone === z).length;
+// Les places se comptent en fin de tour : une carte déplacée libère la sienne aussitôt.
+const freeSlots = z => SLOTS - me().board[z].filter(c => !moveOf(c.uid)).length - ui.pending.filter(p => p.zone === z).length - ui.moves.filter(m => m.zone === z).length;
 const moveOf = uid => ui.moves.find(m => m.uid === uid);
+// Zone d'une de ses cartes sur le plateau : celle du début du tour, et celle où elle sera après les déplacements prévus.
+const boardZone = uid => me().board.findIndex(col => col.some(c => c.uid === uid));
+const planZone = uid => moveOf(uid)?.zone ?? boardZone(uid);
+// Puissance d'une zone de son côté une fois les déplacements prévus faits (estimation : les auras ne sont pas recalculées).
+const planPower = z => me().zonePower[z] + ui.moves.reduce((s, m) => {
+  const c = me().board.flat().find(x => x.uid === m.uid), p = c && c.revealed && CARDS[c.id].type === 'C' ? c.power : 0;
+  return s + (m.zone === z ? p : 0) - (boardZone(m.uid) === z ? p : 0);
+}, 0);
 const handLeft = () => me().hand.filter(c => !ui.pending.some(p => p.uid === c.uid));
 const canPlay = () => ui.view && ui.view.phase === 'plan' && !ui.view.ready.me;
 
@@ -530,19 +539,22 @@ function miniCard(c, opts = {}) {
   if (c.hidden) return `<div class="mc back back-${esc(badgeOf(1 - ui.view.seat)?.back || 'classique')}" data-hid="${c.uid}" aria-label="Carte cachée"></div>`;
   const d = CARDS[c.id]; const pw = c.revealed ? c.power : (opts.power ?? d.power);
   const cls = c.revealed ? (pw > d.power ? 'up' : pw < d.power ? 'down' : '') : '';
-  const mv = opts.mine && moveOf(c.uid);
+  const mv = opts.mine && ui.view.phase === 'plan' && moveOf(c.uid);
   const mobile = opts.mine && c.mobile && canPlay();
   const lv = lvCls(levelIn(opts.mine || opts.pending ? ui.view.seat : 1 - ui.view.seat, c.id));
   return `<div class="mc${lv} ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.drag === c.uid ? 'dragging' : ''}" style="${famVar(d.kw)}"
     data-card="${c.uid}" data-id="${c.id}" ${opts.pending ? 'data-pending="1"' : ''} ${mobile ? 'data-mobile="1"' : ''} title="${esc(d.name)}">
-    ${artBg(c.id)}${mv ? `<span class="mv">→ ${ZONE_NAMES[mv.zone]}</span>` : mobile ? '<span class="mv" aria-label="Déplaçable">⇄</span>' : ''}
+    ${artBg(c.id)}${mv ? `<span class="mv" title="Déplacée depuis ${ZONE_NAMES[boardZone(c.uid)]}" aria-label="Déplacée depuis ${ZONE_NAMES[boardZone(c.uid)]}">⇄</span>` : mobile ? '<span class="mv" aria-label="Déplaçable">⇄</span>' : ''}
     <span class="n">${esc(d.name)}</span>${d.type === 'C' ? `<span class="p num ${cls}">${pw}</span>` : `<span class="p" style="font-size:12px">Sort</span>`}</div>`;
 }
 function slots(side, z, isMe) {
-  const cards = side.board[z].map(c => miniCard(c, { mine: isMe }));
+  // De son côté, pendant la préparation, les cartes déplacées s'affichent déjà dans leur nouvelle zone.
+  const plan = isMe && ui.view.phase === 'plan';
+  const here = plan ? side.board.flat().filter(c => planZone(c.uid) === z) : side.board[z];
+  const cards = here.map(c => miniCard(c, { mine: isMe }));
   if (isMe) for (const p of ui.pending.filter(p => p.zone === z)) cards.push(miniCard({ uid: p.uid, id: p.id, revealed: false }, { pending: true }));
-  if (isMe) for (const m of ui.moves.filter(m => m.zone === z)) cards.push(`<div class="slot" title="Emplacement réservé pour un déplacement"></div>`);
-  let h = ''; for (let i = 0; i < SLOTS; i++) h += cards[i] || `<div class="slot"></div>`;
+  // Pendant la révélation, une zone vidée puis remplie peut compter une carte de plus le temps que le déplacement se fasse.
+  let h = ''; for (let i = 0; i < Math.max(SLOTS, cards.length); i++) h += cards[i] || `<div class="slot"></div>`;
   return `<div class="slots">${h}</div>`;
 }
 function terrainChip(side, z, isMe) {
@@ -618,8 +630,8 @@ function renderGame() {
   const play = canPlay();
   let board = '';
   for (const z of [0, 1, 2]) {
-    const a = f.zonePower[z], b = m.zonePower[z];
-    const mz = ui.moveSel !== null ? me().board.findIndex(col => col.some(c => c.uid === ui.moveSel)) : -1;
+    const a = f.zonePower[z], b = v.phase === 'plan' ? planPower(z) : m.zonePower[z];
+    const mz = ui.moveSel !== null ? planZone(ui.moveSel) : -1;
     const target = play && ((ui.sel && freeSlots(z) > 0) || (ui.moveSel !== null && z !== mz && freeSlots(z) > 0));
     const won = b > a ? 'won-me' : a > b ? 'won-foe' : '';
     board += `<div class="zone ${won} ${target ? 'target' : ''}" data-z="${z}" ${target ? 'tabindex="0" role="button"' : ''} aria-label="Zone ${ZONE_NAMES[z]}">
@@ -1074,8 +1086,9 @@ function zoomHTML() {
     }
     if (play && pend) acts.push(`<button class="btn" data-act="zback">Reprendre en main</button>`);
     if (play && onBoard && onBoard.side === 'me' && onBoard.mobile) {
-      if (moveOf(zm.uid)) acts.push(`<button class="btn" data-act="zstay">Annuler le déplacement</button>`);
-      else acts.push(`<span class="eyebrow">Déplacer vers</span><div class="row">${[0, 1, 2].filter(z => z !== onBoard.z).map(z => `<button class="btn" data-act="zmove" data-zone="${z}" ${freeSlots(z) > 0 ? '' : 'disabled'}>${ZONE_NAMES[z]}</button>`).join('')}</div>`);
+      const now = planZone(zm.uid);
+      acts.push(`<span class="eyebrow">Déplacer vers</span><div class="row">${[0, 1, 2].filter(z => z !== now).map(z => `<button class="btn" data-act="zmove" data-zone="${z}" ${freeSlots(z) > 0 ? '' : 'disabled'}>${ZONE_NAMES[z]}</button>`).join('')}</div>`);
+      if (moveOf(zm.uid)) acts.push(`<button class="btn" data-act="zstay" ${freeSlots(onBoard.z) > 0 ? '' : 'disabled'}>Annuler le déplacement</button>`);
     }
     style = famVar(d.kw);
     body = `
@@ -1389,7 +1402,6 @@ app.addEventListener('pointerdown', e => {
   if ((e.pointerType === 'mouse' && e.button !== 0) || !ui.view || !canPlay() || ui.screen !== 'game') return;
   const h = e.target.closest('[data-hand]'), m = e.target.closest('[data-mobile]');
   if (!h && !m) return;
-  if (m && moveOf(+m.dataset.card)) return;
   const el = h || m;
   drag = { kind: h ? 'hand' : 'move', uid: +(h ? h.dataset.hand : m.dataset.card), id: el.dataset.id, el, x0: e.clientX, y0: e.clientY, pid: e.pointerId, touch: e.pointerType !== 'mouse', ghost: null };
 });
@@ -1449,10 +1461,17 @@ let dropRect = null;
 function tryPlace(z) {
   if (!canPlay()) return;
   if (ui.moveSel !== null) {
-    const from = me().board.findIndex(col => col.some(c => c.uid === ui.moveSel));
-    if (z === from) { ui.moveSel = null; ui.msg = ''; }
+    // Le déplacement s'applique tout de suite à l'aperçu ; ramener la carte dans sa zone de départ l'annule.
+    const uid = ui.moveSel, now = planZone(uid);
+    if (z === now) { ui.moveSel = null; ui.msg = ''; }
     else if (freeSlots(z) <= 0) { ui.msg = `La zone ${ZONE_NAMES[z]} est pleine de votre côté.`; play('deny'); msgFades(); }
-    else { ui.moves.push({ uid: ui.moveSel, zone: z }); ui.moveSel = null; ui.msg = ''; play('place'); }
+    else {
+      const from = dropRect || rectOf(cardSel(uid));
+      ui.moves = ui.moves.filter(m => m.uid !== uid);
+      if (z !== boardZone(uid)) ui.moves.push({ uid, zone: z });
+      ui.moveSel = null; ui.msg = ''; play('place');
+      if (from && !reduceMotion()) ui.fx = { list: [], fly: [[cardSel(uid), from]] };
+    }
     render(); return;
   }
   if (!ui.sel) return;
@@ -1515,7 +1534,7 @@ app.addEventListener('click', e => {
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
       tryPlace(+ds.zone); }
     else if (a === 'zback') { unplace(ui.zoom.uid); ui.sheet = null; ui.zoom = null; ui.msg = ''; render(); }
-    else if (a === 'zstay') { ui.moves = ui.moves.filter(m => m.uid !== ui.zoom.uid); ui.sheet = null; ui.zoom = null; play('unplace'); render(); }
+    else if (a === 'zstay') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null; ui.moveSel = uid; ui.sel = null; tryPlace(boardZone(uid)); }
     else if (a === 'log' || a === 'set' || a === 'learn' || a === 'missions') { ui.sheet = a; render(); }
     else if (a === 'play-friend') { ui.sheet = a; ui.error = ''; render(); }
     else if (a === 'create') goOnline('create');
@@ -1610,8 +1629,8 @@ app.addEventListener('click', e => {
     if (ds.mobile && canPlay() && ui.sel === null && (ui.moveSel === null || ui.moveSel === uid)) {
       ui.focus = { kind: 'card', id: ds.id }; ui.msg = '';
       // Sélectionnée pour un déplacement : toucher ensuite une zone la déplace ; la retoucher la désélectionne.
-      if (doubleTap(`card:${uid}`)) { if (!moveOf(uid)) ui.moveSel = uid; openZoom({ kind: 'card', id: ds.id, uid }); render(); return; }
-      if (!moveOf(uid)) { ui.moveSel = ui.moveSel === uid ? null : uid; play(ui.moveSel === null ? 'unplace' : 'pick'); }
+      if (doubleTap(`card:${uid}`)) { ui.moveSel = uid; openZoom({ kind: 'card', id: ds.id, uid }); render(); return; }
+      ui.moveSel = ui.moveSel === uid ? null : uid; play(ui.moveSel === null ? 'unplace' : 'pick');
       render(); return; }
     if (ds.id && ui.sel === null && ui.moveSel === null) { if (doubleTap(`card:${uid}`)) { ui.focus = { kind: 'card', id: ds.id }; ui.msg = ''; openZoom({ kind: 'card', id: ds.id, uid }); render(); } return; }
   }
