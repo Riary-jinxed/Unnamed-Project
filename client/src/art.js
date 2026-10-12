@@ -45,6 +45,11 @@ let holoOff = () => ({});
 export const setHoloOff = f => { holoOff = f; };
 // La carte a-t-elle un reflet à couper ou rallumer, avec ce niveau et cet art ?
 export const holoCard = (lvl, artId) => !!(artId && ARTS[artId]) || !!holoLv(lvl);
+// Débordement du personnage : le joueur peut aussi le couper carte par carte (compte : popOff).
+let popOff = () => ({});
+export const setPopOff = f => { popOff = f; };
+// La carte a-t-elle un personnage qui déborde, avec ce niveau et cet art ? (illustration avec personnage, hors sorts)
+export const popCard = (id, lvl, artId) => pops(lvl) && !isSpell(id) && !!(artId && ALT[artId]?.decor ? ALT[artId] : ART[id])?.perso;
 const isSpell = id => CARDS[id]?.type === 'S';
 
 // Fond illustré des petites cartes (main, plateau) : le décor seul, recadré sur le haut de la fenêtre de la carte.
@@ -56,10 +61,10 @@ export function artHTML(id, name, lvl = 1, cls = '', artId = null) {
   const alt = artId && ARTS[artId];
   if (alt) return altHTML(alt, name, lvl, cls);
   const a = ART[id]; if (!a?.decor) return '';
-  return layers(a, name, lvl, `${holoOff()[id] ? '' : holoLv(lvl)} ${cls}`, isSpell(id));
+  return layers(a, name, lvl, `${holoOff()[id] ? '' : holoLv(lvl)} ${cls}`, isSpell(id), id);
 }
-const layers = (a, name, lvl, cls, spell) => { const perso = !spell && a.perso;
-  return `<div class="art ${pops(lvl) && perso ? 'pop' : ''} ${cls}" aria-hidden="true">
+const layers = (a, name, lvl, cls, spell, card) => { const perso = !spell && a.perso;
+  return `<div class="art ${pops(lvl) && perso && !popOff()[card] ? 'pop' : ''} ${cls}" aria-hidden="true">
     <div class="art-clip"><img class="art-decor" src="${a.decor}" alt="" loading="lazy" decoding="async"></div>
     ${perso ? `<img class="art-perso" src="${a.perso}" alt="" loading="lazy" decoding="async">` : ''}
     ${cls.includes('holo') ? FOIL : ''}<span class="art-name">${esc(name)}</span></div>`; };
@@ -84,7 +89,7 @@ export function heroHTML(id, artId = null) {
 function altHTML(alt, name, lvl, cls) {
   const holo = !holoOff()[alt.card];
   const rar = `rar rar-${rarityKey(alt)}${holo ? ' holo' : ''}`;
-  if (ALT[alt.id]?.decor) return layers(ALT[alt.id], name, lvl, `${rar} ${cls}`, isSpell(alt.card));
+  if (ALT[alt.id]?.decor) return layers(ALT[alt.id], name, lvl, `${rar} ${cls}`, isSpell(alt.card), alt.card);
   const base = ART[alt.card]?.decor;
   return `<div class="art ph ${rar} ${cls}" aria-hidden="true">
     <div class="art-clip">${base ? `<img class="art-decor" src="${base}" alt="" loading="lazy" decoding="async">` : ''}<span class="ph-veil"></span></div>
