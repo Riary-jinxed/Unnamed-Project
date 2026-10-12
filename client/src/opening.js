@@ -2,10 +2,9 @@
 // une à une, les nouvelles en dernier ; on frappe le coffre, sa lueur monte jusqu'à la rareté de l'art, puis il s'ouvre.
 // Calque posé dans <body> (comme fx.js) : les rendus de #app pendant l'ouverture ne le coupent pas.
 import './opening.css';
-import { play } from './sfx.js';
+import { play, buzz } from './sfx.js';
 import { reduceMotion } from './fx.js';
 
-const buzz = p => { try { navigator.vibrate?.(p); } catch { /* vibreur indisponible */ } };
 const wait = ms => new Promise(r => setTimeout(r, ms));
 // Effets PixiJS (opening-stage.js) : chargés à la première ouverture, seulement avec WebGL. Tant qu'ils ne sont pas prêts,
 // ou s'ils ne peuvent pas l'être, l'ouverture garde ses effets en CSS (opening.css) ; prêts, ils les remplacent (classe .px).
