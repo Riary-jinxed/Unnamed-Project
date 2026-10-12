@@ -26,8 +26,9 @@ export function createGames(store, accounts) {
       { login: null, name: 'IA', general: GENERALS[body.ai?.general] ? body.ai.general : (ai && DECKS[ai].general), deck: ai ? DECKS[ai].name : 'IA',
         cards: ai ? DECKS[ai].cards.slice() : [], played: ids(body.ai?.played) },
     ] });
-    const sweep = winner === 0 && Array.isArray(body.zones) && body.zones.length === 3 && body.zones.every(z => z === 0);
-    const reward = await accounts.recordGame(a, { mode: 'pve', result: winner === 0 ? 'win' : winner < 0 ? 'draw' : 'loss', played: ids(body.played), general: deck.general, sweep });
+    const zones = Array.isArray(body.zones) && body.zones.length === 3 ? body.zones.filter(z => z === 0).length : 0;
+    const reward = await accounts.recordGame(a, { mode: 'pve', result: winner === 0 ? 'win' : winner < 0 ? 'draw' : 'loss', played: ids(body.played), general: deck.general,
+      sweep: winner === 0 && zones === 3, zones });
     return { ok: true, reward, account: accounts.me(a) };
   }
 
