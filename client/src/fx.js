@@ -6,7 +6,7 @@ export const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)')
 
 // Plateau PixiJS (stage.js) : chargé à la première partie, seulement avec WebGL et sans « réduire les animations ».
 // Tant qu'il n'est pas prêt, ou s'il ne peut pas l'être, chaque effet garde sa version en CSS ci-dessous.
-let stage = null, inGame = false;
+let stage = null, gens = null, inGame = false;
 const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
 const staged = () => stage?.active() ? stage : null;
 // Appelé à chaque rendu : la table PixiJS apparaît en partie et disparaît dans les menus.
@@ -14,7 +14,9 @@ export function setInGame(app, on) {
   if (on === inGame) return; inGame = on;
   if (!on) { stage?.leave(); return; }
   if (reduceMotion() || !webgl()) return;
-  import('./stage.js').then(m => m.enter(app).then(ok => { if (!ok) return; stage = m; if (!inGame) m.leave(); })).catch(err => console.warn('Plateau PixiJS indisponible', err));
+  // Les généraux (portrait vivant, effet de pouvoir propre à chacun) viennent avec le plateau, dans stage-generals.js.
+  Promise.all([import('./stage.js'), import('./stage-generals.js')]).then(([m, g]) => m.enter(app).then(ok => { if (!ok) return; stage = m; gens = g; g.start(); if (!inGame) m.leave(); }))
+    .catch(err => console.warn('Plateau PixiJS indisponible', err));
 }
 const famOf = el => el && getComputedStyle(el).getPropertyValue('--fam').trim();
 
@@ -53,10 +55,10 @@ export function zoneGlow(el, side, delay = 0, strong = false) {
   if (delay) d.style.animationDelay = `${delay}ms`;
 }
 
-// Le général entre en action : anneau et éclat à la couleur de sa famille.
+// Le général entre en action : sur PixiJS, l'effet propre à ce général ; sinon anneau et éclat à la couleur de sa famille.
 export function generalFire(el) {
   if (!el || reduceMotion()) return;
-  const st = staged(); if (st) { st.general(el, famOf(el)); return; }
+  const st = staged(); if (st) { if (gens) gens.power(el); else st.general(el, famOf(el)); return; }
   const r = el.getBoundingClientRect(), s = Math.max(r.width, r.height);
   const d = layer(r, 'fxgen', '<i></i><i></i>', 1100);
   d.style.setProperty('--s', `${s}px`);

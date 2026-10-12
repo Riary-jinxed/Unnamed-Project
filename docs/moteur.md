@@ -48,7 +48,7 @@ Un effet est une fonction attachée à la carte. Arguments : `c` (la carte en je
 | `onSpell(c, st, zone, sort)` | Vous révélez un sort. |
 | `onSwitch(c, st)` | La carte change de camp (Échange). |
 
-Les généraux ont `activate` (+ `needsZone`, `activateCost`) pour un effet activable une fois par partie, `aura`, `preview` (voit ses terrains à venir) et les crochets `onStart`, `onStartTurn`, `onEndTurn`, `onEndGame`, `onDraw`, `onDiscard`, `onSpell`, `onAllyDestroyed`, qui reçoivent le numéro du joueur (`p`) au lieu d'une carte. Les terrains ont `flat` (bonus de zone), `aura`, `onReveal`, `onStartTurn`, `onEndTurn`, `onAllyDestroyed`, `onCardReveal`, `onSpellHere`, avec `p` et la zone.
+Les généraux ont `activate` (+ `needsZone`, `activateCost`) pour un effet activable une fois par partie, `aura`, `preview` (voit ses terrains à venir) et les crochets `onStart`, `onStartTurn`, `onEndTurn`, `onEndGame`, `onDraw`, `onDiscard`, `onSpell`, `onAllyDestroyed`, qui reçoivent le numéro du joueur (`p`) au lieu d'une carte. Ces crochets passent par `genHook` : s'il a écrit au journal, le général a agi, et `P.genFired` compte un déclenchement de plus (envoyé dans la vue, `genFired`, pour que l'appli joue son effet). Les terrains ont `flat` (bonus de zone), `aura`, `onReveal`, `onStartTurn`, `onEndTurn`, `onAllyDestroyed`, `onCardReveal`, `onSpellHere`, avec `p` et la zone.
 
 Les effets s'écrivent avec les petites fonctions du moteur : `buff(st, carte, n)`, `addZone`, `draw`, `summon`, `horde`, `feast`, `move`, `destroy`, `drain`, `exhume`, `discardFromHand`, et les sélecteurs `creaturesAt(st, p, zone)`, `mine(st, p)`, `weakest`, `strongest`, `bestZone`.
 
@@ -67,7 +67,7 @@ st = {
   sim,                    // true dans les copies simulées par l'IA (pas de journal)
 }
 P = {
-  name, deckName, deckKey, general, generalUsed,
+  name, deckName, deckKey, general, generalUsed, genFired,   // genFired : nombre de déclenchements du général
   deck: [carte], hand: [carte], discard: [carte], board: [[carte], [carte], [carte]],
   terrains: [id|null ×3], terrainPlan: [{ t, z, turn }], zoneBonus: [n ×3],
   seals, bonusSeals, treasure, lastUnspent, perfectTurns, lost, stolen, feasts, spells,

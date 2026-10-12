@@ -511,6 +511,13 @@ export const DECKS = {
 // ---- Utilitaires ----
 export function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 export function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+// Pouvoir du général : appelle son crochet et compte ses déclenchements (il a écrit au journal : il a agi),
+// pour que l'appli joue son effet à chaque fois (viewFor, genFired).
+function genHook(st, p, hook, ...args) {
+  const f = GENERALS[st.p[p].general][hook]; if (!f) return;
+  const n = st.log.length; f(p, st, ...args);
+  if (st.log.length > n) st.p[p].genFired = (st.p[p].genFired || 0) + 1;
+}
 function log(st, msg, kind) { if (!st.sim) st.log.push({ turn: st.turn, msg, kind: kind || '' }); }
 const nm = id => CARDS[id].name;
 // Les messages du journal portent des marqueurs résolus par l'appli selon qui regarde :
@@ -538,7 +545,7 @@ export function newGame(deck0, deck1, names = ['Joueur 1', 'Joueur 2'], opts = {
   };
   const st = { turn: 0, p: [mk(0, deck0), mk(1, deck1)], log: [], nextUid: 1000, order: 0, leader: 0, over: false, sim: false };
   for (const p of [0, 1]) draw(st, p, START_HAND);
-  for (const p of [0, 1]) { const g = GENERALS[st.p[p].general]; if (g.onStart) g.onStart(p, st); }
+  for (const p of [0, 1]) genHook(st, p, 'onStart');
   return st;
 }
 
@@ -618,7 +625,7 @@ function draw(st, p, n, extra = false) {
     if (P.hand.length >= HAND_MAX) { log(st, `${who(st, p)} : main pleine, ${nm(c.id)} part à la défausse.`); P.hand.push(c); discardCard(st, p, c, true); continue; }
     P.hand.push(c); got.push(c);
     if (!extra) continue;
-    const g = GENERALS[P.general]; if (g.onDraw) g.onDraw(p, st, c);
+    genHook(st, p, 'onDraw', c);
     for (const x of mine(st, p)) { const xd = CARDS[x.id]; if (xd.onInspire && stillThere(st, x)) xd.onInspire(x, st, c); }
   }
   return got;
@@ -636,7 +643,7 @@ function discardCard(st, p, c, silent) {
   const P = st.p[p]; const i = P.hand.indexOf(c); if (i < 0) return;
   P.hand.splice(i, 1); P.discard.push(c);
   if (!silent) log(st, `${who(st, p)} ${vb(p, 'défausse', 'défaussez')} ${nm(c.id)}.`, 'down');
-  const g = GENERALS[P.general]; if (g.onDiscard) g.onDiscard(p, st, c);
+  genHook(st, p, 'onDiscard', c);
   if (CARDS[c.id].raise) raise(st, p, c);
 }
 // Défausse N : défausse jusqu'à N cartes avec Relève de votre main, les plus chères d'abord. Les autres cartes restent en main.
@@ -767,7 +774,7 @@ function destroy(st, c, by) {
   log(st, `${d.name} (${who(st, c.owner)}) ${sacrificed ? 'est sacrifiée' : 'est détruite'}.`, 'down');
   if (d.onDestroyed) d.onDestroyed(c, st, z, sacrificed);
   for (const x of ordered(st).filter(x => x.owner === c.owner && x !== c)) { const xd = CARDS[x.id]; if (xd.onAllyDestroyed) xd.onAllyDestroyed(x, st, c, z); }
-  const g = GENERALS[P.general]; if (g.onAllyDestroyed) g.onAllyDestroyed(c.owner, st, c, z);
+  genHook(st, c.owner, 'onAllyDestroyed', c, z);
   P.terrains.forEach((t, tz) => { if (t && TERRAINS[t].onAllyDestroyed) TERRAINS[t].onAllyDestroyed(c.owner, st, c, z, tz); });
   return true;
 }
@@ -793,7 +800,7 @@ export function startTurn(st) {
   for (const c of ordered(st)) { const d = CARDS[c.id]; if (d.onStartTurn && stillThere(st, c)) d.onStartTurn(c, st); }
   for (const p of [st.leader, 1 - st.leader]) {
     st.p[p].terrains.forEach((t, z) => { if (t && TERRAINS[t].onStartTurn) TERRAINS[t].onStartTurn(p, st, z); });
-    const g = GENERALS[st.p[p].general]; if (g.onStartTurn) g.onStartTurn(p, st);
+    genHook(st, p, 'onStartTurn');
   }
 }
 
@@ -846,7 +853,7 @@ export function doStep(st, s) {
     // Sortilège : créatures, général et terrain réagissent au sort révélé.
     const z = c.zone;
     for (const x of mine(st, s.p)) { const xd = CARDS[x.id]; if (xd.onSpell && stillThere(st, x)) xd.onSpell(x, st, z, c); }
-    const g = GENERALS[P.general]; if (g.onSpell) g.onSpell(s.p, st, z, c);
+    genHook(st, s.p, 'onSpell', z, c);
     const t = P.terrains[z]; if (t && TERRAINS[t].onSpellHere) TERRAINS[t].onSpellHere(s.p, st, z, c);
     P.board[z] = P.board[z].filter(x => x !== c); P.discard.push(c);
   }
@@ -870,7 +877,7 @@ export function endTurn(st) {
     P.terrains.forEach((t, z) => { if (t && TERRAINS[t].onEndTurn) TERRAINS[t].onEndTurn(p, st, z); });
     if (P.angelBoost === st.turn && P.seals === 0) [...fired].filter(c => c.owner === p && stillThere(st, c)).forEach(c => buff(st, c, 2));
     if (P.returnMoves === st.turn) movedThisTurn(st, p).forEach(c => { if (c.turnStartZone !== undefined && c.turnStartZone !== c.zone) move(st, c, c.turnStartZone); });
-    const g = GENERALS[P.general]; if (g.onEndTurn) g.onEndTurn(p, st);
+    genHook(st, p, 'onEndTurn');
   }
   for (const p of [0, 1]) {
     const P = st.p[p];
@@ -880,7 +887,7 @@ export function endTurn(st) {
   if (st.turn >= TURNS) finish(st);
 }
 function finish(st) {
-  for (const p of [st.leader, 1 - st.leader]) { const g = GENERALS[st.p[p].general]; if (g.onEndGame) g.onEndGame(p, st); }
+  for (const p of [st.leader, 1 - st.leader]) genHook(st, p, 'onEndGame');
   st.over = true;
   const w = [0, 0]; const zones = [0, 1, 2].map(z => zoneWinner(st, z)); zones.forEach(r => { if (r >= 0) w[r]++; });
   const tot = [0, 1].map(p => [0, 1, 2].reduce((s, z) => s + zonePower(st, p, z), 0));
@@ -996,7 +1003,7 @@ export function viewFor(st, seat, extra = {}) {
     const P = st.p[p];
     const g = GENERALS[P.general];
     return {
-      name: P.name, deckKey: P.deckKey, deckName: P.deckName, general: P.general, generalUsed: P.generalUsed,
+      name: P.name, deckKey: P.deckKey, deckName: P.deckName, general: P.general, generalUsed: P.generalUsed, genFired: P.genFired || 0,
       hand: isMe ? P.hand.map(c => ({ uid: c.uid, id: c.id, cost: costOf(st, c), power: CARDS[c.id].power + c.buff })) : undefined,
       handCount: P.hand.length, deckCount: P.deck.length, seals: P.seals,
       treasure: P.treasure, perfectTurns: P.perfectTurns,

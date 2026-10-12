@@ -247,3 +247,6 @@ export function ending(result) {
 }
 // Nouvelle partie (revanche) : la fin de partie s'efface.
 export function clearEnding() { cine?.destroy({ children: true }); cine = null; }
+
+// Outils partagés avec les effets des généraux (stage-generals.js), lus à chaque appel : la table peut être recréée.
+export const kit = () => ({ over, root, COL, glowTex, sparkTex, shardTex, spawn, tween, ease, rnd, toNum, TAU });

@@ -86,7 +86,15 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
 .gencard.used .gn { color: var(--muted); }
 .gencard.used .gdot { border-style: dotted; }
 @keyframes genready { 50% { box-shadow: 0 0 0 1px var(--accent), 0 0 18px 1px var(--accent); } }
-@media (prefers-reduced-motion: reduce) { .gencard.ready { animation: none; } }
+/* Portrait vivant : le personnage respire (il grandit à peine autour de son visage), le décor dérive lentement derrière lui.
+   --gt (main.js) reprend les animations là où elles en étaient : le rendu suivant ne les fait pas repartir de zéro. */
+.gencard .gport-art img { animation: gdrift 16s ease-in-out infinite; animation-delay: var(--gt, 0s); }
+.gencard .gport-art img + img { animation-name: gbreath; animation-duration: 4.6s; transform-origin: calc(var(--fx) * 1%) calc(var(--fy) * 1%); }
+.gencard.ready { animation-delay: var(--gt, 0s); }
+.gencard.used .gport-art img { animation-play-state: paused; }
+@keyframes gbreath { 50% { scale: 1.035; translate: 0 -1.5%; } }
+@keyframes gdrift { 50% { translate: -1.5% .8%; } }
+@media (prefers-reduced-motion: reduce) { .gencard.ready, .gencard .gport-art img { animation: none; } }
 
 /* tour (barre du haut, sous le type de partie) et sceaux (en bas, à côté de Valider) */
 .tturn { margin-right: auto; min-width: 0; display: grid; gap: 1px; }

@@ -570,7 +570,8 @@ function genSlot(side, isMe, canGen) {
   // « Séraphine, Main de l'Aube » : le nom, puis le titre en petit. Sans virgule, le nom entier sur deux lignes.
   const [short, epithet] = g.name.split(/,\s*/);
   const pic = portraitHTML(side.general, artIn(seat, side.general)) || `<span class="gport-init" aria-hidden="true">${esc(short[0])}</span>`;
-  return `<button class="gencard${lvCls(levelIn(seat, side.general))} ${state}" style="${famVar([g.fam])}" data-general="${side.general}" data-side="${isMe ? 'me' : 'foe'}"
+  // --gt : le portrait respire sans à-coup d'un rendu à l'autre (ses animations CSS reprennent là où elles en étaient).
+  return `<button class="gencard${lvCls(levelIn(seat, side.general))} ${state}" style="${famVar([g.fam])}; --gt: -${Math.round(performance.now())}ms" data-general="${side.general}" data-fam="${g.fam || ''}" data-side="${isMe ? 'me' : 'foe'}"
     aria-label="Général : ${esc(g.name)}, ${esc(note)}" title="${esc(g.text)}">
     <span class="gport">${pic}</span>
     <span class="gtx"><span class="gk">Général</span><span class="gn ${epithet ? '' : 'two'}">${esc(short)}</span>${epithet ? `<span class="ge">${esc(epithet)}</span>` : ''}
@@ -1283,6 +1284,8 @@ function viewEffects(prev, view) {
     clearEnding();
     view.me.hand.forEach((c, i) => list.push([`[data-hand="${c.uid}"]`, 'drawn', i * 70]));
     if (view.phase === 'plan') after.push(() => banner(at('.board'), ...turnBanner(view)));
+    // Général de début de partie (pioche, Magot, Œuf…) : son effet après le bandeau du tour.
+    if (view.turn <= 1) for (const side of ['me', 'foe']) if (view[side].genFired || GENERALS[view[side].general]?.kind === 'Début de partie') after.push(() => setTimeout(() => generalFire(at(`.pbar.${side} [data-general]`)), 1700 + (side === 'foe' ? 500 : 0)));
     ui.fx = { list, after }; play('draw'); return;
   }
   const before = cardsOf(prev), after2 = cardsOf(view), f = view.flash;
@@ -1325,8 +1328,9 @@ function viewEffects(prev, view) {
     const was = zoneSide(prev, z), now = zoneSide(view, z);
     if (now && now !== was) { swing = true; after.push(() => zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[now])); }
   }
-  for (const side of ['me', 'foe']) if (!prev[side].generalUsed && view[side].generalUsed) {
-    sounds.push('general'); after.push(() => generalFire(at(`.pbar.${side} [data-general]`)));
+  // Le général agit (activé, ou son pouvoir se déclenche) : son effet, un peu après ceux des cartes pour ne pas s'y superposer.
+  for (const side of ['me', 'foe']) if ((!prev[side].generalUsed && view[side].generalUsed) || (view[side].genFired || 0) > (prev[side].genFired || 0)) {
+    sounds.push('general'); after.push(() => setTimeout(() => generalFire(at(`.pbar.${side} [data-general]`)), 300));
   }
   if (!prev.ready.foe && view.ready.foe && view.phase === 'plan') list.push(['.pbar.foe .chip.ok', 'pop']);
   if (gone) sounds.push('destroy'); else if (up) sounds.push('up'); else if (down) sounds.push('down');
