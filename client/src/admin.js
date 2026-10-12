@@ -215,7 +215,7 @@ function renderShopSettings() {
       ${field('artOffers', 'Arts du jour', 'Entre 0 et 12.')}
       ${field('chestPrice', 'Prix du coffre', 'En Prismes.')}
       ${RARITY_IDS.map(r => field(`artPrice_${r}`, `Prix d'un art ${ART_RARITIES[r].name.toLowerCase()}`, 'En Prismes.')).join('')}
-      ${field('prismShards', 'Éclats par Prisme changé', 'Change à sens unique, des Prismes vers les Éclats. 0 ferme le change.')}
+      ${field('prismShards', 'Éclats par Prisme changé', 'Base des offres fixes du change (10, 30, 60 et 120 Prismes, avec 0, 10, 20 et 30 % de bonus). Change à sens unique. 0 le ferme.')}
     </div>
     <div class="row"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="art-defaults">Revenir aux valeurs par défaut</button></div>
   </form>

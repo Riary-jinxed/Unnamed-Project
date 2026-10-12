@@ -2,7 +2,7 @@
 // API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, boutique, administration.
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
-import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers } from '@jeu/engine/collection';
+import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers, exchangeOffers } from '@jeu/engine/collection';
 import { pick, CARDS, GENERALS } from '@jeu/engine';
 import { ART_RARITIES, RARITY_IDS } from '@jeu/engine/arts';
 import { createProgress } from './progress.js';
@@ -43,6 +43,8 @@ const AVATAR_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, AVATAR
 export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, name: a.name, avatar: a.avatar || null, starter: a.starter, cards: a.cards, shards: a.shards || 0,
   deck: activeDeck(a), decks: (a.decks || []).map(cleanDeck), active: activeDeck(a)?.id || null, maxDecks: MAX_DECKS,
   boosterReady: a.starter !== null && a.lastBooster !== today(), shardRate: cfg.shardsPerDuplicate,
+  // Éclats pour 1 Prisme au change (offres fixes, exchangeOffers du moteur ; 0 : change fermé).
+  prismShards: cfg.prismShards,
   // Niveaux de carte (cosmétiques) : essence de chaque carte et niveau atteint (1 si absent).
   essence: a.essence || {}, cardLevels: a.cardLevels || {},
   // Prismes (monnaie rare des arts alternatifs), arts possédés et art choisi pour chaque carte.
@@ -215,15 +217,17 @@ export function createAccounts(store) {
     if (!(a.freeChests > 0)) throw new HttpError(409, 'Aucun coffre offert à ouvrir.');
     a.freeChests--;
   }
-  // Prismes changés en Éclats, à un taux réglé dans /admin (prismShards ; 0 ferme le change). Jamais l'inverse.
-  async function convertPrisms(a, { prisms }) {
-    const rate = cfg().prismShards, n = Number(prisms);
-    if (!rate) throw new HttpError(409, 'Le change de Prismes est fermé pour le moment.');
-    if (!Number.isInteger(n) || n < 1) throw new HttpError(400, 'Indiquez un nombre entier de Prismes.');
-    payPrisms(a, n);
-    a.shards = (a.shards || 0) + n * rate;
+  // Prismes changés en Éclats par offres fixes (exchangeOffers), au taux réglé dans /admin (prismShards ; 0 ferme le change). Jamais l'inverse.
+  async function convertPrisms(a, { offer }) {
+    const all = exchangeOffers(cfg().prismShards);
+    if (!all.length) throw new HttpError(409, 'Le change de Prismes est fermé pour le moment.');
+    const o = all.find(x => x.id === offer);
+    if (!o) throw new HttpError(400, 'Cette offre de change n\'existe pas.');
+    payPrisms(a, o.prisms);
+    a.shards = (a.shards || 0) + o.shards;
+    activity.count('exchanges');
     await store.put(a);
-    return { shards: n * rate, shop: shopView(a), account: me(a) };
+    return { shards: o.shards, shop: shopView(a), account: me(a) };
   }
   // Calendrier de connexion : récompense du jour.
   async function claimDay(a) {

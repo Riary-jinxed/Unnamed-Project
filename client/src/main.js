@@ -2,7 +2,7 @@
 import './style.css';
 import './habillage.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
-import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, allowedGenerals, allowedTerrains, starterGenerals, deckError } from '@jeu/engine/collection';
+import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, allowedGenerals, allowedTerrains, starterGenerals, deckError, EXCHANGE_TIERS, exchangeOffers, exchangeFor } from '@jeu/engine/collection';
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
@@ -20,7 +20,7 @@ import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
 import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, sparkle, shards, trail, ending, clearEnding } from './fx.js';
 import { openPack, openChest } from './opening.js';
 import { setHome } from './lobby.js';
-import { stallHTML, vitrineHTML, setShop } from './shop.js';
+import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { SEASONS, PASS_TIERS, seasonOfCard, seasonStarted, releaseMonth } from '@jeu/engine/pass';
@@ -199,13 +199,33 @@ async function buyArt(path, body) {
   if (r.chest) { openChest({ rarity: art.rarity, html: artHTML(art.card, nameOf(art.card), 1, '', art.id), chip: rarChip(art), name: esc(art.name), sub: esc(nameOf(art.card)) }, show); return; }
   play(['epique', 'legendaire'].includes(art.rarity) ? 'astral' : 'reveal'); show();
 }
-// Prismes changés en Éclats (jamais l'inverse) : demande confirmation, le change ne s'annule pas.
-async function convertPrisms() {
-  const n = Number(document.getElementById('conv-n')?.value), rate = ui.shop?.arts?.prismShards;
-  if (!Number.isInteger(n) || n < 1 || !rate) { ui.error = 'Indiquez un nombre entier de Prismes.'; render(); return; }
-  if (!confirm(`Changer ${n} Prisme${n > 1 ? 's' : ''} contre ${n * rate} Éclats ? Les Éclats ne redonnent pas de Prismes.`)) return;
-  const r = await call('POST', '/api/shop/convert', { prisms: n });
-  if (r) { ui.shop = r.shop; ui.msg = `+${r.shards} Éclats.`; render(); }
+// ---- Change de devises : Prismes en Éclats, par offres fixes (exchangeOffers du moteur), jamais l'inverse ----
+const prismRate = () => ui.account?.prismShards ?? 0;
+const fmt = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
+// Achat en Éclats : s'il en manque et que le change est ouvert, le panneau « need » propose l'offre fixe la plus proche
+// du besoin (exchangeFor), puis l'achat repart tout seul après le change. Renvoie true si le panneau s'ouvre à la place de l'achat.
+// verb : la fin du bouton (« Changer et acheter ») ; then : l'achat à relancer.
+function lacksShards(price, verb, then) {
+  const need = price - (ui.account?.shards || 0);
+  if (!(need > 0) || !prismRate()) return false;
+  ui.need = { need, verb, then, offer: exchangeFor(prismRate(), need), back: ui.sheet === 'zoom' ? { zoom: ui.zoom, zoomBack: ui.zoomBack } : null };
+  ui.sheet = 'need'; ui.error = ''; play('pick'); render();
+  return true;
+}
+// Retour à ce qui était ouvert avant le panneau « need » (la carte en grand, pour monter son niveau).
+function leaveNeed() {
+  const back = ui.need?.back; ui.need = null;
+  if (back) { ui.sheet = 'zoom'; ui.zoom = back.zoom; ui.zoomBack = back.zoomBack; } else ui.sheet = null;
+}
+async function exchange(id) {
+  const o = exchangeOffers(prismRate()).find(x => x.id === id), then = ui.sheet === 'need' ? ui.need?.then : null;
+  if (!o) return;
+  const r = await call('POST', '/api/shop/convert', { offer: o.id });
+  if (!r) return;
+  if (r.shop) ui.shop = r.shop;
+  play('reveal');
+  if (ui.sheet === 'need') { leaveNeed(); render(); then?.(); return; }
+  ui.msg = `+${fmt(r.shards)} Éclats.`; render();
 }
 // Calendrier de connexion du mois : récompense du jour.
 async function claimDay() {
@@ -460,7 +480,8 @@ const myLevel = id => ui.account?.cardLevels?.[id] || 1;
 const essenceOf = id => ui.account?.essence?.[id] || 0;
 const lvInfo = () => prog().cardLevels || { essenceRate: 0, max: MAX_CARD_LEVEL, costs: {} };
 const nextCost = id => lvInfo().costs[myLevel(id) + 1] || null;
-const canUpgrade = id => { const c = nextCost(id); return !!(ui.account && ui.account.cards[id] && c && essenceOf(id) >= c.essence && ui.account.shards >= c.shards); };
+// Il manque des Éclats : le bouton reste actif si le change est ouvert, il propose alors une offre de change (lacksShards).
+const canUpgrade = id => { const c = nextCost(id); return !!(ui.account && ui.account.cards[id] && c && essenceOf(id) >= c.essence && (ui.account.shards >= c.shards || prismRate())); };
 // Classe de la bordure d'un niveau (style.css, « .lv-… »), vide au niveau de base.
 const lvCls = lvl => (CARD_LEVELS[lvl]?.look ? ` lv lv-${CARD_LEVELS[lvl].look}` : '');
 const hasFx = lvl => !!CARD_LEVELS[lvl]?.fx;
@@ -859,23 +880,24 @@ function renderCollection() {
 // Boutique : un espace par set ; les sets à venir y ont déjà leur place.
 // Deux onglets : les sets (cartes et boosters, en Éclats) et les arts alternatifs (en Prismes).
 function renderShop() {
-  const sh = ui.shop, a = ui.account, tab = ui.shopTab === 'arts' && sh?.arts ? 'arts' : 'sets';
+  const sh = ui.shop, a = ui.account, tab = ['arts', 'change'].includes(ui.shopTab) && sh?.arts ? ui.shopTab : 'sets';
   const tabBtn = (id, label, badge) => `<button role="tab" data-act="shop-tab" data-tab="${id}" class="${tab === id ? 'on' : ''}" aria-selected="${tab === id}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
   const top = `<div class="top"><span class="title">Boutique</span><span class="chip num cur" title="Éclats" aria-label="${a.shards} Éclats">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="Prismes" aria-label="${sh.arts.prisms} Prismes">${ico('prism')}${sh.arts.prisms}</span>` : ''}</div>
-    ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}</div>` : ''}`;
+    ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}${tabBtn('change', 'Change')}</div>` : ''}`;
   if (!sh) return `${top}${errLine()}<p class="wait">Chargement…</p>`;
   if (tab === 'arts') return `${top}${artStall(sh.arts)}${errLine()}${artShopHTML(sh.arts)}`;
+  if (tab === 'change') return `${top}${errLine()}${exchangeHTML(sh.arts)}`;
   const P = sh.prices;
   // Étal : un booster par set ouvert ; le toucher l'achète, ou ouvre un booster offert s'il en reste.
   const stall = stallHTML(sh.sets.filter(x => x.open).map(set => sh.freeBoosters
     ? { kind: 'pack', act: 'free-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, free: sh.freeBoosters, tag: 'Ouvrir', off: ui.busy, label: `Ouvrir un booster ${esc(set.name)} offert` }
-    : { kind: 'pack', act: 'buy-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, tag: `${ico('shard')}${P.boosterPrice}`, off: a.shards < P.boosterPrice || ui.busy, label: `Acheter un booster ${esc(set.name)} pour ${P.boosterPrice} Éclats` }));
+    : { kind: 'pack', act: 'buy-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, tag: `${ico('shard')}${P.boosterPrice}`, off: !canPay(P.boosterPrice) || ui.busy, label: `Acheter un booster ${esc(set.name)} pour ${P.boosterPrice} Éclats` }));
   // Sélection du jour en vitrine (shop.js) : illustration, coût, « Nouvelle » si le joueur ne l'a pas, prix ou « Vendue ».
   const offers = set => vitrineHTML({ title: 'Sélection du jour', sub: 'Cartes à l\'unité', slots: set.offers.map(o => {
     const d = CARDS[o.id], gen = GENERALS[o.id], name = esc(nameOf(o.id));
     return { art: artHTML(o.id, nameOf(o.id)), zoom: zoomKey(o.id), name, caption: false, sub: gen ? `Général · ${esc(gen.kind)}` : `${typeName(d)} · ${kwLine(d)}`, cost: gen ? null : d.x ? 'X' : d.cost,
       style: `${famVar(gen ? [gen.fam] : d.kw)};--glow:var(--fam)`, badge: o.owned || o.bought ? '' : 'Nouvelle',
-      state: o.bought ? 'sold' : o.owned ? 'owned' : 'sale', act: 'buy-card', id: o.id, set: set.id, off: a.shards < P.cardPrice || ui.busy,
+      state: o.bought ? 'sold' : o.owned ? 'owned' : 'sale', act: 'buy-card', id: o.id, set: set.id, off: !canPay(P.cardPrice) || ui.busy,
       price: `${ico('shard')}${P.cardPrice}`, label: `Acheter ${name} pour ${P.cardPrice} Éclats` }; }) });
   const section = set => set.open ? `<section class="card-box shopset">
       <div><span class="eyebrow">${set.size} cartes</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
@@ -883,18 +905,32 @@ function renderShop() {
       <p class="hint" style="margin:0">${set.offers.length > 1 ? `${set.offers.length} cartes choisies` : 'Une carte choisie'} pour vous, en priorité parmi celles qui vous manquent, renouvelées chaque jour à minuit.</p>
       <div class="gal-h">Booster du set</div>
       <div class="row"><p class="hint" style="margin:0;flex:1">${P.boosterSize} cartes au hasard parmi les ${set.size} du set, toutes avec la même chance. Chaque doublon rapporte ${shardRate()} Éclats et ${lvInfo().essenceRate} essence de la carte.</p>
-        <button class="btn primary" data-act="buy-booster" data-set="${set.id}" ${a.shards < P.boosterPrice || ui.busy ? 'disabled' : ''}>Acheter · ${P.boosterPrice} Éclats</button>
+        <button class="btn primary" data-act="buy-booster" data-set="${set.id}" ${!canPay(P.boosterPrice) || ui.busy ? 'disabled' : ''}>Acheter · ${P.boosterPrice} Éclats</button>
         ${sh.freeBoosters ? `<button class="btn primary" data-act="free-booster" data-set="${set.id}" ${ui.busy ? 'disabled' : ''}>Ouvrir un booster offert (${sh.freeBoosters})</button>` : ''}</div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
       <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`;
   return `${top}${stall}${errLine()}${sh.sets.map(section).join('')}${mail.codeForm()}`;
 }
-// Étal du rayon Arts : le coffre, ouvert gratuitement s'il en reste d'offerts.
+// Prix en Éclats : payable tout de suite, ou après un change si le change est ouvert.
+const canPay = price => (ui.account?.shards || 0) >= price || !!prismRate();
+// Étal du rayon Arts : le coffre, ouvert gratuitement s'il en reste d'offerts. Son bouton « i » montre ses chances (chestInfo).
 function artStall(A) {
   if (!A) return '';
   const C = A.chest, free = C.free && C.left;
   return stallHTML([free ? { kind: 'chest', act: 'chest-free', free: C.free, tag: 'Ouvrir', off: ui.busy, label: 'Ouvrir un coffre d\'arts offert' }
-    : { kind: 'chest', act: 'chest', tag: C.left ? `${ico('prism')}${C.price}` : 'Vide', off: !C.left || A.prisms < C.price || ui.busy, label: C.left ? `Ouvrir un coffre d'arts pour ${C.price} Prismes` : 'Coffre vide pour vous' }]);
+    : { kind: 'chest', act: 'chest', tag: C.left ? `${ico('prism')}${C.price}` : 'Vide', off: !C.left || A.prisms < C.price || ui.busy, label: C.left ? `Ouvrir un coffre d'arts pour ${C.price} Prismes` : 'Coffre vide pour vous' }],
+    { title: 'Coffre d\'arts', info: 'chest-info' });
+}
+// Ce que contient le coffre, en fenêtre quand on touche le « i » de l'étal : chances selon la rareté, coffres offerts en attente.
+// Se ferme par la croix, Échap ou un clic à côté.
+function chestInfo(A) {
+  if (!A) return '';
+  const C = A.chest, rates = C.rates.map(r => `<li><span class="rarchip rar-${r.rarity}">${esc(r.name)}</span><span class="num">${String(r.pct).replace('.', ',')} %</span></li>`).join('');
+  return `<div class="sheet" data-act="close"><div class="panel infobox" id="chest-info" role="dialog" aria-label="Coffre d'arts" data-stop="1">
+    <div class="ph"><h2>Coffre d'arts</h2><button class="btn closex" data-act="close" aria-label="Fermer">×</button></div>
+    <p style="margin:0">Le coffre donne un art que vous n'avez pas encore, au hasard${rates ? ', avec ces chances selon la rareté :' : '.'}</p>
+    ${rates ? `<ul class="rates">${rates}</ul>` : ''}
+    <p class="hint" style="margin:0">${C.left ? `Encore ${C.left} art${C.left > 1 ? 's' : ''} possible${C.left > 1 ? 's' : ''} pour vous. ` : C.free ? `Vos ${C.free} coffre${C.free > 1 ? 's' : ''} offert${C.free > 1 ? 's' : ''} vous attendent : ils s'ouvriront dès que de nouveaux arts arriveront. ` : 'Vous avez tous les arts du coffre. '}Des coffres sont offerts par les succès rares, le calendrier du dimanche et le passe premium.</p></div></div>`;
 }
 // Arts alternatifs en boutique : offres du jour et coffre, payés en Prismes (monnaie rare : saisons classées, succès).
 function artShopHTML(A) {
@@ -903,7 +939,6 @@ function artShopHTML(A) {
     return { art: artHTML(art.card, nameOf(art.card), 1, '', art.id), zoom: zoomKey(art.card, art.id), name, cls: `rar-${rarityKey(art)}`, style: '--glow:var(--rar)',
       sub: `${esc(nameOf(art.card))}${art.theme ? ` · ${esc(themeOf(art))}` : ''}`, badge: esc(rarityName(art)), state: o.owned ? 'owned' : 'sale',
       act: 'buy-art', id: o.id, off: A.prisms < o.price || ui.busy, price: `${ico('prism')}${o.price}`, label: `Acheter l'art ${name} pour ${o.price} Prismes` }; }) });
-  const rates = A.chest.rates.map(r => `<li><span class="rarchip rar-${r.rarity}">${esc(r.name)}</span><span class="num">${String(r.pct).replace('.', ',')} %</span></li>`).join('');
   return `<section class="card-box shopset artshop">
     <div><span class="eyebrow">Cosmétique</span><h2 style="font-size:22px">Arts alternatifs</h2></div>
     <p class="hint" style="margin:0">D'autres illustrations pour vos cartes, à choisir ensuite dans la collection. Votre adversaire les voit quand vos cartes sont révélées.
@@ -914,20 +949,24 @@ function artShopHTML(A) {
     <p class="hint" style="margin:0">Des arts au même thème et au même style, sur des cartes de familles différentes. Réunissez une famille pour gagner son titre.</p>
     <ul class="artthemes">${THEME_IDS.map(t => { const all = themeArts(t), got = all.filter(x => ui.account?.arts?.[x.id]).length;
       return all.length ? `<li class="${got === all.length ? 'done' : ''}"><b>${esc(ART_THEMES[t].name)}</b><small class="hint">${all.map(x => esc(nameOf(x.card))).join(', ')}</small><span class="num">${got}/${all.length}</span></li>` : ''; }).join('')}</ul>
-    <div class="gal-h">Coffre d'arts</div>
-    <div class="row chest"><div style="flex:1;display:grid;gap:6px"><p class="hint" style="margin:0">Un art que vous n'avez pas encore, au hasard. Chances selon la rareté :</p>
-      ${rates ? `<ul class="rates">${rates}</ul>` : ''}</div>
-      <div class="chestbtns">${A.chest.free && A.chest.left ? `<button class="btn primary" data-act="chest-free" ${ui.busy ? 'disabled' : ''}>Ouvrir un coffre offert (${A.chest.free})</button>` : ''}
-      <button class="btn ${A.chest.free ? '' : 'primary'}" data-act="chest" ${A.chest.left && A.prisms >= A.chest.price && !ui.busy ? '' : 'disabled'}>${A.chest.left ? `Ouvrir · ${A.chest.price} Prismes` : 'Coffre vide pour vous'}</button></div></div>
-    ${A.chest.left ? '' : A.chest.free ? `<p class="hint" style="margin:0">Vos ${A.chest.free} coffre${A.chest.free > 1 ? 's' : ''} offert${A.chest.free > 1 ? 's' : ''} vous attendent : ils s'ouvriront dès que de nouveaux arts arriveront.</p>` : ''}
-  </section>
-  ${A.prismShards ? `<section class="card-box shopset convert">
-    <div><span class="eyebrow">Change</span><h2 style="font-size:22px">Prismes en Éclats</h2></div>
-    <p class="hint" style="margin:0">1 Prisme donne ${A.prismShards} Éclats. Le change ne marche que dans ce sens : les Éclats ne s'échangent pas contre des Prismes.</p>
+  </section>`;
+}
+// Rayon Change : des Éclats contre des Prismes, en offres fixes à prix fixe, présentées en vitrine (bonus pour les grosses offres).
+// Le jour où des Prismes s'achèteront avec de l'argent, leurs offres prendront place dans ce rayon, sous celles-ci.
+function exchangeHTML(A) {
+  if (!A) return '';
+  const rate = A.prismShards, offers = exchangeOffers(rate);
+  const vit = vitrineHTML({ title: 'Prismes en Éclats', sub: 'Bureau de change', timer: false, cls: 'exchange', slots: offers.map((o, i) => ({
+    art: shardPileSVG(i, `xp${i}`), name: `${fmt(o.shards)} Éclats`, sub: o.bonus ? `dont ${fmt(o.shards - o.prisms * rate)} en bonus` : 'Au taux de base',
+    badge: o.bonus ? `+${o.bonus} %` : '', style: '--glow:#f0c454', state: 'sale', act: 'exchange', id: o.id, off: A.prisms < o.prisms || ui.busy,
+    price: `${ico('prism')}${o.prisms}`, label: `Changer ${o.prisms} Prismes contre ${o.shards} Éclats` })) });
+  return `<section class="card-box shopset exchangebox">
+    <div><span class="eyebrow">Change</span><h2 style="font-size:22px">Échange de devises</h2></div>
+    <p class="hint" style="margin:0">Vos Prismes ${ico('prism')} contre des Éclats ${ico('shard')}, en offres fixes : plus l'offre est grosse, plus le bonus l'est.
+      Le change ne marche que dans ce sens. Quand un achat manque d'Éclats, l'offre qui suffit vous est proposée.</p>
     ${ui.msg && !ui.sheet ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
-    <div class="row"><div class="field" style="width:120px"><label class="eyebrow" for="conv-n">Prismes</label><input id="conv-n" type="number" inputmode="numeric" min="1" max="${A.prisms}" value="${Math.min(A.prisms, 1)}" ${A.prisms ? '' : 'disabled'}></div>
-      <button class="btn" data-act="convert" style="align-self:end" ${A.prisms && !ui.busy ? '' : 'disabled'}>Changer</button></div>
-  </section>` : ''}`;
+    ${offers.length ? vit : '<p class="hint" style="margin:0">Le change est fermé pour le moment.</p>'}
+  </section>`;
 }
 
 // Liste des decks du joueur : jouer, modifier, renommer, remettre à zéro, supprimer, créer.
@@ -1175,6 +1214,7 @@ function zoomHTML() {
 function openZoom(zoom) { ui.zoom = zoom; ui.sheet = 'zoom'; ui.zoomBack = null; ui.fx = { list: [['.zoomcard', 'zoom-in']] }; }
 // Ferme le panneau ouvert ; une carte ouverte depuis le codex y ramène.
 function closeSheet() {
+  if (ui.sheet === 'need') { leaveNeed(); ui.error = ''; render(); return; }
   if (ui.sheet === 'inbox') closeInbox();
   if (ui.sheet === 'mail-got') mail.closeGot();
   ui.sheet = ui.sheet === 'zoom' && ui.zoomBack ? ui.zoomBack : null; ui.zoom = null; ui.zoomBack = null; ui.renaming = null; ui.gotArt = null; ui.calGot = null; ui.msg = ''; render();
@@ -1227,6 +1267,20 @@ function sheetHTML() {
     return `<div class="sheet"><div class="panel" role="dialog" aria-label="Tutoriel"><h2>Première partie ?</h2>
       <p style="margin:0">Le tutoriel vous apprend les règles en quelques tours contre l'IA, avec un deck prêt à jouer. Vous pourrez le relancer depuis l'accueil.</p>
       <div class="row"><button class="btn primary" data-act="tuto">Lancer le tutoriel</button><button class="btn" data-act="tuto-later">Plus tard</button></div></div></div>`;
+  }
+  if (ui.sheet === 'chest-info' && ui.screen === 'shop') return chestInfo(ui.shop?.arts);
+  if (ui.sheet === 'need' && ui.need) {
+    // Il manque des Éclats : l'offre de change fixe qui suffit (ou la plus grosse), sans choix du montant.
+    const { need, offer: o, verb } = ui.need, have = ui.account.prisms || 0, short = o.prisms - have, step = EXCHANGE_TIERS.findIndex(t => t.id === o.id);
+    return `<div class="sheet" data-act="close"><div class="panel needpanel" data-stop="1"><div class="ph"><h2>Il vous manque ${fmt(need)} Éclats</h2><button class="btn" data-act="close">Fermer</button></div>
+      <div class="needoffer">${shardPileSVG(step, 'np')}<div class="needmeta"><span class="eyebrow">Bureau de change</span>
+        <b class="needgain num">+${fmt(o.shards)} ${ico('shard')}</b><span class="num">pour ${o.prisms} Prismes ${ico('prism')}</span>
+        ${o.bonus ? `<span class="needbonus num">+${o.bonus} % de bonus</span>` : ''}</div></div>
+      <p class="hint" style="margin:0">${short > 0 ? `Il vous manque ${short} Prisme${short > 1 ? 's' : ''} (vous en avez ${have}). Ils se gagnent en saison classée, avec les succès, le passe et le calendrier du mois.`
+        : `Après l'achat, il vous restera ${fmt(o.shards - need)} Éclats et ${have - o.prisms} Prisme${have - o.prisms > 1 ? 's' : ''}. Le change ne s'annule pas.`}</p>
+      ${errLine()}
+      <div class="row"><button class="btn primary" data-act="exchange" data-id="${o.id}" ${short > 0 || ui.busy ? 'disabled' : ''}>${ico('prism')} ${o.prisms} · Changer et ${verb}</button>
+        <button class="btn" data-act="shop-change">Toutes les offres</button></div></div></div>`;
   }
   if (ui.sheet === 'rename' && ui.renaming) {
     return `<div class="sheet" data-act="close"><form class="panel" data-stop="1" id="rename-form"><div class="ph"><h2>Renommer le deck</h2><button class="btn" type="button" data-act="close">Fermer</button></div>
@@ -1628,15 +1682,17 @@ app.addEventListener('click', e => {
     else if (a === 'booster' && !ui.busy) openBoosterNow();
     else if (a === 'collection') { ui.screen = 'collection'; ui.error = ''; render(); }
     else if (a === 'shop') openShop('sets');
-    else if (a === 'buy-card' && !ui.busy) buy('/api/shop/card', { set: ds.set, card: ds.id });
-    else if (a === 'buy-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set });
+    else if (a === 'buy-card' && !ui.busy) { const go = () => buy('/api/shop/card', { set: ds.set, card: ds.id }); if (!lacksShards(ui.shop?.prices.cardPrice, 'acheter', go)) go(); }
+    else if (a === 'buy-booster' && !ui.busy) { const go = () => buy('/api/shop/booster', { set: ds.set }); if (!lacksShards(ui.shop?.prices.boosterPrice, 'acheter', go)) go(); }
     else if (a === 'free-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set, free: true });
     else if (a === 'buy-art' && !ui.busy) buyArt('/api/shop/art', { art: ds.id });
     else if (a === 'chest' && !ui.busy) buyArt('/api/shop/chest', {});
     else if (a === 'chest-free' && !ui.busy) buyArt('/api/shop/chest', { free: true });
     else if (a === 'shop-tab') { ui.shopTab = ds.tab; ui.msg = ''; ui.error = ''; render(); }
     else if (a === 'shop-arts') { ui.sheet = null; ui.calGot = null; openShop('arts'); }
-    else if (a === 'convert' && !ui.busy) convertPrisms();
+    else if (a === 'exchange' && !ui.busy) exchange(ds.id);
+    else if (a === 'shop-change') { ui.need = null; ui.sheet = null; ui.zoom = null; openShop('change'); }
+    else if (a === 'chest-info') { ui.sheet = 'chest-info'; render(); }
     else if (a === 'calendar') { ui.sheet = 'calendar'; ui.calGot = null; render(); }
     else if (a === 'claim-day' && !ui.busy) claimDay();
     else if (a === 'art-pick' && !ui.busy) selectArt(ds.card, ds.art);
@@ -1655,7 +1711,7 @@ app.addEventListener('click', e => {
     else if (a === 'profile-tab') { ui.profileTab = ds.tab; ui.msg = ''; ui.error = ''; render(); }
     else if (a === 'avatar-remove' && !ui.busy) call('PUT', '/api/profile', { avatar: null });
     else if (a === 'save-deck' && !ui.busy) saveDeck();
-    else if (a === 'upgrade' && !ui.busy) upgrade(ds.id);
+    else if (a === 'upgrade' && !ui.busy) { const go = () => upgrade(ds.id); if (!lacksShards(nextCost(ds.id)?.shards, 'monter de niveau', go)) go(); }
     return;
   }
   if (ds.starter) { ui.starterPick = ds.starter; render(); return; }
