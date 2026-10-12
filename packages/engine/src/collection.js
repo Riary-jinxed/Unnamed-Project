@@ -97,13 +97,19 @@ export const SHARDS_PER_DUPLICATE = 10;
 export const SHOP = { dailyCards: 3, cardPrice: 300, boosterPrice: 250, boosterSize: 3 };
 // Chaque set a son espace dans la boutique. Un set fermé (open: false) y apparaît comme « bientôt disponible ».
 // daily : ses cartes sortent aussi du booster quotidien.
+// boosterExtra : Éclats ajoutés au prix d'un booster (réglage boosterPrice de /admin) pour ce set ; une nouveauté coûte un peu plus.
 export const DEFAULT_SETS = [
-  { id: 'base', name: 'Set de base', cards: OWNABLE.filter(id => setOf(id) === 'base'), open: true, daily: true, teaser: '' },
-  { id: 'set2', name: 'Crépuscule', cards: OWNABLE.filter(id => setOf(id) === 'set2'), open: false, daily: false,
+  { id: 'base', name: 'Set de base', cards: OWNABLE.filter(id => setOf(id) === 'base'), open: true, daily: true, teaser: '', boosterExtra: 0 },
+  { id: 'set2', name: 'Crépuscule', cards: OWNABLE.filter(id => setOf(id) === 'set2'), open: true, daily: false, boosterExtra: 50,
     teaser: 'Morts-vivants et Vampires rejoignent la bataille, avec de nouveaux généraux pour chaque famille. Ses cartes arriveront d\'abord ici, en boosters et à l\'unité, avant de rejoindre le booster quotidien.' },
 ];
 export const SETS = structuredClone(DEFAULT_SETS);
 export const setById = id => SETS.find(s => s.id === id);
+// Supplément du booster d'un set : celui du catalogue, sinon celui du set par défaut (catalogue publié avant le réglage).
+export const boosterExtraOf = set => Math.max(0, Math.round(+(set.boosterExtra ?? DEFAULT_SETS.find(d => d.id === set.id)?.boosterExtra ?? 0) || 0));
+export const setBoosterPrice = (set, price = SHOP.boosterPrice) => price + boosterExtraOf(set);
+// Ordre de la boutique : les sets en vente du plus récent au plus ancien, puis ceux à venir.
+export const shopOrder = sets => [...sets].reverse().sort((a, b) => !!b.open - !!a.open);
 
 // Cartes du jour d'un set : tirées au hasard, en priorité parmi celles que le joueur n'a pas.
 export function dailyOffers(set, owned, n = SHOP.dailyCards, rand = Math.random) {

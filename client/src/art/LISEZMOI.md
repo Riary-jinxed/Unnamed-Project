@@ -11,7 +11,7 @@ Gabarit des deux images : 960x1424 px. La fenêtre de la carte est le rectangle 
 Le décor est coupé à cette fenêtre ; le personnage en sort (192 px en haut, 64 px sur les côtés et en bas)
 à partir du niveau de carte qui le débloque (`pop` dans `CARD_LEVELS`, `packages/engine/src/rewards.js`).
 
-Une carte sans dossier s'affiche sans illustration. Rien d'autre à déclarer : `client/src/art.js` trouve les fichiers tout seul.
+Une carte sans dossier (et un terrain sans image) montre un visuel provisoire : fond aux couleurs de sa famille, emblème de la famille et « Illustration à venir ». Rien d'autre à déclarer : `client/src/art.js` trouve les fichiers tout seul, et la vraie illustration remplace le visuel provisoire dès que ses fichiers sont là.
 
 Généraux : en partie, leur carte montre un portrait recadré sur le visage. Pour un nouveau général, ajoutez la position du visage
 (en % de la largeur et de la hauteur de l'image) dans `FACES`, en haut de `portraitHTML` (`client/src/art.js`) ; sans elle, le portrait est centré en haut de l'image.

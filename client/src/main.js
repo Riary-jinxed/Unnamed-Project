@@ -2,7 +2,7 @@
 import './style.css';
 import './habillage.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
-import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, allowedGenerals, allowedTerrains, starterGenerals, deckError, EXCHANGE_TIERS, exchangeOffers, exchangeFor } from '@jeu/engine/collection';
+import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, allowedGenerals, allowedTerrains, starterGenerals, deckError, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder } from '@jeu/engine/collection';
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
@@ -791,7 +791,7 @@ function renderHome() {
   // Booster du jour, boosters et coffres offerts : un seul bandeau, seulement quand il y a quelque chose à ouvrir.
   // Les cadeaux s'ouvrent ici même (un bouton par set ouvert), sans passer par la boutique.
   const plural = (n, w) => `${n} ${w}${n > 1 ? 's' : ''}`, dis = ui.busy ? 'disabled' : '';
-  const openSets = SETS.filter(x => x.open && x.cards.length), chests = p.freeChests && chestPool(a.arts).length ? p.freeChests : 0;
+  const openSets = shopOrder(SETS).filter(x => x.open && x.cards.length), chests = p.freeChests && chestPool(a.arts).length ? p.freeChests : 0;
   const giftBtns = [
     ...(p.freeBoosters ? openSets.map(x => `<button class="btn primary" data-act="free-booster" data-set="${x.id}" ${dis}>${openSets.length > 1 ? `Booster ${esc(x.name)}` : 'Ouvrir un booster'}</button>`) : []),
     chests ? `<button class="btn primary" data-act="chest-free" ${dis}>Ouvrir un coffre</button>` : '',
@@ -888,10 +888,13 @@ function renderShop() {
   if (tab === 'arts') return `${top}${artStall(sh.arts)}${errLine()}${artShopHTML(sh.arts)}`;
   if (tab === 'change') return `${top}${errLine()}${exchangeHTML(sh.arts)}`;
   const P = sh.prices;
-  // Étal : un booster par set ouvert ; le toucher l'achète, ou ouvre un booster offert s'il en reste.
-  const stall = stallHTML(sh.sets.filter(x => x.open).map(set => sh.freeBoosters
-    ? { kind: 'pack', act: 'free-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, free: sh.freeBoosters, tag: 'Ouvrir', off: ui.busy, label: `Ouvrir un booster ${esc(set.name)} offert` }
-    : { kind: 'pack', act: 'buy-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, tag: `${ico('shard')}${P.boosterPrice}`, off: !canPay(P.boosterPrice) || ui.busy, label: `Acheter un booster ${esc(set.name)} pour ${P.boosterPrice} Éclats` }));
+  // Étal : un booster par set ouvert, le plus récent en premier (ordre du serveur) ; le toucher l'achète, ou ouvre un booster offert s'il en reste.
+  // Chaque set a son prix de booster (une nouveauté coûte un peu plus) ; « Nouveau » sur le paquet du set le plus récent quand il y en a plusieurs.
+  const open = sh.sets.filter(x => x.open);
+  const stall = stallHTML(open.map((set, i) => { const price = set.boosterPrice ?? P.boosterPrice, fresh = i === 0 && open.length > 1;
+    return sh.freeBoosters
+      ? { kind: 'pack', act: 'free-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, free: sh.freeBoosters, fresh, tag: 'Ouvrir', off: ui.busy, label: `Ouvrir un booster ${esc(set.name)} offert` }
+      : { kind: 'pack', act: 'buy-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, fresh, tag: `${ico('shard')}${price}`, off: !canPay(price) || ui.busy, label: `Acheter un booster ${esc(set.name)} pour ${price} Éclats` }; }));
   // Sélection du jour en vitrine (shop.js) : illustration, coût, « Nouvelle » si le joueur ne l'a pas, prix ou « Vendue ».
   const offers = set => vitrineHTML({ title: 'Sélection du jour', sub: 'Cartes à l\'unité', slots: set.offers.map(o => {
     const d = CARDS[o.id], gen = GENERALS[o.id], name = esc(nameOf(o.id));
@@ -899,18 +902,21 @@ function renderShop() {
       style: `${famVar(gen ? [gen.fam] : d.kw)};--glow:var(--fam)`, badge: o.owned || o.bought ? '' : 'Nouvelle',
       state: o.bought ? 'sold' : o.owned ? 'owned' : 'sale', act: 'buy-card', id: o.id, set: set.id, off: !canPay(P.cardPrice) || ui.busy,
       price: `${ico('shard')}${P.cardPrice}`, label: `Acheter ${name} pour ${P.cardPrice} Éclats` }; }) });
-  const section = set => set.open ? `<section class="card-box shopset">
-      <div><span class="eyebrow">${set.size} cartes</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
+  const section = (set, i) => { const price = set.boosterPrice ?? P.boosterPrice, fresh = set.open && i === 0 && open.length > 1;
+    return set.open ? `<section class="card-box shopset${fresh ? ' fresh' : ''} pk-${set.id}">
+      <div><span class="eyebrow">${fresh ? '<span class="newset">Nouveau set</span> · ' : ''}${set.size} cartes</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
       ${offers(set)}
       <p class="hint" style="margin:0">${set.offers.length > 1 ? `${set.offers.length} cartes choisies` : 'Une carte choisie'} pour vous, en priorité parmi celles qui vous manquent, renouvelées chaque jour à minuit.</p>
       <div class="gal-h">Booster du set</div>
       <div class="row"><p class="hint" style="margin:0;flex:1">${P.boosterSize} cartes au hasard parmi les ${set.size} du set, toutes avec la même chance. Chaque doublon rapporte ${shardRate()} Éclats et ${lvInfo().essenceRate} essence de la carte.</p>
-        <button class="btn primary" data-act="buy-booster" data-set="${set.id}" ${!canPay(P.boosterPrice) || ui.busy ? 'disabled' : ''}>Acheter · ${P.boosterPrice} Éclats</button>
+        <button class="btn primary" data-act="buy-booster" data-set="${set.id}" ${!canPay(price) || ui.busy ? 'disabled' : ''}>Acheter · ${price} Éclats</button>
         ${sh.freeBoosters ? `<button class="btn primary" data-act="free-booster" data-set="${set.id}" ${ui.busy ? 'disabled' : ''}>Ouvrir un booster offert (${sh.freeBoosters})</button>` : ''}</div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
-      <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`;
+      <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`; };
   return `${top}${stall}${errLine()}${sh.sets.map(section).join('')}${mail.codeForm()}`;
 }
+// Prix d'un booster d'un set (le serveur l'envoie avec chaque set de la boutique).
+const boosterPriceOf = id => ui.shop?.sets.find(x => x.id === id)?.boosterPrice ?? ui.shop?.prices.boosterPrice;
 // Prix en Éclats : payable tout de suite, ou après un change si le change est ouvert.
 const canPay = price => (ui.account?.shards || 0) >= price || !!prismRate();
 // Étal du rayon Arts : le coffre, ouvert gratuitement s'il en reste d'offerts. Son bouton « i » montre ses chances (chestInfo).
@@ -1683,7 +1689,7 @@ app.addEventListener('click', e => {
     else if (a === 'collection') { ui.screen = 'collection'; ui.error = ''; render(); }
     else if (a === 'shop') openShop('sets');
     else if (a === 'buy-card' && !ui.busy) { const go = () => buy('/api/shop/card', { set: ds.set, card: ds.id }); if (!lacksShards(ui.shop?.prices.cardPrice, 'acheter', go)) go(); }
-    else if (a === 'buy-booster' && !ui.busy) { const go = () => buy('/api/shop/booster', { set: ds.set }); if (!lacksShards(ui.shop?.prices.boosterPrice, 'acheter', go)) go(); }
+    else if (a === 'buy-booster' && !ui.busy) { const go = () => buy('/api/shop/booster', { set: ds.set }); if (!lacksShards(boosterPriceOf(ds.set), 'acheter', go)) go(); }
     else if (a === 'free-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set, free: true });
     else if (a === 'buy-art' && !ui.busy) buyArt('/api/shop/art', { art: ds.id });
     else if (a === 'chest' && !ui.busy) buyArt('/api/shop/chest', {});

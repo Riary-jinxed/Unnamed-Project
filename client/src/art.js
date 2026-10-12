@@ -1,11 +1,11 @@
 // Illustrations des cartes : deux calques par carte, dans art/<id>/ (decor.webp et perso.webp).
-// Une carte sans dossier s'affiche sans illustration ; il suffit d'ajouter ses fichiers pour qu'elle en ait une.
+// Une carte sans dossier montre un visuel provisoire aux couleurs de sa famille (provHTML) ; il suffit d'ajouter ses fichiers pour qu'elle ait son illustration.
 // Arts alternatifs (@jeu/engine/arts) : mêmes calques dans art/alt/<id de l'art>/. Tant qu'ils manquent, un art provisoire
 // s'affiche à la place : l'illustration d'origine (ou un fond) teintée de la couleur de la rareté, avec le nom de l'art.
 // Gabarit des images : 960x1424 px. La fenêtre de la carte est le rectangle 832x1168 placé à (64, 192) ;
 // le personnage peut en sortir de 192 px par le haut et de 64 px par les côtés et le bas.
 import { esc } from './common.js';
-import { CARDS } from '@jeu/engine';
+import { CARDS, GENERALS, TERRAINS } from '@jeu/engine';
 import { CARD_LEVELS } from '@jeu/engine/rewards';
 import { ARTS, rarityKey, rarityName } from '@jeu/engine/arts';
 
@@ -24,9 +24,10 @@ const TERRAIN_ART = Object.fromEntries(Object.entries(import.meta.glob('./art/te
 // Fond d'une moitié de zone (side : « foe » en haut, « me » en bas).
 export const terrainBg = (id, side) => TERRAIN_ART[id] ? `<span class="tbg ${side}" style="background-image:url('${TERRAIN_ART[id]}')" aria-hidden="true"></span>` : '';
 // Illustration d'un terrain en grand (carte de terrain, vue en grand), avec son nom en bas.
+// Sans image : le visuel provisoire de sa famille (provHTML, plus bas).
 export const terrainHTML = (id, name, cls = '') => TERRAIN_ART[id] ? `<div class="art tart ${cls}" aria-hidden="true">
   <div class="art-clip"><img class="art-terrain" src="${TERRAIN_ART[id]}" alt="" loading="lazy" decoding="async"></div>
-  <span class="art-name">${esc(name)}</span></div>` : '';
+  <span class="art-name">${esc(name)}</span></div>` : provHTML(id, name, `tart ${cls}`, TERRAINS[id]?.fam || null);
 // Un art alternatif a-t-il déjà ses images ?
 export const altReady = artId => !!ALT[artId]?.decor;
 
@@ -53,16 +54,39 @@ export const popCard = (id, lvl, artId) => pops(lvl) && !isSpell(id) && !!(artId
 const isSpell = id => CARDS[id]?.type === 'S';
 
 // Fond illustré des petites cartes (main, plateau) : le décor seul, recadré sur le haut de la fenêtre de la carte.
-// artId : art alternatif choisi ; tant que ses images manquent, l'illustration d'origine.
+// artId : art alternatif choisi ; tant que ses images manquent, l'illustration d'origine. Sans illustration : le visuel provisoire.
 export const artBg = (id, artId = null) => { const a = (artId && ALT[artId]?.decor ? ALT[artId] : null) || ART[id];
-  return a?.decor ? `<span class="cart" style="background-image:url('${a.decor}')" aria-hidden="true"></span>` : ''; };
+  return a?.decor ? `<span class="cart" style="background-image:url('${a.decor}')" aria-hidden="true"></span>`
+    : provFor(id) ? `<span class="cart prov" aria-hidden="true">${emblem(famOfId(id))}</span>` : ''; };
+
+// Visuel provisoire d'une carte, d'un général ou d'un terrain dont l'illustration n'est pas encore arrivée (set 2 au départ) :
+// un fond aux couleurs de sa famille (--fam, posé par la carte), l'emblème de la famille et « Illustration à venir ».
+// Rien à retirer ensuite : dès que art/<id>/decor.webp (ou art/terrain/<id>.webp) existe, la vraie illustration le remplace.
+// Emblèmes dessinés dans un carré 100x100 (les trous en evenodd).
+const EMBLEMS = {
+  'Mort-vivant': '<path fill-rule="evenodd" d="M50 12C31 12 19 25 19 42c0 10 4 18 11 22v10c0 3 2 5 5 5h4v-7h6v7h10v-7h6v7h4c3 0 5-2 5-5V64c7-4 11-12 11-22 0-17-12-30-31-30Zm-12 27a8 9 0 1 1 0 18 8 9 0 1 1 0-18Zm24 0a8 9 0 1 1 0 18 8 9 0 1 1 0-18ZM50 58l5 9h-10Z"/>',
+  Vampire: '<path fill-rule="evenodd" d="M50 8S24 40 24 60a26 26 0 0 0 52 0C76 40 50 8 50 8ZM38 54c-2 8 0 16 7 21-9-1-14-9-12-18Z"/>',
+  Ange: '<ellipse cx="50" cy="20" rx="15" ry="5" fill="none" stroke="currentColor" stroke-width="4"/><path d="M46 44C34 30 14 28 6 36c9 0 15 3 18 8-7-1-13 1-15 6 8-1 14 1 17 5-5 1-9 4-10 8 11-3 22-5 30-19Z"/><path d="M54 44c12-14 32-16 40-8-9 0-15 3-18 8 7-1 13 1 15 6-8-1-14 1-17 5 5 1 9 4 10 8-11-3-22-5-30-19Z"/><circle cx="50" cy="52" r="9"/><path d="M42 64h16l6 26H36Z"/>',
+  'Démon': '<path d="M37 50C24 46 14 33 16 12c5 14 14 22 27 26Z"/><path d="M63 50c13-4 23-17 21-38-5 14-14 22-27 26Z"/><path fill-rule="evenodd" d="M50 36c-13 0-22 10-22 24 0 13 10 26 22 30 12-4 22-17 22-30 0-14-9-24-22-24Zm-12 18 9 4-3 5Zm24 0-9 4 3 5Z"/>',
+  Gobelin: '<g transform="rotate(35 50 50)"><path d="M47 8h6l3 52H44Z"/><path d="M36 60h28v6H36Z"/><path d="M46 66h8v16h-8Z"/><circle cx="50" cy="86" r="5"/></g><g transform="rotate(-35 50 50)"><path d="M47 8h6l3 52H44Z"/><path d="M36 60h28v6H36Z"/><path d="M46 66h8v16h-8Z"/><circle cx="50" cy="86" r="5"/></g>',
+  Elfe: '<path fill-rule="evenodd" d="M50 6C22 28 20 64 50 94 80 64 78 28 50 6Zm-1 20h2v62h-2ZM36 52l13 9v3L35 55Zm28 0-13 9v3l14-9ZM39 38l10 8v3L38 41Zm22 0-10 8v3l11-8Z"/>',
+  Dragon: '<path fill-rule="evenodd" d="M6 50C22 24 78 24 94 50 78 76 22 76 6 50Zm44-22c-7 8-7 36 0 44 7-8 7-36 0-44Z"/>',
+  neutre: '<path d="M50 6l9 29 30-6-21 21 21 21-30-6-9 29-9-29-30 6 21-21-21-21 30 6Z"/>',
+};
+const famOfId = id => CARDS[id]?.kw?.find(k => EMBLEMS[k]) || GENERALS[id]?.fam || TERRAINS[id]?.fam || null;
+const emblem = fam => `<svg class="prov-emb" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">${EMBLEMS[fam] || EMBLEMS.neutre}</svg>`;
+const provHTML = (id, name, cls, fam = famOfId(id)) => `<div class="art prov ${cls}" aria-hidden="true">
+  <div class="art-clip"><span class="prov-ring"></span>${emblem(fam)}<span class="prov-tag">Illustration à venir</span></div>
+  <span class="art-name">${esc(name)}</span></div>`;
+// Une carte sans illustration a-t-elle un visuel provisoire ? Toutes, sauf les jetons (créés en partie, sans illustration prévue).
+const provFor = id => !!(CARDS[id] && !CARDS[id].token || GENERALS[id]);
 
 // Illustration avec le nom de la carte en bas, dans la police de sa famille (style.css, --famfont).
 // artId : art alternatif à montrer à la place de l'illustration d'origine (null : l'origine).
 export function artHTML(id, name, lvl = 1, cls = '', artId = null) {
   const alt = artId && ARTS[artId];
   if (alt) return altHTML(alt, name, lvl, cls);
-  const a = ART[id]; if (!a?.decor) return '';
+  const a = ART[id]; if (!a?.decor) return provFor(id) ? provHTML(id, name, cls) : '';
   return layers(a, name, lvl, `${holoOff()[id] ? '' : holoLv(lvl)} ${cls}`, isSpell(id), id);
 }
 const layers = (a, name, lvl, cls, spell, card) => { const perso = !spell && a.perso;

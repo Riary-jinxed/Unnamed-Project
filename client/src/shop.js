@@ -8,12 +8,12 @@ import './shop.css';
 import { reduceMotion } from './fx.js';
 import { packSVG, chestSVG } from './opening.js';
 
-// items : [{ kind: 'pack' | 'chest', act, set, setName, n, tag, free, off, label }]
+// items : [{ kind: 'pack' | 'chest', act, set, setName, n, tag, free, fresh, off, label }] ; fresh : ruban « Nouveau » (set le plus récent).
 // title : enseigne centrée au-dessus des objets ; info : action d'un bouton « i » dans le coin du comptoir (ce que contient le coffre).
 export function stallHTML(items, { title = '', info = '' } = {}) {
   const item = (x, i) => `<button class="stall-item is-${x.kind} pk-${x.set || 'base'}${x.free ? ' free' : ''}" data-act="${x.act}"${x.set ? ` data-set="${x.set}"` : ''} ${x.off ? 'disabled' : ''} aria-label="${x.label}" style="--i:${i}">
       <span class="stall-obj" data-px>${x.kind === 'chest' ? chestSVG(`shc${i}`) : packSVG(x.setName, x.n, `shp${i}`)}</span>
-      ${x.free ? `<span class="stall-free num">Offert${x.free > 1 ? ` ×${x.free}` : ''}</span>` : ''}
+      ${x.free ? `<span class="stall-free num">Offert${x.free > 1 ? ` ×${x.free}` : ''}</span>` : ''}${x.fresh ? '<span class="stall-new">Nouveau</span>' : ''}
       <span class="stall-tag">${x.tag}</span></button>`;
   return `<div class="stall" aria-label="Étal"><div class="stall-wall"></div><div class="stall-awning"></div><div class="stall-shelf"></div>
     ${title ? `<span class="stall-sign">${title}</span>` : ''}
