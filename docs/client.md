@@ -69,6 +69,12 @@ En partie, la table et les effets sont dessinés avec PixiJS (WebGL), sur deux t
 
 Chargé avec le plateau PixiJS. Le portrait du général respire : le personnage grandit à peine autour de son visage et le décor dérive derrière lui (CSS dans `style.css` ; `--gt`, posé par `genSlot`, reprend l'animation là où elle en était à chaque rendu). Quelques poussières à la couleur de la famille montent ou tombent du portrait (plus souvent quand le général peut être activé, plus du tout une fois utilisé), seulement quand rien ne le couvre. Quand le général agit (`generalUsed` passe à vrai, ou `genFired` augmente : voir le moteur), `generalFire` joue l'effet propre à ce général (`POWERS` : soleil levant de Séraphine, cercle de runes de Vorgoth, pièces de Grisk, souffle d'Ignaroth, gouttes du Drain de Valdric…), court et sans tremblement, 300 ms après les effets des cartes. Les généraux de début de partie jouent le leur après le bandeau du premier tour.
 
+## Accueil animé (`lobby.js`, `lobby-stage.js`)
+
+Sur l'accueil, le général du deck joué respire dans la vitrine. `render()` appelle `setHome(app)` (`lobby.js`), qui lit les deux calques de l'illustration HTML (`.hero-art`, décor et personnage) et charge `lobby-stage.js` (et PixiJS) au premier passage sur l'accueil, un court instant après le premier rendu. Une petite toile à la taille de la vitrine est posée dans `.sc-art` à chaque rendu ; l'illustration HTML n'est masquée qu'une fois la toile dessinée, à la même place, donc sans saut.
+
+Dans la toile : le personnage se soulève depuis le bas de l'image (souffle de 4,6 s), le décor avance très lentement, une lueur à la couleur de la famille bat avec le souffle, un foyer vacille en bas et des braises montent, les unes derrière le général, les autres devant. Parallaxe : chaque calque glisse selon l'inclinaison du téléphone (Android), la souris sur ordinateur, sinon une lente dérive ; le décor traîne un peu au défilement. Pour rester léger : définition plafonnée à 1,5, 45 images par seconde au plus, boucle arrêtée hors de l'accueil et quand la vitrine sort de l'écran. Sans WebGL, avec « réduire les animations » ou si le chargement échoue, l'illustration fixe reste.
+
 ## Amis (`friends.js`)
 
 `createFriends(outils)` reçoit l'état `ui` et quelques fonctions de `main.js`, et renvoie l'écran (`screen`), le bandeau (`banner`), la feuille de choix du deck (`deckSheet`) et ses gestionnaires (`click`, `input`, `submit`), branchés au début des écouteurs de `main.js`. Son état est dans `ui.friends`.
