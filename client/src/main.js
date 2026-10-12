@@ -17,7 +17,7 @@ import './holo.js';
 import './cosmetics.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
-import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, sparkle, shards, trail, ending, clearEnding } from './fx.js';
+import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, sparkle, shards, trail, ending, clearEnding, setEnd } from './fx.js';
 import { openPack, openChest } from './opening.js';
 import { setHome } from './lobby.js';
 import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
@@ -471,6 +471,13 @@ function endRewardHTML() {
   if (!r) return `<p class="hint" style="margin:0">${ui.auth ? 'Calcul des récompenses…' : ''}</p>`;
   return `<div class="endreward">${levelBar(r.progress)}
     <p style="margin:0">${r.rewarded ? (gains(r) || 'Pas de gain pour cette partie.') : `Plus de récompense de partie aujourd'hui ; les missions avancent toujours.${r.passXp ? ` · +${r.passXp} XP de saison` : ''}`}${r.levelUp ? ` · <b>Niveau ${r.progress.level} !</b>` : ''}${r.missions ? ` · ${r.missions} mission${r.missions > 1 ? 's' : ''} accomplie${r.missions > 1 ? 's' : ''}` : ''}</p>${r.ranked ? rankedLine(r.ranked) : ''}</div>`;
+}
+// Ce que l'écran de fin anime sur PixiJS (fx.js, setEnd) : les récompenses de la partie, une fois connues.
+function endReel() {
+  if (ui.sheet !== 'end' || ui.mode === 'tuto' || !ui.view?.result) return null;
+  const r = ui.mode === 'online' ? ui.view.reward : ui.soloReward; if (!r) return null;
+  const w = ui.view.result.winner;
+  return { key: JSON.stringify(r), reward: r, result: w === ui.view.seat ? 'win' : w < 0 ? 'tie' : 'lose' };
 }
 async function equip(body, okMsg) { if (await call('PUT', '/api/cosmetics', body)) { ui.msg = okMsg; render(); } }
 
@@ -1352,7 +1359,7 @@ function render() {
   setInGame(app, ui.screen === 'game');
   setMusic(musicFor());
   app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
-  setHome(app); setShop(app);
+  setHome(app); setShop(app); setEnd(app, endReel());
   // Transitions (habillage.css) : seulement quand l'écran ou la feuille change, pas à chaque rafraîchissement.
   app.classList.toggle('screen-in', ui.screen !== ui.shownScreen);
   if (ui.sheet && ui.sheet !== ui.shownSheet) app.querySelector(':scope > .sheet')?.classList.add('sheet-in');

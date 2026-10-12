@@ -188,7 +188,7 @@ export function createProgress(store) {
     const c = cfg(), s = a.stats, pvp = mode === 'pvp', win = result === 'win';
     const passBefore = pass(a)?.xp || 0;
     if (friend && win) bump(s, 'friendWins');
-    const before = { level: a.level, shards: a.shards || 0 };
+    const before = { level: a.level, shards: a.shards || 0, xp: a.xp || 0, xpNext: xpToNext(a.level, c) };
     if (s.day !== today()) { s.day = today(); s.dayGames = 0; }
     countGame(s, win, pvp, general);
     const rewarded = s.dayGames < c.gamesPerDay; s.dayGames++;
@@ -208,7 +208,9 @@ export function createProgress(store) {
       fam: played.filter(id => CARDS[id] && familyOf(id) === m.fam).length, season: played.filter(id => P && SEASON_CARDS[id] === P.season).length,
     }[m.kind] || 0));
     return { xp, shards, rewarded, passXp: (pass(a)?.xp || 0) - passBefore, gamesLeft: Math.max(0, c.gamesPerDay - s.dayGames), levelUp: a.level > before.level,
-      missions: missions(a).list.filter(m => m.done).length - doneBefore, progress: levelView(a), totalShards: a.shards - before.shards };
+      missions: missions(a).list.filter(m => m.done).length - doneBefore, progress: levelView(a), totalShards: a.shards - before.shards,
+      // Niveau d'avant la partie : la barre de l'écran de fin part de là.
+      progressBefore: { level: before.level, xp: before.xp, xpNext: before.xpNext } };
   }
   const onBooster = a => { advance(a, m => (m.id === 'booster' ? 1 : 0)); passAdvance(a, m => (m.kind === 'booster' ? 1 : 0)); };
 
