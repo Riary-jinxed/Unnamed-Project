@@ -9,30 +9,49 @@ import { reduceMotion } from './fx.js';
 import { packSVG, chestSVG } from './opening.js';
 
 // items : [{ kind: 'pack' | 'chest', act, set, setName, n, tag, free, off, label }]
-export function stallHTML(items) {
+// title : enseigne au-dessus des objets ; info : action d'un bouton « i » dans le coin (ce que contient le coffre), open : son volet est ouvert.
+export function stallHTML(items, { title = '', info = '', open = false } = {}) {
   const item = (x, i) => `<button class="stall-item is-${x.kind} pk-${x.set || 'base'}${x.free ? ' free' : ''}" data-act="${x.act}"${x.set ? ` data-set="${x.set}"` : ''} ${x.off ? 'disabled' : ''} aria-label="${x.label}" style="--i:${i}">
       <span class="stall-obj" data-px>${x.kind === 'chest' ? chestSVG(`shc${i}`) : packSVG(x.setName, x.n, `shp${i}`)}</span>
       ${x.free ? `<span class="stall-free num">Offert${x.free > 1 ? ` ×${x.free}` : ''}</span>` : ''}
       <span class="stall-tag">${x.tag}</span></button>`;
   return `<div class="stall" aria-label="Étal"><div class="stall-wall"></div><div class="stall-awning"></div><div class="stall-shelf"></div>
+    ${title || info ? `<div class="stall-head">${title ? `<span class="stall-sign">${title}</span>` : ''}
+      ${info ? `<button class="stall-info${open ? ' on' : ''}" data-act="${info}" aria-expanded="${open}" aria-controls="${info}" aria-label="${title ? `${title} : ` : ''}ce qu'il contient">i</button>` : ''}</div>` : ''}
     <div class="stall-items">${items.map(item).join('')}</div></div>`;
 }
 
 // Sélection du jour : une vitrine tendue de velours où les offres du jour sont exposées côte à côte sous des projecteurs,
 // chacune avec son prix sur une étiquette dorée ; « Vendue » en travers une fois achetée. Toucher l'illustration l'agrandit.
 // slots : [{ art, zoom, style (avec --glow, la couleur de sa lumière), cls, badge, cost, price, act, id, set, state: 'sale' | 'sold' | 'owned', off, label, name, sub }]
-export function vitrineHTML({ title, sub, slots }) {
+// Sans zoom, l'illustration ne s'agrandit pas (offres de change). timer : false pour une vitrine qui ne change pas à minuit.
+export function vitrineHTML({ title, sub, slots, timer = true, cls = '' }) {
   const slot = (x, i) => `<div class="vit-slot ${x.state}${x.cls ? ` ${x.cls}` : ''}" style="--i:${i};${x.style}">
-      <button class="vit-card" data-px data-zoom="${x.zoom}" aria-label="Voir ${x.name} en grand">${x.art}
+      ${x.zoom ? `<button class="vit-card" data-px data-zoom="${x.zoom}" aria-label="Voir ${x.name} en grand">` : '<div class="vit-card still" data-px>'}${x.art}
         ${x.cost != null ? `<span class="vit-cost num">${x.cost}</span>` : ''}${x.badge ? `<span class="vit-badge">${x.badge}</span>` : ''}
-        ${x.state === 'sold' ? '<span class="vit-stamp">Vendue</span>' : ''}</button>
+        ${x.state === 'sold' ? '<span class="vit-stamp">Vendue</span>' : ''}${x.zoom ? '</button>' : '</div>'}
       ${x.caption === false ? '' : `<span class="vit-name">${x.name}</span>`}${x.sub ? `<span class="vit-sub">${x.sub}</span>` : ''}
       ${x.state === 'sale' ? `<button class="vit-buy" data-act="${x.act}" data-id="${x.id}"${x.set ? ` data-set="${x.set}"` : ''} ${x.off ? 'disabled' : ''} aria-label="${x.label}">${x.price}</button>`
         : `<span class="vit-done">${x.state === 'sold' ? 'Achetée' : 'Possédée'}</span>`}</div>`;
-  return `<div class="vitrine"><div class="vit-velvet"></div>
+  return `<div class="vitrine${cls ? ` ${cls}` : ''}"><div class="vit-velvet"></div>
     <div class="vit-head"><div><span class="eyebrow">${sub}</span><h3 class="vit-title">${title}</h3></div>
-      <span class="vit-timer" title="Nouvelle sélection à minuit"><i aria-hidden="true"></i><span data-reset>${resetIn()}</span></span></div>
+      ${timer ? `<span class="vit-timer" title="Nouvelle sélection à minuit"><i aria-hidden="true"></i><span data-reset>${resetIn()}</span></span>` : ''}</div>
     <div class="vit-row">${slots.map(slot).join('')}</div></div>`;
+}
+// Bourse d'Éclats d'une offre de change : un tas de cristaux ambrés sur un coussin, plus haut à chaque offre (step : 0 à 3).
+const CRYSTALS = [[60, 70, 1.25, 0], [40, 80, 1, -16], [80, 80, 1, 16], [60, 50, .9, 4], [26, 92, .8, -28], [94, 92, .8, 26], [46, 58, .8, -10], [74, 58, .8, 12],
+  [60, 32, .8, 0], [34, 70, .7, -20], [86, 70, .7, 20], [60, 88, .9, 0]];
+export function shardPileSVG(step, id = 'sp') {
+  const n = [3, 6, 9, 12][step] ?? 12, crystal = ([x, y, k, r]) => `<g transform="translate(${x} ${y}) rotate(${r}) scale(${k})">
+      <path d="M0-17 10-6 0 15-10-6Z" fill="url(#${id}g)" stroke="#6a400a" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M-10-6h20M0-17-3-6 0 15 3-6Z" fill="none" stroke="#8a5a10" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M-3-6 0-17-7-8Z" fill="#fff3c4" opacity=".85"/></g>`;
+  return `<svg class="shardpile" viewBox="0 0 120 120" aria-hidden="true"><defs>
+      <radialGradient id="${id}h" cx=".5" cy=".55" r=".55"><stop offset="0" stop-color="#ffcf6a" stop-opacity=".55"/><stop offset="1" stop-color="#ffcf6a" stop-opacity="0"/></radialGradient>
+      <linearGradient id="${id}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe9a0"/><stop offset=".5" stop-color="#e0a530"/><stop offset="1" stop-color="#a86a14"/></linearGradient></defs>
+    <circle cx="60" cy="66" r="58" fill="url(#${id}h)"/>
+    <ellipse cx="60" cy="104" rx="50" ry="11" fill="#5a1624" stroke="#c88a20" stroke-width="2"/>
+    ${CRYSTALS.slice(0, n).sort((a, b) => a[1] - b[1]).map(crystal).join('')}</svg>`;
 }
 // Temps restant avant minuit à Paris, l'heure à laquelle le serveur renouvelle les offres (today() du moteur).
 export function resetIn(now = new Date()) {

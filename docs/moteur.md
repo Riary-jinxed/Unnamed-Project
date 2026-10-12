@@ -120,6 +120,7 @@ Réglages : 250 essais contre un joueur (`client/src/solo.js`), de 15 (Bronze) �
 - `deckError(deck, compte)` : message d'erreur ou `null` si le deck est jouable (15 cartes différentes possédées, 5 terrains autorisés, un général possédé). `draftError` accepte un deck incomplet.
 - `allowedTerrains` : terrains neutres et ceux des familles dont le joueur possède un général.
 - `SETS` / `DEFAULT_SETS` : sets (cartes, ouvert en boutique, booster quotidien, présentation) ; `dailyOffers` : cartes du jour en boutique.
+- `EXCHANGE_TIERS`, `exchangeOffers(rate)`, `exchangeFor(rate, need)` : offres fixes du change de Prismes en Éclats (bonus pour les grosses offres), et celle à proposer quand il manque `need` Éclats (la plus petite qui suffit, sinon la plus grosse).
 - `today()` : le jour à Paris (`AAAA-MM-JJ`) ; tout ce qui est quotidien bascule à minuit, heure française.
 
 ## Catalogue (`catalog.js`)

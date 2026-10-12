@@ -111,3 +111,11 @@ export function dailyOffers(set, owned, n = SHOP.dailyCards, rand = Math.random)
   return [...order(set.cards.filter(id => !owned[id])), ...order(set.cards.filter(id => owned[id]))].slice(0, n);
 }
 export function setBooster(set, rand = pick) { return Array.from({ length: SHOP.boosterSize }, () => rand(set.cards)); }
+
+// ---- Change de devises ----
+// Prismes changés en Éclats par offres fixes, jamais l'inverse ni au détail : plus l'offre est grosse, plus le bonus l'est.
+// rate : Éclats pour 1 Prisme (réglage prismShards de /admin ; 0 ferme le change). Les Prismes contre de l'argent viendront plus tard.
+export const EXCHANGE_TIERS = [{ id: 'x10', prisms: 10, bonus: 0 }, { id: 'x30', prisms: 30, bonus: 10 }, { id: 'x60', prisms: 60, bonus: 20 }, { id: 'x120', prisms: 120, bonus: 30 }];
+export const exchangeOffers = rate => (rate > 0 ? EXCHANGE_TIERS.map(t => ({ ...t, shards: Math.round(t.prisms * rate * (1 + t.bonus / 100)) })) : []);
+// Offre à proposer quand il manque `need` Éclats : la plus petite qui suffit, sinon la plus grosse.
+export const exchangeFor = (rate, need) => { const all = exchangeOffers(rate); return all.find(o => o.shards >= need) || all.at(-1) || null; };

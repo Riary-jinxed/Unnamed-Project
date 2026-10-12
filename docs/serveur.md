@@ -28,7 +28,7 @@ Documents de la table `reglages` :
 | `recompenses` | onglet Récompenses | Valeurs qui remplacent `DEFAULT_REWARDS` (dont le calendrier : `loginShards`, `loginChests`, `loginPrisms` ; le passe de saison : `pass…`), missions, Éclats, Prismes et coffres des succès, objectifs des missions du passe (`passPool`) et missions de saison (`passMissions`). |
 | `brouillon` | onglets Cartes et Sets | Catalogue en cours de modification. |
 | `catalogue` | « Publier dans le jeu » | Catalogue publié, appliqué au moteur. |
-| `compteurs` | `activity.js` | Par jour (`AAAA-MM-JJ`, heure de Paris, 400 jours au plus) : boosters du jour, achetés et offerts ouverts, cartes du jour achetées, coffres d'arts ouverts, arts achetés. Pour l'onglet Stats. |
+| `compteurs` | `activity.js` | Par jour (`AAAA-MM-JJ`, heure de Paris, 400 jours au plus) : boosters du jour, achetés et offerts ouverts, cartes du jour achetées, coffres d'arts ouverts, arts achetés, changes de Prismes en Éclats. Pour l'onglet Stats. |
 
 ## Compte joueur
 
@@ -106,7 +106,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/redeem` | Utilise un code cadeau `{ code }`, une fois par compte. |
 | `PUT /api/cosmetics` | Change le titre, le cadre ou le dos de carte porté. |
 | `POST /api/shop/art`, `/api/shop/chest` | Arts alternatifs (`arts.js`) : payés en Prismes. `{ art }` achète un art du jour ; le coffre donne un art classique pas encore possédé, au hasard selon sa rareté (`{ free: true }` : avec un coffre offert). Renvoie `art` et la boutique à jour. |
-| `POST /api/shop/convert` | `{ prisms }` : change des Prismes en Éclats au taux `prismShards` (0 : fermé). Jamais l'inverse. |
+| `POST /api/shop/convert` | `{ offer }` : change des Prismes en Éclats par une offre fixe (`exchangeOffers` du moteur, bâties sur le taux `prismShards` ; 0 : fermé). Jamais l'inverse ni au détail. |
 | `GET /api/pass` | Passe de saison du mois (`pass`, `null` sans saison) : paliers gratuits et premium, missions du jour, de la semaine et de la saison, arts Promo (palier de la piste gratuite), prix du premium et palier où il est remboursé. |
 | `POST /api/pass/premium` | Achète le premium en Prismes ; les récompenses premium des paliers déjà atteints sont données aussitôt. |
 | `POST /api/calendar/claim` | Récompense du jour du calendrier du mois (409 si déjà prise). Renvoie `got`. |
