@@ -1,6 +1,8 @@
 // Arts alternatifs : offres du jour propres à chaque joueur, coffre, choix de l'art de chaque carte, dons depuis /admin (Promo).
 // Payés en Prismes, la monnaie rare des arts, ou avec un coffre offert (pay est fourni par accounts.js).
-// Compte : arts = { idArt: { at, gift? } }, artSel = { idCarte: idArt }, artShop = offres du jour.
+// Compte : arts = { idArt: { at, gift? } }, artSel = { idCarte: idArt }, artShop = offres du jour,
+// holoOff = { idCarte: true } pour les cartes dont le joueur a coupé le reflet holographique.
+import { CARDS, GENERALS } from '@jeu/engine';
 import { ARTS, artExists, isClassic, artPrice, artOffers, chestPool, chestRates, weightedPick, rarityName } from '@jeu/engine/arts';
 import { today } from '@jeu/engine/collection';
 import { HttpError } from './accounts.js';
@@ -55,6 +57,13 @@ export function createArts(store, cfg) {
     if (!owns(a, id)) throw new HttpError(409, 'Vous n\'avez pas cet art.');
     a.artSel = { ...(a.artSel || {}), [card]: id };
   }
+  // Reflet holographique (arts alternatifs, cartes Or et Astral) : allumé par défaut, le joueur peut le couper carte par carte.
+  function holo(a, { card, on }) {
+    if (!CARDS[card] && !GENERALS[card]) throw new HttpError(400, 'Carte inconnue.');
+    const off = { ...(a.holoOff || {}) };
+    if (on) delete off[card]; else off[card] = true;
+    a.holoOff = off;
+  }
 
   // ---- Administration ----
   // Catalogue avec le nombre de joueurs qui ont chaque art, pour l'onglet Boutique.
@@ -71,5 +80,5 @@ export function createArts(store, cfg) {
     for (const [card, sel] of Object.entries(a.artSel || {})) if (sel === id) delete a.artSel[card];
   }
 
-  return { view, buy, chest, select, adminList, adminGive };
+  return { view, buy, chest, select, holo, adminList, adminGive };
 }

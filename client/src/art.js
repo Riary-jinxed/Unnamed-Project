@@ -40,6 +40,11 @@ const pops = lvl => POP_LEVEL > 0 && lvl >= POP_LEVEL;
 const HOLO_LEVEL = CARD_LEVELS.findIndex(l => l?.look === 'or');
 const holoLv = lvl => HOLO_LEVEL > 0 && lvl >= HOLO_LEVEL ? `holo holo-${CARD_LEVELS[lvl].look}` : '';
 const FOIL = '<span class="foil"></span>';
+// Le joueur peut couper le reflet carte par carte (compte : holoOff) ; main.js fournit la liste.
+let holoOff = () => ({});
+export const setHoloOff = f => { holoOff = f; };
+// La carte a-t-elle un reflet à couper ou rallumer, avec ce niveau et cet art ?
+export const holoCard = (lvl, artId) => !!(artId && ARTS[artId]) || !!holoLv(lvl);
 const isSpell = id => CARDS[id]?.type === 'S';
 
 // Fond illustré des petites cartes (main, plateau) : le décor seul, recadré sur le haut de la fenêtre de la carte.
@@ -51,7 +56,7 @@ export function artHTML(id, name, lvl = 1, cls = '', artId = null) {
   const alt = artId && ARTS[artId];
   if (alt) return altHTML(alt, name, lvl, cls);
   const a = ART[id]; if (!a?.decor) return '';
-  return layers(a, name, lvl, `${holoLv(lvl)} ${cls}`, isSpell(id));
+  return layers(a, name, lvl, `${holoOff()[id] ? '' : holoLv(lvl)} ${cls}`, isSpell(id));
 }
 const layers = (a, name, lvl, cls, spell) => { const perso = !spell && a.perso;
   return `<div class="art ${pops(lvl) && perso ? 'pop' : ''} ${cls}" aria-hidden="true">
@@ -77,11 +82,12 @@ export function heroHTML(id, artId = null) {
 }
 // Art alternatif : ses images avec un liseré de rareté, ou l'art provisoire.
 function altHTML(alt, name, lvl, cls) {
-  const rar = `rar rar-${rarityKey(alt)} holo`;
+  const holo = !holoOff()[alt.card];
+  const rar = `rar rar-${rarityKey(alt)}${holo ? ' holo' : ''}`;
   if (ALT[alt.id]?.decor) return layers(ALT[alt.id], name, lvl, `${rar} ${cls}`, isSpell(alt.card));
   const base = ART[alt.card]?.decor;
   return `<div class="art ph ${rar} ${cls}" aria-hidden="true">
     <div class="art-clip">${base ? `<img class="art-decor" src="${base}" alt="" loading="lazy" decoding="async">` : ''}<span class="ph-veil"></span></div>
-    ${FOIL}<span class="ph-tag">${esc(rarityName(alt))}</span><span class="ph-title">${esc(alt.name)}</span>
+    ${holo ? FOIL : ''}<span class="ph-tag">${esc(rarityName(alt))}</span><span class="ph-title">${esc(alt.name)}</span>
     <span class="art-name">${esc(name)}</span></div>`;
 }

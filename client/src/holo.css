@@ -43,3 +43,10 @@
   .art.holo, .art.holo .foil { --tx: .35; --ty: -.25; }
   .zoomwrap .zoomart.holo { transform: none; }
 }
+
+/* Interrupteur du reflet, dans la carte ouverte en grand depuis la collection (main.js, holoHTML). */
+.holotgl .holosw { flex: none; position: relative; width: 34px; height: 20px; border-radius: 999px; background: var(--sunk); border: 1px solid var(--line); transition: background .2s; }
+.holotgl .holosw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink, #fff); transition: transform .2s; }
+.holotgl.on .holosw { background: linear-gradient(115deg, #ff6f8e, #ffd36b, #9cff8a, #6ff2ff, #7f8cff, #e07bff); border-color: transparent; }
+.holotgl.on .holosw::after { transform: translateX(14px); background: #fff; }
+@media (prefers-reduced-motion: reduce) { .holotgl .holosw, .holotgl .holosw::after { transition: none; } }
