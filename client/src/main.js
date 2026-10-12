@@ -15,7 +15,7 @@ import { esc, famStyle, rich } from './common.js';
 import { artBg, artHTML, heroHTML, portraitHTML, terrainBg, terrainHTML } from './art.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
-import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti } from './fx.js';
+import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, sparkle, shards } from './fx.js';
 import { openPack, openChest } from './opening.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
@@ -1215,6 +1215,7 @@ function render() {
   ui.coach = ui.screen === 'game' && ui.mode === 'tuto' && ui.ctrl ? ui.ctrl.coach(ui) : null;
   const body = screens[ui.screen]() + (ui.screen in TABBED ? tabbar(TABBED[ui.screen]) : '');
   app.classList.toggle('ingame', ui.screen === 'game');
+  setInGame(app, ui.screen === 'game');
   setMusic(musicFor());
   app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
   // Transitions (habillage.css) : seulement quand l'écran ou la feuille change, pas à chaque rafraîchissement.
@@ -1252,6 +1253,7 @@ function ghostOut(uid, cls) {
   const el = app.querySelector(cardSel(uid)); if (!el || reduceMotion()) return;
   const r = el.getBoundingClientRect(), g = el.cloneNode(true);
   g.classList.add('fxghost', cls);
+  if (cls === 'shatter') shards(r);
   Object.assign(g.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
   document.body.append(g); setTimeout(() => g.remove(), 900);
 }
@@ -1299,7 +1301,9 @@ function viewEffects(prev, view) {
     else {
       sounds.push(b.side === 'me' ? 'reveal' : 'revealFoe'); list.push([cardSel(f), b.side === 'me' ? 'reveal' : 'reveal-foe']);
       // Carte de l'adversaire : son dos se retourne d'abord, sa face apparaît ensuite.
-      if (b.side === 'foe' && at(`[data-hid="${f}"]`) && !reduceMotion()) { backFlip(at(`[data-hid="${f}"]`)); list.push([cardSel(f), 'after-back']); }
+      const back = b.side === 'foe' && at(`[data-hid="${f}"]`) && !reduceMotion();
+      if (back) { backFlip(at(`[data-hid="${f}"]`)); list.push([cardSel(f), 'after-back']); }
+      after.push(() => setTimeout(() => sparkle(at(cardSel(f))), back ? 200 : 60));
       if (fxOf(b)) { list.push([cardSel(f), 'astral-in']); burst.push(cardSel(f)); sounds.push('astral'); }
     }
   }

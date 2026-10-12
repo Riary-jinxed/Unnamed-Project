@@ -59,6 +59,12 @@ Ouvertures (`opening.js`, `opening.css`, calque dans `<body>` comme `fx.js`) : u
 
 Le glisser-déposer d'une carte vers une zone s'ajoute au toucher (sélectionner, puis toucher la zone). En partie, une touche sélectionne une carte de la main ou une créature ⇄ (une deuxième la désélectionne), une touche sur une carte posée ce tour la reprend en main, et une double touche (`doubleTap`) ouvre n'importe quelle carte en grand.
 
+## Plateau PixiJS (`stage.js`)
+
+En partie, la table et les effets sont dessinés avec PixiJS (WebGL), sur deux toiles plein écran : la table sous `#app` (planches de bois éclairées par une lampe, braises qui montent, halo de la zone que chaque camp mène, lu sur `.score .v.lead`) et les effets par-dessus (étincelles d'une carte révélée, éclats d'une carte détruite, colonne de lumière d'une zone qui change de camp ou est gagnée, onde du général, confettis). Les cartes et les zones restent en HTML : toucher, glisser-déposer, tutoriel et accessibilité ne changent pas, PixiJS lit leur place à l'écran pour s'y caler.
+
+`fx.js` fait le lien : `render()` appelle `setInGame(app, en partie ?)`, qui charge `stage.js` (et PixiJS, dans un fichier à part, environ 70 Ko compressés) à la première partie, montre les toiles en partie et les cache dans les menus (leurs boucles s'arrêtent). `zoneGlow`, `generalFire` et `confetti` passent par PixiJS quand il est prêt ; `sparkle` et `shards` n'existent que sur PixiJS. Sans WebGL, avec « réduire les animations », ou si le chargement échoue (hors ligne), rien n'est chargé et les effets CSS d'avant restent.
+
 ## Amis (`friends.js`)
 
 `createFriends(outils)` reçoit l'état `ui` et quelques fonctions de `main.js`, et renvoie l'écran (`screen`), le bandeau (`banner`), la feuille de choix du deck (`deckSheet`) et ses gestionnaires (`click`, `input`, `submit`), branchés au début des écouteurs de `main.js`. Son état est dans `ui.friends`.

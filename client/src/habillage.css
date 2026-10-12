@@ -112,3 +112,7 @@ body:has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, 
 body .op { background: radial-gradient(circle at 50% 42%, #3a2a1a 0, #1a120c 55%, #080503 100%); }
 body .op .op-skip { font-family: var(--display); font-weight: 700; color: var(--ink); background: linear-gradient(180deg, #4a3826, #2a1e14); border-color: #8a6a3a; }
 body .pack-notch { background: #080503; }
+
+/* plateau PixiJS (stage.js) : la table est dessinée sur une toile sous #app, qui passe donc au-dessus d'elle */
+body.staged #app.ingame { position: relative; z-index: 1; }
+body.staged:has(#app.ingame) { background: #120d0a; }

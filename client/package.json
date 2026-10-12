@@ -3,7 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": { "dev": "vite", "build": "vite build" },
-  "dependencies": { "@jeu/engine": "*" },
-  "devDependencies": { "vite": "^5.4.0" }
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@jeu/engine": "*",
+    "pixi.js": "^8.13.2"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
 }
