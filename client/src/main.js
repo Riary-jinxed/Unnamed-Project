@@ -688,11 +688,11 @@ const anyCard = (id, lvl = 1, art = null) => GENERALS[id] ? genCard(id, lvl, art
 // art : montrer cet art alternatif en grand (aperçu en boutique).
 const zoomKey = (id, art = '') => `${GENERALS[id] ? 'general' : 'card'}:${id}${art ? `:${art}` : ''}`;
 function renderLoading() {
-  return `<div class="top"><span class="title">Jeu de cartes</span></div>
+  return `<div class="top"><span class="title">Éclats</span></div>
   <div class="card-box">${ui.error ? `${errLine()}<div class="row"><button class="btn primary" data-act="retry">Réessayer</button><button class="btn" data-act="logout">Changer de compte</button></div>` : '<p class="wait">Connexion…</p>'}</div>`;
 }
 function renderLogin() {
-  return `<div class="top"><span class="title">Jeu de cartes</span>${muteBtn()}</div>
+  return `<div class="top"><span class="title">Éclats</span>${muteBtn()}</div>
   <form class="card-box" id="login-form">
     <h2 style="font-size:22px">Connexion</h2>
     <p class="hint" style="margin:0">Utilisez l'identifiant et le mot de passe qu'on vous a donnés.</p>
