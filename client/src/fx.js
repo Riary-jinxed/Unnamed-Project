@@ -4,19 +4,25 @@ import './fx.css';
 
 export const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// Plateau PixiJS (stage.js) : chargé à la première partie, seulement avec WebGL et sans « réduire les animations ».
+// Plateau PixiJS (stage.js) : chargé au premier écran, seulement avec WebGL et sans « réduire les animations ».
 // Tant qu'il n'est pas prêt, ou s'il ne peut pas l'être, chaque effet garde sa version en CSS ci-dessous.
-let stage = null, gens = null, inGame = false;
+let stage = null, gens = null, scene = null;
 const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
 const staged = () => stage?.active() ? stage : null;
-// Appelé à chaque rendu : la table PixiJS apparaît en partie et disparaît dans les menus.
+// Appelé à chaque rendu : la table PixiJS en partie, le décor animé (brume, braises, étincelles, chauves-souris à Halloween) dans les menus.
+// Dans les menus, le chargement attend que la page soit affichée et au repos, pour ne pas retarder l'ouverture de l'appli.
 export function setInGame(app, on) {
-  if (on === inGame) return; inGame = on;
-  if (!on) { stage?.leave(); return; }
-  if (reduceMotion() || !webgl()) return;
-  // Les généraux (portrait vivant, effet de pouvoir propre à chacun) viennent avec le plateau, dans stage-generals.js.
-  Promise.all([import('./stage.js'), import('./stage-generals.js')]).then(([m, g]) => m.enter(app).then(ok => { if (!ok) return; stage = m; gens = g; g.start(); if (!inGame) m.leave(); }))
-    .catch(err => console.warn('Plateau PixiJS indisponible', err));
+  const want = on ? 'game' : 'menu';
+  if (want === scene) return; scene = want;
+  if (reduceMotion() || !webgl()) { stage?.leave(); return; }
+  const go = () => {
+    if (scene !== want) return;
+    // Les généraux (portrait vivant, effet de pouvoir propre à chacun), les effets des cartes et le décor des menus viennent avec le plateau.
+    Promise.all([import('./stage.js'), import('./stage-generals.js'), import('./stage-menu.js'), import('./stage-cards.js')])
+      .then(([m, g, mm, mc]) => m.enter(app, scene).then(ok => { if (!ok) return; stage = m; gens = g; g.start(); mm.start(); mc.start(); if (scene !== want) m.enter(app, scene); }))
+      .catch(err => console.warn('Plateau PixiJS indisponible', err));
+  };
+  if (stage || on) go(); else (window.requestIdleCallback || (f => setTimeout(f, 1200)))(go, { timeout: 2500 });
 }
 const famOf = el => el && getComputedStyle(el).getPropertyValue('--fam').trim();
 

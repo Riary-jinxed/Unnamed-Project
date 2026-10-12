@@ -4,15 +4,18 @@
 // en bas, les unes derrière le personnage, les autres devant. Effet de profondeur (parallaxe) : braises, lueur et illustration
 // glissent plus ou moins selon l'inclinaison du téléphone, la souris sur ordinateur, ou à défaut une lente dérive ;
 // l'illustration traîne un peu quand on fait défiler.
+// Saison (season.js) : à Halloween, le foyer devient un chaudron violet, les braises se mêlent de feux follets violets et verts,
+// et de temps en temps une chauve-souris passe derrière le personnage.
 // Une seule petite toile, à la taille de la vitrine, posée dans `.sc-art` par-dessus l'illustration HTML (qui est masquée une
 // fois la toile dessinée). Pour rester léger sur téléphone : définition plafonnée à 1,5, 45 images par seconde au plus, et la
 // boucle s'arrête hors de l'accueil ou quand la vitrine sort de l'écran.
 import { Application, Assets, Color, Container, Sprite, Texture } from 'pixi.js';
+import { season, palette, batCanvases } from './season.js';
 
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const BREATH_MS = 4600, MARGIN = 18;
 let app = null, ready = null, host = null, cur = null, pending = null, ro = null, io = null, seen = true;
-let world, glow, hearth, decor, perso, back, front, sparkTex;
+let world, glow, hearth, decor, perso, back, front, sparkTex, bats, batTex, nextBat = 0;
 const par = { x: 0, y: 0 }, aim = { tilt: null, mouse: null }, textures = new Map();
 
 // Texture ronde et floue (halo, braise) dessinée une fois dans un canevas 2D.
@@ -38,7 +41,8 @@ async function boot() {
   hearth = new Sprite(glowTex); hearth.anchor.set(0.5); hearth.blendMode = 'add'; hearth.tint = 0xff7a2a;
   back = new Container(); front = new Container();
   perso = new Sprite(); perso.anchor.set(0.5, 1);
-  world.addChild(decor, glow, hearth, back, perso, front);
+  bats = new Container(); batTex = batCanvases().map(c => Texture.from(c));
+  world.addChild(decor, glow, hearth, bats, back, perso, front);
   for (let i = 0; i < 22; i++) back.addChild(ember(new Sprite(sparkTex), true, false));
   for (let i = 0; i < 7; i++) front.addChild(ember(new Sprite(sparkTex), true, true));
 
@@ -57,10 +61,19 @@ async function boot() {
 function ember(s, anywhere, near = s.near) {
   const w = app.screen.width, h = app.screen.height;
   // Mélange normal, pas additif : sur un décor clair, une braise additive disparaîtrait.
-  s.anchor.set(0.5); s.tint = Math.random() < 0.65 ? 0xff6a1a : 0xffb040;
+  const tints = palette().sparks; s.anchor.set(0.5); s.tint = tints[Math.floor(Math.random() * tints.length)];
   s.scale.set(near ? rnd(0.4, 0.7) : rnd(0.14, 0.32));
   return Object.assign(s, { near, x: rnd(-10, w + 10), y: anywhere ? rnd(0, h) : h + rnd(4, 30), vy: near ? rnd(0.7, 1.4) : rnd(0.2, 0.7),
     life: rnd(0.6, 1), seed: rnd(0, 500), a: near ? 0.7 : 0.9 });
+}
+
+// Chauve-souris : part d'un bord de la vitrine, dans le tiers haut, vers l'autre bord.
+function bat(W, H) {
+  const dir = Math.random() < 0.5 ? 1 : -1, b = new Sprite(batTex[0]), sc = rnd(0.28, 0.45);
+  b.anchor.set(0.5); b.tint = 0x1a0d22; b.alpha = 0.9; b.scale.set(sc * dir, sc);
+  b.x = dir > 0 ? -50 : W + 50;
+  Object.assign(b, { vx: dir * rnd(1.6, 2.6), y0: rnd(H * 0.08, H * 0.35), amp: rnd(6, 14), seed: rnd(0, 6) });
+  bats.addChild(b);
 }
 
 // Calage des images comme l'illustration HTML (object-fit: cover, cadrée à 12 % du haut), avec une marge pour la parallaxe.
@@ -95,6 +108,16 @@ function tick(t) {
   // Foyer : lueur chaude en bas qui vacille (trois sinus de périodes différentes).
   hearth.position.set(...at(0.6, W / 2, H * 1.02));
   hearth.alpha = 0.22 + 0.06 * Math.sin(now / 130) * Math.sin(now / 370) + 0.04 * Math.sin(now / 910);
+  hearth.tint = palette().hearth;
+  // Halloween : une chauve-souris traverse le fond toutes les 6 à 12 secondes, en ondulant, ailes battantes.
+  const spooky = season() === 'halloween';
+  if (spooky && now > nextBat) { if (nextBat) bat(W, H); nextBat = now + rnd(6000, 12000); }
+  bats.position.set(...at(0.1));
+  for (const b of [...bats.children]) {
+    b.x += b.vx * dt; b.y = b.y0 + Math.sin(b.x / 40 + b.seed) * b.amp;
+    b.texture = batTex[Math.floor(now / 150 + b.seed) % 2];
+    if (!spooky || b.x < -80 || b.x > W + 80) b.destroy();
+  }
   for (const [layer, d] of [[back, 0.2], [front, 1.6]]) {
     layer.position.set(...at(d));
     for (const e of layer.children) {

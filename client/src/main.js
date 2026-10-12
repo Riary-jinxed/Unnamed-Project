@@ -768,7 +768,7 @@ function renderHome() {
     <span class="wallet">${walletHTML()}</span>${mail.button()}${muteBtn()}</div>
   <div class="setup home lobby">
     ${gift}
-    <section class="showcase" style="${g ? famVar([g.fam]) : ''}">
+    <section class="showcase" style="${g ? famVar([g.fam]) : ''}" data-fam="${esc(g?.fam || '')}">
       <div class="sc-art">${hero || `<span class="sc-init" aria-hidden="true">${esc((g?.name || '?')[0])}</span>`}</div>
       ${p.ranked ? `<button class="sc-rank" data-act="ranked" aria-label="Classement">${rankHTML(p.ranked.rank)}<small>${esc(p.ranked.seasonName)}</small></button>` : ''}
       <button class="sc-deck" data-act="decks"><span class="eyebrow">Deck joué</span><b>${esc(d ? d.name : 'Aucun deck')}</b>${g ? `<small>${esc(g.name)}</small>` : ''}<span class="sc-change">Changer</span></button>
@@ -1234,6 +1234,7 @@ function sheetHTML() {
   }
   return '';
 }
+const SEASON_OVERRIDE = (q => q === null ? null : q === 'base' ? '' : q)(new URLSearchParams(location.search).get('saison'));
 function render() {
   const h = document.getElementById('hand'); const sx = h ? h.scrollLeft : 0;
   // Défilement de la fenêtre ouverte, gardé quand elle se redessine (ex. : après une amélioration, en bas de la fiche).
@@ -1248,6 +1249,8 @@ function render() {
   ui.coach = ui.screen === 'game' && ui.mode === 'tuto' && ui.ctrl ? ui.ctrl.coach(ui) : null;
   const body = screens[ui.screen]() + (ui.screen in TABBED ? tabbar(TABBED[ui.screen]) : '');
   app.classList.toggle('ingame', ui.screen === 'game');
+  // Thème de saison (décors PixiJS, habillage.css) : celui du passe du mois, ou ?saison=… dans l'adresse pour en essayer un (« base » : aucun).
+  document.body.dataset.season = SEASON_OVERRIDE ?? (SEASONS.find(x => x.id === seasonId())?.theme || '');
   setInGame(app, ui.screen === 'game');
   setMusic(musicFor());
   app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
