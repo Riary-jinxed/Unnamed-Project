@@ -35,6 +35,11 @@ export const altReady = artId => !!ALT[artId]?.decor;
 // Les sorts ne débordent jamais : leur illustration reste dans le cadre, sans calque personnage.
 export const POP_LEVEL = CARD_LEVELS.findIndex(l => l?.pop);
 const pops = lvl => POP_LEVEL > 0 && lvl >= POP_LEVEL;
+// Cartes vivantes (holo.js, holo.css) : reflet holographique qui suit l'inclinaison du téléphone (ou la souris),
+// sur les arts alternatifs et sur les cartes rares, c'est-à-dire montées au niveau Or ou plus.
+const HOLO_LEVEL = CARD_LEVELS.findIndex(l => l?.look === 'or');
+const holoLv = lvl => HOLO_LEVEL > 0 && lvl >= HOLO_LEVEL ? `holo holo-${CARD_LEVELS[lvl].look}` : '';
+const FOIL = '<span class="foil"></span>';
 const isSpell = id => CARDS[id]?.type === 'S';
 
 // Fond illustré des petites cartes (main, plateau) : le décor seul, recadré sur le haut de la fenêtre de la carte.
@@ -46,13 +51,13 @@ export function artHTML(id, name, lvl = 1, cls = '', artId = null) {
   const alt = artId && ARTS[artId];
   if (alt) return altHTML(alt, name, lvl, cls);
   const a = ART[id]; if (!a?.decor) return '';
-  return layers(a, name, lvl, cls, isSpell(id));
+  return layers(a, name, lvl, `${holoLv(lvl)} ${cls}`, isSpell(id));
 }
 const layers = (a, name, lvl, cls, spell) => { const perso = !spell && a.perso;
   return `<div class="art ${pops(lvl) && perso ? 'pop' : ''} ${cls}" aria-hidden="true">
     <div class="art-clip"><img class="art-decor" src="${a.decor}" alt="" loading="lazy" decoding="async"></div>
     ${perso ? `<img class="art-perso" src="${a.perso}" alt="" loading="lazy" decoding="async">` : ''}
-    <span class="art-name">${esc(name)}</span></div>`; };
+    ${cls.includes('holo') ? FOIL : ''}<span class="art-name">${esc(name)}</span></div>`; };
 // Portrait du général en partie : l'illustration (décor et personnage) agrandie et centrée sur le visage.
 // FACES : position du visage dans l'image, en % de sa largeur et de sa hauteur ; par défaut, en haut au centre.
 // Le portrait montre environ 40 % de la largeur et 33 % de la hauteur de l'image : le centre est borné pour ne jamais sortir de l'image.
@@ -72,11 +77,11 @@ export function heroHTML(id, artId = null) {
 }
 // Art alternatif : ses images avec un liseré de rareté, ou l'art provisoire.
 function altHTML(alt, name, lvl, cls) {
-  const rar = `rar rar-${rarityKey(alt)}`;
+  const rar = `rar rar-${rarityKey(alt)} holo`;
   if (ALT[alt.id]?.decor) return layers(ALT[alt.id], name, lvl, `${rar} ${cls}`, isSpell(alt.card));
   const base = ART[alt.card]?.decor;
   return `<div class="art ph ${rar} ${cls}" aria-hidden="true">
     <div class="art-clip">${base ? `<img class="art-decor" src="${base}" alt="" loading="lazy" decoding="async">` : ''}<span class="ph-veil"></span></div>
-    <span class="ph-tag">${esc(rarityName(alt))}</span><span class="ph-title">${esc(alt.name)}</span>
+    ${FOIL}<span class="ph-tag">${esc(rarityName(alt))}</span><span class="ph-title">${esc(alt.name)}</span>
     <span class="art-name">${esc(name)}</span></div>`;
 }

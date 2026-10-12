@@ -1,0 +1,45 @@
+/* Cartes vivantes (holo.js) : reflet holographique sur les arts alternatifs et les cartes rares (art.js, « .art.holo »).
+   Un calque .foil par-dessus l'illustration : un arc-en-ciel fin qui glisse avec l'inclinaison (--tilt-x, --tilt-y, de -1 à 1)
+   et un éclat de lumière qui la suit. --holo règle la force du reflet : discret sur une Rare, franc sur une Légendaire. */
+.art.holo { --holo: .5; }
+.art.holo, .art.holo .foil { --tx: var(--tilt-x, 0); --ty: var(--tilt-y, 0); }
+.art.rar-rare, .art.holo-or { --holo: .42; }
+.art.rar-epique, .art.holo-astral { --holo: .6; }
+.art.rar-legendaire { --holo: .7; }
+
+.art.holo .foil { position: absolute; inset: 0; z-index: 1; border-radius: inherit; pointer-events: none; overflow: hidden; opacity: var(--holo);
+  /* arc-en-ciel en bandes obliques, et fines rayures de la feuille métallisée par-dessus */
+  background:
+    repeating-linear-gradient(-55deg, rgb(255 255 255 / .09) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(115deg, #ff6f8e 0%, #ffd36b 5%, #9cff8a 10%, #6ff2ff 15%, #7f8cff 20%, #e07bff 25%, #ff6f8e 30%);
+  background-size: 100% 100%, 220% 220%;
+  background-position: 0 0, calc(50% + var(--tx) * 45%) calc(50% + var(--ty) * 45%);
+  mix-blend-mode: color-dodge; filter: saturate(1.5) brightness(.85) contrast(1.25);
+  /* le reflet se voit surtout loin du centre de l'éclat, comme sur une vraie carte */
+  -webkit-mask-image: radial-gradient(farthest-corner circle at calc(50% - var(--tx) * 40%) calc(50% - var(--ty) * 40%), rgb(0 0 0 / .35), #000 75%);
+  mask-image: radial-gradient(farthest-corner circle at calc(50% - var(--tx) * 40%) calc(50% - var(--ty) * 40%), rgb(0 0 0 / .35), #000 75%); }
+/* éclat de lumière, du côté vers lequel la carte penche */
+.art.holo .foil::after { content: ""; position: absolute; inset: 0; mix-blend-mode: overlay;
+  background: radial-gradient(farthest-corner circle at calc(50% + var(--tx) * 50%) calc(50% + var(--ty) * 50%), rgb(255 255 255 / .95), rgb(255 255 255 / .35) 25%, transparent 60%); }
+/* Légendaire : quelques paillettes qui scintillent en plus */
+.art.rar-legendaire .foil::before { content: ""; position: absolute; inset: 0; mix-blend-mode: screen; opacity: .7;
+  background: radial-gradient(circle at 18% 22%, #fff 0 1px, transparent 2px), radial-gradient(circle at 72% 14%, #fff 0 1px, transparent 2px),
+    radial-gradient(circle at 84% 58%, #fff 0 1px, transparent 2px), radial-gradient(circle at 30% 70%, #fff 0 1px, transparent 2px),
+    radial-gradient(circle at 58% 40%, #fff 0 1.5px, transparent 2.5px), radial-gradient(circle at 12% 88%, #fff 0 1px, transparent 2px);
+  animation: holosparkle 2.6s ease-in-out infinite alternate; }
+@keyframes holosparkle { from { opacity: .15; } to { opacity: .8; } }
+
+/* Sans capteur ni souris (ordinateur, ou avant le premier mouvement du téléphone) : le reflet ondule lentement tout seul. */
+@property --tilt-x { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --tilt-y { syntax: "<number>"; inherits: true; initial-value: 0; }
+:root:not([data-tilt]) .art.holo:not(.hover) .foil { animation: holodrift 7s ease-in-out infinite alternate; }
+@keyframes holodrift { 0% { --tilt-x: -.8; --tilt-y: -.5; } 50% { --tilt-x: .3; --tilt-y: .6; } 100% { --tilt-x: .9; --tilt-y: -.3; } }
+
+/* Carte en grand : elle penche aussi un peu, en relief. */
+.zoomwrap .zoomart.holo { transform: perspective(900px) rotateY(calc(var(--tx) * 7deg)) rotateX(calc(var(--ty) * -7deg)); transition: transform .12s linear; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-tilt]) .art.holo:not(.hover) .foil, .art.rar-legendaire .foil::before { animation: none; }
+  .art.holo, .art.holo .foil { --tx: .35; --ty: -.25; }
+  .zoomwrap .zoomart.holo { transform: none; }
+}
