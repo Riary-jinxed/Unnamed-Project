@@ -758,8 +758,9 @@ body:has(#app.ingame) { margin: 0; }
 .hud { gap: 8px; }
 .hud-id { min-width: 0; margin-right: auto; display: grid; gap: 3px; text-align: left; border: 0; background: none; padding: 0; color: inherit; }
 .hud-id b { font-family: var(--display); font-size: 16px; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hud-lv { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
-.hud-lv .bar { width: 56px; height: 6px; }
+.hud-lv { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; min-width: 0; }
+/* La barre d'XP rétrécit (jusqu'à disparaître) plutôt que de passer sous les monnaies sur les écrans étroits. */
+.hud-lv .bar { width: 56px; flex-shrink: 1; min-width: 0; height: 6px; }
 .showcase { position: relative; height: clamp(220px, 40dvh, 400px); border-radius: 10px; overflow: hidden; isolation: isolate;
   background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--fam, var(--accent)) 45%, #000), #000 75%); }
 .sc-art, .hero-art { position: absolute; inset: 0; }
