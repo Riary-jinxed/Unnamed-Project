@@ -17,7 +17,9 @@ import './holo.js';
 import './cosmetics.js';
 import { unlockAudio, play, isMuted, setMuted, sfxVolume, setSfxVolume, canVibrate, vibrations, setVibrations, buzz, feel } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
-import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, sparkle, shards, trail, ending, clearEnding, setEnd } from './fx.js';
+import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, stageReady, sparkle, shards, trail, ending, clearEnding, setEnd } from './fx.js';
+import * as veil from './veil.js';
+import { TABS, screenDir, slides, ghostScreen, ghostSheet } from './transition.js';
 import { openPack, openChest } from './opening.js';
 import { setHome } from './lobby.js';
 import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
@@ -92,34 +94,51 @@ function deckReady() {
   if (err) { ui.error = `Votre deck n'est pas jouable : ${err}`; render(); }
   return !err;
 }
+// Entrée en partie sous le voile (veil.js) : il monte, la partie démarre dessous, puis il s'efface une fois la table prête
+// (plateau PixiJS chargé) ou le salon d'attente affiché, ou sur une erreur. Une astuce de jeu s'y affiche entre-temps.
+function toTable(label, start) {
+  veil.cover({ label, tips: ['jeu'], min: 900, run: () => { ui.error = ''; start(); },
+    until: () => ui.screen === 'game' || ui.screen === 'lobby' || !!ui.error || !ui.ctrl,
+    ready: () => (ui.screen === 'game' ? stageReady() : null) });
+}
 function goOnline(action) {
   if (!deckReady()) return;
-  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = false; ui.sheet = null;
-  ui.offline = false; ui.ctrl = connectOnline(handlers, action === 'create' ? { t: 'create', auth: ui.auth } : { t: 'join', room: ui.joinCode, auth: ui.auth });
+  toTable(action === 'create' ? 'Ouverture du salon…' : 'Vous rejoignez la table…', () => {
+    ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = false; ui.sheet = null;
+    ui.offline = false; ui.ctrl = connectOnline(handlers, action === 'create' ? { t: 'create', auth: ui.auth } : { t: 'join', room: ui.joinCode, auth: ui.auth });
+  });
 }
 // Défi accepté : on entre dans le salon réservé avec le deck choisi.
 function startFriendMatch(room, deck, foe) {
-  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = foe; ui.rankedAi = false; ui.sheet = null;
-  ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'join', room, auth: ui.auth, deck });
+  toTable(`${foe} vous attend…`, () => {
+    ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = foe; ui.rankedAi = false; ui.sheet = null;
+    ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'join', room, auth: ui.auth, deck });
+  });
 }
 // Partie classée contre l'IA : jouée par le serveur, l'IA est plus forte à chaque palier.
 function goRanked() {
   if (!deckReady()) return;
-  ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = true; ui.sheet = null; ui.lastTurn = 0;
-  ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'ranked', auth: ui.auth });
+  toTable('Votre adversaire s\'installe…', () => {
+    ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = true; ui.sheet = null; ui.lastTurn = 0;
+    ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'ranked', auth: ui.auth });
+  });
 }
 function goSolo() {
   if (!deckReady()) return;
-  ui.mode = 'solo'; ui.sheet = null; ui.lastTurn = 0; ui.soloReward = null;
-  ui.ctrl = startSolo(handlers, { name: ui.account.name, deck: ui.account.deck });
+  toTable('La table se prépare…', () => {
+    ui.mode = 'solo'; ui.sheet = null; ui.lastTurn = 0; ui.soloReward = null;
+    ui.ctrl = startSolo(handlers, { name: ui.account.name, deck: ui.account.deck });
+  });
 }
 // Tutoriel : partie guidée contre l'IA avec un deck fixé, sans deck du joueur ni récompense. Proposé une fois par compte et par appareil.
 const tutoKey = () => `tuto-${ui.account?.login || ''}`;
 function goTutorial() {
   store.set(tutoKey(), true);
-  ui.mode = 'tuto'; ui.sheet = null; ui.lastTurn = 0; ui.error = '';
-  ui.ctrl = startTutorial(handlers, { name: ui.account?.name || 'Vous' });
-  render();
+  toTable('Le guide vous attend…', () => {
+    ui.mode = 'tuto'; ui.sheet = null; ui.lastTurn = 0; ui.error = '';
+    ui.ctrl = startTutorial(handlers, { name: ui.account?.name || 'Vous' });
+    render();
+  });
 }
 
 // ---- Compte ----
@@ -149,9 +168,18 @@ async function loadCatalog() {
   try { const { catalog } = await api('GET', '/api/catalog'); applyCatalog(catalog); catalogVersion = catalog.stamp ?? catalog.version ?? 0; render(); }
   catch { /* cartes d'origine en attendant */ }
 }
+// Ouverture sous le voile (déjà affiché par index.html) : cartes publiées, puis compte ; il s'efface sur le premier écran,
+// une fois les polices chargées (et le plateau, si l'on reprend une partie en cours), ou sur une erreur avec « Réessayer ».
 async function boot() {
+  ui.error = '';
+  veil.cover({ label: 'Chargement des cartes…', until: () => ui.screen !== 'loading' || !!ui.error, ready: () => {
+    veil.step(1, 'Préparation du salon…');
+    return Promise.race([document.fonts?.ready, new Promise(r => setTimeout(r, 1500))]).then(() => (ui.screen === 'game' ? stageReady() : null));
+  } });
+  veil.step(0.25);
   await loadCatalog();
   if (!ui.auth) { signedOut(); render(); return; }
+  veil.step(0.6, 'Connexion à votre compte…');
   await call('GET', '/api/me');
 }
 async function doLogin() {
@@ -859,7 +887,10 @@ function tabbar(cur) {
   const upgradable = OWNABLE.filter(canUpgrade).length, asks = friends.pending();
   const nav = (act, label, badge, extra = '') => `<button data-act="${act}" ${cur === act ? 'class="on" aria-current="page"' : ''} ${extra}>${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
   const tab = (act, icon, label, badge) => nav(act, `${tabIcon(icon)}<span>${label}</span>`, badge);
-  return `<nav class="tabbar" aria-label="Menu">${tab('home', HOME_PATH, 'Accueil')}${tab('collection', 'M7 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM12 8l2 3-2 3-2-3z', 'Collection', upgradable)}${tab('decks', 'M8 2h11a1 1 0 0 1 1 1v15M5 5h11a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z', 'Decks')}${tab('shop', 'M5 8h14l-1 12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zM9 8V6a3 3 0 0 1 6 0v2', 'Boutique')}${tab('friends', 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20c0-3.5 3-6 7-6s7 2.5 7 6M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14c2.4.6 4 2.8 4 6', 'Amis', asks)}</nav>`;
+  // L'onglet allumé glisse depuis celui de l'écran précédent (habillage.css, .tabbar.slid).
+  const at = TABS.indexOf(cur), was = ui.screen !== ui.shownScreen ? TABS.indexOf(TABBED[ui.shownScreen]) : -1;
+  const slid = at >= 0 && was >= 0 && at !== was ? ` slid" style="--tab:${at};--from:${was}` : '';
+  return `<nav class="tabbar${slid}" aria-label="Menu">${tab('home', HOME_PATH, 'Accueil')}${tab('collection', 'M7 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM12 8l2 3-2 3-2-3z', 'Collection', upgradable)}${tab('decks', 'M8 2h11a1 1 0 0 1 1 1v15M5 5h11a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z', 'Decks')}${tab('shop', 'M5 8h14l-1 12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zM9 8V6a3 3 0 0 1 6 0v2', 'Boutique')}${tab('friends', 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20c0-3.5 3-6 7-6s7 2.5 7 6M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14c2.4.6 4 2.8 4 6', 'Amis', asks)}</nav>`;
 }
 // Cartes de récompense : on dit comment les obtenir.
 function lockLabel(id) {
@@ -1363,10 +1394,17 @@ function render() {
   document.body.dataset.season = SEASON_OVERRIDE ?? (SEASONS.find(x => x.id === seasonId())?.theme || '');
   setInGame(app, ui.screen === 'game');
   setMusic(musicFor());
+  // Transitions (transition.js, habillage.css) : seulement quand l'écran ou la feuille change, pas à chaque rafraîchissement.
+  // Entre deux menus, l'ancien écran glisse d'un côté pendant que le nouveau arrive de l'autre ; une feuille fermée redescend.
+  const moved = ui.screen !== ui.shownScreen, motion = !reduceMotion() && !veil.covering();
+  const hop = moved && slides(ui.shownScreen) && slides(ui.screen), dir = hop && motion ? screenDir(ui.shownScreen, ui.screen) : 0;
+  if (dir) ghostScreen(app, dir);
+  if (motion && ui.shownSheet && !ui.sheet) ghostSheet(app.querySelector(':scope > .sheet'));
   app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
+  if (hop) scrollTo({ top: 0, behavior: 'instant' });
   setHome(app); setShop(app); setEnd(app, endReel());
-  // Transitions (habillage.css) : seulement quand l'écran ou la feuille change, pas à chaque rafraîchissement.
-  app.classList.toggle('screen-in', ui.screen !== ui.shownScreen);
+  app.style.setProperty('--dx', `${dir * 36}px`); app.style.setProperty('--dy', dir ? '0px' : '10px');
+  app.classList.toggle('screen-in', moved);
   if (ui.sheet && ui.sheet !== ui.shownSheet) app.querySelector(':scope > .sheet')?.classList.add('sheet-in');
   ui.shownScreen = ui.screen; ui.shownSheet = ui.sheet; ui.shownZoom = ui.zoom?.id;
   if (ui.sheet === 'rename') { const r = document.getElementById('rename-input'); if (r && document.activeElement !== r) { r.focus(); r.select(); } }
@@ -1378,6 +1416,7 @@ function render() {
   const hl = ui.coach?.hl ? [...app.querySelectorAll(ui.coach.hl)] : [];
   hl.forEach(el => el.classList.add('coach-hl'));
   if (ui.coach && ui.coach.text !== ui.coachShown) { ui.coachShown = ui.coach.text; if (hl[0] && !ui.sheet) hl[0].scrollIntoView({ block: 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' }); }
+  veil.check();
 }
 
 // Musique de l'écran : la partie ou les menus, dans la version de la saison en cours si elle existe (music.js).
@@ -1625,7 +1664,12 @@ function tryPlace(z) {
 // La bulle d'un refus s'efface seule après un moment.
 let msgTimer = null;
 function msgFades() { const m = ui.msg; clearTimeout(msgTimer); msgTimer = setTimeout(() => { if (ui.msg === m && ui.screen === 'game') { ui.msg = ''; render(); } }, 2600); }
+// Retour au salon : depuis une partie, sous le voile, le temps que la table laisse place aux menus.
 function quit() {
+  if (ui.screen === 'game' && !veil.covering()) { veil.cover({ label: 'Retour au salon…', tips: ['menu'], min: 500, run: leaveTable, until: () => ui.screen !== 'game' }); return; }
+  leaveTable();
+}
+function leaveTable() {
   if (ui.ctrl) ui.ctrl.leave();
   store.set('session', null);
   ui.ctrl = null; ui.view = null; ui.friendFoe = null; ui.rankedAi = false; ui.screen = menuScreen(); ui.sheet = null; ui.pending = []; ui.lastTurn = 0; ui.soloReward = null; render();
