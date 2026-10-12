@@ -19,10 +19,11 @@ import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
 import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, sparkle, shards, trail, ending, clearEnding } from './fx.js';
 import { openPack, openChest } from './opening.js';
 import { setHome } from './lobby.js';
+import { stallHTML, setShop } from './shop.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { SEASONS, PASS_TIERS, seasonOfCard, seasonStarted, releaseMonth } from '@jeu/engine/pass';
-import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName } from '@jeu/engine/arts';
+import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName, chestPool } from '@jeu/engine/arts';
 
 const famVar = kw => famStyle(kw[0]);
 const kwLine = d => (d.token ? 'Jeton · ' : '') + (d.kw.join(' · ') || 'Neutre');
@@ -313,10 +314,10 @@ function calendarHTML(cal) {
   return `<div class="sheet" data-act="close"><div class="panel calendar" data-stop="1" role="dialog" aria-label="Calendrier du mois"><div class="ph"><h2>Calendrier de ${esc(cal.name)}</h2><button class="btn" data-act="close">Fermer</button></div>
     <p class="hint" style="margin:0">Connectez-vous chaque jour pour récupérer sa récompense : des Éclats ${ico('shard')} en semaine, un coffre d'arts ${ico('chest')} chaque dimanche, et des Prismes ${ico('prism')} en plus un dimanche sur deux. Un jour manqué est perdu ; tout repart le 1er du mois.</p>
     <div class="calgrid">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span class="calh">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${cal.days.map(cell).join('')}</div>
-    ${g ? `<p role="status" style="margin:0"><b>Récupéré : ${gains(g)}.</b>${g.chests ? ' Le coffre vous attend dans la boutique, onglet Arts.' : ''}</p>` : ''}
+    ${g ? `<p role="status" style="margin:0"><b>Récupéré : ${gains(g)}.</b>${g.chests ? ' Le coffre vous attend à l\'accueil et dans la boutique, onglet Arts.' : ''}</p>` : ''}
     ${errLine()}
     <div class="row">${cal.ready ? `<button class="btn primary" data-act="claim-day" ${ui.busy ? 'disabled' : ''}>Récupérer la récompense du jour</button>`
-      : g?.chests ? '<button class="btn primary" data-act="shop-arts">Ouvrir le coffre</button>' : '<span class="hint">Revenez demain pour la suite.</span>'}
+      : g?.chests ? `<button class="btn primary" data-act="${chestPool(ui.account.arts).length && prog().freeChests ? 'chest-free' : 'shop-arts'}" ${ui.busy ? 'disabled' : ''}>Ouvrir le coffre</button>` : '<span class="hint">Revenez demain pour la suite.</span>'}
       <button class="btn" data-act="close">Fermer</button></div></div></div>`;
 }
 function closeInbox() {
@@ -765,16 +766,23 @@ function renderHome() {
   const a = ui.account, d = a.deck, g = d && GENERALS[d.general], p = prog();
   const deckErr = d ? deckError(d, a) : 'Aucun deck.';
   const left = p.missions.filter(m => !m.done).length;
-  // Booster du jour et boosters offerts : un seul bandeau, seulement quand il y a quelque chose à ouvrir.
+  // Booster du jour, boosters et coffres offerts : un seul bandeau, seulement quand il y a quelque chose à ouvrir.
+  // Les cadeaux s'ouvrent ici même (un bouton par set ouvert), sans passer par la boutique.
+  const plural = (n, w) => `${n} ${w}${n > 1 ? 's' : ''}`, dis = ui.busy ? 'disabled' : '';
+  const openSets = SETS.filter(x => x.open && x.cards.length), chests = p.freeChests && chestPool(a.arts).length ? p.freeChests : 0;
+  const giftBtns = [
+    ...(p.freeBoosters ? openSets.map(x => `<button class="btn primary" data-act="free-booster" data-set="${x.id}" ${dis}>${openSets.length > 1 ? `Booster ${esc(x.name)}` : 'Ouvrir un booster'}</button>`) : []),
+    chests ? `<button class="btn primary" data-act="chest-free" ${dis}>Ouvrir un coffre</button>` : '',
+  ].join('');
+  // Un coffre offert reste en attente tant que le joueur a tous les arts du coffre : rien à ouvrir alors.
+  const giftTitle = [p.freeBoosters ? `${plural(p.freeBoosters, 'booster')} offert${p.freeBoosters > 1 ? 's' : ''}` : '',
+    chests ? `${plural(chests, 'coffre')} d'arts offert${chests > 1 ? 's' : ''}` : ''].filter(Boolean).map(x => `<span>${x}</span>`).join('');
   const gift = a.boosterReady ? `<div class="card-box booster ready">
       <div><span class="eyebrow">Bonjour ${esc(a.name)}</span><h2>Booster du jour</h2></div>
-      <button class="btn primary" data-act="booster" ${ui.busy ? 'disabled' : ''}>Ouvrir</button></div>`
-    : p.freeBoosters ? `<div class="card-box booster ready">
-      <div><span class="eyebrow">Récompense</span><h2>${p.freeBoosters} booster${p.freeBoosters > 1 ? 's' : ''} offert${p.freeBoosters > 1 ? 's' : ''}</h2></div>
-      <button class="btn primary" data-act="shop">Ouvrir</button></div>`
-    : p.freeChests ? `<div class="card-box booster ready">
-      <div><span class="eyebrow">Récompense</span><h2>${p.freeChests} coffre${p.freeChests > 1 ? 's' : ''} d'arts offert${p.freeChests > 1 ? 's' : ''}</h2></div>
-      <button class="btn primary" data-act="shop-arts">Ouvrir</button></div>` : '';
+      <button class="btn primary" data-act="booster" ${dis}>Ouvrir</button></div>`
+    : giftBtns ? `<div class="card-box booster ready gifts">
+      <div><span class="eyebrow">Récompense</span><h2>${giftTitle}</h2></div>
+      <div class="giftbtns">${giftBtns}</div></div>` : '';
   // Salon de jeu, à la manière des jeux de cartes mobiles : le général du deck joué en grand, un gros bouton Jouer,
   // et autour des tuiles (passe, missions, calendrier) qui ouvrent chacune leur écran ou leur feuille.
   const hero = g ? heroHTML(d.general, mySel(d.general)) : '';
@@ -855,8 +863,12 @@ function renderShop() {
   const top = `<div class="top"><span class="title">Boutique</span><span class="chip num cur" title="Éclats" aria-label="${a.shards} Éclats">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="Prismes" aria-label="${sh.arts.prisms} Prismes">${ico('prism')}${sh.arts.prisms}</span>` : ''}</div>
     ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}</div>` : ''}`;
   if (!sh) return `${top}${errLine()}<p class="wait">Chargement…</p>`;
-  if (tab === 'arts') return `${top}${errLine()}${artShopHTML(sh.arts)}`;
+  if (tab === 'arts') return `${top}${artStall(sh.arts)}${errLine()}${artShopHTML(sh.arts)}`;
   const P = sh.prices;
+  // Étal : un booster par set ouvert ; le toucher l'achète, ou ouvre un booster offert s'il en reste.
+  const stall = stallHTML(sh.sets.filter(x => x.open).map(set => sh.freeBoosters
+    ? { kind: 'pack', act: 'free-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, free: sh.freeBoosters, tag: 'Ouvrir', off: ui.busy, label: `Ouvrir un booster ${esc(set.name)} offert` }
+    : { kind: 'pack', act: 'buy-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, tag: `${ico('shard')}${P.boosterPrice}`, off: a.shards < P.boosterPrice || ui.busy, label: `Acheter un booster ${esc(set.name)} pour ${P.boosterPrice} Éclats` }));
   const offer = (set, o) => {
     const label = o.bought ? 'Achetée' : o.owned ? 'Déjà dans votre collection' : `Acheter · ${P.cardPrice} Éclats`;
     return `<div class="offer"><button class="ccard" data-zoom="${zoomKey(o.id)}">${anyCard(o.id)}</button>
@@ -872,7 +884,14 @@ function renderShop() {
         ${sh.freeBoosters ? `<button class="btn primary" data-act="free-booster" data-set="${set.id}" ${ui.busy ? 'disabled' : ''}>Ouvrir un booster offert (${sh.freeBoosters})</button>` : ''}</div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
       <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`;
-  return `${top}${errLine()}${sh.sets.map(section).join('')}${mail.codeForm()}`;
+  return `${top}${stall}${errLine()}${sh.sets.map(section).join('')}${mail.codeForm()}`;
+}
+// Étal du rayon Arts : le coffre, ouvert gratuitement s'il en reste d'offerts.
+function artStall(A) {
+  if (!A) return '';
+  const C = A.chest, free = C.free && C.left;
+  return stallHTML([free ? { kind: 'chest', act: 'chest-free', free: C.free, tag: 'Ouvrir', off: ui.busy, label: 'Ouvrir un coffre d\'arts offert' }
+    : { kind: 'chest', act: 'chest', tag: C.left ? `${ico('prism')}${C.price}` : 'Vide', off: !C.left || A.prisms < C.price || ui.busy, label: C.left ? `Ouvrir un coffre d'arts pour ${C.price} Prismes` : 'Coffre vide pour vous' }]);
 }
 // Arts alternatifs en boutique : offres du jour et coffre, payés en Prismes (monnaie rare : saisons classées, succès).
 function artShopHTML(A) {
@@ -1271,7 +1290,7 @@ function render() {
   setInGame(app, ui.screen === 'game');
   setMusic(musicFor());
   app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
-  setHome(app);
+  setHome(app); setShop(app);
   // Transitions (habillage.css) : seulement quand l'écran ou la feuille change, pas à chaque rafraîchissement.
   app.classList.toggle('screen-in', ui.screen !== ui.shownScreen);
   if (ui.sheet && ui.sheet !== ui.shownSheet) app.querySelector(':scope > .sheet')?.classList.add('sheet-in');
