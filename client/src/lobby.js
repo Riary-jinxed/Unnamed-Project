@@ -10,7 +10,9 @@ let able = null;
 // Appelé à chaque rendu : `app` contient l'accueil (`.showcase`) ou un autre écran.
 export function setHome(app) {
   const host = app.querySelector('.showcase .sc-art'), imgs = host ? [...host.querySelectorAll('.hero-art img')] : [];
-  want = imgs.length ? { host, decor: imgs[0].src, perso: imgs[1]?.src || null, fam: getComputedStyle(host).getPropertyValue('--fam').trim() } : null;
+  const face = imgs.length ? getComputedStyle(imgs[0].parentNode) : null;
+  want = imgs.length ? { host, decor: imgs[0].src, perso: imgs[1]?.src || null, fam: getComputedStyle(host).getPropertyValue('--fam').trim(),
+    fx: Number(face.getPropertyValue('--fx')) || 0.5, fy: Number(face.getPropertyValue('--fy')) || 0.25 } : null;
   if (mod) { want ? mod.show(want) : mod.hide(); return; }
   if (!want || loading) return;
   able ??= !reduceMotion() && webgl();

@@ -576,10 +576,10 @@ function miniCard(c, opts = {}) {
   const cls = c.revealed ? (pw > d.power ? 'up' : pw < d.power ? 'down' : '') : '';
   const mv = opts.mine && ui.view.phase === 'plan' && moveOf(c.uid);
   const mobile = opts.mine && c.mobile && canPlay();
-  const lv = lvCls(levelIn(opts.mine || opts.pending ? ui.view.seat : 1 - ui.view.seat, c.id));
+  const seat = opts.mine || opts.pending ? ui.view.seat : 1 - ui.view.seat, lv = lvCls(levelIn(seat, c.id));
   return `<div class="mc${lv} ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.drag === c.uid ? 'dragging' : ''}" style="${famVar(d.kw)}"
     data-card="${c.uid}" data-id="${c.id}" ${opts.pending ? 'data-pending="1"' : ''} ${mobile ? 'data-mobile="1"' : ''} title="${esc(d.name)}">
-    ${artBg(c.id)}${mv ? `<span class="mv" title="Déplacée depuis ${ZONE_NAMES[boardZone(c.uid)]}" aria-label="Déplacée depuis ${ZONE_NAMES[boardZone(c.uid)]}">⇄</span>` : mobile ? '<span class="mv" aria-label="Déplaçable">⇄</span>' : ''}
+    ${artBg(c.id, artIn(seat, c.id))}${mv ? `<span class="mv" title="Déplacée depuis ${ZONE_NAMES[boardZone(c.uid)]}" aria-label="Déplacée depuis ${ZONE_NAMES[boardZone(c.uid)]}">⇄</span>` : mobile ? '<span class="mv" aria-label="Déplaçable">⇄</span>' : ''}
     <span class="n">${esc(d.name)}</span>${d.type === 'C' ? `<span class="p num ${cls}">${pw}</span>` : `<span class="p" style="font-size:12px">Sort</span>`}</div>`;
 }
 function slots(side, z, isMe) {
@@ -680,7 +680,7 @@ function renderGame() {
   const hand = (planning ? handLeft() : m.hand).map(c => { const d = CARDS[c.id];
     const cant = d.x ? seals <= 0 : c.cost > seals;
     const pcls = c.power > d.power ? 'up' : c.power < d.power ? 'down' : '';
-    return `<button class="hc${lvCls(myLevel(c.id))} ${ui.sel === c.uid ? 'sel' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${cant ? 'cant' : ''}" style="${famVar(d.kw)}" data-hand="${c.uid}" data-id="${c.id}">${artBg(c.id)}
+    return `<button class="hc${lvCls(myLevel(c.id))} ${ui.sel === c.uid ? 'sel' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${cant ? 'cant' : ''}" style="${famVar(d.kw)}" data-hand="${c.uid}" data-id="${c.id}">${artBg(c.id, mySel(c.id))}
       <span class="top2"><span class="seal">${costLabel(d, c.cost)}</span>${d.type === 'C' ? `<span class="p num ${pcls}">${c.power}</span>` : '<span class="t">Sort</span>'}</span>
       <span class="n">${esc(d.name)}</span>${d.text ? `<span class="x">${rich(d.text)}</span>` : `<span class="k">${kwLine(d)}</span>`}</button>`; }).join('');
   const canGen = play && g.activate && !m.generalUsed && m.seals >= (g.activateCost || 0);
