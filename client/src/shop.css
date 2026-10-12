@@ -43,12 +43,14 @@
 /* Ruban « Nouveau » sur le paquet du set le plus récent (fresh), posé sur le haut du paquet, au-dessus de son titre. */
 .stall-new { position: absolute; top: -17px; left: 50%; translate: -50% 0; z-index: 2; padding: 1px 8px; border-radius: 99px; white-space: nowrap;
   font: 800 11px/1.3 var(--display); letter-spacing: .04em; text-transform: uppercase; color: #fff; background: linear-gradient(#e86a96, var(--pk2) 55%, #7a1f44);
-  border: 1.5px solid #1a0f05; box-shadow: 0 2px 0 #000; animation: stallfree 1.8s ease-in-out infinite; }
+  border: 1.5px solid #1a0f05; box-shadow: 0 2px 0 #000, 0 0 12px color-mix(in srgb, var(--pk2) 80%, transparent); animation: stallfree 1.8s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .stall-obj, .stall-free, .stall-new { animation: none; } }
 
-/* Section du set le plus récent : liseré aux couleurs de son paquet, pastille « Nouveau set ». */
+/* Section du set le plus récent : liseré et lueur aux couleurs de son paquet, pastille « Nouveau set ». */
 .shopset.pk-set2 { --pk1: #4b2a6b; --pk2: #d0547f; }
-.shopset.fresh { border-color: color-mix(in srgb, var(--pk2, #c99a1e) 70%, transparent); }
+.shopset.fresh { border-color: color-mix(in srgb, var(--pk2, #c99a1e) 70%, transparent);
+  background: radial-gradient(90% 60% at 50% 0%, color-mix(in srgb, var(--pk1, #2d4f8f) 45%, transparent), transparent 70%), var(--surface);
+  box-shadow: 0 0 0 1px #000, 0 0 22px -6px var(--pk2, #c99a1e); }
 .newset { display: inline-block; padding: 1px 8px; border-radius: 99px; color: #fff; background: var(--pk2, #c99a1e); letter-spacing: .04em; }
 
 /* Vitrine des sélections du jour (vitrineHTML) : velours, projecteurs (PixiJS) et étiquettes de prix. */
