@@ -114,3 +114,25 @@ export function shards(rect) { const st = staged(); if (st && rect) st.shatter(r
 export function trail(x, y) { if (Math.random() < 0.5) staged()?.trail(x, y); }
 export function ending(result) { staged()?.ending(result); }
 export function clearEnding() { staged()?.clearEnding(); }
+
+// Récompenses de fin de partie qui défilent sur PixiJS (end-stage.js), dans le panneau de fin, à la place du bloc HTML
+// (gardé pour les lecteurs d'écran). Sans WebGL ou avec « réduire les animations », le bloc HTML reste affiché.
+// w : { key, reward, result } quand le panneau de fin montre des récompenses, sinon null. Appelé après chaque rendu.
+let endMod = null, endSince = null, endLoading = false, endWant = null, endGl = null;
+export function setEnd(app, w) {
+  // Les lignes arrivent une fois le grand titre posé (stage.js, ending), 1,5 s après l'ouverture du panneau.
+  const panel = app.querySelector('.panel.end'), host = w && !reduceMotion() && (endGl ??= webgl()) && panel?.querySelector('.endreward');
+  endSince = panel ? endSince ?? performance.now() : null;
+  endWant = host ? { ...w, key: `${endSince}|${w.key}`, host: reelHost(host), delay: Math.max(150, endSince + 1500 - performance.now()) } : null;
+  if (endMod) { endWant ? endMod.show(endWant) : endMod.hide(); return; }
+  if (!endWant || endLoading) return;
+  endLoading = true;
+  import('./end-stage.js').then(m => { endMod = m; if (endWant?.host.isConnected) m.show(endWant); })
+    .catch(err => console.warn('Écran de fin animé indisponible', err));
+}
+// Place de la toile : juste avant le bloc des récompenses.
+function reelHost(block) {
+  let h = block.previousElementSibling;
+  if (!h?.classList.contains('endreel')) { h = document.createElement('div'); h.className = 'endreel'; h.setAttribute('aria-hidden', 'true'); block.before(h); }
+  return h;
+}

@@ -264,7 +264,8 @@ export function flash(color = 0xffffff, alpha = 0.25) {
   tween(260, k => { g.alpha = alpha * (1 - k); }, () => g.destroy());
 }
 // Fin de partie : rayons de lumière qui tournent derrière un grand titre, en haut de l'écran, au-dessus du résultat.
-// Or pour une victoire, rouge sombre pour une défaite, gris pour une égalité. Ils restent jusqu'à la sortie de la partie.
+// Or pour une victoire (le titre frappe, onde de choc, poussière d'or), rouge sombre pour une défaite (le titre tombe et secoue l'écran,
+// voile sombre, cendres), gris pour une égalité. Ils restent jusqu'à la sortie de la partie.
 export function ending(result) {
   if (!active()) return;
   cine?.destroy({ children: true });
@@ -277,13 +278,32 @@ export function ending(result) {
   const halo = new Sprite(glowTex); halo.anchor.set(0.5); halo.position.set(x, y); halo.width = halo.height = 360; halo.tint = tint; halo.blendMode = 'add'; halo.alpha = 0.7;
   const label = result === 'win' ? 'Victoire' : result === 'lose' ? 'Défaite' : 'Égalité';
   const t = new Text({ text: label.toUpperCase(), style: { fontFamily: 'Cinzel, Alegreya SC, serif', fontWeight: '900', fontSize: 52, fill: result === 'win' ? 0xfff0c0 : 0xf1e6cf,
-    stroke: { color: 0x1a0c04, width: 6 }, dropShadow: { color: tint, blur: 18, distance: 0, alpha: 1 }, letterSpacing: 6 } });
+    stroke: { color: 0x1a0c04, width: 6 }, letterSpacing: 6 } });
   t.anchor.set(0.5); t.position.set(x, y);
+  // Défaite : un voile rouge sombre gagne les bords de l'écran.
+  const veil = result === 'lose' ? new Sprite(glowTex) : null;
+  if (veil) { veil.anchor.set(0.5); veil.position.set(x, innerHeight / 2); veil.width = innerWidth * 2.4; veil.height = innerHeight * 2.4; veil.tint = 0x3a0804; veil.alpha = 0; c.addChild(veil); }
   c.addChild(rays, halo, t);
-  if (result === 'win') flash(0xffe0a0, 0.3);
-  tween(900, k => { const e = ease(k); t.scale.set(1.8 - 0.8 * e); t.alpha = e; rays.alpha = e; halo.alpha = 0.7 * e; });
-  over.ticker.add(function spin(tk) { if (c.destroyed) { over.ticker.remove(spin); return; } rays.rotation += 0.0025 * tk.deltaTime; halo.alpha = 0.55 + Math.sin(performance.now() / 500) * 0.15; });
-  for (let i = 0; i < 40; i++) { const a = rnd(0, TAU), v = rnd(1, 4); spawn(sparkTex, x, y, { tint, vx: Math.cos(a) * v, vy: Math.sin(a) * v, scale: rnd(0.3, 0.6), ttl: rnd(50, 90) }); }
+  if (result === 'win') {
+    // Victoire : le titre frappe en grandissant, éclair doré et onde de choc.
+    flash(0xffe0a0, 0.3);
+    tween(900, k => { const e = ease(k); t.scale.set(1.8 - 0.8 * e); t.alpha = e; rays.alpha = e; halo.alpha = 0.7 * e; });
+    setTimeout(() => { if (c.destroyed) return; const g = new Graphics().circle(0, 0, 60).stroke({ width: 5, color: 0xffffff }); g.position.set(x, y); g.tint = tint; g.blendMode = 'add'; c.addChild(g);
+      tween(700, k => { g.scale.set(0.5 + ease(k) * 4); g.alpha = 1 - k; }, () => g.destroy()); }, 260);
+  } else if (result === 'lose') {
+    // Défaite : le titre tombe d'en haut, lourd, rebondit à peine et secoue l'écran ; les rayons s'allument lentement.
+    tween(700, k => { const e = k < 0.7 ? Math.pow(k / 0.7, 2) : 1 - Math.sin((k - 0.7) / 0.3 * Math.PI) * 0.06; t.y = y - 120 * (1 - e); t.alpha = Math.min(1, k * 3); t.rotation = (1 - Math.min(1, k / 0.7)) * -0.08; },
+      () => { shake(5, 320); for (let i = 0; i < 16; i++) spawn(shardTex, x + rnd(-120, 120), y + 26, { tint: 0x6a5a4a, blend: 'normal', vx: rnd(-2, 2), vy: rnd(-2.5, -0.5), g: 0.15, spin: rnd(-0.2, 0.2), rot: rnd(0, TAU), scale: rnd(0.4, 0.8), ttl: rnd(30, 50) }); });
+    tween(1600, k => { const e = ease(k); rays.alpha = e * 0.7; halo.alpha = 0.5 * e; veil.alpha = 0.55 * e; });
+  } else tween(900, k => { const e = ease(k); t.alpha = e; t.scale.set(1.15 - 0.15 * e); rays.alpha = e; halo.alpha = 0.7 * e; });
+  // Tant que le résultat reste à l'écran : poussière d'or qui monte du titre (victoire), cendres qui tombent (défaite).
+  over.ticker.add(function spin(tk) {
+    if (c.destroyed) { over.ticker.remove(spin); return; }
+    rays.rotation += (result === 'lose' ? 0.001 : 0.0025) * tk.deltaTime; halo.alpha = (0.55 + Math.sin(performance.now() / 500) * 0.15) * rays.alpha;
+    if (result === 'win' && Math.random() < 0.25 * tk.deltaTime) spawn(sparkTex, x + rnd(-150, 150), y + rnd(-10, 30), { tint: Math.random() < 0.3 ? 0xffffff : tint, vx: rnd(-0.2, 0.2), vy: rnd(-1.1, -0.4), drag: 1, scale: rnd(0.15, 0.35), ttl: rnd(50, 90) });
+    if (result === 'lose' && Math.random() < 0.18 * tk.deltaTime) spawn(shardTex, rnd(0, innerWidth), -10, { tint: Math.random() < 0.5 ? 0x5a4a3c : 0x8a3020, blend: 'normal', vx: rnd(-0.4, 0.4), vy: rnd(0.5, 1.2), drag: 1, spin: rnd(-0.05, 0.05), rot: rnd(0, TAU), scale: rnd(0.3, 0.6), ttl: rnd(200, 320), alpha: 0.7 });
+  });
+  if (result !== 'lose') for (let i = 0; i < 40; i++) { const a = rnd(0, TAU), v = rnd(1, 4); spawn(sparkTex, x, y, { tint, vx: Math.cos(a) * v, vy: Math.sin(a) * v, scale: rnd(0.3, 0.6), ttl: rnd(50, 90) }); }
 }
 // Nouvelle partie (revanche) : la fin de partie s'efface.
 export function clearEnding() { cine?.destroy({ children: true }); cine = null; }

@@ -17,7 +17,7 @@ import './holo.js';
 import './cosmetics.js';
 import { unlockAudio, play, isMuted, setMuted, sfxVolume, setSfxVolume, canVibrate, vibrations, setVibrations, buzz, feel } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
-import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, stageReady, sparkle, shards, trail, ending, clearEnding } from './fx.js';
+import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, stageReady, sparkle, shards, trail, ending, clearEnding, setEnd } from './fx.js';
 import * as veil from './veil.js';
 import { TABS, screenDir, slides, ghostScreen, ghostSheet } from './transition.js';
 import { openPack, openChest } from './opening.js';
@@ -499,6 +499,13 @@ function endRewardHTML() {
   if (!r) return `<p class="hint" style="margin:0">${ui.auth ? 'Calcul des récompenses…' : ''}</p>`;
   return `<div class="endreward">${levelBar(r.progress)}
     <p style="margin:0">${r.rewarded ? (gains(r) || 'Pas de gain pour cette partie.') : `Plus de récompense de partie aujourd'hui ; les missions avancent toujours.${r.passXp ? ` · +${r.passXp} XP de saison` : ''}`}${r.levelUp ? ` · <b>Niveau ${r.progress.level} !</b>` : ''}${r.missions ? ` · ${r.missions} mission${r.missions > 1 ? 's' : ''} accomplie${r.missions > 1 ? 's' : ''}` : ''}</p>${r.ranked ? rankedLine(r.ranked) : ''}</div>`;
+}
+// Ce que l'écran de fin anime sur PixiJS (fx.js, setEnd) : les récompenses de la partie, une fois connues.
+function endReel() {
+  if (ui.sheet !== 'end' || ui.mode === 'tuto' || !ui.view?.result) return null;
+  const r = ui.mode === 'online' ? ui.view.reward : ui.soloReward; if (!r) return null;
+  const w = ui.view.result.winner;
+  return { key: JSON.stringify(r), reward: r, result: w === ui.view.seat ? 'win' : w < 0 ? 'tie' : 'lose' };
 }
 async function equip(body, okMsg) { if (await call('PUT', '/api/cosmetics', body)) { ui.msg = okMsg; render(); } }
 
@@ -1395,7 +1402,7 @@ function render() {
   if (motion && ui.shownSheet && !ui.sheet) ghostSheet(app.querySelector(':scope > .sheet'));
   app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
   if (hop) scrollTo({ top: 0, behavior: 'instant' });
-  setHome(app); setShop(app);
+  setHome(app); setShop(app); setEnd(app, endReel());
   app.style.setProperty('--dx', `${dir * 36}px`); app.style.setProperty('--dy', dir ? '0px' : '10px');
   app.classList.toggle('screen-in', moved);
   if (ui.sheet && ui.sheet !== ui.shownSheet) app.querySelector(':scope > .sheet')?.classList.add('sheet-in');
@@ -1521,19 +1528,21 @@ function viewEffects(prev, view) {
     after.push(() => banner(at('.board'), ...turnBanner(view)));
     sounds.push('turn', 'draw');
   }
+  let result = null;
   if (view.phase === 'over' && prev.phase !== 'over' && view.result) {
-    const win = view.result.winner === view.seat;
-    sounds.push(win ? 'win' : view.result.winner < 0 ? 'tie' : 'lose');
+    const win = view.result.winner === view.seat; result = win ? 'win' : view.result.winner < 0 ? 'tie' : 'lose';
     list.push(['.panel.end', 'end-in']);
     // Les zones s'allument une à une à la couleur de leur gagnant, puis les confettis en cas de victoire.
+    // Fanfare (ou chute) et vibration avec le grand titre (stage.js, ending) : il frappe tout de suite en victoire,
+    // il tombe en défaite et la vibration arrive quand il touche le sol.
+    const res = result;
     after.push(() => { [0, 1, 2].forEach(z => { const s = zoneSide(view, z); if (s) zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[s], z * 220, true); });
-      setTimeout(() => ending(win ? 'win' : view.result.winner < 0 ? 'tie' : 'lose'), 700); if (win) setTimeout(confetti, 450); });
+      setTimeout(() => { ending(res); play(res); setTimeout(() => feel(res), res === 'lose' ? 490 : 0); }, 700); if (win) setTimeout(confetti, 450); });
   }
   ui.fx = { list, flip, burst, after };
   [...new Set(sounds)].slice(0, 3).forEach((s, i) => i ? setTimeout(() => play(s), i * 110) : play(s));
-  // Une seule vibration par changement, la plus forte : la fin de partie, une carte détruite, un coup reçu…
-  const result = sounds.find(s => ['win', 'lose', 'tie'].includes(s));
-  feel(result || (gone ? 'destroy' : hurt ? 'hit' : sounds.includes('astral') ? 'astral' : sounds.includes('general') ? 'general'
+  // Une seule vibration par changement, la plus forte : la fin de partie (jouée avec le titre, plus haut), une carte détruite, un coup reçu…
+  if (!result) feel((gone ? 'destroy' : hurt ? 'hit' : sounds.includes('astral') ? 'astral' : sounds.includes('general') ? 'general'
     : sounds.includes('spell') ? 'spell' : sounds.includes('terrain') ? 'terrain' : sounds.includes('turn') ? 'turn' : ''));
 }
 // Applique une seule fois les animations préparées, sur les éléments du rendu qui vient d'avoir lieu.

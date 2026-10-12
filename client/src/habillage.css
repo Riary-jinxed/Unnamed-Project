@@ -133,6 +133,9 @@ body.staged .mc.reveal::after, body.staged .mc.reveal-foe::after { display: none
 body.staged .sheet:has(> .panel.end) { background: linear-gradient(rgb(8 5 3 / .25), rgb(8 5 3 / .45) 30%, rgb(8 5 3 / .85) 60%); backdrop-filter: none; }
 /* fin de partie : le titre est joué en grand par PixiJS (stage.js, ending) ; celui du panneau reste pour les lecteurs d'écran */
 body.staged .panel.end > h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* fin de partie : les récompenses défilent sur une toile PixiJS (end-stage.js) ; le bloc HTML reste pour les lecteurs d'écran */
+.endreel { width: 100%; height: 0; border-top: 1px solid var(--line); padding-top: 10px; box-sizing: content-box; }
+.panel.end.reel .endreward { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* Saison Halloween (body[data-season], écrit par main.js) : nuit violette, citrouille et feux follets.
    L'or reste celui du jeu ; seules les lueurs passent à l'orange citrouille et au violet. */
