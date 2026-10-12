@@ -15,7 +15,7 @@ import { esc, famStyle, rich } from './common.js';
 import { artBg, artHTML, heroHTML, portraitHTML, terrainBg, terrainHTML, holoCard, setHoloOff, popCard, setPopOff } from './art.js';
 import './holo.js';
 import './cosmetics.js';
-import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
+import { unlockAudio, play, isMuted, setMuted, sfxVolume, setSfxVolume, canVibrate, vibrations, setVibrations, buzz, feel } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
 import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, sparkle, shards, trail, ending, clearEnding, setEnd } from './fx.js';
 import { openPack, openChest } from './opening.js';
@@ -1099,9 +1099,14 @@ function renderProfile() {
       <div class="field"><label class="eyebrow" for="profile-name">Pseudo</label><input id="profile-name" maxlength="20" value="${esc(ui.nameDraft)}"></div>
       <div class="row"><button class="btn primary" type="submit" ${ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === a.name ? 'disabled' : ''}>Enregistrer le pseudo</button></div>
     </form>
-    <div class="card-box"><div class="field"><label class="eyebrow" for="music-volume">Volume de la musique · <span id="music-pct" class="num">${Math.round(musicVolume() * 100)} %</span></label>
-      <input id="music-volume" type="range" min="0" max="100" step="5" value="${Math.round(musicVolume() * 100)}"></div>
-      ${isMuted() ? '<p class="hint" style="margin:0">Le son est coupé : touchez le haut-parleur de l\'accueil pour l\'entendre.</p>' : ''}</div>
+    <div class="card-box"><div><span class="eyebrow">Réglages</span><h2 style="font-size:22px">Son et vibrations</h2></div>
+      <label class="check"><input type="checkbox" id="sound-on" ${isMuted() ? '' : 'checked'}> Son activé</label>
+      <div class="field"><label class="eyebrow" for="sfx-volume">Bruitages · <span id="sfx-pct" class="num">${Math.round(sfxVolume() * 100)} %</span></label>
+        <input id="sfx-volume" type="range" min="0" max="100" step="5" value="${Math.round(sfxVolume() * 100)}" ${isMuted() ? 'disabled' : ''}></div>
+      <div class="field"><label class="eyebrow" for="music-volume">Musique · <span id="music-pct" class="num">${Math.round(musicVolume() * 100)} %</span></label>
+        <input id="music-volume" type="range" min="0" max="100" step="5" value="${Math.round(musicVolume() * 100)}" ${isMuted() ? 'disabled' : ''}></div>
+      ${canVibrate() ? `<label class="check"><input type="checkbox" id="vibrations-on" ${vibrations() ? 'checked' : ''}> Vibrations en partie</label>`
+        : '<p class="hint" style="margin:0">Les vibrations ne marchent que sur un téléphone Android : ni sur ordinateur, ni sur iPhone.</p>'}</div>
     <div class="card-box"><div><span class="eyebrow">Statistiques</span><h2 style="font-size:22px">Victoires</h2></div>${stats}</div>`,
     collection: () => `<div class="card-box"><div><span class="eyebrow">Collection</span><h2 style="font-size:22px">${complete} set${complete > 1 ? 's' : ''} complété${complete > 1 ? 's' : ''}</h2></div>
       <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.filter(id => !hiddenCard(id)).length}, généraux compris.</p>${sets}${ui.progressInfo ? familiesHTML() : '<p class="wait">Chargement…</p>'}
@@ -1453,11 +1458,12 @@ function viewEffects(prev, view) {
       if (fxOf(b)) { list.push([cardSel(f), 'astral-in']); burst.push(cardSel(f)); sounds.push('astral'); }
     }
   }
-  let gone = false, up = false, down = false;
+  // Une carte de l'adversaire qui perd de la puissance, c'est un coup porté ; une des siennes, un coup reçu (on le sent au téléphone).
+  let gone = false, up = false, hit = false, hurt = false;
   for (const [uid, a] of before) if (a.revealed && uid !== f && !after2.has(uid)) { ghostOut(uid, 'shatter'); gone = true; }
   for (const [uid, b] of after2) { const a = before.get(uid);
     if (a && a.revealed && b.revealed && a.power !== b.power && uid !== f) {
-      const u = b.power > a.power; list.push([`${cardSel(uid)} .p`, u ? 'pup' : 'pdown']); if (u) up = true; else down = true;
+      const u = b.power > a.power; list.push([`${cardSel(uid)} .p`, u ? 'pup' : 'pdown']); if (u) up = true; else if (b.side === 'foe') hit = true; else hurt = true;
       after.push(() => floatNum(at(cardSel(uid)), b.power - a.power)); } }
   for (const side of ['me', 'foe']) for (const z of [0, 1, 2]) {
     const d = view[side].zonePower[z] - prev[side].zonePower[z];
@@ -1475,7 +1481,7 @@ function viewEffects(prev, view) {
     sounds.push('general'); after.push(() => setTimeout(() => generalFire(at(`.pbar.${side} [data-general]`)), 300));
   }
   if (!prev.ready.foe && view.ready.foe && view.phase === 'plan') list.push(['.pbar.foe .chip.ok', 'pop']);
-  if (gone) sounds.push('destroy'); else if (up) sounds.push('up'); else if (down) sounds.push('down');
+  if (gone) sounds.push('destroy'); else if (hit) sounds.push('hit'); else if (hurt) sounds.push('down'); else if (up) sounds.push('up');
   if (swing && sounds.length < 3) sounds.push('swing');
   if (view.phase === 'plan' && view.turn !== prev.turn) {
     const had = new Set(prev.me.hand.map(c => c.uid));
@@ -1493,6 +1499,10 @@ function viewEffects(prev, view) {
   }
   ui.fx = { list, flip, burst, after };
   [...new Set(sounds)].slice(0, 3).forEach((s, i) => i ? setTimeout(() => play(s), i * 110) : play(s));
+  // Une seule vibration par changement, la plus forte : la fin de partie, une carte détruite, un coup reçu…
+  const result = sounds.find(s => ['win', 'lose', 'tie'].includes(s));
+  feel(result || (gone ? 'destroy' : hurt ? 'hit' : sounds.includes('astral') ? 'astral' : sounds.includes('general') ? 'general'
+    : sounds.includes('spell') ? 'spell' : sounds.includes('terrain') ? 'terrain' : sounds.includes('turn') ? 'turn' : ''));
 }
 // Applique une seule fois les animations préparées, sur les éléments du rendu qui vient d'avoir lieu.
 function applyFx() {
@@ -1588,12 +1598,12 @@ function tryPlace(z) {
     // Le déplacement s'applique tout de suite à l'aperçu ; ramener la carte dans sa zone de départ l'annule.
     const uid = ui.moveSel, now = planZone(uid);
     if (z === now) { ui.moveSel = null; ui.msg = ''; }
-    else if (freeSlots(z) <= 0) { ui.msg = `La zone ${ZONE_NAMES[z]} est pleine de votre côté.`; play('deny'); msgFades(); }
+    else if (freeSlots(z) <= 0) { ui.msg = `La zone ${ZONE_NAMES[z]} est pleine de votre côté.`; play('deny'); feel('deny'); msgFades(); }
     else {
       const from = dropRect || rectOf(cardSel(uid));
       ui.moves = ui.moves.filter(m => m.uid !== uid);
       if (z !== boardZone(uid)) ui.moves.push({ uid, zone: z });
-      ui.moveSel = null; ui.msg = ''; play('place');
+      ui.moveSel = null; ui.msg = ''; play('place'); feel('place');
       if (from && !reduceMotion()) ui.fx = { list: [], fly: [[cardSel(uid), from]] };
     }
     render(); return;
@@ -1606,8 +1616,8 @@ function tryPlace(z) {
   else {
     const from = dropRect || rectOf(`[data-hand="${c.uid}"]`);
     ui.pending.push({ uid: c.uid, id: c.id, zone: z }); ui.sel = null; ui.msg = '';
-    ui.fx = from && !reduceMotion() ? { list: [], fly: [[cardSel(c.uid), from]] } : { list: [[cardSel(c.uid), 'dropin']] }; play('place'); }
-  if (ui.msg) { play('deny'); msgFades(); }
+    ui.fx = from && !reduceMotion() ? { list: [], fly: [[cardSel(c.uid), from]] } : { list: [[cardSel(c.uid), 'dropin']] }; play('place'); feel('place'); }
+  if (ui.msg) { play('deny'); feel('deny'); msgFades(); }
   render();
 }
 // La bulle d'un refus s'efface seule après un moment.
@@ -1629,10 +1639,15 @@ app.addEventListener('input', e => {
   if (e.target.id === 'profile-name') { ui.nameDraft = e.target.value; const b = e.target.form?.querySelector('[type=submit]');
     if (b) b.disabled = ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === ui.account.name; }
   if (e.target.id === 'codex-q') { ui.codexQuery = e.target.value; document.getElementById('codex-list').innerHTML = codexHTML(ui.codexQuery); }
+  if (e.target.id === 'sfx-volume') { setSfxVolume(e.target.value / 100); document.getElementById('sfx-pct').textContent = `${e.target.value} %`; }
   if (e.target.id === 'music-volume') { setMusicVolume(e.target.value / 100); document.getElementById('music-pct').textContent = `${e.target.value} %`; }
   if (e.target.id === 'code') { ui.joinCode = e.target.value.toUpperCase(); e.target.value = ui.joinCode; }
 });
 app.addEventListener('change', e => {
+  // Réglages du son : on fait entendre (ou sentir) le résultat tout de suite.
+  if (e.target.id === 'sfx-volume') play('place');
+  if (e.target.id === 'sound-on') { setMuted(!e.target.checked); play('validate'); render(); }
+  if (e.target.id === 'vibrations-on') { setVibrations(e.target.checked); buzz(40); }
   if (e.target.id === 'avatar-file') { pickAvatar(e.target.files[0]); e.target.value = ''; }
   if (e.target.id === 'title-pick') equip({ title: e.target.value || null }, 'Titre changé.');
 });
@@ -1670,7 +1685,7 @@ app.addEventListener('click', e => {
     else if (a === 'codex') { ui.sheet = 'codex'; ui.zoom = null; render(); }
     else if (a === 'copy') { const link = document.getElementById('link');
       navigator.clipboard.writeText(link.value).then(() => { t.textContent = 'Lien copié'; }).catch(() => { link.select(); }); }
-    else if (a === 'go') { if (!canPlay()) return; play('validate');
+    else if (a === 'go') { if (!canPlay()) return; play('validate'); feel('validate');
       ui.ctrl.submit({ cards: ui.pending.map(p => ({ uid: p.uid, zone: p.zone })), moves: ui.moves.slice(), general: ui.genZone }); ui.sel = null; ui.moveSel = null; if (ui.offline) render(); }
     // Activer le général (ou l'annuler) depuis sa carte en grand.
     else if (a === 'zgen') {
