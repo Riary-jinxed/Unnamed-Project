@@ -12,7 +12,8 @@ import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
-import { artBg, artHTML, heroHTML, portraitHTML, terrainBg, terrainHTML } from './art.js';
+import { artBg, artHTML, heroHTML, portraitHTML, terrainBg, terrainHTML, holoCard, setHoloOff } from './art.js';
+import './holo.js';
 import { unlockAudio, play, isMuted, setMuted } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
 import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, sparkle, shards, trail, ending, clearEnding } from './fx.js';
@@ -486,6 +487,21 @@ function upgradeHTML(id) {
 // Art choisi pour une carte, s'il est toujours possédé ; null : l'illustration d'origine.
 const mySel = id => { const x = ui.account?.artSel?.[id]; return x && ui.account.arts?.[x] && artExists(x) ? x : null; };
 const myArts = id => artsOf(id).filter(x => ui.account?.arts?.[x.id]);
+// Reflet holographique (art.js, holo.js) : allumé sauf sur les cartes où le joueur l'a coupé.
+setHoloOff(() => ui.account?.holoOff || {});
+const holoOn = id => !ui.account?.holoOff?.[id];
+async function toggleHolo(card) {
+  const on = !holoOn(card);
+  if (!await call('PUT', '/api/arts/holo', { card, on })) return;
+  ui.msg = on ? `Reflet holographique rallumé sur ${nameOf(card)}.` : `Reflet holographique coupé sur ${nameOf(card)}.`; play('pick'); render();
+}
+// Interrupteur du reflet, sur la carte ouverte en grand depuis la collection, si elle en a un (art alternatif, niveau Or ou plus).
+function holoHTML(id) {
+  if (!owned(id) || !holoCard(myLevel(id), mySel(id))) return '';
+  const on = holoOn(id);
+  return `<div class="zacts holobox"><button class="artopt holotgl ${on ? 'on' : ''}" data-act="holo-toggle" data-card="${id}" role="switch" aria-checked="${on}" ${ui.busy ? 'disabled' : ''}>
+    <span class="holosw" aria-hidden="true"></span><span><b>Reflet holographique</b> <small class="hint">${on ? 'Activé : il bouge quand vous inclinez le téléphone' : 'Désactivé sur cette carte'}</small></span></button></div>`;
+}
 // Pastille de rareté (style.css, « .rar-… »).
 const rarChip = art => `<span class="rarchip rar-${rarityKey(art)}">${esc(rarityName(art))}</span>`;
 // Famille d'arts d'un art (arts.js, ART_THEMES), pour les sous-titres.
@@ -1094,7 +1110,7 @@ function zoomHTML() {
     body = `
       <div class="zh"><span class="seal" title="Coût">${cost}</span><h2>${esc(d.name)}</h2>${d.type === 'C' ? `<span class="zp num ${pcls}" title="Puissance">${pw}</span>` : ''}</div>
       <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · puissance de base ${d.power}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span>
-      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
+      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? holoHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
   } else if (zm.kind === 'general') {
     const g = GENERALS[zm.id]; style = famVar([g.fam]);
     const acts = [];
@@ -1109,7 +1125,7 @@ function zoomHTML() {
     const seat = ui.view && zm.side ? (zm.mine ? ui.view.seat : 1 - ui.view.seat) : null;
     lvl = seat !== null ? levelIn(seat, zm.id) : myLevel(zm.id);
     art = zm.art || (seat !== null ? artIn(seat, zm.id) : mySel(zm.id));
-    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
+    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? holoHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
   } else {
     const t = TERRAINS[zm.id]; style = famVar([t.fam]);
     body = `<div class="zh"><h2>${t.name}</h2></div><span class="k">Terrain${t.fam ? ` · ${t.fam}` : ''}</span><p class="x">${rich(t.text)}</p>`;
@@ -1583,6 +1599,7 @@ app.addEventListener('click', e => {
     else if (a === 'calendar') { ui.sheet = 'calendar'; ui.calGot = null; render(); }
     else if (a === 'claim-day' && !ui.busy) claimDay();
     else if (a === 'art-pick' && !ui.busy) selectArt(ds.card, ds.art);
+    else if (a === 'holo-toggle' && !ui.busy) toggleHolo(ds.card);
     else if (a === 'reroll' && !ui.busy) call('POST', '/api/missions/reroll', { index: +ds.i });
     else if (a === 'edit') { editDeck(ui.account.active, ui.screen === 'collection' ? 'collection' : 'home'); render(); }
     else if (a === 'home') { ui.screen = 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
