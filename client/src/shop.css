@@ -100,20 +100,16 @@ body[data-season="halloween"] .vit-velvet { background: radial-gradient(80% 60% 
 @media (prefers-reduced-motion: reduce) { .vit-card, .vit-card::after, .vit-stamp, .vit-timer i::after { animation: none; } }
 
 /* Étal : enseigne et bouton « i » (ce que contient le coffre), et son volet sous l'étal. */
-.stall-head { position: absolute; left: 50%; top: 42px; z-index: 2; translate: -50% 0; display: flex; align-items: center; gap: 8px; }
-.stall-sign { padding: 2px 12px; border-radius: 4px; white-space: nowrap;
+.stall-sign { position: absolute; left: 50%; top: 42px; z-index: 2; translate: -50% 0; padding: 2px 12px; border-radius: 4px; white-space: nowrap;
   font: 900 13px/1.3 Cinzel, var(--display); letter-spacing: .06em; color: #fff3c0; background: linear-gradient(#3a2010, #1c0e06);
   border: 1.5px solid #f0c454; box-shadow: 0 2px 0 #000, 0 0 10px -2px rgb(240 196 84 / .6); text-shadow: 0 1px 0 #000; }
-.stall-info { flex: none; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border-radius: 50%; cursor: pointer;
-  font: italic 900 15px/1 Georgia, serif; color: #1a0f05; background: radial-gradient(circle at 35% 30%, #fff3c0, #f0c454 50%, #a26a1a);
+.stall-info { position: absolute; right: 12px; bottom: 12px; z-index: 2; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border-radius: 50%; cursor: pointer;
+  font: italic 900 17px/1 Georgia, serif; color: #1a0f05; background: radial-gradient(circle at 35% 30%, #fff3c0, #f0c454 50%, #a26a1a);
   border: 1.5px solid #1a0f05; box-shadow: 0 2px 0 #000, 0 0 10px -2px rgb(240 196 84 / .8); transition: scale .1s; }
 .stall-info:hover { scale: 1.08; } .stall-info:active { scale: .92; }
-.stall-info.on { color: #fff3c0; background: radial-gradient(circle at 35% 30%, #8a5bd6, #4a2590); border-color: #f0c454; }
 .stall-info:focus-visible { outline: 2px solid #fff3c0; outline-offset: 2px; }
-.infobox { display: grid; gap: 8px; margin-top: -4px; padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in srgb, #f0c454 50%, #000);
-  background: linear-gradient(#24140a, #160c06); color: #f3e6c8; animation: infoin .2s ease-out; }
-.infobox .hint { color: #cdb894; }
-@keyframes infoin { from { opacity: 0; translate: 0 -6px; } }
+.panel.infobox { max-width: 440px; gap: 10px; }
+.closex { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; font-size: 24px; line-height: 1; }
 
 /* Rayon Change : bourses d'Éclats en vitrine (shardPileSVG), quatre de front, deux par ligne sur les petits écrans. */
 .vit-card.still { cursor: default; aspect-ratio: 1; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #3a1a10, #12070a); }

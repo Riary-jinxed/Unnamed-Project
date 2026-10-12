@@ -9,15 +9,15 @@ import { reduceMotion } from './fx.js';
 import { packSVG, chestSVG } from './opening.js';
 
 // items : [{ kind: 'pack' | 'chest', act, set, setName, n, tag, free, off, label }]
-// title : enseigne au-dessus des objets ; info : action d'un bouton « i » dans le coin (ce que contient le coffre), open : son volet est ouvert.
-export function stallHTML(items, { title = '', info = '', open = false } = {}) {
+// title : enseigne centrée au-dessus des objets ; info : action d'un bouton « i » dans le coin du comptoir (ce que contient le coffre).
+export function stallHTML(items, { title = '', info = '' } = {}) {
   const item = (x, i) => `<button class="stall-item is-${x.kind} pk-${x.set || 'base'}${x.free ? ' free' : ''}" data-act="${x.act}"${x.set ? ` data-set="${x.set}"` : ''} ${x.off ? 'disabled' : ''} aria-label="${x.label}" style="--i:${i}">
       <span class="stall-obj" data-px>${x.kind === 'chest' ? chestSVG(`shc${i}`) : packSVG(x.setName, x.n, `shp${i}`)}</span>
       ${x.free ? `<span class="stall-free num">Offert${x.free > 1 ? ` ×${x.free}` : ''}</span>` : ''}
       <span class="stall-tag">${x.tag}</span></button>`;
   return `<div class="stall" aria-label="Étal"><div class="stall-wall"></div><div class="stall-awning"></div><div class="stall-shelf"></div>
-    ${title || info ? `<div class="stall-head">${title ? `<span class="stall-sign">${title}</span>` : ''}
-      ${info ? `<button class="stall-info${open ? ' on' : ''}" data-act="${info}" aria-expanded="${open}" aria-controls="${info}" aria-label="${title ? `${title} : ` : ''}ce qu'il contient">i</button>` : ''}</div>` : ''}
+    ${title ? `<span class="stall-sign">${title}</span>` : ''}
+    ${info ? `<button class="stall-info" data-act="${info}" aria-haspopup="dialog" aria-label="${title ? `${title} : ` : ''}ce qu'il contient">i</button>` : ''}
     <div class="stall-items">${items.map(item).join('')}</div></div>`;
 }
 

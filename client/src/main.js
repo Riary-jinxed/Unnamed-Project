@@ -885,7 +885,7 @@ function renderShop() {
   const top = `<div class="top"><span class="title">Boutique</span><span class="chip num cur" title="Éclats" aria-label="${a.shards} Éclats">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="Prismes" aria-label="${sh.arts.prisms} Prismes">${ico('prism')}${sh.arts.prisms}</span>` : ''}</div>
     ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}${tabBtn('change', 'Change')}</div>` : ''}`;
   if (!sh) return `${top}${errLine()}<p class="wait">Chargement…</p>`;
-  if (tab === 'arts') return `${top}${artStall(sh.arts)}${chestInfo(sh.arts)}${errLine()}${artShopHTML(sh.arts)}`;
+  if (tab === 'arts') return `${top}${artStall(sh.arts)}${errLine()}${artShopHTML(sh.arts)}`;
   if (tab === 'change') return `${top}${errLine()}${exchangeHTML(sh.arts)}`;
   const P = sh.prices;
   // Étal : un booster par set ouvert ; le toucher l'achète, ou ouvre un booster offert s'il en reste.
@@ -919,16 +919,18 @@ function artStall(A) {
   const C = A.chest, free = C.free && C.left;
   return stallHTML([free ? { kind: 'chest', act: 'chest-free', free: C.free, tag: 'Ouvrir', off: ui.busy, label: 'Ouvrir un coffre d\'arts offert' }
     : { kind: 'chest', act: 'chest', tag: C.left ? `${ico('prism')}${C.price}` : 'Vide', off: !C.left || A.prisms < C.price || ui.busy, label: C.left ? `Ouvrir un coffre d'arts pour ${C.price} Prismes` : 'Coffre vide pour vous' }],
-    { title: 'Coffre d\'arts', info: 'chest-info', open: !!ui.chestInfo });
+    { title: 'Coffre d\'arts', info: 'chest-info' });
 }
-// Ce que contient le coffre, sous l'étal quand on touche son « i » : chances selon la rareté, coffres offerts en attente.
+// Ce que contient le coffre, en fenêtre quand on touche le « i » de l'étal : chances selon la rareté, coffres offerts en attente.
+// Se ferme par la croix, Échap ou un clic à côté.
 function chestInfo(A) {
-  if (!A || !ui.chestInfo) return '';
+  if (!A) return '';
   const C = A.chest, rates = C.rates.map(r => `<li><span class="rarchip rar-${r.rarity}">${esc(r.name)}</span><span class="num">${String(r.pct).replace('.', ',')} %</span></li>`).join('');
-  return `<div class="infobox" id="chest-info" role="region" aria-label="Coffre d'arts">
+  return `<div class="sheet" data-act="close"><div class="panel infobox" id="chest-info" role="dialog" aria-label="Coffre d'arts" data-stop="1">
+    <div class="ph"><h2>Coffre d'arts</h2><button class="btn closex" data-act="close" aria-label="Fermer">×</button></div>
     <p style="margin:0">Le coffre donne un art que vous n'avez pas encore, au hasard${rates ? ', avec ces chances selon la rareté :' : '.'}</p>
     ${rates ? `<ul class="rates">${rates}</ul>` : ''}
-    <p class="hint" style="margin:0">${C.left ? `Encore ${C.left} art${C.left > 1 ? 's' : ''} possible${C.left > 1 ? 's' : ''} pour vous. ` : C.free ? `Vos ${C.free} coffre${C.free > 1 ? 's' : ''} offert${C.free > 1 ? 's' : ''} vous attendent : ils s'ouvriront dès que de nouveaux arts arriveront. ` : 'Vous avez tous les arts du coffre. '}Des coffres sont offerts par les succès rares, le calendrier du dimanche et le passe premium.</p></div>`;
+    <p class="hint" style="margin:0">${C.left ? `Encore ${C.left} art${C.left > 1 ? 's' : ''} possible${C.left > 1 ? 's' : ''} pour vous. ` : C.free ? `Vos ${C.free} coffre${C.free > 1 ? 's' : ''} offert${C.free > 1 ? 's' : ''} vous attendent : ils s'ouvriront dès que de nouveaux arts arriveront. ` : 'Vous avez tous les arts du coffre. '}Des coffres sont offerts par les succès rares, le calendrier du dimanche et le passe premium.</p></div></div>`;
 }
 // Arts alternatifs en boutique : offres du jour et coffre, payés en Prismes (monnaie rare : saisons classées, succès).
 function artShopHTML(A) {
@@ -1266,6 +1268,7 @@ function sheetHTML() {
       <p style="margin:0">Le tutoriel vous apprend les règles en quelques tours contre l'IA, avec un deck prêt à jouer. Vous pourrez le relancer depuis l'accueil.</p>
       <div class="row"><button class="btn primary" data-act="tuto">Lancer le tutoriel</button><button class="btn" data-act="tuto-later">Plus tard</button></div></div></div>`;
   }
+  if (ui.sheet === 'chest-info' && ui.screen === 'shop') return chestInfo(ui.shop?.arts);
   if (ui.sheet === 'need' && ui.need) {
     // Il manque des Éclats : l'offre de change fixe qui suffit (ou la plus grosse), sans choix du montant.
     const { need, offer: o, verb } = ui.need, have = ui.account.prisms || 0, short = o.prisms - have, step = EXCHANGE_TIERS.findIndex(t => t.id === o.id);
@@ -1689,7 +1692,7 @@ app.addEventListener('click', e => {
     else if (a === 'shop-arts') { ui.sheet = null; ui.calGot = null; openShop('arts'); }
     else if (a === 'exchange' && !ui.busy) exchange(ds.id);
     else if (a === 'shop-change') { ui.need = null; ui.sheet = null; ui.zoom = null; openShop('change'); }
-    else if (a === 'chest-info') { ui.chestInfo = !ui.chestInfo; render(); }
+    else if (a === 'chest-info') { ui.sheet = 'chest-info'; render(); }
     else if (a === 'calendar') { ui.sheet = 'calendar'; ui.calGot = null; render(); }
     else if (a === 'claim-day' && !ui.busy) claimDay();
     else if (a === 'art-pick' && !ui.busy) selectArt(ds.card, ds.art);
