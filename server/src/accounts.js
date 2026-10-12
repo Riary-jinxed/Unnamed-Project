@@ -2,7 +2,7 @@
 // API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, boutique, administration.
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
-import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers, exchangeOffers } from '@jeu/engine/collection';
+import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers, exchangeOffers, setBoosterPrice, shopOrder } from '@jeu/engine/collection';
 import { pick, CARDS, GENERALS } from '@jeu/engine';
 import { ART_RARITIES, RARITY_IDS } from '@jeu/engine/arts';
 import { createProgress } from './progress.js';
@@ -143,6 +143,7 @@ export function createAccounts(store) {
   }
 
   // Boutique : pour chaque set ouvert, des cartes du jour propres au joueur et un booster du set, payés en Éclats.
+  // Les sets en vente vont du plus récent au plus ancien ; le booster d'un set coûte le prix réglé plus son supplément (boosterExtra).
   // Les offres changent chaque jour, ou plus tôt quand l'administrateur les renouvelle (rotation).
   function shopDay(a, set) {
     a.shop = a.shop || {};
@@ -153,7 +154,7 @@ export function createAccounts(store) {
   function shopView(a) {
     const c = cfg();
     return { shards: a.shards || 0, freeBoosters: a.freeBoosters || 0, prices: { dailyCards: c.dailyCards, cardPrice: c.cardPrice, boosterPrice: c.boosterPrice, boosterSize: c.boosterSize, shardsPerDuplicate: c.shardsPerDuplicate },
-      arts: a.starter ? arts.view(a) : null, sets: SETS.map(set => ({ id: set.id, name: set.name, open: set.open, teaser: set.teaser || '', size: set.cards.length,
+      arts: a.starter ? arts.view(a) : null, sets: shopOrder(SETS).map(set => ({ id: set.id, name: set.name, open: set.open, teaser: set.teaser || '', size: set.cards.length, boosterPrice: setBoosterPrice(set, c.boosterPrice),
       offers: set.open ? shopDay(a, set).offers.map(id => ({ id, bought: shopDay(a, set).bought.includes(id), owned: !!a.cards[id] })) : [] })) };
   }
   function openSet(a, id) {
@@ -184,7 +185,7 @@ export function createAccounts(store) {
     if (free) {
       if (!(a.freeBoosters > 0)) throw new HttpError(409, 'Aucun booster offert à ouvrir.');
       a.freeBoosters--;
-    } else pay(a, c.boosterPrice);
+    } else pay(a, setBoosterPrice(set, c.boosterPrice));
     const cards = Array.from({ length: c.boosterSize }, () => pick(set.cards)), got = add(a, cards);
     activity.count(free ? 'boosterFree' : 'boosterBought');
     await store.put(a);

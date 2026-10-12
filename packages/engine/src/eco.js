@@ -3,7 +3,7 @@
 // Les réglages simulés sont ceux par défaut (rewards.js, collection.js) ; un fichier JSON de réglages peut les remplacer :
 // node packages/engine/src/eco.js 300 reglages.json  (mêmes clés que la boutique et les récompenses de /admin).
 import { readFileSync } from 'node:fs';
-import { DEFAULT_SETS, SHOP, SHARDS_PER_DUPLICATE, BOOSTER_SIZE } from './collection.js';
+import { DEFAULT_SETS, SHOP, SHARDS_PER_DUPLICATE, BOOSTER_SIZE, setBoosterPrice } from './collection.js';
 import { DEFAULT_REWARDS, MISSIONS, ACHIEVEMENTS, MAX_CARD_LEVEL, xpToNext, familyOf, levelCost } from './rewards.js';
 import { STARTERS, starterKit } from './collection.js';
 
@@ -71,9 +71,9 @@ function simulate(p, { set2Day = Infinity, set2Daily = Infinity, maxDays = 400, 
         let offers = missing(s).sort(() => Math.random() - 0.5).slice(0, S.dailyCards);
         for (;;) {
           const miss = missing(s).length / s.cards.length;
-          const boosterValue = (S.boosterSize * miss) / S.boosterPrice, cardValue = offers.length ? 1 / S.cardPrice : 0;
+          const bp = setBoosterPrice(s, S.boosterPrice), boosterValue = (S.boosterSize * miss) / bp, cardValue = offers.length ? 1 / S.cardPrice : 0;
           if (!miss) break;
-          if (boosterValue >= cardValue && a.shards >= S.boosterPrice) { a.shards -= S.boosterPrice; out.boostersBought++; own(Array.from({ length: S.boosterSize }, () => rnd(s.cards))); }
+          if (boosterValue >= cardValue && a.shards >= bp) { a.shards -= bp; out.boostersBought++; own(Array.from({ length: S.boosterSize }, () => rnd(s.cards))); }
           else if (cardValue && a.shards >= S.cardPrice) { a.shards -= S.cardPrice; out.cardsBought++; own([offers.shift()]); }
           else break;
           checks(day);

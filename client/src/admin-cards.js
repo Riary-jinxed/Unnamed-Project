@@ -2,6 +2,7 @@
 // Tout s'enregistre dans un brouillon côté serveur ; « Publier » l'applique au jeu.
 import { FAMILIES, GENERALS } from '@jeu/engine';
 import { famStyle } from './common.js';
+import { boosterExtraOf } from '@jeu/engine/collection';
 import { BASE_CARDS, CARD_FIELDS, EFFECT_SOURCES, editable, applyCatalog } from '@jeu/engine/catalog';
 
 const BASE_IDS = Object.keys(BASE_CARDS).filter(id => !BASE_CARDS[id].token);
@@ -149,11 +150,11 @@ export function cardsTab({ call, render, say, esc, notice, onPublished }) {
     if (S.set) return `${notice()}${renderSetEditor()}`;
     const list = draft().sets.map((s, i) => `<div class="card-box">
       <div class="row"><h3 style="margin-right:auto">${esc(s.name)}</h3><small class="hint">${s.cards.length} cartes</small><button class="btn" data-set-edit="${i}">Modifier</button></div>
-      <div class="row">${s.open ? '<span class="chip">En boutique</span>' : '<span class="chip">Bientôt disponible</span>'}${s.daily ? '<span class="chip">Booster quotidien</span>' : ''}</div>
+      <div class="row">${s.open ? '<span class="chip">En boutique</span>' : '<span class="chip">Bientôt disponible</span>'}${s.daily ? '<span class="chip">Booster quotidien</span>' : ''}${boosterExtraOf(s) ? `<span class="chip">Booster +${boosterExtraOf(s)} Éclats</span>` : ''}</div>
       ${s.teaser ? `<p class="hint" style="margin:0">${esc(s.teaser)}</p>` : ''}</div>`).join('');
     const loose = setIds(draft()).filter(id => !draft().sets.some(s => s.cards.includes(id)));
     return `${notice()}${banner()}
-    <div class="card-box"><p class="hint" style="margin:0">Un set ouvert a sa section en boutique (cartes du jour et booster du set). Un set fermé y apparaît comme « bientôt disponible ». Les sets « booster quotidien » alimentent le booster gratuit du jour.</p>
+    <div class="card-box"><p class="hint" style="margin:0">Un set ouvert a sa section en boutique (cartes du jour et booster du set). Un set fermé y apparaît comme « bientôt disponible ». Les sets « booster quotidien » alimentent le booster gratuit du jour. En boutique, les sets ouverts sont montrés du plus récent (le dernier de cette liste) au plus ancien.</p>
       <div class="row"><button class="btn primary" data-cat="new-set">Nouveau set</button></div>
       ${loose.length ? `<p class="hint" style="margin:0">Hors de tout set : ${loose.map(id => esc(setEntry(draft(), id).name)).join(', ')}.</p>` : ''}</div>
     ${list}`;
@@ -174,6 +175,7 @@ export function cardsTab({ call, render, say, esc, notice, onPublished }) {
       </div>
       <div class="row"><label class="check"><input type="checkbox" id="sf-open" ${s.open ? 'checked' : ''}> Ouvert en boutique</label>
         <label class="check"><input type="checkbox" id="sf-daily" ${s.daily ? 'checked' : ''}> Dans le booster quotidien</label></div>
+      <div class="field"><label class="eyebrow" for="sf-extra">Supplément du booster (Éclats, ajouté au prix d'un booster de l'onglet Boutique)</label><input id="sf-extra" type="number" min="0" max="100000" step="1" value="${boosterExtraOf(s)}"></div>
       <div class="field"><label class="eyebrow" for="sf-teaser">Présentation (affichée tant que le set est fermé)</label><textarea id="sf-teaser" maxlength="300" rows="2">${esc(s.teaser)}</textarea></div>
       <div class="row"><b style="margin-right:auto">Cartes du set</b><small class="hint">${s.cards.length} cartes</small></div>
       ${chips}
@@ -185,6 +187,7 @@ export function cardsTab({ call, render, say, esc, notice, onPublished }) {
     const el = id => document.getElementById(id);
     if (!el('set-form')) return;
     S.set.name = el('sf-name').value; S.set.teaser = el('sf-teaser').value; S.set.open = el('sf-open').checked; S.set.daily = el('sf-daily').checked;
+    S.set.boosterExtra = Math.max(0, Math.round(+el('sf-extra').value || 0));
     if (el('sf-id')) S.set.id = el('sf-id').value.trim();
   }
   function saveSet() {
@@ -219,7 +222,7 @@ export function cardsTab({ call, render, say, esc, notice, onPublished }) {
     }
     switch (t.dataset.cat) {
       case 'new': S.edit = null; S.form = { name: '', type: 'C', cost: 1, power: 1, fam: '', text: '', mobile: false, x: false, sacrifice: 0, effect: '', set: draft().sets[0]?.id || '' }; say(''); render(); return true;
-      case 'new-set': S.set = { index: null, id: '', name: '', open: false, daily: false, teaser: '', cards: [] }; say(''); render(); return true;
+      case 'new-set': S.set = { index: null, id: '', name: '', open: false, daily: false, teaser: '', boosterExtra: 0, cards: [] }; say(''); render(); return true;
       case 'cancel': S.edit = null; S.form = null; S.set = null; say(''); render(); return true;
       case 'copy-text': readForm(); S.form.text = BASE_CARDS[S.form.effect].text; render(); return true;
       case 'revert': { const next = clone(); delete next.cards[S.edit]; saveDraft(next, `${esc(BASE_CARDS[S.edit].name)} revient à l'origine dans le brouillon.`); return true; }

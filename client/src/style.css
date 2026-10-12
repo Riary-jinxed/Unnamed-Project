@@ -615,6 +615,22 @@ body:has(#app.ingame) { margin: 0; }
 .art.ph .ph-title { position: absolute; top: 34%; left: 8%; right: 8%; z-index: 1; text-align: center; color: #fff; font-family: var(--display); font-size: clamp(11px, 9cqi, 24px); line-height: 1.1; text-wrap: balance;
   text-shadow: 0 1px 3px rgb(0 0 0 / .9); }
 .art.ph .ph-title::after { content: "Illustration à venir"; display: block; margin-top: .4em; font-family: var(--body); font-size: .6em; opacity: .85; }
+/* Visuel provisoire (art.js, provHTML) : carte dont l'illustration n'est pas encore arrivée. Fond aux couleurs de la famille,
+   anneau et emblème au centre, « Illustration à venir » en haut ; disparaît de lui-même quand les images sont ajoutées. */
+.art.prov { background: radial-gradient(70% 50% at 50% 40%, color-mix(in srgb, var(--fam, var(--f-neutre)) 75%, #fff), transparent 72%),
+  repeating-conic-gradient(from 0deg at 50% 40%, rgb(255 255 255 / .05) 0 6deg, transparent 6deg 18deg),
+  linear-gradient(170deg, color-mix(in srgb, var(--fam, var(--f-neutre)) 70%, #1a1020), #0d0907 88%); }
+.prov-ring { position: absolute; left: 50%; top: 40%; width: 74%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%;
+  border: 2px solid rgb(255 255 255 / .35); box-shadow: inset 0 0 0 5px rgb(0 0 0 / .12), 0 0 18px color-mix(in srgb, var(--fam, var(--f-neutre)) 70%, transparent); }
+.prov-emb { position: absolute; left: 50%; top: 40%; width: 46%; translate: -50% -50%; color: rgb(255 255 255 / .9);
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / .5)) drop-shadow(0 0 10px color-mix(in srgb, var(--fam, var(--f-neutre)) 80%, #fff)); }
+.prov-tag { position: absolute; top: 5%; left: 0; right: 0; text-align: center; font-size: clamp(7px, 6.5cqi, 13px); font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: rgb(255 255 255 / .85); text-shadow: 0 1px 2px #000; }
+@container (max-width: 140px) { .prov-tag { display: none; } }
+/* Petites cartes (main, plateau) sans illustration : fond de la famille et emblème en filigrane. */
+.cart.prov { background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--fam, var(--f-neutre)) 70%, #fff 0%), transparent 70%),
+  linear-gradient(170deg, color-mix(in srgb, var(--fam, var(--f-neutre)) 65%, #1a1020), #0d0907); }
+.cart.prov .prov-emb { top: 38%; width: 58%; color: rgb(255 255 255 / .35); filter: none; }
 .rarchip { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #fff; background: var(--rar); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
 .chip.prism { border-color: #8a5bd6; color: var(--ink); background: color-mix(in srgb, #8a5bd6 18%, var(--surface)); }
 /* Boutique */

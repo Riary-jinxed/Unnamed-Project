@@ -62,6 +62,7 @@ export function catalogError(cat) {
     if (!ID_RE.test(String(s.id))) return `Identifiant de set « ${s.id} » : 2 à 30 caractères parmi a-z, 0-9 et _.`;
     if (typeof s.name !== 'string' || !s.name.trim() || s.name.length > 40) return 'Chaque set a un nom de 1 à 40 caractères.';
     if (typeof s.teaser !== 'string' || s.teaser.length > 300) return `${s.name} : présentation de 300 caractères au plus.`;
+    if (s.boosterExtra !== undefined && (!Number.isInteger(s.boosterExtra) || s.boosterExtra < 0 || s.boosterExtra > 100000)) return `${s.name} : supplément du booster entre 0 et 100000 Éclats.`;
     if (!Array.isArray(s.cards) || s.cards.some(id => !(BASE_CARDS[id] && !BASE_CARDS[id].token) && !GENERALS[id] && !cat.cards[id])) return `${s.name} contient une carte inconnue.`;
   }
   if (!cat.sets.some(s => s.daily && s.cards.length)) return 'Au moins un set non vide doit alimenter le booster quotidien.';
