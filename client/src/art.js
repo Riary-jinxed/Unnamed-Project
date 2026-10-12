@@ -53,7 +53,9 @@ export const popCard = (id, lvl, artId) => pops(lvl) && !isSpell(id) && !!(artId
 const isSpell = id => CARDS[id]?.type === 'S';
 
 // Fond illustré des petites cartes (main, plateau) : le décor seul, recadré sur le haut de la fenêtre de la carte.
-export const artBg = id => ART[id]?.decor ? `<span class="cart" style="background-image:url('${ART[id].decor}')" aria-hidden="true"></span>` : '';
+// artId : art alternatif choisi ; tant que ses images manquent, l'illustration d'origine.
+export const artBg = (id, artId = null) => { const a = (artId && ALT[artId]?.decor ? ALT[artId] : null) || ART[id];
+  return a?.decor ? `<span class="cart" style="background-image:url('${a.decor}')" aria-hidden="true"></span>` : ''; };
 
 // Illustration avec le nom de la carte en bas, dans la police de sa famille (style.css, --famfont).
 // artId : art alternatif à montrer à la place de l'illustration d'origine (null : l'origine).
@@ -72,18 +74,28 @@ const layers = (a, name, lvl, cls, spell, card) => { const perso = !spell && a.p
 // FACES : position du visage dans l'image, en % de sa largeur et de sa hauteur ; par défaut, en haut au centre.
 // Le portrait montre environ 40 % de la largeur et 33 % de la hauteur de l'image : le centre est borné pour ne jamais sortir de l'image.
 const FACES = { seraphine: [52, 44], aurelia: [48, 23], morgrath: [53, 29], vorgoth: [50, 25], grisk: [48, 39], snagg: [55, 46],
-  sylvaen: [44, 24], lirael: [34, 25], vaelthar: [55, 8], ignaroth: [45, 13] };
+  sylvaen: [44, 24], lirael: [34, 25], vaelthar: [55, 8], ignaroth: [45, 13],
+  // Arts alternatifs des généraux : le visage n'est pas au même endroit que sur l'illustration d'origine.
+  seraphine_zenith: [49, 48], aurelia_vitrail: [47, 29], morgrath_citrouilles: [47, 23], vorgoth_cercle: [50, 26],
+  grisk_butin: [44, 30], grisk_farce: [54, 40], snagg_festin: [22, 37], sylvaen_automne: [49, 20], lirael_vitrail: [41, 34],
+  vaelthar_glacier: [39, 29], ignaroth_eclipse: [53, 20] };
+// Illustration d'un général (art alternatif s'il a ses images) et position de son visage.
+function generalArt(id, artId) {
+  if (artId && ALT[artId]?.decor) return [ALT[artId], FACES[artId] || FACES[id] || [50, 25]];
+  return ART[id]?.decor ? [ART[id], FACES[id] || [50, 25]] : [null];
+}
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // artId : art alternatif choisi ; tant que ses images manquent, l'illustration d'origine. Sans illustration : rien.
 export function portraitHTML(id, artId = null) {
-  const a = (artId && ALT[artId]?.decor ? ALT[artId] : null) || ART[id]; if (!a?.decor) return '';
-  const [fx, fy] = FACES[id] || [50, 25], x = clamp(fx, 21, 79), y = clamp(fy, 17, 83);
+  const [a, [fx, fy] = []] = generalArt(id, artId); if (!a) return '';
+  const x = clamp(fx, 21, 79), y = clamp(fy, 17, 83);
   return `<span class="gport-art" style="--fx: ${x}; --fy: ${y}" aria-hidden="true"><img src="${a.decor}" alt="" decoding="async">${a.perso ? `<img src="${a.perso}" alt="" decoding="async">` : ''}</span>`;
 }
 // Général du deck joué, en grand sur l'accueil : décor et personnage entiers, sans cadre ni nom. Sans illustration : rien.
+// Le cadrage suit le visage (style.css, .hero-art), quelle que soit la forme du bandeau (large sur ordinateur, haut sur téléphone).
 export function heroHTML(id, artId = null) {
-  const a = (artId && ALT[artId]?.decor ? ALT[artId] : null) || ART[id]; if (!a?.decor) return '';
-  return `<span class="hero-art" aria-hidden="true"><img src="${a.decor}" alt="" decoding="async">${a.perso ? `<img src="${a.perso}" alt="" decoding="async">` : ''}</span>`;
+  const [a, [fx, fy] = []] = generalArt(id, artId); if (!a) return '';
+  return `<span class="hero-art" style="--fx: ${fx / 100}; --fy: ${fy / 100}" aria-hidden="true"><img src="${a.decor}" alt="" decoding="async">${a.perso ? `<img src="${a.perso}" alt="" decoding="async">` : ''}</span>`;
 }
 // Art alternatif : ses images avec un liseré de rareté, ou l'art provisoire.
 function altHTML(alt, name, lvl, cls) {
