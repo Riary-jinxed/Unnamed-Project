@@ -48,9 +48,11 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   // Prismes (monnaie rare des arts alternatifs), arts possédés et art choisi pour chaque carte.
   prisms: a.prisms || 0, arts: a.arts || {}, artSel: a.artSel || {},
   // Cartes dont le reflet holographique est coupé.
-  holoOff: a.holoOff || {} });
+  holoOff: a.holoOff || {},
+  // Cartes dont le débordement du personnage est coupé.
+  popOff: a.popOff || {} });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte.
 function addCards(a, ids, rate, essenceRate) {
@@ -250,6 +252,7 @@ export function createAccounts(store) {
   }
   async function selectArt(a, body) { arts.select(a, body || {}); await store.put(a); return { account: me(a) }; }
   async function holoArt(a, body) { arts.holo(a, body || {}); await store.put(a); return { account: me(a) }; }
+  async function popArt(a, body) { arts.pop(a, body || {}); await store.put(a); return { account: me(a) }; }
 
   // Decks : créer (sans id) ou enregistrer un deck, même incomplet ; seul un deck complet peut être joué.
   const deckName = (name, fallback) => String(name ?? '').trim().slice(0, 30) || fallback;
@@ -420,7 +423,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, passView, buyPass, buyArt, openChest, convertPrisms, claimDay, selectArt, holoArt, adminArt, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, passView, buyPass, buyArt, openChest, convertPrisms, claimDay, selectArt, holoArt, popArt, adminArt, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -457,6 +460,7 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/pass/premium': a => accounts.buyPass(a),
     'PUT /api/arts/select': (a, body) => accounts.selectArt(a, body),
     'PUT /api/arts/holo': (a, body) => accounts.holoArt(a, body),
+    'PUT /api/arts/pop': (a, body) => accounts.popArt(a, body),
     'POST /api/missions/reroll': (a, body) => accounts.reroll(a, body),
     'POST /api/rewards/seen': a => accounts.seen(a),
     'PUT /api/cosmetics': (a, body) => accounts.equip(a, body),
