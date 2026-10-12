@@ -63,43 +63,34 @@ function halftone(w, h, step, rMax, alpha = 0.3, from = 0.25) {
 }
 
 // ---- Icônes des monnaies (64 × 64) ----
+// Cristaux magiques : objets lumineux, halo et étincelles, sans contour d'encre pour rester nets en tout petit.
+const glint = (g, x, y, r, color = 0xffffff) => { const p = []; for (let i = 0; i < 8; i++) p.push(...pt(x, y, i % 2 ? r * 0.18 : r, -Math.PI / 2 + i * Math.PI / 4)); return g.poly(p).fill(color); };
+const group = (...kids) => { const c = new Container(); kids.forEach(k => c.addChild(k)); return c; };
 const ICONS = {
-  // Éclat : cristal d'ambre taillé.
-  shard: () => shadowed(() => {
-    const g = new Graphics();
-    g.poly([32, 3, 51, 22, 32, 61, 13, 22]).fill(0xe8a72e).stroke(ink(3.5));
-    g.poly([32, 3, 13, 22, 26, 22]).fill(0xffe7a0); g.poly([32, 3, 51, 22, 38, 22]).fill(0xf5c04a);
-    g.poly([13, 22, 26, 22, 32, 61]).fill(0xd88a1c); g.poly([51, 22, 38, 22, 32, 61]).fill(0x9a5810);
-    g.poly([32, 3, 51, 22, 32, 61, 13, 22]).stroke(ink(3.5));
-    g.moveTo(13, 22).lineTo(51, 22).moveTo(26, 22).lineTo(32, 3).lineTo(38, 22).moveTo(26, 22).lineTo(32, 61).lineTo(38, 22).stroke(ink(2));
-    star(g, 50, 9, 7).fill(0xffffff).stroke(ink(1.5));
-    return g;
-  }, 2, 3),
-  // Prisme : pyramide violette qui décompose la lumière.
-  prism: () => shadowed(() => {
-    const g = new Graphics();
-    ['#ff5a5a', '#ffd25a', '#5ad27a', '#5ab4ff'].forEach((c, i) => g.poly([40, 30 + i * 3, 63, 22 + i * 7, 63, 26 + i * 7, 40, 33 + i * 3]).fill(c));
-    g.poly([30, 4, 56, 56, 4, 56]).fill(0x9b6ee8);
-    g.poly([30, 4, 4, 56, 24, 56]).fill(0xc9a8ff); g.poly([30, 4, 56, 56, 36, 56]).fill(0x5a2fae);
-    g.poly([30, 4, 56, 56, 4, 56]).stroke(ink(3.5));
-    g.moveTo(30, 4).lineTo(24, 56).moveTo(30, 4).lineTo(36, 56).stroke(ink(2));
-    g.moveTo(17, 30).lineTo(11, 45).stroke({ width: 3, color: 0xffffff, cap: 'round' });
-    return g;
-  }, 2, 3),
-  // Coffre d'arts : bois verni, ferrures dorées, serrure à gemme.
-  chest: () => shadowed(() => {
-    const g = new Graphics();
-    g.roundRect(5, 30, 54, 28, 3).fill(0xa8642a).stroke(ink(3.5));
-    g.moveTo(8, 30).bezierCurveTo(8, 10, 56, 10, 56, 30).closePath().fill(0xc98a40).stroke(ink(3.5));
-    g.moveTo(14, 26).bezierCurveTo(16, 16, 30, 13, 40, 15).stroke({ width: 3, color: 0xf0c27a, cap: 'round' });
-    g.rect(5, 44, 54, 4).fill(0x7a4418);
-    for (const x of [12, 46]) g.rect(x, 17, 6, 41).fill(0xf2c94a).stroke(ink(2));
-    g.rect(5, 28, 54, 5).fill(0xf2c94a).stroke(ink(2));
-    g.roundRect(25, 28, 14, 16, 3).fill(0xf2c94a).stroke(ink(2.5));
-    g.poly([32, 31, 36, 36, 32, 41, 28, 36]).fill(0xe0405a).stroke(ink(1.5));
-    g.circle(31, 34.5, 1.2).fill(0xffffff);
-    return g;
-  }, 2, 3),
+  // Éclat : grappe de cristaux d'ambre qui luit.
+  shard: () => { const g = new Graphics();
+    const cr = (x, y, h, w, a, c1, c2) => { const s = new Graphics(); s.poly([0, -h, w, -h * 0.55, w * 0.8, 0, -w * 0.8, 0, -w, -h * 0.55]).fill(grad([[0, c1], [1, c2]], 'linear', [0, 0, 1, 0]));
+      s.poly([0, -h, -w, -h * 0.55, -w * 0.8, 0, 0, 0]).fill({ color: 0xffffff, alpha: 0.35 }); s.position.set(x, y); s.rotation = a; return s; };
+    const c = group(glow(() => new Graphics().ellipse(32, 38, 22, 24).fill(0xffffff), 0xffa020, 10, 0.75),
+      cr(19, 56, 30, 8, -0.45, 0xffd060, 0xc06000), cr(45, 56, 28, 8, 0.45, 0xffd060, 0xc06000), cr(32, 58, 52, 11, 0, 0xfff0a0, 0xd87a00), g);
+    g.ellipse(32, 58, 22, 4).fill({ color: 0x5a2a00, alpha: 0.6 }); glint(g, 50, 12, 7); glint(g, 14, 22, 5, 0xfff0a0); return c; },
+  // Prisme : gemme violette qui flotte, entourée d'étincelles.
+  prism: () => { const g = new Graphics();
+    g.poly([32, 4, 48, 26, 32, 58, 16, 26]).fill(grad([[0, 0xf0e0ff], [0.45, 0xa070ff], [1, 0x4a1aa0]], 'linear', [0, 0, 1, 1]));
+    g.poly([32, 4, 48, 26, 32, 58]).fill({ color: 0x3a0a90, alpha: 0.45 }); g.poly([32, 4, 16, 26, 32, 26]).fill({ color: 0xffffff, alpha: 0.5 });
+    g.moveTo(16, 26).lineTo(48, 26).stroke({ width: 1.2, color: 0xffffff, alpha: 0.6 });
+    glint(g, 52, 10, 7); glint(g, 10, 44, 5, 0xe0c8ff); glint(g, 50, 50, 4, 0xe0c8ff);
+    return group(glow(() => new Graphics().poly([32, 4, 48, 26, 32, 58, 16, 26]).fill(0xffffff), 0xa060ff, 12, 0.85), g); },
+  // Coffre d'arts : entrouvert, la lumière en jaillit.
+  chest: () => { const g = new Graphics();
+    // coffre entrouvert, lumière qui jaillit
+    const beam = new Graphics().poly([20, 30, 44, 30, 58, 2, 6, 2]).fill(0xfff0a0); beam.alpha = 0.7; beam.blendMode = 'add'; beam.filters = [new BlurFilter({ strength: 4 })];
+    g.roundRect(8, 32, 48, 26, 5).fill(grad([[0, 0xb06a30], [1, 0x6a3410]]));
+    g.rect(8, 44, 48, 3).fill(0x5a2a08); for (const x of [16, 42]) g.rect(x, 32, 6, 26).fill(grad([[0, 0xfff0a0], [1, 0xc08a20]], 'linear', [0, 0, 1, 0]));
+    g.poly([6, 30, 58, 30, 54, 16, 10, 12]).fill(grad([[0, 0xd88a40], [1, 0xa05a20]])); g.poly([6, 30, 58, 30, 57, 27, 7, 27]).fill(0xf0c040);
+    g.rect(10, 30, 44, 3).fill(0xfff6c0); g.roundRect(28, 33, 8, 10, 2).fill(0xf0c040); g.circle(32, 38, 2.5).fill(0xd0103a);
+    glint(g, 32, 12, 7); glint(g, 18, 18, 4, 0xfff0a0); glint(g, 47, 20, 5, 0xfff0a0);
+    return group(glow(() => new Graphics().rect(10, 26, 44, 8).fill(0xffffff), 0xffd060, 8, 0.9), beam, g); },
 };
 export function drawIcon(kind) {
   const f = ICONS[kind]; if (!f) return null;
