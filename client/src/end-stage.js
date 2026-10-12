@@ -4,10 +4,11 @@
 // avec son compteur qui monte ; la barre de niveau se remplit (niveau gagné : elle déborde, le médaillon change de nombre,
 // « Niveau 13 ! » tombe dessus) ; en classé, les étoiles s'allument ou s'éteignent une à une, et une promotion est tamponnée.
 // Or et étincelles pour une victoire, tons éteints et poussière pour une défaite.
+// Vibrations (sfx.js, buzz, coupées dans le profil) : niveau gagné, étoile gagnée ou perdue, promotion.
 // Toucher la toile passe l'animation. Tout l'affichage est calculé à partir du temps écoulé : passer, redimensionner ou
 // redessiner la page (render de main.js) ne fait que recaler la même scène au même instant.
 import { Application, Color, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
-import { play } from './sfx.js';
+import { play, buzz } from './sfx.js';
 
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const ease = k => 1 - Math.pow(1 - k, 3);
@@ -193,7 +194,7 @@ function draw(quiet = false) {
   // Niveau gagné : le médaillon rebondit, le halo s'allume, « Niveau N ! » tombe sur la barre.
   let pop = 0, lastUp = null;
   bars.forEach((p, i) => { if (!p.up) return; const at = p.a + p.d; if (t >= at) { lastUp = { at, level: bars[i + 1]?.level ?? p.level + 1 };
-    fire(`up${i}`, () => { play('levelup'); burst(30, 33, tint, 34, 4.5); ring(30, 33, tint); burst(S.x0 + S.bw, S.by + 6, tint, 16, 3); }); } });
+    fire(`up${i}`, () => { play('levelup'); buzz([20, 30, 20, 30, 60]); burst(30, 33, tint, 34, 4.5); ring(30, 33, tint); burst(S.x0 + S.bw, S.by + 6, tint, 16, 3); }); } });
   if (lastUp) { const e = t - lastUp.at; pop = e < 500 ? Math.sin(Math.PI * clamp(e / 500, 0, 1)) : 0;
     // Le tampon reste 1,6 s puis s'efface ; le médaillon garde son halo.
     S.stamp.text = `NIVEAU ${lastUp.level} !`; const ks = seg(t, lastUp.at, 380); S.stamp.alpha = Math.min(1, ks * 2) * (1 - seg(t, lastUp.at + 1600, 400)); S.stamp.scale.set(2.2 - 1.2 * back(ks));
@@ -230,14 +231,14 @@ function drawRank(r, t, fire) {
     s.g.alpha = r.c.alpha;
     if (s.at !== undefined && rel >= s.at) fire(`star${i}`, () => {
       const x = r.stars.x + s.g.x, y = r.y + r.stars.y;
-      if (s.on1) { play('up'); burst(x, y, C.gold, 18, 3); ring(x, y, C.gold, 0.6); } else { play('down'); shatterAt(x, y); }
+      if (s.on1) { play('up'); buzz(15); burst(x, y, C.gold, 18, 3); ring(x, y, C.gold, 0.6); } else { play('down'); buzz([40, 30, 15]); shatterAt(x, y); }
     });
   });
   if (k.promoted && k.delta > 0) {
     const pa = (r.swapAt ?? 500) + 200, kp = seg(rel, pa, 380);
     r.promo.alpha = rel < pa ? 0 : rel < pa + 1400 ? Math.min(1, kp * 2) : Math.max(0, 1 - (rel - pa - 1400) / 400);
     r.promo.scale.set(2.2 - 1.2 * back(kp));
-    if (rel >= pa) fire('promo', () => { play('fresh'); burst(r.promo.x, r.y + 30, C.gold, 30, 4); ring(r.promo.x, r.y + 30, C.gold, 1.4); });
+    if (rel >= pa) fire('promo', () => { play('fresh'); buzz([30, 40, 30, 40, 90]); burst(r.promo.x, r.y + 30, C.gold, 30, 4); ring(r.promo.x, r.y + 30, C.gold, 1.4); });
   }
 }
 

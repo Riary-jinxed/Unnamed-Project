@@ -1489,19 +1489,21 @@ function viewEffects(prev, view) {
     after.push(() => banner(at('.board'), ...turnBanner(view)));
     sounds.push('turn', 'draw');
   }
+  let result = null;
   if (view.phase === 'over' && prev.phase !== 'over' && view.result) {
-    const win = view.result.winner === view.seat;
-    sounds.push(win ? 'win' : view.result.winner < 0 ? 'tie' : 'lose');
+    const win = view.result.winner === view.seat; result = win ? 'win' : view.result.winner < 0 ? 'tie' : 'lose';
     list.push(['.panel.end', 'end-in']);
     // Les zones s'allument une à une à la couleur de leur gagnant, puis les confettis en cas de victoire.
+    // Fanfare (ou chute) et vibration avec le grand titre (stage.js, ending) : il frappe tout de suite en victoire,
+    // il tombe en défaite et la vibration arrive quand il touche le sol.
+    const res = result;
     after.push(() => { [0, 1, 2].forEach(z => { const s = zoneSide(view, z); if (s) zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[s], z * 220, true); });
-      setTimeout(() => ending(win ? 'win' : view.result.winner < 0 ? 'tie' : 'lose'), 700); if (win) setTimeout(confetti, 450); });
+      setTimeout(() => { ending(res); play(res); setTimeout(() => feel(res), res === 'lose' ? 490 : 0); }, 700); if (win) setTimeout(confetti, 450); });
   }
   ui.fx = { list, flip, burst, after };
   [...new Set(sounds)].slice(0, 3).forEach((s, i) => i ? setTimeout(() => play(s), i * 110) : play(s));
-  // Une seule vibration par changement, la plus forte : la fin de partie, une carte détruite, un coup reçu…
-  const result = sounds.find(s => ['win', 'lose', 'tie'].includes(s));
-  feel(result || (gone ? 'destroy' : hurt ? 'hit' : sounds.includes('astral') ? 'astral' : sounds.includes('general') ? 'general'
+  // Une seule vibration par changement, la plus forte : la fin de partie (jouée avec le titre, plus haut), une carte détruite, un coup reçu…
+  if (!result) feel((gone ? 'destroy' : hurt ? 'hit' : sounds.includes('astral') ? 'astral' : sounds.includes('general') ? 'general'
     : sounds.includes('spell') ? 'spell' : sounds.includes('terrain') ? 'terrain' : sounds.includes('turn') ? 'turn' : ''));
 }
 // Applique une seule fois les animations préparées, sur les éléments du rendu qui vient d'avoir lieu.
