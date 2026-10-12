@@ -38,7 +38,7 @@ export function start() {
     const { root, spawn, glowTex, sparkTex, shardTex, rnd } = kit(), now = performance.now();
     if (!root) return;
     for (const el of root.querySelectorAll('.pbar [data-general]')) {
-      const side = el.dataset.side, m = MOTES[el.dataset.fam] || MOTES[''];
+      const side = el.dataset.side, m = MOTES[el.dataset.gfam] || MOTES[''];
       if (el.classList.contains('used')) continue;
       const every = el.classList.contains('ready') || el.classList.contains('armed') ? m.every * 0.6 : m.every;
       if (now - last[side] < every) continue;
