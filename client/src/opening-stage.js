@@ -10,6 +10,8 @@ let back = null, front = null, ready = null, glowTex = null, sparkTex = null, sh
 let parts = [], anims = [], loops = [], dust = null;
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a);
 const ease = k => 1 - Math.pow(1 - k, 3);
+// Hauteur de la fente du coffre dans son dessin (opening.js, viewBox 200×200 : couvercle fermé sur le corps à y = 100).
+const SEAM = 0.5;
 const toNum = c => { try { return new Color(c).toNumber(); } catch { return 0xffe7a3; } };
 const tween = (ms, update, done) => anims.push({ t: 0, ms, update, done });
 
@@ -164,7 +166,7 @@ export function knock(chest, hits, color) {
   const { r, x } = box(chest), tint = toNum(color);
   for (let i = 0; i < 8 + hits * 4; i++) spawn(front, glowTex, x + rnd(-r.width / 2, r.width / 2), r.bottom - 4, { tint: 0x8a7458, blend: 'normal', vx: rnd(-2.5, 2.5), vy: rnd(-1.2, -0.2), drag: 0.93, scale: rnd(0.05, 0.1), grow: 0.15, alpha: 0.35, ttl: rnd(30, 50) });
   for (let i = 0; i < 4 + hits * 3; i++) spawn(front, shardTex, x + rnd(-r.width / 2, r.width / 2), r.top + r.height * rnd(0.4, 0.8), { tint: 0x7a4a22, blend: 'normal', vx: rnd(-4, 4), vy: rnd(-6, -2), g: 0.3, drag: 0.99, spin: rnd(-0.3, 0.3), rot: rnd(0, TAU), scale: rnd(0.5, 0.9), ttl: rnd(35, 55) });
-  for (let i = 0; i < 6 + hits * 4; i++) spawn(front, sparkTex, x, r.top + r.height * 0.42, { tint: i % 2 ? tint : 0xffffff, vx: rnd(-4, 4), vy: rnd(-4, 0.5), g: 0.1, scale: rnd(0.2, 0.45), ttl: rnd(20, 40) });
+  for (let i = 0; i < 6 + hits * 4; i++) spawn(front, sparkTex, x, r.top + r.height * SEAM, { tint: i % 2 ? tint : 0xffffff, vx: rnd(-4, 4), vy: rnd(-4, 0.5), g: 0.1, scale: rnd(0.2, 0.45), ttl: rnd(20, 40) });
 }
 // Lumière qui filtre par la fente du couvercle, de plus en plus forte. Rappelée à chaque coup avec la couleur du moment.
 let seamGlow = null;
@@ -174,21 +176,21 @@ export function seam(chest, level, color) {
     seamGlow = new Sprite(glowTex); seamGlow.anchor.set(0.5); seamGlow.blendMode = 'add'; seamGlow.alpha = 0; front.stage.addChild(seamGlow);
     const g = seamGlow; let t = 0;
     loops.push(dt => { if (g.destroyed || !chest.isConnected) return; t += dt; const { r, x } = box(chest);
-      g.position.set(x, r.top + r.height * 0.42); g.width = r.width * (1 + g.lv * 0.35); g.height = r.height * (0.18 + g.lv * 0.12);
+      g.position.set(x, r.top + r.height * SEAM); g.width = r.width * (1 + g.lv * 0.35); g.height = r.height * (0.18 + g.lv * 0.12);
       g.alpha += ((0.35 + g.lv * 0.22 + Math.sin(t / 6) * 0.08) - g.alpha) * 0.12 * dt;
-      if (Math.random() < g.lv * 0.12) spawn(front, sparkTex, x + rnd(-r.width / 2, r.width / 2), r.top + r.height * 0.42, { tint: g.tint, vx: rnd(-0.3, 0.3), vy: rnd(-2, -0.6), scale: rnd(0.15, 0.3), ttl: rnd(25, 45) }); });
+      if (Math.random() < g.lv * 0.12) spawn(front, sparkTex, x + rnd(-r.width / 2, r.width / 2), r.top + r.height * SEAM, { tint: g.tint, vx: rnd(-0.3, 0.3), vy: rnd(-2, -0.6), scale: rnd(0.15, 0.3), ttl: rnd(25, 45) }); });
   }
   seamGlow.lv = level; seamGlow.tint = tint;
 }
 // La lueur monte d'une rareté : onde de choc et éclair à la nouvelle couleur.
 export function tierUp(chest, color) {
-  const { r, x } = box(chest), y = r.top + r.height * 0.42, tint = toNum(color);
+  const { r, x } = box(chest), y = r.top + r.height * SEAM, tint = toNum(color);
   ring(x, y, tint, { r: 40, width: 5, grow: r.width / 14, ttl: 40 }); flash(tint, 0.3);
   for (let i = 0; i < 30; i++) { const a = rnd(0, TAU), v = rnd(2, 6); spawn(front, sparkTex, x, y, { tint: i % 3 ? tint : 0xffffff, vx: Math.cos(a) * v, vy: Math.sin(a) * v, scale: rnd(0.25, 0.5), ttl: rnd(25, 45) }); }
 }
 // Le couvercle saute : colonne de lumière, rayons qui tournent derrière l'art, fontaine d'étincelles, pièces d'or qui retombent.
 export function chestOpen(chest, color, rarity) {
-  const { r, x } = box(chest), y = r.top + r.height * 0.42, tint = toNum(color), big = rarity === 'legendaire' ? 2 : rarity === 'epique' ? 1 : 0;
+  const { r, x } = box(chest), y = r.top + r.height * SEAM, tint = toNum(color), big = rarity === 'legendaire' ? 2 : rarity === 'epique' ? 1 : 0;
   if (seamGlow && !seamGlow.destroyed) { const g = seamGlow; tween(500, k => { g.alpha = 1 - k; }, () => g.destroy()); seamGlow = null; }
   flash(tint, 0.45 + big * 0.1);
   ring(x, y, tint, { r: 50, width: 6, grow: r.width / 10, ttl: 45 }); setTimeout(() => ring(x, y, 0xffffff, { r: 40, width: 3, grow: r.width / 8, ttl: 55 }), 120);
