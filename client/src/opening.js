@@ -7,6 +7,15 @@ import { reduceMotion } from './fx.js';
 
 const buzz = p => { try { navigator.vibrate?.(p); } catch { /* vibreur indisponible */ } };
 const wait = ms => new Promise(r => setTimeout(r, ms));
+// Effets PixiJS (opening-stage.js) : chargés à la première ouverture, seulement avec WebGL. Tant qu'ils ne sont pas prêts,
+// ou s'ils ne peuvent pas l'être, l'ouverture garde ses effets en CSS (opening.css) ; prêts, ils les remplacent (classe .px).
+const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
+function stageFor(root, onReady) {
+  if (!webgl()) return;
+  import('./opening-stage.js').then(m => m.mount(root).then(ok => { if (!ok || !root.isConnected) return; root.classList.add('px'); root._fx = m; onReady?.(m); }))
+    .catch(err => console.warn('Effets PixiJS de l\'ouverture indisponibles', err));
+}
+const cssVar = (el, name) => getComputedStyle(el).getPropertyValue(name).trim();
 
 // Calque plein écran, fermé par `close` ; Échap passe directement au résultat.
 function overlay(cls, html, onSkip) {
@@ -19,7 +28,7 @@ function overlay(cls, html, onSkip) {
   root.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); onSkip(); } });
   return root;
 }
-function close(root) { root.classList.add('out'); setTimeout(() => root.remove(), 260); }
+function close(root) { root.classList.add('out'); setTimeout(() => { root._fx?.unmount(root); root.remove(); }, 260); }
 
 // Booster. cards : [{ html, fresh, general, tag }] dans l'ordre reçu ; set : 'base', 'set2'… (couleurs du paquet) ;
 // back : dos de carte du joueur. done() affiche ensuite le récapitulatif.
@@ -50,7 +59,10 @@ export function openPack({ title, setName, set, back, cards }, done) {
   const stage = root.querySelector('.op-stage'), pack = root.querySelector('.pack'), stack = root.querySelector('.stack');
   const hint = root.querySelector('.op-hint'), count = root.querySelector('.op-count');
   const els = [...stack.children];
-  let idx = 0, tear = 0, torn = false, ready = false;
+  let idx = 0, tear = 0, torn = false, ready = false, stopHint = null, stopRays = null;
+  const fx = () => root._fx, pk = () => cssVar(root, '--pk2');
+  // Une carte nouvelle déjà présentée quand PixiJS arrive reçoit tout de suite son halo.
+  stageFor(root, m => { const el = els[idx]; if (ready && el?.classList.contains('hint')) stopHint = m.hint(el, order[idx].general); });
 
   // 1. Le paquet penche sous le doigt ; glisser le long du haut le déchire, un simple appui le déchire d'un coup.
   const setTilt = e => { const r = pack.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
@@ -59,12 +71,12 @@ export function openPack({ title, setName, set, back, cards }, done) {
     if (torn) return;
     const step = Math.floor(v * 10) > Math.floor(tear * 10);
     tear = Math.min(1, v); pack.style.setProperty('--tear', tear.toFixed(3));
-    if (step) { play('tear'); buzz(4); }
+    if (step) { play('tear'); buzz(4); const r = pack.getBoundingClientRect(); fx()?.tear(r.left + tear * r.width, r.top + r.height * 0.13, pk()); }
     if (tear >= 1) rip();
   };
   const autoTear = () => { const go = () => { if (torn) return; setTear(tear + 0.07); requestAnimationFrame(go); }; go(); };
   async function rip() {
-    torn = true; pack.classList.add('torn'); play('rip'); buzz(30);
+    torn = true; pack.classList.add('torn'); play('rip'); buzz(30); fx()?.rip(pack, pk());
     hint.textContent = '';
     await wait(260); stack.hidden = false; layout(); stack.classList.add('rise'); pack.classList.add('away');
     await wait(620); pack.remove(); ready = true; present();
@@ -79,13 +91,14 @@ export function openPack({ title, setName, set, back, cards }, done) {
     const el = els[idx]; if (!el) { finish(); return; }
     count.textContent = `${idx + 1} / ${n}`;
     const c = order[idx];
-    if (c.fresh) { el.classList.add('hint'); play('shimmer'); buzz(c.general ? [15, 40, 15] : 10); hint.textContent = c.general ? 'Quelque chose de rare… touchez pour retourner' : 'Touchez pour retourner la carte'; }
+    if (c.fresh) { el.classList.add('hint'); play('shimmer'); stopHint = fx()?.hint(el, c.general); buzz(c.general ? [15, 40, 15] : 10); hint.textContent = c.general ? 'Quelque chose de rare… touchez pour retourner' : 'Touchez pour retourner la carte'; }
     else { hint.textContent = ''; setTimeout(() => { if (els[idx] === el) flip(el); }, 300); }
   }
   function flip(el) {
     if (el.classList.contains('flip')) return;
     const c = order[idx];
     el.classList.remove('hint'); el.classList.add('flip');
+    stopHint?.(); stopHint = null; stopRays = fx()?.reveal(el, c.fresh ? (c.general ? 2 : 1) : 0);
     if (c.fresh) { play(c.general ? 'astral' : 'fresh'); buzz(c.general ? [30, 50, 60] : 25); el.classList.add('shine'); }
     else play('flip');
     hint.textContent = idx < n - 1 ? 'Touchez ou glissez pour la carte suivante' : 'Touchez pour voir le résumé';
@@ -94,7 +107,7 @@ export function openPack({ title, setName, set, back, cards }, done) {
     if (idx >= n - 1) { finish(); return; }
     el.style.transition = 'transform .42s cubic-bezier(.4,0,.6,1), opacity .42s';
     el.style.transform = `translate(${dir * 110}vw, -8vh) rotate(${dir * 28}deg)`; el.style.opacity = '0';
-    play('toss'); setTimeout(() => el.remove(), 450);
+    play('toss'); fx()?.toss(el, dir); stopRays?.(); stopRays = null; setTimeout(() => el.remove(), 450);
     idx++; layout(); present();
   }
   // Un appui : déchirer, retourner la carte du dessus, ou la jeter pour voir la suivante.
@@ -160,6 +173,8 @@ export function openChest({ rarity, html, chip, name, sub }, done) {
   root.setAttribute('aria-label', 'Coffre d\'arts');
   const chest = root.querySelector('.chest'), hint = root.querySelector('.op-hint'), flash = root.querySelector('.opflash');
   let hits = 0, tier = 0, opened = false, shown = false;
+  const fx = () => root._fx, rar = () => cssVar(root, '--rar');
+  stageFor(root, m => { if (hits && !opened) m.seam(chest, hits, rar()); });
   const setTier = t => { root.classList.remove(`rar-${TIERS[tier]}`); tier = t; root.classList.add(`rar-${TIERS[t]}`); };
   const restart = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
   async function hit() {
@@ -167,15 +182,14 @@ export function openChest({ rarity, html, chip, name, sub }, done) {
     chest.style.setProperty('--amp', hits); chest.dataset.hits = hits;
     restart(chest, 'shake'); play('knock'); buzz(12 * hits);
     const t = Math.min(hits - 1, top);
-    if (t > tier || hits === 1) {
-      setTier(t);
-      if (hits > 1) { restart(flash, 'go'); await wait(120); play('chestUp'); buzz([30, 30, 60]); }
-    }
+    if (t > tier || hits === 1) setTier(t);
+    fx()?.knock(chest, hits, rar()); fx()?.seam(chest, hits, rar());
+    if (t > 0 && t === tier && hits === t + 1) { restart(flash, 'go'); fx()?.tierUp(chest, rar()); await wait(120); play('chestUp'); buzz([30, 30, 60]); }
     hint.textContent = hits < 3 ? `Encore ${3 - hits} coup${3 - hits > 1 ? 's' : ''}…` : '';
     if (hits === 3) { await wait(480); open(); }
   }
   async function open() {
-    opened = true; root.classList.add('lit'); chest.classList.add('open');
+    opened = true; root.classList.add('lit'); chest.classList.add('open'); fx()?.chestOpen(chest, rar(), rarity);
     play('chestOpen'); buzz([40, 30, 80]);
     if (top) setTimeout(() => play('astral'), 260);
     await wait(1100); shown = true; hint.textContent = 'Touchez pour continuer';

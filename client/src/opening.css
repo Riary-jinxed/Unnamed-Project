@@ -151,3 +151,9 @@
 .opreward-meta small { color: #cfc9b8; }
 .opchest.rar-legendaire.lit .opreward-card { animation: legend 2.4s ease-in-out 1.3s infinite; }
 @keyframes legend { 50% { box-shadow: 0 0 0 3px var(--rar), 0 0 60px 18px color-mix(in srgb, var(--rar) 80%, transparent), 0 18px 30px rgb(0 0 0 / .5); } }
+
+/* ---------- Effets PixiJS (opening-stage.js) ---------- */
+/* Deux toiles : l'une derrière le contenu du calque, l'autre devant. Prêtes, elles remplacent les effets CSS ci-dessus. */
+.op > :not(canvas) { position: relative; z-index: 1; }
+.op.px .oc-burst, .op.px .oprays, .op.px .opflash, .op.px .opsparks { display: none; }
+.op.px .chest-seam { box-shadow: none !important; }
