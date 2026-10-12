@@ -600,7 +600,7 @@ function genSlot(side, isMe, canGen) {
   const [short, epithet] = g.name.split(/,\s*/);
   const pic = portraitHTML(side.general, artIn(seat, side.general)) || `<span class="gport-init" aria-hidden="true">${esc(short[0])}</span>`;
   // --gt : le portrait respire sans à-coup d'un rendu à l'autre (ses animations CSS reprennent là où elles en étaient).
-  return `<button class="gencard${lvCls(levelIn(seat, side.general))} ${state}" style="${famVar([g.fam])}; --gt: -${Math.round(performance.now())}ms" data-general="${side.general}" data-fam="${g.fam || ''}" data-side="${isMe ? 'me' : 'foe'}"
+  return `<button class="gencard${lvCls(levelIn(seat, side.general))} ${state}" style="${famVar([g.fam])}; --gt: -${Math.round(performance.now())}ms" data-general="${side.general}" data-gfam="${g.fam || ''}" data-side="${isMe ? 'me' : 'foe'}"
     aria-label="Général : ${esc(g.name)}, ${esc(note)}" title="${esc(g.text)}">
     <span class="gport">${pic}</span>
     <span class="gtx"><span class="gk">Général</span><span class="gn ${epithet ? '' : 'two'}">${esc(short)}</span>${epithet ? `<span class="ge">${esc(epithet)}</span>` : ''}
