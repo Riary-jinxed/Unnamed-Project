@@ -1,0 +1,429 @@
+// Dessins des cosmétiques avec PixiJS : icônes des monnaies, dos de carte et cadres de profil, dans la patte « BD encrée »
+// des cartes (encrage noir épais, aplats, ombre franche décalée, trame de points). Tout est vectoriel : cosmetics.js rend
+// chaque dessin une fois en image, à la définition de l'écran, et la pose sur les classes existantes (.ico-…, .back-…, .frame-…).
+// Chaque fonction rend un Container de taille fixe (BACK_W × BACK_H, FRAME_S², ICON_S²), ou null pour un identifiant inconnu
+// (le dessin CSS de style.css reste alors en place).
+import { BlurFilter, Container, FillGradient, Graphics, Sprite, Texture } from 'pixi.js';
+
+export const BACK_W = 240, BACK_H = 336, FRAME_S = 256, ICON_S = 64;
+// Le cadre déborde du portrait : l'image fait 1 + 2 × FRAME_OUT fois la taille du portrait encadré (cosmetics.js).
+// Trou central : rayon FRAME_HOLE × FRAME_S, un peu plus petit que le portrait pour que l'anneau en morde le bord.
+export const FRAME_OUT = 0.14, FRAME_HOLE = 0.33;
+const INK = 0x170d08, TAU = Math.PI * 2;
+
+// ---- Outils ----
+const grad = (stops, type = 'linear', [x0, y0, x1, y1] = [0, 0, 0, 1]) => new FillGradient(type === 'radial'
+  ? { type, center: { x: 0.5, y: 0.5 }, innerRadius: 0, outerCenter: { x: 0.5, y: 0.5 }, outerRadius: 0.5, colorStops: stops.map(([offset, color]) => ({ offset, color })), textureSpace: 'local' }
+  : { type, start: { x: x0, y: y0 }, end: { x: x1, y: y1 }, colorStops: stops.map(([offset, color]) => ({ offset, color })), textureSpace: 'local' });
+const ink = (w = 4, color = INK) => ({ width: w, color, join: 'round', cap: 'round' });
+const pt = (cx, cy, r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+// Hasard reproductible : même dessin à chaque rendu.
+const seeded = s => () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+// Arc seul, sans trait qui le relie au tracé précédent.
+const arc = (g, cx, cy, r, a0, a1) => g.moveTo(...pt(cx, cy, r, a0)).arc(cx, cy, r, a0, a1);
+const G = c => add(c, new Graphics());
+const add = (parent, ...kids) => { kids.forEach(k => parent.addChild(k)); return kids[0]; };
+// Feuille à calques : on y trace comme dans un Graphics ; un enfant ajouté (addChild) se pose par-dessus ce qui est déjà tracé,
+// et la suite se trace au-dessus de lui. « root » est le Container qui porte le tout.
+function layers() {
+  const root = new Container(); let cur = add(root, new Graphics());
+  const g = new Proxy({}, { get(_, k) {
+    if (k === 'root') return root;
+    if (k === 'addChild') return (...kids) => { kids.forEach(x => root.addChild(x)); cur = add(root, new Graphics()); return kids[0]; };
+    const v = cur[k]; return typeof v === 'function' ? (...a) => { const r = v.apply(cur, a); return r === cur ? g : r; } : v;
+  } });
+  return g;
+}
+const R = x => x.root || x;
+// Ombre franche : le même dessin, tout en encre, décalé en bas à droite.
+function shadowed(draw, dx = 3, dy = 4, alpha = 0.55) {
+  const c = new Container(), s = R(draw()); s.tint = INK; s.alpha = alpha; s.position.set(dx, dy);
+  c.addChild(s, R(draw())); return c;
+}
+// Halo flou derrière un dessin (cosmétiques rares).
+function glow(draw, color, strength = 10, alpha = 0.8) {
+  const g = draw(); g.tint = color; g.alpha = alpha; g.filters = [new BlurFilter({ strength, quality: 4 })]; return g;
+}
+const star = (g, x, y, r, n = 4, inner = 0.32, rot = -Math.PI / 2) => {
+  const p = []; for (let i = 0; i < n * 2; i++) p.push(...pt(x, y, i % 2 ? r * inner : r, rot + i * Math.PI / n)); return g.poly(p);
+};
+// Trame BD : points d'encre, plus gros loin du centre. Dessinée une fois en 2D (des milliers de points) et partagée par tous les dos.
+let halftoneTex = null;
+function halftone(w, h, step, rMax, alpha = 0.3, from = 0.25) {
+  if (!halftoneTex) {
+    const c = document.createElement('canvas'); c.width = w * 2; c.height = h * 2;
+    const g = c.getContext('2d'), cx = w / 2, cy = h / 2, far = Math.hypot(cx, cy);
+    g.scale(2, 2); g.fillStyle = '#170d08'; g.beginPath();
+    for (let y = step / 2, row = 0; y < h; y += step * 0.87, row++) for (let x = (row % 2 ? step / 2 : 0); x < w + step; x += step) {
+      const k = (Math.hypot(x - cx, y - cy) / far - from) / (1 - from); if (k <= 0) continue;
+      const r = rMax * Math.min(1, k); g.moveTo(x + r, y); g.arc(x, y, r, 0, TAU); }
+    g.fill(); halftoneTex = Texture.from(c);
+  }
+  const s = new Sprite(halftoneTex); s.width = w; s.height = h; s.alpha = alpha; return s;
+}
+
+// ---- Icônes des monnaies (64 × 64) ----
+// Cristaux magiques : objets lumineux, halo et étincelles, sans contour d'encre pour rester nets en tout petit.
+const glint = (g, x, y, r, color = 0xffffff) => { const p = []; for (let i = 0; i < 8; i++) p.push(...pt(x, y, i % 2 ? r * 0.18 : r, -Math.PI / 2 + i * Math.PI / 4)); return g.poly(p).fill(color); };
+const group = (...kids) => { const c = new Container(); kids.forEach(k => c.addChild(k)); return c; };
+const ICONS = {
+  // Éclat : grappe de cristaux d'ambre qui luit.
+  shard: () => { const g = new Graphics();
+    const cr = (x, y, h, w, a, c1, c2) => { const s = new Graphics(); s.poly([0, -h, w, -h * 0.55, w * 0.8, 0, -w * 0.8, 0, -w, -h * 0.55]).fill(grad([[0, c1], [1, c2]], 'linear', [0, 0, 1, 0]));
+      s.poly([0, -h, -w, -h * 0.55, -w * 0.8, 0, 0, 0]).fill({ color: 0xffffff, alpha: 0.35 }); s.position.set(x, y); s.rotation = a; return s; };
+    const c = group(glow(() => new Graphics().ellipse(32, 38, 22, 24).fill(0xffffff), 0xffa020, 10, 0.75),
+      cr(19, 56, 30, 8, -0.45, 0xffd060, 0xc06000), cr(45, 56, 28, 8, 0.45, 0xffd060, 0xc06000), cr(32, 58, 52, 11, 0, 0xfff0a0, 0xd87a00), g);
+    g.ellipse(32, 58, 22, 4).fill({ color: 0x5a2a00, alpha: 0.6 }); glint(g, 50, 12, 7); glint(g, 14, 22, 5, 0xfff0a0); return c; },
+  // Prisme : gemme violette qui flotte, entourée d'étincelles.
+  prism: () => { const g = new Graphics();
+    g.poly([32, 4, 48, 26, 32, 58, 16, 26]).fill(grad([[0, 0xf0e0ff], [0.45, 0xa070ff], [1, 0x4a1aa0]], 'linear', [0, 0, 1, 1]));
+    g.poly([32, 4, 48, 26, 32, 58]).fill({ color: 0x3a0a90, alpha: 0.45 }); g.poly([32, 4, 16, 26, 32, 26]).fill({ color: 0xffffff, alpha: 0.5 });
+    g.moveTo(16, 26).lineTo(48, 26).stroke({ width: 1.2, color: 0xffffff, alpha: 0.6 });
+    glint(g, 52, 10, 7); glint(g, 10, 44, 5, 0xe0c8ff); glint(g, 50, 50, 4, 0xe0c8ff);
+    return group(glow(() => new Graphics().poly([32, 4, 48, 26, 32, 58, 16, 26]).fill(0xffffff), 0xa060ff, 12, 0.85), g); },
+  // Coffre d'arts : entrouvert, la lumière en jaillit.
+  chest: () => { const g = new Graphics();
+    // coffre entrouvert, lumière qui jaillit
+    const beam = new Graphics().poly([20, 30, 44, 30, 58, 2, 6, 2]).fill(0xfff0a0); beam.alpha = 0.7; beam.blendMode = 'add'; beam.filters = [new BlurFilter({ strength: 4 })];
+    g.roundRect(8, 32, 48, 26, 5).fill(grad([[0, 0xb06a30], [1, 0x6a3410]]));
+    g.rect(8, 44, 48, 3).fill(0x5a2a08); for (const x of [16, 42]) g.rect(x, 32, 6, 26).fill(grad([[0, 0xfff0a0], [1, 0xc08a20]], 'linear', [0, 0, 1, 0]));
+    g.poly([6, 30, 58, 30, 54, 16, 10, 12]).fill(grad([[0, 0xd88a40], [1, 0xa05a20]])); g.poly([6, 30, 58, 30, 57, 27, 7, 27]).fill(0xf0c040);
+    g.rect(10, 30, 44, 3).fill(0xfff6c0); g.roundRect(28, 33, 8, 10, 2).fill(0xf0c040); g.circle(32, 38, 2.5).fill(0xd0103a);
+    glint(g, 32, 12, 7); glint(g, 18, 18, 4, 0xfff0a0); glint(g, 47, 20, 5, 0xfff0a0);
+    return group(glow(() => new Graphics().rect(10, 26, 44, 8).fill(0xffffff), 0xffd060, 8, 0.9), beam, g); },
+};
+export function drawIcon(kind) {
+  const f = ICONS[kind]; if (!f) return null;
+  const c = new Container(); c.addChild(f()); return c;
+}
+
+// ---- Emblèmes des dos (dessinés autour de 0,0, rayon utile ~60) ----
+const EMBLEMS = {
+  // Sceau du jeu : trois gemmes, les trois zones du plateau, autour d'une étoile.
+  sceau: () => { const g = new Graphics();
+    star(g, 0, 0, 58, 4, 0.22, 0).fill(0x8f5f1c).stroke(ink(3));
+    g.circle(0, 0, 38).stroke(ink(9)).circle(0, 0, 38).stroke({ width: 4.5, color: 0xe3b552 });
+    for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + i * TAU / 3, [x, y] = pt(0, 0, 38, a), [lx, ly] = pt(x, y, 17, a - Math.PI / 2), [rx, ry] = pt(x, y, 17, a + Math.PI / 2),
+      [ox, oy] = pt(x, y, 22, a), [ix, iy] = pt(x, y, 18, a + Math.PI);
+      g.poly([ox, oy, rx, ry, ix, iy, lx, ly]).fill(0xf5d27a).stroke(ink(3.5)); g.poly([ox, oy, rx, ry, ix, iy]).fill(0xb8812a); g.poly([ox, oy, rx, ry, ix, iy, lx, ly]).stroke(ink(3.5)); }
+    g.circle(0, 0, 13).fill(0xfff3cf).stroke(ink(3.5)); star(g, 0, 0, 8, 4, 0.35).fill(0xe3b552);
+    return g; },
+  // Ange : auréole et ailes de plumes.
+  ailes: () => { const g = new Graphics();
+    for (const s of [-1, 1]) for (let i = 0; i < 4; i++) { const a = s < 0 ? Math.PI + 0.55 - i * 0.32 : -0.55 + i * 0.32, len = 58 - i * 7;
+      g.poly(featherPoly(s * 8, 6, a, len, 11 - i)).fill(i % 2 ? 0xe9dcb4 : 0xfff6d6).stroke(ink(3)); }
+    g.ellipse(0, -40, 24, 7).stroke(ink(9)).ellipse(0, -40, 24, 7).stroke({ width: 4.5, color: 0xf3d27a });
+    g.poly([0, -16, 10, 6, 0, 30, -10, 6]).fill(0xf3d27a).stroke(ink(3.5)); g.poly([0, -16, 10, 6, 0, 30]).fill(0xc99a1e); g.poly([0, -16, 10, 6, 0, 30, -10, 6]).stroke(ink(3.5));
+    return g; },
+  // Démon : pentacle et cornes.
+  cornes: () => { const g = new Graphics();
+    for (const s of [-1, 1]) {
+      g.moveTo(s * 16, -18).bezierCurveTo(s * 30, -36, s * 46, -44, s * 44, -68).bezierCurveTo(s * 60, -46, s * 52, -20, s * 34, -6).closePath().fill(0xe8d8b8).stroke(ink(3.5));
+      g.moveTo(s * 40, -12).bezierCurveTo(s * 52, -26, s * 54, -44, s * 46, -62).stroke({ width: 4, color: 0x9a8a6a, cap: 'round' });
+    }
+    g.circle(0, 12, 40).fill(0x2a0606).stroke(ink(8)).circle(0, 12, 40).stroke({ width: 3.5, color: 0xff5a3a });
+    const p = []; for (let i = 0; i < 5; i++) p.push(pt(0, 12, 38, -Math.PI / 2 + i * TAU / 5));
+    const path = [0, 2, 4, 1, 3, 0].map(i => p[i]);
+    g.moveTo(...path[0]); path.slice(1).forEach(q => g.lineTo(...q)); g.stroke(ink(8));
+    g.moveTo(...path[0]); path.slice(1).forEach(q => g.lineTo(...q)); g.stroke({ width: 3.5, color: 0xff7a52, join: 'round' });
+    return g; },
+  // Gobelin : dagues croisées sur un bouclier clouté.
+  dagues: () => { const g = layers();
+    g.circle(0, 0, 40).fill(0x7a5a2a).stroke(ink(4)); g.circle(0, 0, 30).stroke({ width: 3, color: 0x5a3e1a });
+    for (let i = 0; i < 8; i++) { const [x, y] = pt(0, 0, 35, i * TAU / 8); g.circle(x, y, 3).fill(0xc9a24a).stroke(ink(1.5)); }
+    for (const s of [-1, 1]) { const d = new Graphics();
+      d.poly([0, -62, 8, -48, 6, 14, -6, 14, -8, -48]).fill(0xd8dde4).stroke(ink(3.5)); d.poly([0, -62, 8, -48, 6, 14, 0, 14]).fill(0x9aa3ae); d.poly([0, -62, 8, -48, 6, 14, -6, 14, -8, -48]).stroke(ink(3.5));
+      d.roundRect(-18, 14, 36, 8, 3).fill(0xc9a24a).stroke(ink(3)); d.roundRect(-5, 22, 10, 24, 3).fill(0x6a3a1a).stroke(ink(3)); d.circle(0, 50, 6).fill(0xc9a24a).stroke(ink(3));
+      d.rotation = s * 0.62; g.addChild(d); }
+    return g; },
+  // Elfe : feuille sous un croissant de lune.
+  feuille: () => { const g = layers();
+    for (const s of [-1, 1]) { const l = leaf(0.7, 0x4fbcad, 0x1f6b61); l.rotation = s * 0.9; l.position.set(s * 8, 18); g.addChild(l); }
+    const main = leaf(1, 0x8fe0cf, 0x2a8a7e); main.position.set(0, 4); g.addChild(main);
+    const m = new Graphics(); m.circle(0, -52, 14).fill(0xfff3cf).stroke(ink(3)); m.circle(6, -56, 12).fill(0x1f6b61); g.addChild(m);
+    return g; },
+  // Dragon : œil fendu sous une crête d'écailles.
+  oeil: () => { const g = new Graphics();
+    for (let i = -2; i <= 2; i++) g.poly([i * 18 - 9, -22, i * 18, -46 + Math.abs(i) * 9, i * 18 + 9, -22]).fill(0x8a3a10).stroke(ink(3));
+    g.moveTo(-60, 4).quadraticCurveTo(0, -42, 60, 4).quadraticCurveTo(0, 46, -60, 4).closePath().fill(grad([[0, 0xfff07a], [0.6, 0xffb02a], [1, 0xd0500c]], 'radial')).stroke(ink(4.5));
+    g.ellipse(0, 4, 8, 26).fill(INK); g.circle(-10, -6, 5).fill(0xffffff);
+    g.moveTo(-60, 4).quadraticCurveTo(0, -42, 60, 4).stroke(ink(6));
+    return g; },
+  // Mort-vivant : crâne couronné sur deux os croisés.
+  crane: () => { const g = layers();
+    for (const s of [-1, 1]) { const b = new Graphics();
+      b.roundRect(-6, -52, 12, 104, 6).fill(0xe9e2cc).stroke(ink(3));
+      for (const y of [-52, 52]) b.circle(-6, y, 8).circle(6, y, 8).fill(0xe9e2cc).stroke(ink(3));
+      b.rotation = s * 0.8; g.addChild(b); }
+    const k = new Graphics();
+    k.poly([-26, -36, -20, -58, -10, -42, 0, -62, 10, -42, 20, -58, 26, -36]).fill(0xb8a060).stroke(ink(3));
+    k.circle(0, -8, 32).fill(0xe9e2cc).stroke(ink(4)); k.roundRect(-18, 14, 36, 22, 6).fill(0xe9e2cc).stroke(ink(4));
+    k.moveTo(-28, 0).bezierCurveTo(-30, 18, -16, 22, -14, 14).lineTo(-14, 30).lineTo(-26, 26).closePath().fill(0xb8b098);
+    k.ellipse(-12, -6, 9, 10).ellipse(12, -6, 9, 10).fill(INK); k.circle(-12, -5, 3).circle(12, -5, 3).fill(0x9effa0);
+    k.poly([0, 6, 5, 14, -5, 14]).fill(INK);
+    for (const x of [-9, -3, 3, 9]) k.moveTo(x, 20).lineTo(x, 34); k.stroke(ink(2.5));
+    g.addChild(k); return g; },
+  // Vampire : goutte de sang entre deux ailes de chauve-souris.
+  goutte: () => { const g = new Graphics();
+    for (const s of [-1, 1]) {
+      g.moveTo(s * 10, -8).lineTo(s * 30, -30).lineTo(s * 64, -22).lineTo(s * 58, 6).quadraticCurveTo(s * 50, -2, s * 44, 10).quadraticCurveTo(s * 36, 0, s * 28, 14).quadraticCurveTo(s * 20, 6, s * 12, 18).closePath()
+        .fill(0x2a0a14).stroke(ink(3.5));
+      g.moveTo(s * 30, -30).lineTo(s * 44, 10).moveTo(s * 30, -30).lineTo(s * 28, 14).stroke({ width: 2, color: 0x6a1a34 });
+    }
+    g.moveTo(0, -54).bezierCurveTo(10, -30, 32, -8, 32, 16).arc(0, 16, 32, 0, Math.PI).bezierCurveTo(-32, -8, -10, -30, 0, -54).closePath().fill(0xd0203a).stroke(ink(4));
+    g.moveTo(0, -54).bezierCurveTo(10, -30, 32, -8, 32, 16).arc(0, 16, 32, 0, Math.PI / 2).lineTo(0, -20).closePath().fill(0x8a0c20);
+    g.moveTo(0, -54).bezierCurveTo(10, -30, 32, -8, 32, 16).arc(0, 16, 32, 0, Math.PI).bezierCurveTo(-32, -8, -10, -30, 0, -54).closePath().stroke(ink(4));
+    g.ellipse(-14, 14, 5, 10).fill(0xffd0d8);
+    return g; },
+  // Halloween : citrouille sculptée qui luit.
+  citrouille: () => { const g = new Graphics();
+    g.moveTo(0, -36).quadraticCurveTo(4, -50, 14, -56).stroke({ width: 8, color: INK, cap: 'round' }).moveTo(0, -36).quadraticCurveTo(4, -50, 14, -56).stroke({ width: 4, color: 0x3a7a2a, cap: 'round' });
+    for (const [x, rx, c] of [[-24, 30, 0xd0661a], [24, 30, 0xd0661a], [0, 32, 0xf08a24]]) g.ellipse(x, 6, rx, 42).fill(c).stroke(ink(4));
+    g.ellipse(0, 6, 32, 42).stroke(ink(4));
+    g.poly([-22, -8, -8, -8, -15, -22]).poly([22, -8, 8, -8, 15, -22]).fill(0xffd25a).stroke(ink(2.5));
+    g.poly([-30, 14, -20, 22, -10, 14, 0, 22, 10, 14, 20, 22, 30, 14, 20, 34, 0, 38, -20, 34]).fill(0xffd25a).stroke(ink(2.5));
+    return g; },
+  // Circuit : puce néon.
+  puce: () => { const g = new Graphics();
+    for (let i = -2; i <= 2; i++) for (const [x0, y0, x1, y1] of [[i * 12, -34, i * 12, -50], [i * 12, 34, i * 12, 50], [-34, i * 12, -50, i * 12], [34, i * 12, 50, i * 12]]) {
+      g.moveTo(x0, y0).lineTo(x1, y1); }
+    g.stroke({ width: 4, color: 0x19c8e6, cap: 'round' });
+    for (let i = -2; i <= 2; i++) g.circle(i * 12, -52, 3).circle(i * 12, 52, 3).circle(-52, i * 12, 3).circle(52, i * 12, 3); g.fill(0x7cffff);
+    g.roundRect(-36, -36, 72, 72, 8).fill(0x0b1530).stroke(ink(5)).roundRect(-36, -36, 72, 72, 8).stroke({ width: 3, color: 0x19c8e6 });
+    g.roundRect(-20, -20, 40, 40, 4).stroke({ width: 3, color: 0xd42bb8 }); g.circle(0, 0, 9).fill(0x7cffff);
+    return g; },
+};
+// Plume : forme effilée qui part du centre de l'aile.
+function featherPoly(x, y, a, len, w) {
+  const [tx, ty] = pt(x, y, len, a), [mx, my] = pt(x, y, len * 0.55, a), n = a + Math.PI / 2;
+  return [x, y, mx + Math.cos(n) * w, my + Math.sin(n) * w, tx, ty, mx - Math.cos(n) * w * 0.6, my - Math.sin(n) * w * 0.6];
+}
+function leaf(k, light, dark) {
+  const g = new Graphics(), h = 58 * k, w = 26 * k;
+  g.moveTo(0, -h).bezierCurveTo(w * 1.5, -h * 0.4, w, h * 0.6, 0, h).bezierCurveTo(-w, h * 0.6, -w * 1.5, -h * 0.4, 0, -h).closePath().fill(light).stroke(ink(3.5));
+  g.moveTo(0, -h).bezierCurveTo(w * 1.5, -h * 0.4, w, h * 0.6, 0, h).closePath().fill(dark);
+  g.moveTo(0, -h).bezierCurveTo(w * 1.5, -h * 0.4, w, h * 0.6, 0, h).bezierCurveTo(-w, h * 0.6, -w * 1.5, -h * 0.4, 0, -h).closePath().stroke(ink(3.5));
+  g.moveTo(0, -h * 0.8).lineTo(0, h * 1.1).stroke(ink(2.5));
+  for (let i = 1; i <= 3; i++) { const y = -h * 0.5 + i * h * 0.3; g.moveTo(0, y).lineTo(w * 0.6, y - h * 0.18).moveTo(0, y).lineTo(-w * 0.6, y - h * 0.18); }
+  return g.stroke(ink(1.8));
+}
+
+// ---- Dos de carte (240 × 336) ----
+// bg : dégradé du fond (haut, bas) ; ray : rayons ; rim : filet ; med : fond du médaillon ; pattern : motif sous la trame ; night : voile du Crépuscule.
+const FAMILY_BACKS = {
+  classique: { bg: [0x3a281a, 0x150d08], ray: 0x5a3e24, rim: 0xe3b552, med: 0x24170e, emblem: 'sceau' },
+  ange: { bg: [0x8cc4ee, 0x2f5f9a], ray: 0xc8e8ff, rim: 0xf3d27a, med: 0x4a7fb8, emblem: 'ailes' },
+  demon: { bg: [0x8e2420, 0x2a0606], ray: 0xb8322a, rim: 0xff7a52, med: 0x3a0808, emblem: 'cornes' },
+  gobelin: { bg: [0x6c9a3e, 0x1f3d16], ray: 0x8cba52, rim: 0xe0c060, med: 0x2c4a1e, emblem: 'dagues' },
+  elfe: { bg: [0x2a8a7e, 0x0f3a34], ray: 0x4fbcad, rim: 0xd8f0c0, med: 0x14463f, emblem: 'feuille' },
+  dragon: { bg: [0xd0702a, 0x4a1c06], ray: 0xe08a3a, rim: 0xffd25a, med: 0x5a2208, emblem: 'oeil', pattern: 'scales' },
+  mortvivant: { bg: [0x6f8a7a, 0x1e2a24], ray: 0x8aa492, rim: 0xc8d8b0, med: 0x2a3a32, emblem: 'crane' },
+  vampire: { bg: [0x8c2350, 0x24040f], ray: 0xa8325f, rim: 0xff8aac, med: 0x3a0818, emblem: 'goutte' },
+  halloween: { bg: [0x3a2050, 0x140b1d], ray: 0x5a2f70, rim: 0xf08a24, med: 0x1d1028, emblem: 'citrouille' },
+  cyber: { bg: [0x12244a, 0x060c1c], ray: 0x1a3060, rim: 0x19c8e6, med: 0x081022, emblem: 'puce', pattern: 'circuit', glow: 0x19c8e6 },
+};
+// Familles vues au Crépuscule : même emblème, voile violet nocturne, filet argent lavande.
+for (const f of ['ange', 'demon', 'gobelin', 'elfe', 'dragon']) FAMILY_BACKS[`${f}_set2`] = { ...FAMILY_BACKS[f], bg: [0x4a3470, 0x120a24], ray: 0x5a4288, rim: 0xd8c8ff, med: 0x1d1236, night: true, pattern: null };
+
+function panelShape(g, inset, r) { return g.roundRect(inset, inset, BACK_W - inset * 2, BACK_H - inset * 2, r); }
+function backFrame(c, t, inner) {
+  const W = BACK_W, H = BACK_H;
+  add(c, new Graphics().roundRect(0, 0, W, H, 16).fill(INK));
+  const body = add(c, new Container()), mask = panelShape(new Graphics(), 7, 11).fill(0xffffff);
+  c.addChild(mask); body.mask = mask;
+  add(body, panelShape(new Graphics(), 0, 0).rect(0, 0, W, H).fill(grad([[0, t.bg[0]], [1, t.bg[1]]])));
+  inner(body);
+  // trame BD par-dessus le fond, plus dense vers les bords
+  add(body, halftone(W, H, 9, 3.2, 0.35, 0.2));
+  const f = add(c, new Graphics());
+  panelShape(f, 15, 8).stroke(ink(6)); panelShape(f, 15, 8).stroke({ width: 2.5, color: t.rim });
+  for (const [x, y] of [[15, 15], [W - 15, 15], [15, H - 15], [W - 15, H - 15]]) f.poly([x, y - 9, x + 9, y, x, y + 9, x - 9, y]).fill(t.rim).stroke(ink(2.5));
+  for (const y of [15, H - 15]) star(f, W / 2, y, 11, 4, 0.4).fill(t.rim).stroke(ink(2.5));
+}
+function rays(g, t, n = 22) {
+  const cx = BACK_W / 2, cy = BACK_H / 2;
+  for (let i = 0; i < n; i += 2) g.poly([cx, cy, ...pt(cx, cy, 400, i * TAU / n), ...pt(cx, cy, 400, (i + 1) * TAU / n)]);
+  return g.fill({ color: t.ray, alpha: 0.45 });
+}
+function pattern(body, t) {
+  const g = add(body, new Graphics()), rnd = seeded(7);
+  if (t.pattern === 'scales') {
+    for (let y = -10, r = 0; y < BACK_H + 20; y += 14, r++) for (let x = r % 2 ? 0 : 12; x < BACK_W + 24; x += 24) arc(g, x, y, 12, 0, Math.PI).stroke({ width: 2.5, color: 0x6a2808, alpha: 0.7 });
+  } else if (t.pattern === 'circuit') {
+    for (let i = 0; i < 26; i++) { let x = Math.round(rnd() * 12) * 20, y = Math.round(rnd() * 17) * 20; g.moveTo(x, y);
+      for (let s = 0; s < 3; s++) { rnd() < 0.5 ? (x += (rnd() < 0.5 ? -1 : 1) * 40) : (y += (rnd() < 0.5 ? -1 : 1) * 40); g.lineTo(x, y); }
+      g.stroke({ width: 2, color: 0x19c8e6, alpha: 0.45 }); g.circle(x, y, 3.5).fill({ color: 0x7cffff, alpha: 0.7 }); }
+  } else rays(g, t);
+  if (t.night) {
+    for (let i = 0; i < 40; i++) { const x = rnd() * BACK_W, y = rnd() * BACK_H, r = 0.8 + rnd() * 1.6; g.circle(x, y, r).fill({ color: 0xffffff, alpha: 0.5 + rnd() * 0.5 }); }
+    star(g, 52, 70, 7, 4, 0.3).star(188, 268, 6, 4, 0.3).fill(0xfff3cf);
+    g.circle(184, 66, 20).fill(0xfff3cf).stroke(ink(3)); g.circle(194, 60, 18).fill(t.bg[0]);
+  }
+}
+function medallion(c, t, emblem) {
+  const cx = BACK_W / 2, cy = BACK_H / 2, m = add(c, new Container()); m.position.set(cx, cy);
+  if (t.glow) add(m, glow(() => new Graphics().circle(0, 0, 70).fill(0xffffff), t.glow, 14, 0.6));
+  add(m, new Graphics().circle(0, 0, 76).fill(t.med).stroke(ink(7)).circle(0, 0, 69).stroke({ width: 3, color: t.rim }));
+  const rg = add(m, new Graphics()); for (let i = 0; i < 16; i += 2) rg.poly([0, 0, ...pt(0, 0, 66, i * TAU / 16), ...pt(0, 0, 66, (i + 1) * TAU / 16)]); rg.fill({ color: t.ray, alpha: 0.35 });
+  add(m, shadowed(EMBLEMS[emblem]));
+}
+// Scènes pleine carte des passes de saison premium.
+const SCENES = {
+  // Nuit hantée : pleine lune, château et chauves-souris.
+  halloween_p: { rim: 0xc8a0ff, bg: [0x5a2a86, 0x12081d], draw(body) {
+    const g = add(body, new Graphics()), W = BACK_W, rnd = seeded(3);
+    for (let i = 0; i < 30; i++) g.circle(rnd() * W, rnd() * 200, 0.8 + rnd() * 1.4).fill({ color: 0xffffff, alpha: 0.7 });
+    add(body, glow(() => new Graphics().circle(W / 2, 128, 66).fill(0xffffff), 0xffd27a, 24, 0.7));
+    g.circle(W / 2, 128, 62).fill(0xffe9a8).stroke(ink(5)); g.circle(W / 2 - 18, 112, 12).circle(W / 2 + 22, 146, 9).circle(W / 2 + 14, 104, 6).fill(0xe8c878);
+    const s = add(body, new Graphics()), base = 262;
+    s.poly([0, base, 40, base - 18, 80, base - 6, 120, base - 22, 160, base - 6, 200, base - 18, W, base, W, 336, 0, 336]).fill(0x12081d);
+    for (const [x, w, h] of [[78, 22, 70], [104, 32, 96], [140, 22, 70]]) { s.rect(x, base - h, w, h).fill(0x12081d); s.poly([x - 4, base - h, x + w / 2, base - h - 30, x + w + 4, base - h]).fill(0x12081d); }
+    for (const [x, y] of [[88, 214], [118, 190], [148, 214], [118, 222]]) s.rect(x - 3, y - 5, 6, 10).fill(0xffd25a);
+    for (const [x, y, k] of [[60, 70, 1], [180, 210, 0.8], [44, 200, 0.7], [196, 96, 0.9]]) bat(s, x, y, k);
+  } },
+  // Mégapole : soleil néon, gratte-ciel et sol quadrillé.
+  cyber_p: { rim: 0xff5ad8, bg: [0x2a0d4a, 0x060818], glow: 0xd42bb8, draw(body) {
+    const W = BACK_W, H = BACK_H, hz = 214;
+    add(body, glow(() => new Graphics().circle(W / 2, 150, 70).fill(0xffffff), 0xff5ad8, 26, 0.8));
+    const g = add(body, new Graphics());
+    g.circle(W / 2, 150, 66).fill(grad([[0, 0xfff05a], [0.55, 0xff7a6a], [1, 0xd42bb8]]));
+    for (let i = 0; i < 6; i++) g.rect(W / 2 - 70, 160 + i * 9, 140, 2 + i * 0.9).fill(0x2a0d4a);
+    const rnd = seeded(11), city = add(body, new Graphics());
+    for (let x = -4; x < W; ) { const w = 14 + rnd() * 18, h = 30 + rnd() * 70 * (1 - Math.abs(x + w / 2 - W / 2) / W);
+      city.rect(x, hz - h, w, h).fill(0x0b0a24).stroke({ width: 1.5, color: 0x19c8e6, alpha: 0.6 });
+      for (let wy = hz - h + 6; wy < hz - 4; wy += 8) for (let wx = x + 4; wx < x + w - 3; wx += 6) if (rnd() < 0.45) city.rect(wx, wy, 2.5, 3).fill(rnd() < 0.5 ? 0x7cffff : 0xff8ae0);
+      x += w + 2; }
+    const f = add(body, new Graphics()); f.rect(0, hz, W, H - hz).fill(0x0b0620);
+    for (let i = -8; i <= 8; i++) f.moveTo(W / 2 + i * 6, hz).lineTo(W / 2 + i * 60, H);
+    for (let k = 0; k < 7; k++) { const y = hz + Math.pow(k / 6, 1.8) * (H - hz); f.moveTo(0, y).lineTo(W, y); }
+    f.stroke({ width: 2, color: 0xff5ad8, alpha: 0.8 }); f.moveTo(0, hz).lineTo(W, hz).stroke({ width: 3, color: 0x7cffff });
+  } },
+};
+function bat(g, x, y, k) {
+  g.moveTo(x, y).quadraticCurveTo(x - 10 * k, y - 10 * k, x - 22 * k, y - 4 * k).quadraticCurveTo(x - 16 * k, y, x - 14 * k, y + 6 * k).quadraticCurveTo(x - 8 * k, y + 1 * k, x, y + 6 * k)
+    .quadraticCurveTo(x + 8 * k, y + 1 * k, x + 14 * k, y + 6 * k).quadraticCurveTo(x + 16 * k, y, x + 22 * k, y - 4 * k).quadraticCurveTo(x + 10 * k, y - 10 * k, x, y).closePath().fill(0x12081d);
+}
+export function drawBack(id) {
+  const scene = SCENES[id], t = scene || FAMILY_BACKS[id]; if (!t) return null;
+  const c = new Container();
+  backFrame(c, { ray: 0, med: 0, ...t }, body => (scene ? scene.draw(body) : pattern(body, t)));
+  if (!scene) medallion(c, t, t.emblem);
+  return c;
+}
+
+// ---- Cadres de profil (256 × 256, trou rond au centre) ----
+const C = FRAME_S / 2, RH = FRAME_HOLE * FRAME_S, RB = RH + 20;
+// Anneau de métal BD : aplat, reflet franc en haut à gauche, ombre franche en bas à droite, deux traits d'encre.
+function ring(g, { base, hi, lo }, r0 = RH, r1 = RB) {
+  const m = (r0 + r1) / 2, w = r1 - r0;
+  g.circle(C, C, m).stroke({ width: w, color: base });
+  arc(g, C, C, m, Math.PI * 1.05, Math.PI * 1.55).stroke({ width: w * 0.4, color: hi, cap: 'round' });
+  arc(g, C, C, m + w * 0.18, Math.PI * 0.05, Math.PI * 0.7).stroke({ width: w * 0.4, color: lo, cap: 'round' });
+  g.circle(C, C, r1).stroke(ink(4.5)); g.circle(C, C, r0).stroke(ink(4.5));
+  return g;
+}
+const beads = (g, n, r, color, size = 4, from = 0) => { for (let i = 0; i < n; i++) { const [x, y] = pt(C, C, r, from + i * TAU / n); g.circle(x, y, size).fill(color).stroke(ink(2)); } return g; };
+const gem = (g, x, y, r, color, light = 0xffffff) => { g.poly([x, y - r, x + r, y, x, y + r, x - r, y]).fill(color).stroke(ink(2.5)); g.poly([x, y - r, x + r, y, x, y]).fill({ color: light, alpha: 0.45 }); return g.poly([x, y - r, x + r, y, x, y + r, x - r, y]).stroke(ink(2.5)); };
+const roundGem = (g, x, y, r, color) => g.circle(x, y, r).fill(color).stroke(ink(2.5)).circle(x - r * 0.3, y - r * 0.3, r * 0.3).fill({ color: 0xffffff, alpha: 0.85 });
+// Fleuron : trois lobes et une pointe, posé sur l'anneau à l'angle a.
+function fleuron(g, a, color, size = 1) {
+  const f = new Graphics(), s = size;
+  f.circle(0, -14 * s, 6 * s).circle(-9 * s, -6 * s, 5 * s).circle(9 * s, -6 * s, 5 * s).fill(color).stroke(ink(2.5));
+  f.poly([0, -30 * s, 6 * s, -16 * s, 0, -4 * s, -6 * s, -16 * s]).fill(color).stroke(ink(2.5));
+  const [x, y] = pt(C, C, RB - 2, a); f.position.set(x, y); f.rotation = a + Math.PI / 2; g.addChild(f);
+}
+function crown(g, color, gems, y = C - RB + 6) {
+  const k = new Graphics(), w = 76, h = 40;
+  k.poly([-w / 2, 0, -w / 2 - 6, -h, -w / 4, -h * 0.45, 0, -h - 8, w / 4, -h * 0.45, w / 2 + 6, -h, w / 2, 0]).fill(color).stroke(ink(3.5));
+  k.rect(-w / 2, -8, w, 10).fill(color).stroke(ink(3));
+  [[-w / 2 - 6, -h], [0, -h - 8], [w / 2 + 6, -h]].forEach(([x, yy]) => k.circle(x, yy, 4.5).fill(0xfff3cf).stroke(ink(2)));
+  gems.forEach((c, i) => roundGem(k, -w / 2 + 8 + i * (w - 16) / Math.max(1, gems.length - 1), -3, 4.5, c));
+  k.position.set(C, y); g.addChild(k);
+}
+function laurel(g, color, dark) {
+  for (const s of [-1, 1]) for (let i = 0; i < 6; i++) { const a = Math.PI / 2 + s * (0.35 + i * 0.22), [x, y] = pt(C, C, RB + 4, a), l = new Graphics();
+    l.ellipse(0, 0, 5, 11).fill(i % 2 ? color : dark).stroke(ink(2)); l.position.set(x, y); l.rotation = a + s * 0.6; g.addChild(l); }
+}
+const sparkle = (g, x, y, r) => star(g, x, y, r, 4, 0.25).fill(0xffffff).stroke(ink(1.5));
+const METAL = {
+  bronze: { base: 0xc07a3a, hi: 0xf0b27a, lo: 0x7a4218 }, argent: { base: 0xc8ced6, hi: 0xffffff, lo: 0x7d8794 },
+  or: { base: 0xe3b552, hi: 0xfff0b0, lo: 0x9a6a1c }, platine: { base: 0xa8d4ce, hi: 0xf4fffd, lo: 0x5f8e88 },
+  diamant: { base: 0x8cc8f0, hi: 0xffffff, lo: 0x3a7fd0 }, fer: { base: 0x4a3a34, hi: 0x8a6a5a, lo: 0x24180f },
+  nuit: { base: 0x2a3a7a, hi: 0x6a7ad0, lo: 0x141c44 }, violet: { base: 0x6a3a9a, hi: 0xb08ae0, lo: 0x3a1a5a },
+  maitre: { base: 0x9a4ad0, hi: 0xf08ad8, lo: 0x4a1a7a }, neon: { base: 0x0b1530, hi: 0x19c8e6, lo: 0x050a18 },
+};
+const FAM_GEMS = [0xe2b93e, 0xd0443a, 0x4f8c3a, 0x2a8a7e, 0xe07a2a];
+const FRAMES = {
+  bronze: g => { ring(g, METAL.bronze); beads(g, 4, (RH + RB) / 2, 0x7a4218, 4.5, Math.PI / 4); },
+  argent: g => { ring(g, METAL.argent); beads(g, 8, (RH + RB) / 2, 0xffffff, 3.5, Math.PI / 8); fleuron(g, -Math.PI / 2, 0xdfe4ea, 0.8); },
+  or: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2).stroke({ width: 10, color: 0xffffff }), 0xffd45a, 8, 0.6));
+    ring(g, METAL.or); beads(g, 16, (RH + RB) / 2, 0xfff0b0, 2.5, TAU / 32); [0, 1, 2, 3].forEach(i => fleuron(g, -Math.PI / 2 + i * Math.PI / 2, 0xffd45a, i ? 0.75 : 1)); },
+  platine: g => { add(g, glow(() => new Graphics().circle(C, C, RB).stroke({ width: 10, color: 0xffffff }), 0x7fd8cf, 8, 0.6));
+    laurel(g, 0xd4ece8, 0x7fb7b0); ring(g, METAL.platine); beads(g, 12, (RH + RB) / 2, 0xf4fffd, 2.5); gem(g, C, C - RB + 2, 12, 0x7fd8cf); },
+  diamant: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 4).stroke({ width: 14, color: 0xffffff }), 0x5aa8e6, 12, 0.85));
+    ring(g, METAL.diamant); [0, 1, 2, 3].forEach(i => { const [x, y] = pt(C, C, RB, -Math.PI / 2 + i * Math.PI / 2); gem(g, x, y, i ? 12 : 17, 0xbfe9ff); });
+    [[C + 70, C - 92, 9], [C - 96, C - 60, 7], [C + 98, C + 60, 7], [C - 66, C + 98, 8]].forEach(([x, y, r]) => sparkle(g, x, y, r)); },
+  maitre: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 4).stroke({ width: 16, color: 0xffffff }), 0xc060e0, 14, 0.9));
+    for (const s of [-1, 1]) { const [x, y] = pt(C, C, RB - 6, s < 0 ? Math.PI + 0.2 : -0.2);
+      for (let i = 4; i >= 0; i--) g.poly(featherPoly(x, y, s < 0 ? Math.PI + 0.05 + i * 0.24 : -0.05 - i * 0.24, 54 - i * 4, 10)).fill(i % 2 ? 0xf08ad8 : 0xffd45a).stroke(ink(2.5)); }
+    ring(g, METAL.maitre); beads(g, 12, (RH + RB) / 2, 0xffd45a, 3); crown(g, 0xffd45a, [0xf08ad8, 0x9a4ad0, 0xf08ad8]); roundGem(g, C, C + RB, 9, 0xf08ad8); },
+  legende: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2).stroke({ width: 12, color: 0xffffff }), 0xfff0d0, 10, 0.7));
+    ring(g, METAL.or); [0xd0547f, 0xe2b93e, 0x4fbcad, 0x77a3e6, 0xa585e6, 0xff7a52, 0x7cd05a, 0x5ad2ff].forEach((c, i) => { const [x, y] = pt(C, C, (RH + RB) / 2, -Math.PI / 2 + i * TAU / 8); roundGem(g, x, y, 8, c); }); },
+  flamme: g => { const f = add(g, new Graphics()), rnd = seeded(5);
+    for (const [k, color] of [[1, 0xb2241a], [0.78, 0xf06a1f], [0.5, 0xffcf4a]]) for (let i = 0; i < 18; i++) { const a = i * TAU / 18 + (k < 1 ? 0.1 : 0), len = (18 + rnd() * 18) * k + 6;
+      const [bx, by] = pt(C, C, RB - 4, a - 0.16), [cx, cy] = pt(C, C, RB - 4, a + 0.16), [tx, ty] = pt(C, C, RB + len, a + 0.12);
+      f.moveTo(bx, by).quadraticCurveTo(...pt(C, C, RB + len * 0.6, a - 0.12), tx, ty).quadraticCurveTo(...pt(C, C, RB + len * 0.4, a + 0.2), cx, cy).closePath().fill(color).stroke(ink(k === 1 ? 3 : 0.01)); }
+    ring(g, METAL.fer); g.circle(C, C, RB - 5).stroke({ width: 2, color: 0xf06a1f }); },
+  duel: g => { for (const s of [-1, 1]) { const w = new Graphics();
+      w.poly([0, -196, 7, -182, 6, 30, -6, 30, -7, -182]).fill(0xe4e8ee).stroke(ink(3)); w.poly([0, -196, 7, -182, 6, 30, 0, 30]).fill(0xa8b0ba); w.poly([0, -196, 7, -182, 6, 30, -6, 30, -7, -182]).stroke(ink(3));
+      w.roundRect(-20, 30, 40, 9, 3).fill(0xe3b552).stroke(ink(3)); w.roundRect(-5, 39, 10, 22, 3).fill(s < 0 ? 0x2d5a9c : 0xa23f2d).stroke(ink(3)); w.circle(0, 64, 6).fill(0xe3b552).stroke(ink(2.5));
+      w.position.set(C + s * 54, C + 64); w.rotation = s * -0.62; g.addChild(w); }
+    const r = add(g, new Graphics()), m = (RH + RB) / 2, w = RB - RH;
+    arc(r, C, C, m, Math.PI / 2, Math.PI * 1.5).stroke({ width: w, color: 0x2d5a9c }); arc(r, C, C, m, -Math.PI / 2, Math.PI / 2).stroke({ width: w, color: 0xa23f2d });
+    arc(r, C, C, m, Math.PI * 1.05, Math.PI * 1.45).stroke({ width: w * 0.4, color: 0x7aa0e0, cap: 'round' }); arc(r, C, C, m, Math.PI * 1.6, Math.PI * 1.9).stroke({ width: w * 0.4, color: 0xe07a5a, cap: 'round' });
+    r.circle(C, C, RB).stroke(ink(4.5)).circle(C, C, RH).stroke(ink(4.5)); r.moveTo(C, C - RB).lineTo(C, C - RH).moveTo(C, C + RH).lineTo(C, C + RB).stroke(ink(4)); },
+  tresor: g => { ring(g, METAL.or);
+    const rnd = seeded(9); for (let i = 0; i < 9; i++) { const a = Math.PI / 2 + (i - 4) * 0.2, [x, y] = pt(C, C, RB + 4 + rnd() * 8, a);
+      g.circle(x, y, 11).fill(0xf2c94a).stroke(ink(2.5)).circle(x, y, 6.5).stroke({ width: 2, color: 0xb8862a }); }
+    [[-Math.PI / 2, 0xe0405a], [-Math.PI / 2 - 0.8, 0x5ad27a], [-Math.PI / 2 + 0.8, 0x5ab4ff], [Math.PI, 0xa585e6], [0, 0xe0405a]].forEach(([a, c]) => { const [x, y] = pt(C, C, (RH + RB) / 2, a); gem(g, x, y, 10, c); }); },
+  etoile: g => { ring(g, METAL.nuit); const rnd = seeded(2);
+    for (let i = 0; i < 26; i++) { const [x, y] = pt(C, C, RH + 3 + rnd() * (RB - RH - 6), rnd() * TAU); g.circle(x, y, 0.8 + rnd() * 1.5).fill(0xffffff); }
+    star(g, C, C - RB + 2, 22, 5, 0.45).fill(0xffd45a).stroke(ink(3)); [[C - 92, C - 66, 8], [C + 94, C - 62, 7], [C + 76, C + 92, 6], [C - 82, C + 86, 7]].forEach(([x, y, r]) => star(g, x, y, r, 4, 0.3).fill(0xfff3cf).stroke(ink(1.5))); },
+  base: g => { ring(g, METAL.or); FAM_GEMS.forEach((c, i) => { const [x, y] = pt(C, C, (RH + RB) / 2, Math.PI / 2 + (i - 2) * 0.45); roundGem(g, x, y, 6.5, c); }); crown(g, 0xe3b552, FAM_GEMS); },
+  set2: g => { add(g, glow(() => new Graphics().circle(C, C, RB).stroke({ width: 10, color: 0xffffff }), 0x8c2350, 10, 0.7));
+    ring(g, METAL.violet); beads(g, 10, (RH + RB) / 2, 0x8c2350, 3.5); crown(g, 0xd8c8ff, [0x8c2350, 0x5f7a6a, 0x8c2350]);
+    g.circle(C, C - RB - 44, 12).fill(0xfff3cf).stroke(ink(2.5)); g.circle(C + 6, C - RB - 48, 10).fill(0x4a3470); },
+  halloween: g => { const r = add(g, new Graphics()), m = (RH + RB) / 2, w = RB - RH;
+    for (let i = 0; i < 12; i++) arc(r, C, C, m, i * TAU / 12, (i + 1) * TAU / 12).stroke({ width: w, color: i % 2 ? 0x1d1226 : 0xe8741c });
+    r.circle(C, C, RB).stroke(ink(4.5)).circle(C, C, RH).stroke(ink(4.5));
+    for (const s of [-1, 1]) { const p = new Container(); p.position.set(C + s * 70, C + 92); p.scale.set(0.42); p.addChild(R(EMBLEMS.citrouille())); g.addChild(p); }
+    bat(g, C, C - RB - 4, 1.4); },
+  halloween_p: g => { add(g, glow(() => new Graphics().circle(C, C, RB).stroke({ width: 12, color: 0xffffff }), 0xa060ff, 12, 0.8));
+    ring(g, METAL.violet); beads(g, 8, (RH + RB) / 2, 0xe8741c, 3.5, TAU / 16);
+    for (const [d, h] of [[-1.1, 26], [-0.75, 36], [-0.42, 28], [0.42, 28], [0.75, 36], [1.1, 26]]) {
+      const a = -Math.PI / 2 + d, [x, y] = pt(C, C, RB - 2, a), k = new Graphics();
+      k.rect(-6, -h, 12, h).fill(0xf0e6d0).stroke(ink(2.5)); k.moveTo(0, -h).lineTo(0, -h - 5).stroke(ink(2));
+      k.moveTo(0, -h - 20).quadraticCurveTo(7, -h - 9, 0, -h - 5).quadraticCurveTo(-7, -h - 9, 0, -h - 20).closePath().fill(0xffb02a).stroke(ink(1.5));
+      k.position.set(x, y); k.rotation = a + Math.PI / 2; g.addChild(k); }
+    g.circle(C, C - RB - 6, 22).fill(0xffe9a8).stroke(ink(3)); g.circle(C + 9, C - RB - 12, 19).fill(0x3a1a5a); },
+  cyber: g => { add(g, glow(() => new Graphics().circle(C, C, RB).stroke({ width: 8, color: 0xffffff }), 0x19c8e6, 10, 0.9));
+    const r = add(g, new Graphics()); for (let i = 0; i < 16; i++) { const a = i * TAU / 16, [x0, y0] = pt(C, C, RB, a), [x1, y1] = pt(C, C, RB + (i % 2 ? 10 : 20), a); r.moveTo(x0, y0).lineTo(x1, y1); }
+    r.stroke({ width: 3, color: 0x19c8e6 }); for (let i = 0; i < 16; i += 2) { const [x, y] = pt(C, C, RB + 22, i * TAU / 16); r.circle(x, y, 3.5).fill(i % 4 ? 0xd42bb8 : 0x7cffff); }
+    ring(g, METAL.neon); g.circle(C, C, RB - 3).stroke({ width: 2.5, color: 0x19c8e6 }).circle(C, C, RH + 3).stroke({ width: 2.5, color: 0xd42bb8 }); },
+  cyber_p: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2).stroke({ width: 14, color: 0xffffff }), 0xd42bb8, 14, 0.9));
+    const holo = grad([[0, 0x19c8e6], [0.33, 0x7cffb2], [0.66, 0xd42bb8], [1, 0xfff05a]], 'linear', [0, 0, 1, 1]);
+    g.circle(C, C, RB).fill(holo).circle(C, C, RH).cut();
+    arc(g, C, C, (RH + RB) / 2, Math.PI * 1.05, Math.PI * 1.5).stroke({ width: 7, color: 0xffffff, alpha: 0.7, cap: 'round' });
+    g.circle(C, C, RB).stroke(ink(4.5)).circle(C, C, RH).stroke(ink(4.5));
+    for (let i = 0; i < 6; i++) { const [x, y] = pt(C, C, RB + 4, -Math.PI / 2 + i * TAU / 6); g.regularPoly(x, y, i ? 9 : 13, 6).fill(i % 2 ? 0x19c8e6 : 0xd42bb8).stroke(ink(2.5)); } },
+};
+export function drawFrame(id) {
+  const f = FRAMES[id]; if (!f) return null;
+  const c = new Container(), g = layers(); f(g); c.addChild(g.root);
+  // Rien d'opaque dans le trou : le portrait du joueur s'y place.
+  const hole = add(c, new Graphics().circle(C, C, RH - 1.5).fill(0xffffff)); hole.blendMode = 'erase';
+  return c;
+}
+export const BACK_IDS = [...Object.keys(FAMILY_BACKS), ...Object.keys(SCENES)];
+export const FRAME_IDS = Object.keys(FRAMES);
+export const ICON_IDS = Object.keys(ICONS);
