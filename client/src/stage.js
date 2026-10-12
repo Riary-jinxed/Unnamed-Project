@@ -1,12 +1,15 @@
-// Plateau de partie dessiné avec PixiJS (WebGL), chargé seulement quand une partie commence.
+// Plateau de partie dessiné avec PixiJS (WebGL), chargé au premier écran (menus) ou à la première partie.
+// Dans les menus, les mêmes toiles montrent seulement la brume, les braises et la lampe (plus les effets de stage-menu.js).
 // Deux toiles : la table, sous le plateau (bois éclairé, braises qui montent, lumière de la zone que chaque camp mène),
 // et les effets, par-dessus (étincelles d'une carte révélée, éclats d'une carte détruite, colonne de lumière d'une zone gagnée,
 // onde du général, confettis). Les cartes et les zones restent en HTML (main.js) : toucher, glisser-déposer, tutoriel et
 // lecteurs d'écran ne changent pas ; PixiJS lit leur place à l'écran (getBoundingClientRect) pour s'y caler.
 // Sans WebGL ou avec « réduire les animations », rien n'est chargé et fx.js garde ses effets en CSS.
 import { Application, Color, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
+import { palette } from './season.js';
 
-let table = null, over = null, root = null, ready = null, embers = null, pools = [], parts = [], glowTex = null, sparkTex = null, shardTex = null;
+let table = null, over = null, root = null, ready = null, embers = null, pools = [], parts = [], glowTex = null, sparkTex = null, shardTex = null, gameBg = null;
+let mode = null;
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a);
 const cssColor = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#e3b552';
 let COL = {}, anims = [], fog = [], cine = null;
@@ -40,10 +43,12 @@ async function init() {
     g.fillStyle = '#fff'; g.beginPath(); g.moveTo(6, 0); g.lineTo(12, 7); g.lineTo(7, 18); g.lineTo(0, 9); g.closePath(); g.fill(); return c; })());
 
   // Table : bois sombre éclairé par une lampe au-dessus du plateau, vignette sur les bords.
-  const wood = new Graphics(); table.stage.addChild(wood);
+  // Planches et lumières des zones : seulement en partie.
+  gameBg = new Container(); table.stage.addChild(gameBg);
+  const wood = new Graphics(); gameBg.addChild(wood);
   const lamp = new Sprite(glowTex); lamp.anchor.set(0.5); lamp.tint = 0xffc070; lamp.alpha = 0.22; lamp.blendMode = 'add'; table.stage.addChild(lamp);
   // Lumière de la zone : un halo par zone, à la couleur du camp qui la mène.
-  pools = [0, 1, 2].map(() => { const s = new Sprite(glowTex); s.anchor.set(0.5); s.alpha = 0; s.blendMode = 'add'; table.stage.addChild(s); return s; });
+  pools = [0, 1, 2].map(() => { const s = new Sprite(glowTex); s.anchor.set(0.5); s.alpha = 0; s.blendMode = 'add'; gameBg.addChild(s); return s; });
   // Brume : deux nappes de nuages très pâles qui dérivent lentement au-dessus des planches.
   const cloud = cloudTexture();
   fog = [0, 1].map(i => { const f = new Sprite(cloud); f.anchor.set(0.5); f.alpha = 0.09; f.tint = i ? 0xd8b890 : 0xa0b0c0; table.stage.addChild(f); return Object.assign(f, { phase: i * 3, speed: i ? 0.00011 : 0.00007 }); });
@@ -63,7 +68,7 @@ async function init() {
     for (const e of embers.children) { e.y -= e.vy * dt; e.x += Math.sin((e.y + e.seed) / 40) * 0.3 * dt; e.alpha = Math.min(1, e.life) * 0.7; e.life -= 0.003 * dt;
       if (e.y < -10 || e.life <= 0) ember(e, false); }
     const now = performance.now();
-    fog.forEach(f => { f.width = innerWidth * 2.2; f.height = innerHeight * 0.9; f.x = innerWidth / 2 + Math.sin(now * f.speed + f.phase) * innerWidth * 0.35; f.y = innerHeight * (0.3 + 0.35 * f.phase / 3) + Math.cos(now * f.speed * 1.3) * 30; });
+    fog.forEach((f, i) => { f.tint = palette().fog[i]; f.width = innerWidth * 2.2; f.height = innerHeight * 0.9; f.x = innerWidth / 2 + Math.sin(now * f.speed + f.phase) * innerWidth * 0.35; f.y = innerHeight * (0.3 + 0.35 * f.phase / 3) + Math.cos(now * f.speed * 1.3) * 30; });
     const zones = root?.querySelectorAll('.board > .zone') || [];
     pools.forEach((p, z) => {
       const el = zones[z]; if (!el) { p.alpha = 0; return; }
@@ -95,7 +100,7 @@ function cloudTexture() {
 }
 // Braise : repart du bas de l'écran (ou de n'importe où, au début) et monte en ondulant.
 function ember(s, anywhere) {
-  s.tint = Math.random() < 0.7 ? 0xffa040 : 0xffe0a0; s.scale.set(rnd(0.12, 0.35));
+  const e = palette().embers; s.tint = e[Math.floor(Math.random() * e.length)]; s.scale.set(rnd(0.12, 0.35));
   return Object.assign(s, { x: rnd(0, innerWidth), y: anywhere ? rnd(0, innerHeight) : innerHeight + 10, vy: rnd(0.15, 0.6), life: rnd(0.6, 1), seed: rnd(0, 500) });
 }
 
@@ -112,21 +117,34 @@ const centerOf = el => { const r = el.getBoundingClientRect(); return { r, x: r.
 const toNum = c => { try { return new Color(c).toNumber(); } catch { return 0xe3b552; } };
 
 // ---- API utilisée par fx.js ----
-// Charge PixiJS pour la durée de la partie et pose la table sous #app. Renvoie false si ce n'est pas possible.
-export function enter(app) {
+// Charge PixiJS et pose les toiles sous #app, pour une partie ('game') ou les menus ('menu'). Renvoie false si ce n'est pas possible.
+// Dans les menus, la boucle tourne à 30 images par seconde pour ménager la batterie.
+export function enter(app, scene = 'game') {
   root = app;
   ready ||= init().then(() => true, err => { console.warn('Plateau PixiJS indisponible', err); return false; });
-  return ready.then(ok => { if (ok) { table.canvas.style.display = over.canvas.style.display = ''; table.start(); over.start(); document.body.classList.add('staged'); } return ok; });
+  return ready.then(ok => {
+    if (!ok) return ok;
+    if (mode !== scene) clear();
+    mode = scene; gameBg.visible = scene === 'game';
+    for (const a of [table, over]) { a.ticker.maxFPS = scene === 'game' ? 0 : 30; a.canvas.style.display = ''; a.start(); }
+    document.body.classList.toggle('staged', scene === 'game');
+    return ok;
+  });
 }
-// Retour aux menus : les toiles sont cachées et leurs boucles arrêtées (rien ne tourne hors partie).
+// Retire les effets en cours (passage d'une partie aux menus et inversement).
+function clear() {
+  for (const p of parts) p.s.destroy(); parts = [];
+  anims = []; over.stage.removeChildren().forEach(c => c.keep || c.destroy()); cine = null; root?.style.removeProperty('transform');
+}
+// Plus de toile du tout (« réduire les animations » activé en cours de route) : cachées et boucles arrêtées.
 export function leave() {
-  document.body.classList.remove('staged');
+  document.body.classList.remove('staged'); mode = null;
   if (!table) return;
   table.stop(); over.stop(); table.canvas.style.display = over.canvas.style.display = 'none';
-  for (const p of parts) p.s.destroy(); parts = [];
-  anims = []; over.stage.removeChildren().forEach(c => c.destroy()); cine = null; root?.style.removeProperty('transform');
+  clear();
 }
-export const active = () => !!table && document.body.classList.contains('staged');
+export const active = () => !!table && mode === 'game';
+export const scene = () => mode;
 
 // Carte révélée : gerbe d'étincelles à la couleur de sa famille (ou de son camp) et éclair blanc.
 export function reveal(el, color) {

@@ -12,7 +12,7 @@ const later = (fn, ms) => setTimeout(() => { if (document.body.classList.contain
 const last = { me: 0, foe: 0 };
 
 // Poussières du portrait, par famille : teinte, texture, vitesse (px par image), gravité, taille, durée (images), intervalle (ms).
-const MOTES = {
+export const MOTES = {
   Ange:          { tint: 0xfff0c0, vy: -0.35, scale: [0.12, 0.2], ttl: 70, every: 1100 },
   'Démon':       { tint: 0xff6a3a, vy: -0.6, scale: [0.1, 0.18], ttl: 50, every: 900 },
   Gobelin:       { tint: 0xe6c060, vy: -1.1, g: 0.035, scale: [0.1, 0.16], ttl: 45, every: 1300 },

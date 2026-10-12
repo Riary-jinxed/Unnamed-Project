@@ -75,6 +75,16 @@ Sur l'accueil, le général du deck joué respire dans la vitrine. `render()` ap
 
 Dans la toile : l'illustration se soulève depuis le bas (souffle de 4,6 s) et avance très lentement ; le décor et le personnage bougent toujours ensemble, puisque le décor contient déjà le personnage (sinon il apparaît en double). Une lueur à la couleur de la famille bat avec le souffle, un foyer vacille en bas et des braises montent, les unes derrière le général, les autres devant. Parallaxe : braises, lueur et illustration glissent plus ou moins selon l'inclinaison du téléphone (Android), la souris sur ordinateur, sinon une lente dérive ; l'illustration traîne un peu au défilement. Pour rester léger : définition plafonnée à 1,5, 45 images par seconde au plus, boucle arrêtée hors de l'accueil et quand la vitrine sort de l'écran. Sans WebGL, avec « réduire les animations » ou si le chargement échoue, l'illustration fixe reste.
 
+### Cartes en partie (`stage-cards.js`)
+
+Chargé avec le plateau PixiJS. Une carte posée face cachée, ou déplacée vers une autre zone pendant la préparation, soulève un petit nuage de poussière et une onde au sol en arrivant dans sa case (une fois par carte et par zone). Une créature renforcée (`.p.up`) dégage de temps en temps une étincelle à la couleur de sa famille, une créature affaiblie (`.p.down`) une fumée sombre qui retombe : une particule toutes les 250 ms au plus, sur une carte au hasard.
+
+## Décor des menus et saisons (`stage-menu.js`, `season.js`)
+
+Dans les menus aussi, `setInGame` charge le plateau PixiJS (une fois la page au repos, pour ne pas retarder l'ouverture) : `stage.enter(app, 'menu')` cache les planches et les halos des zones et garde la brume, les braises et la lampe derrière les menus, à 30 images par seconde. `stage-menu.js` ajoute par-dessus des étincelles qui montent du bouton Jouer et, de temps en temps, du booster du jour ou d'une tuile « à faire ». Rien ne s'affiche quand une feuille est ouverte.
+
+Saison : `render()` écrit le thème du passe du mois (`SEASONS`, par exemple `halloween`) dans `<body data-season>`, ou celui donné par `?saison=…` dans l'adresse (`?saison=base` pour le thème de base). `season.js` en tire les couleurs des décors (`palette()` : braises, foyer, étincelles, brume), lues à chaque image par `stage.js`, `stage-menu.js` et `lobby-stage.js`. À Halloween : fond violet, lueurs citrouille et violettes (`habillage.css`), feux follets violets et verts parmi les braises, foyer de la vitrine en chaudron violet, et des chauves-souris (`batCanvases`) qui passent derrière le général et, plus rarement, traversent l'écran par volées.
+
 ## Amis (`friends.js`)
 
 `createFriends(outils)` reçoit l'état `ui` et quelques fonctions de `main.js`, et renvoie l'écran (`screen`), le bandeau (`banner`), la feuille de choix du deck (`deckSheet`) et ses gestionnaires (`click`, `input`, `submit`), branchés au début des écouteurs de `main.js`. Son état est dans `ui.friends`.

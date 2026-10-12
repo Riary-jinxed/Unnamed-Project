@@ -1,0 +1,68 @@
+// Décor animé des menus, sur les toiles de stage.js : chargé avec lui, seulement avec WebGL et sans « réduire les animations ».
+// Derrière les menus, stage.js garde sa brume, ses braises et sa lampe (aux couleurs de la saison, season.js) ; la vitrine de
+// l'accueil a sa propre toile (lobby-stage.js). Ce fichier ajoute, par-dessus les menus :
+// - Bouton Jouer : quelques étincelles qui montent de son bord.
+// - Ce qui attend le joueur (booster du jour, tuile « à faire ») : une étincelle de temps en temps.
+// - Halloween : de temps en temps, quelques chauves-souris traversent l'écran.
+// Rien ne s'affiche au-dessus d'une feuille ouverte, et rien ne tourne en partie.
+import { Container, Sprite, Texture } from 'pixi.js';
+import { kit, scene } from './stage.js';
+import { season, palette, batCanvases } from './season.js';
+
+let started = false, bats = null, batTex = null, lastSpark = 0, lastTodo = 0, nextBats = 0;
+
+// L'élément est-il à l'écran et non couvert (feuille, booster qui s'ouvre) ? Renvoie sa place, ou null.
+function shown(el) {
+  const r = el?.getBoundingClientRect();
+  if (!r || !r.width || r.bottom < 0 || r.top > innerHeight) return null;
+  const x = Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), y = Math.min(innerHeight - 1, Math.max(0, r.top + r.height / 2));
+  return el.contains(document.elementFromPoint(x, y)) ? r : null;
+}
+const sheetOpen = root => !!root.querySelector('.sheet');
+
+// Une volée de 1 à 3 chauves-souris, d'un bord à l'autre, en ondulant ; les ailes battent en alternant deux silhouettes.
+function flock(rnd) {
+  const n = Math.floor(rnd(1, 4)), dir = Math.random() < 0.5 ? 1 : -1, y0 = rnd(innerHeight * 0.08, innerHeight * 0.55);
+  for (let i = 0; i < n; i++) {
+    const b = new Sprite(batTex[0]); b.anchor.set(0.5); b.tint = 0x1a0d22; b.alpha = 0.85;
+    const sc = rnd(0.35, 0.6); b.scale.set(sc * dir, sc);
+    b.position.set(dir > 0 ? -60 - i * rnd(30, 70) : innerWidth + 60 + i * rnd(30, 70), y0 + rnd(-40, 40));
+    Object.assign(b, { vx: dir * rnd(3, 4.5), y0: b.y, amp: rnd(10, 26), seed: rnd(0, 6), flap: rnd(5, 7) });
+    bats.addChild(b);
+  }
+}
+
+export function start() {
+  if (started) return; started = true;
+  const { over, sparkTex, rnd } = kit();
+  batTex = batCanvases().map(c => Texture.from(c));
+  // Gardé d'une scène à l'autre : stage.js ne le détruit pas en vidant la toile (keep).
+  bats = Object.assign(new Container(), { keep: true });
+
+  over.ticker.add(t => {
+    const { root, spawn } = kit(), now = performance.now(), dt = t.deltaTime;
+    if (scene() !== 'menu' || !root) { bats.parent?.removeChild(bats); bats.removeChildren().forEach(b => b.destroy()); return; }
+    if (!bats.parent) over.stage.addChild(bats);
+    const pal = palette(), busy = sheetOpen(root);
+
+    // Bouton Jouer : étincelles qui montent de son bord haut.
+    const pb = !busy && shown(root.querySelector('.playbtn'));
+    if (pb && now - lastSpark > 420) { lastSpark = now + rnd(-120, 120);
+      spawn(sparkTex, pb.left + rnd(12, pb.width - 12), pb.top + rnd(0, 6), { tint: pal.spark[Math.random() < 0.6 ? 0 : 1], scale: rnd(0.12, 0.22), vx: rnd(-0.15, 0.15), vy: -rnd(0.35, 0.7), drag: 1, ttl: rnd(40, 60) }); }
+
+    // Ce qui attend : booster du jour, tuile à faire.
+    if (!busy && now - lastTodo > 900) { lastTodo = now + rnd(-200, 200);
+      const todo = [...root.querySelectorAll('.card-box.booster.ready, .tile.todo')].map(shown).filter(Boolean);
+      const tr = todo[Math.floor(rnd(0, todo.length))];
+      if (tr) spawn(sparkTex, tr.left + rnd(8, tr.width - 8), tr.top + rnd(0, 4), { tint: pal.spark[0], scale: rnd(0.1, 0.18), vy: -rnd(0.25, 0.5), drag: 1, ttl: 50 }); }
+
+    // Halloween : une volée de chauves-souris toutes les 10 à 20 secondes, jamais par-dessus une feuille.
+    if (season() === 'halloween' && !busy && now > nextBats) { if (nextBats) flock(rnd); nextBats = now + rnd(10000, 20000); }
+    bats.visible = !busy;
+    for (const b of [...bats.children]) {
+      b.x += b.vx * dt; b.y = b.y0 + Math.sin(b.x / 70 + b.seed) * b.amp;
+      b.texture = batTex[Math.floor(now / (1000 / b.flap) + b.seed) % 2];
+      if (b.x < -260 || b.x > innerWidth + 260) b.destroy();
+    }
+  });
+}
