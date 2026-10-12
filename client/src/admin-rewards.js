@@ -62,7 +62,7 @@ export function rewardsTab({ call, render, say, esc, notice }) {
     const r = S.data.rewards, d = S.data.defaults;
     const field = ([k, label, hint = '']) => `<div class="field"><label class="eyebrow" for="r-${k}">${label}</label>
       <input id="r-${k}" type="number" min="0" step="1" value="${r[k]}"><small class="hint">${hint} Par défaut : ${d[k]}.</small></div>`;
-    const missions = Object.entries(MISSIONS).map(([id, m]) => { const v = r.missions[id], label = m.label(v.target, 'd\'une famille', 'une carte de sa collection');
+    const missions = Object.entries(MISSIONS).filter(([, m]) => !m.retired).map(([id, m]) => { const v = r.missions[id], label = m.label(v.target, 'd\'une famille', 'une carte de sa collection');
       return `<tr><td><label class="check"><input type="checkbox" id="m-${id}-on" ${v.on ? 'checked' : ''}>${esc(label)}</label></td>
         ${['target', 'xp', 'shards'].map(k => `<td><input id="m-${id}-${k}" type="number" min="0" step="1" value="${v[k]}" style="width:80px" aria-label="${k}"></td>`).join('')}</tr>`; }).join('');
     const achievements = ACHIEVEMENTS.map(x => `<tr><td>${esc(x.label)}</td><td class="hint">${[x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? esc(FRAMES[x.frame]) : ''].filter(Boolean).join(' · ')}</td>
@@ -106,7 +106,7 @@ export function rewardsTab({ call, render, say, esc, notice }) {
     if (id !== 'rewards') return false;
     const v = k => document.getElementById(k);
     const body = Object.fromEntries(GROUPS.flatMap(g => g[2]).map(([k]) => [k, Number(v(`r-${k}`).value)]));
-    body.missions = Object.fromEntries(Object.keys(MISSIONS).map(mid => [mid, { on: v(`m-${mid}-on`).checked,
+    body.missions = Object.fromEntries(Object.keys(MISSIONS).filter(mid => !MISSIONS[mid].retired).map(mid => [mid, { on: v(`m-${mid}-on`).checked,
       ...Object.fromEntries(['target', 'xp', 'shards'].map(k => [k, Number(v(`m-${mid}-${k}`).value)])) }]));
     body.passPool = Object.fromEntries(Object.keys(PASS_KINDS).map(k => [k, { daily: Number(v(`pp-${k}-daily`).value), weekly: Number(v(`pp-${k}-weekly`).value) }]));
     body.passMissions = Object.fromEntries(SEASONS.flatMap(x => x.missions).map(m => [m.id, { target: Number(v(`pm-${m.id}-target`).value), xp: Number(v(`pm-${m.id}-xp`).value) }]));

@@ -64,7 +64,8 @@ export const xpToNext = (level, r = DEFAULT_REWARDS) => Math.min(r.xpCap, r.xpBa
 // count(mission, cartes jouées) : de combien la mission avance en fin de partie (les autres avancent dans progress.js).
 // pick(compte) : ce que la mission demande (famille, carte), tiré parmi les cartes que le joueur possède,
 // ou null s'il n'en a pas assez pour la faire : la mission n'est alors pas tirée.
-// group : deux missions du même groupe ne sont pas tirées le même jour.
+// group : deux missions du même groupe ne sont pas tirées le même jour. retired : n'est plus tirée (gardée pour les missions déjà tirées).
+// Objectifs des missions de cartes : environ trois parties (une partie pose 8 à 10 cartes, dont 6 à 8 de la famille du deck).
 const plays = test => (m, played) => played.filter(id => CARDS[id] && test(CARDS[id], id, m)).length;
 // Cartes possédées (hors généraux et jetons) qui vérifient test.
 const ownedCards = (a, test = () => true) => Object.keys(a.cards || {}).filter(id => a.cards[id] && CARDS[id] && !CARDS[id].token && test(CARDS[id], id));
@@ -84,19 +85,21 @@ export const MISSIONS = {
   win:     { label: n => `Gagner ${n} partie${n > 1 ? 's' : ''}`, target: 2, xp: 150, shards: 35 },
   win_pvp: { label: n => `Gagner ${n > 1 ? `${n} parties` : 'une partie'} en ligne`, target: 1, xp: 150, shards: 35 },
   win_pve: { label: n => `Battre l'IA ${n} fois`, target: 2, xp: 100, shards: 25 },
-  fam:     { label: (n, f) => `Jouer ${n} cartes ${f}`, target: 8, xp: 120, shards: 30, group: 'fam', pick: a => ownedFam(a, 5), count: plays(sameFam) },
-  spells:  { label: n => `Jouer ${n} sorts`, target: 4, xp: 100, shards: 25, pick: enough(2, isS), count: plays(isS) },
-  creatures: { label: n => `Jouer ${n} créatures`, target: 10, xp: 100, shards: 25, pick: enough(5, isC), count: plays(isC) },
-  fam_creatures: { label: (n, f) => `Jouer ${n} créatures ${f}`, target: 5, xp: 110, shards: 25, group: 'fam', pick: a => ownedFam(a, 4, isC), count: plays((d, id, m) => isC(d) && sameFam(d, id, m)) },
-  fam_spells: { label: (n, f) => `Jouer ${n} sort${n > 1 ? 's' : ''} ${f}`, target: 2, xp: 110, shards: 25, group: 'fam', pick: a => ownedFam(a, 2, isS), count: plays((d, id, m) => isS(d) && sameFam(d, id, m)) },
-  big:     { label: n => `Jouer ${n} carte${n > 1 ? 's' : ''} coûtant 4 sceaux ou plus`, target: 3, xp: 110, shards: 25, pick: enough(3, big), count: plays(big) },
-  cheap:   { label: n => `Jouer ${n} carte${n > 1 ? 's' : ''} coûtant 1 sceau ou moins`, target: 4, xp: 100, shards: 25, pick: enough(3, cheap), count: plays(cheap) },
+  fam:     { label: (n, f) => `Jouer ${n} cartes ${f}`, target: 20, xp: 120, shards: 30, group: 'fam', pick: a => ownedFam(a, 5), count: plays(sameFam) },
+  spells:  { label: n => `Jouer ${n} sorts`, target: 6, xp: 100, shards: 25, pick: enough(2, isS), count: plays(isS) },
+  creatures: { label: n => `Jouer ${n} créatures`, target: 24, xp: 100, shards: 25, pick: enough(5, isC), count: plays(isC) },
+  fam_creatures: { label: (n, f) => `Jouer ${n} créatures ${f}`, target: 15, xp: 110, shards: 25, group: 'fam', pick: a => ownedFam(a, 4, isC), count: plays((d, id, m) => isC(d) && sameFam(d, id, m)) },
+  fam_spells: { label: (n, f) => `Jouer ${n} sort${n > 1 ? 's' : ''} ${f}`, target: 4, xp: 110, shards: 25, group: 'fam', pick: a => ownedFam(a, 2, isS), count: plays((d, id, m) => isS(d) && sameFam(d, id, m)) },
+  big:     { label: n => `Jouer ${n} carte${n > 1 ? 's' : ''} coûtant 4 sceaux ou plus`, target: 7, xp: 110, shards: 25, pick: enough(3, big), count: plays(big) },
+  cheap:   { label: n => `Jouer ${n} carte${n > 1 ? 's' : ''} coûtant 1 sceau ou moins`, target: 8, xp: 100, shards: 25, pick: enough(3, cheap), count: plays(cheap) },
   // Une carte précise : de préférence une carte d'un de ses decks.
   card:    { label: (n, f, c) => `Jouer ${c} ${n > 1 ? `${n} fois` : 'une fois'}`, target: 2, xp: 100, shards: 25,
     pick: a => { const owned = ownedCards(a), inDecks = owned.filter(id => (a.decks || []).some(d => d.cards?.includes(id)));
       return owned.length ? { card: rnd(inDecks.length ? inDecks : owned) } : null; },
     count: (m, played) => played.filter(id => id === m.card).length },
-  sweep:   { label: () => 'Gagner une partie en remportant les 3 zones', target: 1, xp: 150, shards: 35 },
+  // Zones remportées en fin de partie, gagnée ou non : remplace « gagner en remportant les 3 zones », trop rare (une partie sur vingt).
+  zones:   { label: n => `Remporter ${n} zone${n > 1 ? 's' : ''}`, target: 4, xp: 120, shards: 30 },
+  sweep:   { label: () => 'Gagner une partie en remportant les 3 zones', target: 1, xp: 150, shards: 35, retired: true },
   booster: { label: () => 'Ouvrir le booster du jour', target: 1, xp: 50, shards: 10 },
 };
 export const missionLabel = m => MISSIONS[m.id]?.label(m.target, m.fam, CARDS[m.card]?.name || m.card) || m.id;

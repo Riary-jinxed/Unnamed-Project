@@ -139,7 +139,7 @@ export function createProgress(store) {
   function missions(a) {
     const c = cfg(), day = today();
     if (a.missions?.date === day) return a.missions;
-    a.missions = { date: day, rerolls: 0, list: draw(a, Object.keys(MISSIONS).filter(id => c.missions[id].on), c.missionsPerDay) };
+    a.missions = { date: day, rerolls: 0, list: draw(a, Object.keys(MISSIONS).filter(id => c.missions[id].on && !MISSIONS[id].retired), c.missionsPerDay) };
     return a.missions;
   }
   // n missions au hasard parmi ids, sans celles que le joueur ne peut pas faire avec sa collection
@@ -173,7 +173,7 @@ export function createProgress(store) {
     const ms = missions(a), c = cfg(), m = ms.list[index];
     if (!m || m.done) throw new HttpError(400, 'Cette mission ne peut pas être remplacée.');
     if (ms.rerolls >= c.missionRerolls) throw new HttpError(409, 'Plus de remplacement possible aujourd\'hui.');
-    const [next] = draw(a, Object.keys(MISSIONS).filter(id => c.missions[id].on && !ms.list.some(x => x.id === id)), 1, ms.list.filter(x => x !== m));
+    const [next] = draw(a, Object.keys(MISSIONS).filter(id => c.missions[id].on && !MISSIONS[id].retired && !ms.list.some(x => x.id === id)), 1, ms.list.filter(x => x !== m));
     if (!next) throw new HttpError(409, 'Aucune autre mission disponible.');
     ms.list[index] = next; ms.rerolls++;
   }
@@ -183,7 +183,7 @@ export function createProgress(store) {
   // Renvoie ce que la partie a rapporté, pour l'écran de fin de partie.
   // friend : défi contre un ami.
   // ranked : partie classée (contre l'IA ou défi classé).
-  function onGame(a, { mode, result, played = [], general, sweep, friend, ranked = false }) {
+  function onGame(a, { mode, result, played = [], general, sweep, zones = 0, friend, ranked = false }) {
     if (!a.level) init(a);
     const c = cfg(), s = a.stats, pvp = mode === 'pvp', win = result === 'win';
     const passBefore = pass(a)?.xp || 0;
@@ -197,7 +197,7 @@ export function createProgress(store) {
     a.shards = (a.shards || 0) + shards;
     const doneBefore = missions(a).list.filter(m => m.done).length;
     advance(a, m => (MISSIONS[m.id]?.count ? MISSIONS[m.id].count(m, played) : {
-      play: 1, win: win ? 1 : 0, win_pvp: win && pvp ? 1 : 0, win_pve: win && !pvp ? 1 : 0, sweep: win && sweep ? 1 : 0,
+      play: 1, win: win ? 1 : 0, win_pvp: win && pvp ? 1 : 0, win_pve: win && !pvp ? 1 : 0, sweep: win && sweep ? 1 : 0, zones,
     }[m.id] || 0));
     addXp(a, xp);
     const P = pass(a);
