@@ -40,7 +40,6 @@ export const ARTS = Object.fromEntries([
   // Anges
   A('seraphine_zenith', 'seraphine', 'Séraphine au zénith', 'rare', { theme: 'saisons' }),
   A('aurelia_vitrail', 'aurelia', 'Aurélia, vitrail du Serment', 'epique', { theme: 'vitraux' }),
-  A('cherubin_nuage', 'cherubin', 'Chérubin des nuées', 'rare'),
   A('archange_jugement', 'archange', 'Archange du Jugement dernier', 'legendaire', { theme: 'eclipse' }),
   A('archange_vitrail', 'archange', 'Archange de verre', 'epique', { theme: 'vitraux' }),
   // Démons
@@ -76,6 +75,7 @@ export const ARTS = Object.fromEntries([
 
 // Arts retirés du jeu : les joueurs qui en avaient un le perdent et reçoivent ces Prismes (accounts.js, au démarrage du serveur).
 export const RETIRED_ARTS = {
+  cherubin_nuage: { name: 'Chérubin des nuées', prisms: 60 },
   morgrath_braises: { name: 'Morgrath dans les braises', prisms: 60 },
   lirael_tempete: { name: 'Lirael dans la tempête', prisms: 60 },
   golem_mousse: { name: 'Golem moussu', prisms: 60 },
