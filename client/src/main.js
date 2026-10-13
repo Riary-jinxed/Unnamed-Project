@@ -15,7 +15,7 @@ import { esc, famStyle, rich } from './common.js';
 import { artBg, artHTML, heroHTML, portraitHTML, terrainBg, terrainHTML, holoCard, setHoloOff, popCard, setPopOff } from './art.js';
 import './holo.js';
 import './cosmetics.js';
-import { unlockAudio, play, isMuted, setMuted, sfxVolume, setSfxVolume, canVibrate, vibrations, setVibrations, buzz, feel } from './sfx.js';
+import { unlockAudio, audioContext, play, isMuted, setMuted, sfxVolume, setSfxVolume, canVibrate, vibrations, setVibrations, buzz, feel } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
 import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, stageReady, sparkle, shards, trail, ending, clearEnding, setEnd } from './fx.js';
 import * as veil from './veil.js';
@@ -1569,11 +1569,20 @@ function unplace(uid) {
   play('unplace');
 }
 
+// ---- Son au lancement ----
+// Le navigateur ne laisse jouer le son qu'après un geste du joueur. On tente quand même dès le chargement (ordinateur
+// où le site est déjà familier, appli installée) ; sinon le tout premier toucher, clic ou touche, n'importe où sur la page
+// (écran d'ouverture compris), lance la musique. Sur Android, un toucher ne compte qu'au moment où le doigt se lève :
+// d'où pointerup et touchend en plus de pointerdown.
+unlockAudio();
+if (audioContext()?.state === 'running') wakeMusic();
+else audioContext()?.addEventListener('statechange', () => { if (audioContext().state === 'running') wakeMusic(); });
+for (const t of ['pointerdown', 'pointerup', 'touchend', 'keydown']) document.addEventListener(t, () => { unlockAudio(); wakeMusic(); }, { capture: true, passive: true });
+
 // ---- Glisser-déposer (en plus du toucher) ----
 let drag = null, swallowClick = false;
 const zoneAt = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest('.zone.target'); };
 app.addEventListener('pointerdown', e => {
-  unlockAudio(); wakeMusic();
   if ((e.pointerType === 'mouse' && e.button !== 0) || !ui.view || !canPlay() || ui.screen !== 'game') return;
   const h = e.target.closest('[data-hand]'), m = e.target.closest('[data-mobile]');
   if (!h && !m) return;
