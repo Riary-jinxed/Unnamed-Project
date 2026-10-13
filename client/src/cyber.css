@@ -106,3 +106,8 @@ body[data-season="cyber"] .op .op-skip { background: #08101f; border-color: var(
 .pgift .theme-swatch { width: 22px; height: 15px; }
 .theme-base { --sa: #e3b552; --sb: #5a1624; }
 .theme-cyber.theme-swatch { background: linear-gradient(rgb(25 230 255 / .35) 1px, transparent 1px) 0 0 / 6px 6px, linear-gradient(135deg, #fcee0a 0 30%, #05070f 30% 70%, #ff2bd6 70%); }
+
+/* chiffres : le zéro barré d'Orbitron se lit mal en petit, les nombres passent en Rajdhani */
+body[data-season="cyber"] .score .v, body[data-season="cyber"] .tturn b, body[data-season="cyber"] .tseals b,
+body[data-season="cyber"] .hc .p, body[data-season="cyber"] .hc .seal, body[data-season="cyber"] .num { font-family: "Rajdhani", var(--body); font-weight: 700; }
+body[data-season="cyber"] .score .v.lead { text-shadow: 0 0 10px currentColor; }

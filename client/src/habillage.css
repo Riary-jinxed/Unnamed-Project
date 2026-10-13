@@ -156,5 +156,13 @@ body[data-season="halloween"] .tabbar.slid::before { background: radial-gradient
 body[data-season="halloween"] .tabbar button.on svg { filter: drop-shadow(0 0 6px rgb(255 130 40 / .85)); }
 body[data-season="halloween"]:has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, #2e1f30, #120c16 70%), #120c16; }
 body.staged[data-season="halloween"]:has(#app.ingame) { background: #120c16; }
+/* Halloween en partie : zones de pierre violette, cartes cerclées de bronze sombre, sceau citrouille, médaillon violet */
+body[data-season="halloween"] .zone { background: linear-gradient(180deg, rgb(16 8 22 / .86), rgb(34 18 40 / .86)); border-color: #4a2a5a; box-shadow: inset 0 0 22px #000, inset 0 0 30px -12px rgb(138 60 255 / .45), 0 0 0 1px #000; }
+body[data-season="halloween"] .terrain.set { background: linear-gradient(180deg, #3a1e48, #1a0e22); border-color: #ff8a2a; color: #ffd8a0; }
+body[data-season="halloween"] .hc, body[data-season="halloween"] .mc { border-color: #6a3a7a; box-shadow: 0 0 0 1px #000, 0 4px 10px rgb(0 0 0 / .55), 0 0 10px -3px rgb(255 138 42 / .45); }
+body[data-season="halloween"] .hc .seal { background: radial-gradient(circle at 35% 30%, #ffe0a0, #ff8a2a 45%, #8a3a08); }
+body[data-season="halloween"] .hc .p { color: #ffd8a0; background: radial-gradient(circle at 40% 30%, #4a2060, #12081a 75%); box-shadow: 0 0 0 2px #8a3cff, 0 2px 4px #000; }
+body[data-season="halloween"] .hc.sel { border-color: #ff8a2a; box-shadow: 0 0 0 2px #ff8a2a, 0 0 18px 2px rgb(255 138 42 / .55); }
+body[data-season="halloween"] .dock { background: linear-gradient(180deg, rgb(26 12 32 / .6), #0e0612); border-top-color: #6a3a7a; }
 body[data-season="halloween"] .showcase::after { background: linear-gradient(rgb(50 15 90 / .38), rgb(50 15 90 / .12) 35%, transparent 45%, rgb(0 0 0 / .85)); }
 

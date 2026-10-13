@@ -6,7 +6,7 @@
 // lecteurs d'écran ne changent pas ; PixiJS lit leur place à l'écran (getBoundingClientRect) pour s'y caler.
 // Sans WebGL ou avec « réduire les animations », rien n'est chargé et fx.js garde ses effets en CSS.
 import { Application, Color, Container, Graphics, Sprite, Text, Texture, UPDATE_PRIORITY } from 'pixi.js';
-import { palette } from './season.js';
+import { palette, tableLook, season } from './season.js';
 
 let table = null, over = null, root = null, ready = null, embers = null, pools = [], parts = [], glowTex = null, sparkTex = null, shardTex = null, gameBg = null;
 let mode = null;
@@ -53,29 +53,47 @@ async function init() {
   shardTex = Texture.from((() => { const c = document.createElement('canvas'); c.width = 12; c.height = 18; const g = c.getContext('2d');
     g.fillStyle = '#fff'; g.beginPath(); g.moveTo(6, 0); g.lineTo(12, 7); g.lineTo(7, 18); g.lineTo(0, 9); g.closePath(); g.fill(); return c; })());
 
-  // Table : bois sombre éclairé par une lampe au-dessus du plateau, vignette sur les bords.
+  // Table : bois sombre éclairé par une lampe au-dessus du plateau, vignette sur les bords (aux couleurs du thème : tableLook).
   // Planches et lumières des zones : seulement en partie.
   gameBg = new Container(); table.stage.addChild(gameBg);
   const wood = new Graphics(); gameBg.addChild(wood);
-  const lamp = new Sprite(glowTex); lamp.anchor.set(0.5); lamp.tint = 0xffc070; lamp.alpha = 0.22; lamp.blendMode = 'add'; table.stage.addChild(lamp);
+  const lamp = new Sprite(glowTex); lamp.anchor.set(0.5); lamp.alpha = 0.22; lamp.blendMode = 'add'; table.stage.addChild(lamp);
+  // Seconde lueur, en bas (thèmes de saison : violet d'Halloween, magenta de Néon 2099).
+  const low = new Sprite(glowTex); low.anchor.set(0.5); low.alpha = 0.16; low.blendMode = 'add'; gameBg.addChild(low);
+  // Néon 2099 : ligne de balayage qui descend lentement sur la grille.
+  const scan = new Graphics(); scan.blendMode = 'add'; gameBg.addChild(scan);
   // Lumière de la zone : un halo par zone, à la couleur du camp qui la mène.
   pools = [0, 1, 2].map(() => { const s = new Sprite(glowTex); s.anchor.set(0.5); s.alpha = 0; s.blendMode = 'add'; gameBg.addChild(s); return s; });
   // Brume : deux nappes de nuages très pâles qui dérivent lentement au-dessus des planches.
   const cloud = cloudTexture();
   fog = [0, 1].map(i => { const f = new Sprite(cloud); f.anchor.set(0.5); f.alpha = 0.09; f.tint = i ? 0xd8b890 : 0xa0b0c0; table.stage.addChild(f); return Object.assign(f, { phase: i * 3, speed: i ? 0.00011 : 0.00007 }); });
   embers = new Container(); table.stage.addChild(embers);
+  // Table du thème affiché (tableLook de season.js) : planches de bois, ou grille néon pour Néon 2099. Redessinée quand le thème change.
+  let drawnLook = null;
   const drawTable = () => {
-    const w = innerWidth, h = innerHeight; wood.clear().rect(0, 0, w, h).fill({ color: 0x140e0a });
-    // planches : bandes verticales à peine plus claires
-    for (let x = 0, i = 0; x < w; x += 46, i++) wood.rect(x, 0, 45, h).fill({ color: i % 2 ? 0x1c140e : 0x19110c });
-    for (let x = 46; x < w; x += 46) wood.rect(x - 1, 0, 1, h).fill({ color: 0x0a0604, alpha: 0.8 });
-    lamp.position.set(w / 2, h * 0.42); lamp.width = w * 1.6; lamp.height = h * 1.1;
+    const w = innerWidth, h = innerHeight, L = drawnLook = tableLook(); wood.clear().rect(0, 0, w, h).fill({ color: L.ground });
+    if (L.planks) {
+      // planches : bandes verticales à peine plus claires
+      for (let x = 0, i = 0; x < w; x += 46, i++) wood.rect(x, 0, 45, h).fill({ color: L.planks[i % 2] });
+      for (let x = 46; x < w; x += 46) wood.rect(x - 1, 0, 1, h).fill({ color: L.seam, alpha: 0.8 });
+    }
+    if (L.grid) {
+      // grille holographique, plus serrée et plus vive vers le bas (comme vue en perspective)
+      for (let y = 0, k = 0; y < h; k++, y += 18 + k * 1.5) wood.rect(0, h - y, w, 1).fill({ color: L.grid, alpha: 0.05 + 0.1 * (1 - y / h) });
+      for (let x = (w / 2) % 32; x < w; x += 32) wood.rect(x, 0, 1, h).fill({ color: L.grid, alpha: 0.06 });
+    }
+    lamp.tint = L.lamp; lamp.position.set(w / 2, h * 0.42); lamp.width = w * 1.6; lamp.height = h * 1.1;
+    low.visible = !!L.low; if (L.low) { low.tint = L.low; low.position.set(w / 2, h * 1.02); low.width = w * 1.8; low.height = h * 0.7; }
   };
   drawTable(); addEventListener('resize', drawTable);
   for (let i = 0; i < 26; i++) { const e = new Sprite(sparkTex); e.anchor.set(0.5); e.blendMode = 'add'; embers.addChild(ember(e, true)); }
 
   table.ticker.add(t => {
     const dt = t.deltaTime;
+    if (drawnLook !== tableLook()) drawTable();
+    scan.clear();
+    if (drawnLook.grid) { const y = (performance.now() / 18) % (innerHeight + 120) - 60;
+      scan.rect(0, y, innerWidth, 2).fill({ color: drawnLook.grid, alpha: 0.18 }).rect(0, y - 24, innerWidth, 24).fill({ color: drawnLook.grid, alpha: 0.025 }); }
     for (const e of embers.children) { e.y -= e.vy * dt; e.x += Math.sin((e.y + e.seed) / 40) * 0.3 * dt; e.alpha = Math.min(1, e.life) * 0.7; e.life -= 0.003 * dt;
       if (e.y < -10 || e.life <= 0) ember(e, false); }
     const now = performance.now();
@@ -233,13 +251,13 @@ export function banner(board, title, sub = '', tone = '') {
   if (!active() || !board) return false;
   for (const c of over.stage.children.filter(c => c.label === 'banner')) c.destroy({ children: true });
   const r = board.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, w = innerWidth, h = 78;
-  const edge = toNum(tone === 'reveal' ? COL.foe : tone === 'last' ? '#f07a66' : COL.gold);
+  const L = tableLook(), edge = tone === 'reveal' ? toNum(COL.foe) : tone === 'last' ? toNum('#f07a66') : L.edge ?? toNum(COL.gold);
   const c = new Container(); c.label = 'banner'; c.position.set(0, cy); over.stage.addChild(c);
-  const band = new Graphics().rect(0, -h / 2, w, h).fill({ color: 0x0c0806, alpha: 0.82 })
+  const band = new Graphics().rect(0, -h / 2, w, h).fill({ color: L.band, alpha: 0.82 })
     .rect(0, -h / 2, w, 2).fill({ color: edge }).rect(0, h / 2 - 2, w, 2).fill({ color: edge });
   const glow = new Sprite(glowTex); glow.anchor.set(0.5); glow.position.set(cx, 0); glow.width = w * 1.2; glow.height = h * 2.2; glow.tint = edge; glow.alpha = 0.35; glow.blendMode = 'add';
-  const t = new Text({ text: title.toUpperCase(), style: { fontFamily: 'Cinzel, Alegreya SC, serif', fontWeight: '700', fontSize: 34, fill: tone === 'last' ? 0xffb0a0 : 0xffe8b0,
-    stroke: { color: 0x2a1606, width: 4 }, dropShadow: { color: edge, blur: 12, distance: 0, alpha: 0.9 }, letterSpacing: 4 } });
+  const t = new Text({ text: title.toUpperCase(), style: { fontFamily: L.font, fontWeight: '700', fontSize: 34, fill: tone === 'last' ? 0xffb0a0 : L.text,
+    stroke: { color: L.stroke, width: 4 }, dropShadow: { color: edge, blur: 12, distance: 0, alpha: 0.9 }, letterSpacing: 4 } });
   t.anchor.set(0.5); t.position.set(cx, sub ? -8 : 0);
   const st = sub ? new Text({ text: sub.toUpperCase(), style: { fontFamily: 'Alegreya Sans, sans-serif', fontWeight: '700', fontSize: 12, fill: edge, letterSpacing: 3 } }) : null;
   if (st) { st.anchor.set(0.5); st.position.set(cx, 22); }
@@ -269,7 +287,7 @@ export function flash(color = 0xffffff, alpha = 0.25) {
 export function ending(result) {
   if (!active()) return;
   cine?.destroy({ children: true });
-  const tint = result === 'win' ? 0xffd070 : result === 'lose' ? 0xb03a2a : 0xa0a8b8, x = innerWidth / 2, y = Math.min(innerHeight * 0.2, 170);
+  const look = season(), tint = result === 'win' ? (look === 'cyber' ? 0x19e6ff : look === 'halloween' ? 0xff8a2a : 0xffd070) : result === 'lose' ? (look === 'cyber' ? 0xff003c : 0xb03a2a) : 0xa0a8b8, x = innerWidth / 2, y = Math.min(innerHeight * 0.2, 170);
   const c = cine = new Container(); over.stage.addChild(c);
   const rays = new Container(); rays.position.set(x, y);
   for (let i = 0; i < 14; i++) { const a = (i / 14) * TAU, len = Math.max(innerWidth, innerHeight);
@@ -277,8 +295,9 @@ export function ending(result) {
   rays.tint = tint; rays.blendMode = 'add';
   const halo = new Sprite(glowTex); halo.anchor.set(0.5); halo.position.set(x, y); halo.width = halo.height = 360; halo.tint = tint; halo.blendMode = 'add'; halo.alpha = 0.7;
   const label = result === 'win' ? 'Victoire' : result === 'lose' ? 'Défaite' : 'Égalité';
-  const t = new Text({ text: label.toUpperCase(), style: { fontFamily: 'Cinzel, Alegreya SC, serif', fontWeight: '900', fontSize: 52, fill: result === 'win' ? 0xfff0c0 : 0xf1e6cf,
-    stroke: { color: 0x1a0c04, width: 6 }, letterSpacing: 6 } });
+  const L = tableLook(), cyber = season() === 'cyber';
+  const t = new Text({ text: label.toUpperCase(), style: { fontFamily: L.font, fontWeight: '900', fontSize: cyber ? 44 : 52, fill: result === 'win' ? (cyber ? 0xfcee0a : 0xfff0c0) : 0xf1e6cf,
+    stroke: { color: cyber ? 0x05070f : 0x1a0c04, width: 6 }, letterSpacing: 6, ...(cyber ? { dropShadow: { color: 0x19e6ff, blur: 0, distance: 4, angle: Math.PI, alpha: 0.8 } } : {}) } });
   t.anchor.set(0.5); t.position.set(x, y);
   // Défaite : un voile rouge sombre gagne les bords de l'écran.
   const veil = result === 'lose' ? new Sprite(glowTex) : null;
