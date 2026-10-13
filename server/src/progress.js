@@ -391,17 +391,17 @@ export function createProgress(store) {
     checkAchievements(a);
   }
   // Coffre de fin de passe : un prix au hasard (BONUS_ODDS), au montant fixe réglé dans /admin.
-  // L'essence va à une carte possédée qui peut encore monter de niveau ; si toutes sont au niveau maximum, elle devient de l'essence universelle.
+  // L'essence va à une carte possédée qui n'est pas au plafond d'essence ; si toutes le sont, elle devient de l'essence universelle.
   function openBonus(a, season, c) {
     let roll = Math.random() * 100, kind = 'shards';
     for (const [k, p] of Object.entries(BONUS_ODDS)) { if (roll < p) { kind = k; break; } roll -= p; }
     const label = `${season.name} : coffre de fin de passe`;
     if (kind === 'essence') {
-      const mine = OWNABLE.filter(id => a.cards?.[id]), open = mine.filter(id => (a.cardLevels?.[id] || 1) < MAX_CARD_LEVEL);
+      const mine = OWNABLE.filter(id => a.cards?.[id]), open = mine.filter(id => essenceRoom(a, id) > 0);
       const card = shuffle(open)[0], n = c.passBonusEssence;
       if (card) {
-        a.essence = { ...(a.essence || {}), [card]: (a.essence?.[card] || 0) + n };
-        return push(a, { kind: 'pass', label, essence: n, essenceCard: card });
+        const got = giveEssence(a, card, n);
+        return push(a, { kind: 'pass', label, essence: got.essence, essenceCard: card, uniEssence: got.universal });
       }
       if (mine.length) { a.uniEssence = (a.uniEssence || 0) + n; return push(a, { kind: 'pass', label, uniEssence: n }); }
       kind = 'shards';
@@ -453,7 +453,6 @@ export function createProgress(store) {
   // ---- Niveaux de carte (cosmétiques) ----
   // Essence gagnée par doublon, propre à la carte. Le serveur la donne avec les Éclats du doublon (accounts.js).
   const essenceRate = () => cfg().essencePerDuplicate;
-  const uniRate = () => cfg().uniPerDuplicate;
   // Monte une carte possédée d'un niveau, contre son essence et des Éclats.
   async function upgradeCard(a, { card }) {
     if (!OWNABLE.includes(card) || !a.cards?.[card]) throw new HttpError(400, 'Vous ne possédez pas cette carte.');
@@ -464,14 +463,28 @@ export function createProgress(store) {
     if ((a.shards || 0) < cost.shards) throw new HttpError(409, `Il vous faut ${cost.shards} Éclats (vous en avez ${a.shards || 0}).`);
     a.essence[card] = have - cost.essence; a.shards = (a.shards || 0) - cost.shards;
     a.cardLevels = { ...(a.cardLevels || {}), [card]: lvl + 1 };
-    settleMaxed(a);
     return lvl + 1;
   }
-  // Essence universelle : l'essence en réserve d'une carte au niveau maximum ne sert plus ; elle devient de l'essence universelle,
-  // une pour une. Appelé après chaque montée de niveau et au démarrage (anciens comptes). Renvoie l'essence convertie.
-  function settleMaxed(a) {
+  // Essence universelle : une carte est au plafond quand son essence en réserve suffit à la monter jusqu'au niveau maximum
+  // (montée ou non). L'essence qu'elle reçoit au-delà ne lui sert plus et devient de l'essence universelle.
+  const essenceRoom = (a, id) => essenceToMax(a.cardLevels?.[id] || 1, a.essence?.[id] || 0, cfg());
+  // Donne n essence d'une carte : ce qui tient sous le plafond va à la carte, le reste en essence universelle
+  // (uniPerDuplicate pour essencePerDuplicate d'essence, soit une pour une par défaut). Renvoie { essence, universal }.
+  function giveEssence(a, id, n) {
+    const c = cfg(), toCard = Math.min(n, essenceRoom(a, id));
+    if (toCard) a.essence = { ...(a.essence || {}), [id]: (a.essence?.[id] || 0) + toCard };
+    const universal = n > toCard && c.essencePerDuplicate ? Math.round((n - toCard) * c.uniPerDuplicate / c.essencePerDuplicate) : 0;
+    if (universal) a.uniEssence = (a.uniEssence || 0) + universal;
+    return { essence: toCard, universal };
+  }
+  // Au démarrage (anciens comptes) : l'essence en réserve au-delà du plafond devient de l'essence universelle, une pour une.
+  // Renvoie l'essence convertie.
+  function settleCapped(a) {
     let n = 0;
-    for (const [id, e] of Object.entries(a.essence || {})) if (e > 0 && (a.cardLevels?.[id] || 1) >= MAX_CARD_LEVEL) { n += e; delete a.essence[id]; }
+    for (const [id, e] of Object.entries(a.essence || {})) {
+      const over = e - essenceToMax(a.cardLevels?.[id] || 1, 0, cfg());
+      if (over > 0) { n += over; a.essence[id] = e - over; if (!a.essence[id]) delete a.essence[id]; }
+    }
     if (n) a.uniEssence = (a.uniEssence || 0) + n;
     return n;
   }
@@ -569,6 +582,6 @@ export function createProgress(store) {
     passPool: Object.fromEntries(Object.entries(PASS_KINDS).map(([k, x]) => [k, { daily: x.daily, weekly: x.weekly }])),
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
-  return { init, grant, cfg, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, uniRate, upgradeCard, settleMaxed, convertEssence, achievementsView, collectionView, saveSettings, settings,
+  return { init, grant, cfg, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
     seen: a => { a.inbox = []; } };
 }

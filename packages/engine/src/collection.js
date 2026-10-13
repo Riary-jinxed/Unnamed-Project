@@ -129,7 +129,7 @@ export function dailyOffers(set, owned, n = SHOP.dailyCards, rand = Math.random)
   const order = ids => ids.map(id => [rand(), id]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
   return [...order(set.cards.filter(id => !owned[id])), ...order(set.cards.filter(id => owned[id]))].slice(0, n);
 }
-// Doublons du jour : n cartes ou généraux possédés qui peuvent encore monter de niveau (canLevel), ceux des decks du joueur d'abord.
+// Doublons du jour : n cartes ou généraux possédés qui peuvent encore recevoir de l'essence (canLevel : pas au plafond), ceux des decks d'abord.
 // Acheter un doublon donne l'essence d'un doublon de la carte.
 export function dupOffers(account, n, canLevel, rand = Math.random) {
   const order = ids => ids.map(id => [rand(), id]).sort((a, b) => a[0] - b[0]).map(x => x[1]);

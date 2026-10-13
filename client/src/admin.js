@@ -225,8 +225,8 @@ function renderShopSettings() {
   </form>
   <form class="card-box" id="dup-settings">
     <h2 style="font-size:20px">Doublons du jour et rayon Essence</h2>
-    <p class="hint" style="margin:0">Doublons du jour (onglet Sets de la boutique) : des cartes que le joueur possède et qui peuvent encore monter de niveau, celles de ses decks d'abord, renouvelées à minuit. Un doublon acheté donne l'essence d'un doublon (onglet Récompenses), sans les Éclats d'un doublon tiré.
-      Rayon Essence : les arts de l'édition Essence, toujours en vente, payés en essence universelle (les doublons d'une carte au niveau maximum ; taux d'échange dans l'onglet Récompenses).</p>
+    <p class="hint" style="margin:0">Doublons du jour (onglet Sets de la boutique) : des cartes que le joueur possède et à qui il manque encore de l'essence, celles de ses decks d'abord, renouvelées à minuit. Un doublon acheté donne l'essence d'un doublon (onglet Récompenses), sans les Éclats d'un doublon tiré.
+      Rayon Essence : les arts de l'édition Essence, toujours en vente, payés en essence universelle (les doublons d'une carte qui a déjà toute l'essence de ses niveaux ; taux d'échange dans l'onglet Récompenses).</p>
     <div class="grid2">
       ${field('dupOffers', 'Doublons du jour', 'Entre 0 et 10. 0 les retire de la boutique.')}
       ${field('dupPrice', 'Prix d\'un doublon du jour', 'En Éclats.')}

@@ -66,19 +66,17 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
 // Champs de progression remis à zéro avec le compte.
 const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift', 'uniEssence', 'dupShop'];
 
-// Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte,
-// ou de l'essence universelle (uniRate) si la carte est déjà au niveau maximum.
-function addCards(a, ids, rate, essenceRate, uniRate = 0) {
+// Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte
+// (giveEssence : au-delà du plafond, de quoi monter la carte jusqu'au niveau maximum, de l'essence universelle).
+function addCards(a, ids, rate, essenceRate, giveEssence) {
   let shards = 0, essence = 0, universal = 0;
   const fresh = ids.map(id => {
     if (!a.cards[id]) { a.cards[id] = 1; return true; }
     shards += rate;
-    if ((a.cardLevels?.[id] || 1) >= MAX_CARD_LEVEL) universal += uniRate;
-    else if (essenceRate) { essence += essenceRate; a.essence = a.essence || {}; a.essence[id] = (a.essence[id] || 0) + essenceRate; }
+    if (essenceRate) { const got = giveEssence(a, id, essenceRate); essence += got.essence; universal += got.universal; }
     return false;
   });
   a.shards = (a.shards || 0) + shards;
-  if (universal) a.uniEssence = (a.uniEssence || 0) + universal;
   return { fresh, shards, essence, universal };
 }
 // Convertit en Éclats les doublons gardés avant la boutique. Renvoie true si le compte a changé.
@@ -101,11 +99,11 @@ export function createAccounts(store) {
   let mailCount = () => 0;
   const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), tutoShards: progress.cfg().tutoShards });
   // Les nouvelles cartes rapportent de l'XP et peuvent compléter une famille ou un set.
-  const add = (a, ids) => { const got = addCards(a, ids, cfg().shardsPerDuplicate, progress.essenceRate(), progress.uniRate()); return { ...got, xp: progress.onCards(a, got.fresh) }; };
+  const add = (a, ids) => { const got = addCards(a, ids, cfg().shardsPerDuplicate, progress.essenceRate(), progress.giveEssence); return { ...got, xp: progress.onCards(a, got.fresh) }; };
   const ready = Promise.all(store.all().filter(a => {
-    const dup = convertDuplicates(a, cfg().shardsPerDuplicate), decks = migrateDecks(a), gens = grantStarterGenerals(a), prog = progress.init(a), uni = progress.settleMaxed(a);
+    const dup = convertDuplicates(a, cfg().shardsPerDuplicate), decks = migrateDecks(a), gens = grantStarterGenerals(a), prog = progress.init(a), uni = progress.settleCapped(a);
     if (dup) console.log(`Doublons de ${a.login} convertis en Éclats.`);
-    if (uni) console.log(`Essence des cartes au niveau maximum de ${a.login} changée en ${uni} essence universelle.`);
+    if (uni) console.log(`Essence au-delà du plafond de ${a.login} changée en ${uni} essence universelle.`);
     if (decks) console.log(`Deck de ${a.login} rangé dans ses decks.`);
     if (gens) console.log(`Généraux du deck de départ ajoutés à la collection de ${a.login}.`);
     if (prog) console.log(`Progression de ${a.login} créée (niveau ${a.level}).`);
@@ -165,8 +163,8 @@ export function createAccounts(store) {
     if (day && day.date === today() && (day.rotation || 0) === c.rotation && day.offers.every(id => set.cards.includes(id))) return day;
     return (a.shop[set.id] = { date: today(), rotation: c.rotation, offers: dailyOffers(set, a.cards, c.dailyCards), bought: [] });
   }
-  // Doublons du jour : des cartes possédées qui peuvent encore monter de niveau, renouvelées comme les cartes du jour.
-  const canLevel = a => id => (a.cardLevels?.[id] || 1) < MAX_CARD_LEVEL;
+  // Doublons du jour : des cartes possédées qui ne sont pas au plafond d'essence, renouvelées comme les cartes du jour.
+  const canLevel = a => id => progress.essenceRoom(a, id) > 0;
   function dupDay(a) {
     const day = a.dupShop, c = cfg();
     if (day && day.date === today() && (day.rotation || 0) === c.rotation && day.n === c.dupOffers && day.offers.every(id => a.cards[id])) return day;
@@ -175,7 +173,7 @@ export function createAccounts(store) {
   function shopView(a) {
     const c = cfg();
     return { shards: a.shards || 0, freeBoosters: a.freeBoosters || 0, prices: { dailyCards: c.dailyCards, cardPrice: c.cardPrice, boosterPrice: c.boosterPrice, boosterSize: c.boosterSize, shardsPerDuplicate: c.shardsPerDuplicate, dupPrice: c.dupPrice },
-      dups: a.starter ? dupDay(a).offers.map(id => ({ id, bought: dupDay(a).bought.includes(id), maxed: !canLevel(a)(id) })) : [],
+      dups: a.starter ? dupDay(a).offers.map(id => ({ id, bought: dupDay(a).bought.includes(id), capped: !canLevel(a)(id) })) : [],
       // Rayon Essence : essence universelle du joueur et arts de l'édition Essence.
       essence: a.starter ? { universal: a.uniEssence || 0, arts: arts.essenceView(a) } : null,
       arts: a.starter ? arts.view(a) : null, sets: shopOrder(SETS.filter(s => setRevealed(s))).map(set => ({ id: set.id, name: set.name, open: set.open, teaser: set.teaser || '', size: set.cards.length, boosterPrice: setBoosterPrice(set, c.boosterPrice),
@@ -203,19 +201,19 @@ export function createAccounts(store) {
     return { title: 'Achat', cards: [card], ...got, shop: shopView(a), account: me(a) };
   }
   // Doublon du jour : l'essence d'un doublon pour cette carte (sans les Éclats d'un doublon tiré), une fois par offre et par jour.
+  // Ce qui dépasse le plafond de la carte devient de l'essence universelle.
   async function buyDup(a, { card }) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
     const day = dupDay(a);
     if (!day.offers.includes(card)) throw new HttpError(400, 'Ce doublon n\'est plus en vente aujourd\'hui.');
     if (day.bought.includes(card)) throw new HttpError(409, 'Doublon déjà acheté aujourd\'hui.');
-    if (!canLevel(a)(card)) throw new HttpError(409, 'Cette carte est déjà au niveau maximum.');
+    if (!canLevel(a)(card)) throw new HttpError(409, 'Cette carte a déjà toute l\'essence qu\'il lui faut jusqu\'au niveau maximum.');
     pay(a, cfg().dupPrice);
     day.bought.push(card);
-    const n = progress.essenceRate();
-    a.essence = { ...(a.essence || {}), [card]: (a.essence?.[card] || 0) + n };
+    const got = progress.giveEssence(a, card, progress.essenceRate());
     activity.count('dupsBought');
     await store.put(a);
-    return { card, essence: n, shop: shopView(a), account: me(a) };
+    return { card, ...got, shop: shopView(a), account: me(a) };
   }
   // Rayon Essence : essence universelle contre l'essence d'une carte, ou contre un art de l'édition Essence.
   function payUni(a, price) {

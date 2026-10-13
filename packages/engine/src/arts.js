@@ -75,11 +75,11 @@ export const ARTS = Object.fromEntries([
   A('barde_taverne', 'barde', 'Barde de la taverne', 'rare', { theme: 'taverne' }),
   A('wyrm_or', 'wyrm_tresor', 'Wyrm sur la montagne d\'or', 'epique', { theme: 'tresors' }),
   // Édition Essence (famille Astrale) : seulement au rayon Essence de la boutique, contre de l'essence universelle.
-  A('seraphine_constellation', 'seraphine', 'Séraphine des constellations', 'rare', { edition: 'essence', theme: 'astral' }),
-  A('grisk_etoiles', 'grisk', 'Grisk, voleur d\'étoiles', 'rare', { edition: 'essence', theme: 'astral' }),
-  A('sylvaen_voie_lactee', 'sylvaen', 'Sylvaën sous la Voie lactée', 'rare', { edition: 'essence', theme: 'astral' }),
+  A('seraphin_constellation', 'seraphin', 'Séraphin des constellations', 'rare', { edition: 'essence', theme: 'astral' }),
+  A('eclaireur_etoiles', 'eclaireur', 'Éclaireur, voleur d\'étoiles', 'rare', { edition: 'essence', theme: 'astral' }),
+  A('cerf_voie_lactee', 'cerf', 'Chevaucheur de la Voie lactée', 'rare', { edition: 'essence', theme: 'astral' }),
+  A('wyverne_comete', 'wyverne', 'Wyverne, la comète', 'epique', { edition: 'essence', theme: 'astral' }),
   A('vorgoth_nebuleuse', 'vorgoth', 'Vorgoth de la nébuleuse', 'epique', { edition: 'essence', theme: 'astral' }),
-  A('ignaroth_comete', 'ignaroth', 'Ignaroth, la comète', 'epique', { edition: 'essence', theme: 'astral' }),
   A('archidemon_trou_noir', 'archidemon', 'Archidémon du trou noir', 'legendaire', { edition: 'essence', theme: 'astral' }),
   // Promo
   A('seraphine_pionniere', 'seraphine', 'Séraphine des pionniers', 'rare', { edition: 'promo', how: 'Offert aux premiers joueurs.' }),

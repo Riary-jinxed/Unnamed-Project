@@ -23,7 +23,8 @@ export const DEFAULT_REWARDS = {
   familyShards: 200, setShards: 1000, setBoosters: 3,
   // Niveaux de carte : essence de la carte gagnée par doublon, puis essence et Éclats pour passer au niveau n (2 à 5).
   essencePerDuplicate: 10,
-  // Essence universelle : un doublon d'une carte déjà au niveau maximum en donne uniPerDuplicate (son essence ne sert plus) ;
+  // Essence universelle : une carte est au plafond quand son essence suffit à la monter jusqu'au niveau maximum (montée ou non) ;
+  // l'essence d'un doublon au-delà du plafond devient de l'essence universelle (uniPerDuplicate pour essencePerDuplicate) ;
   // uniPerEssence d'essence universelle s'échangent contre 1 essence d'une autre carte (boutique, rayon Essence, ou carte ouverte en grand).
   uniPerDuplicate: 10, uniPerEssence: 2,
   lvl2Essence: 5, lvl2Shards: 50, lvl3Essence: 10, lvl3Shards: 100, lvl4Essence: 15, lvl4Shards: 200, lvl5Essence: 20, lvl5Shards: 400,

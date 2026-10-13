@@ -566,12 +566,14 @@ const myLevel = id => ui.account?.cardLevels?.[id] || 1;
 const essenceOf = id => ui.account?.essence?.[id] || 0;
 const lvInfo = () => prog().cardLevels || { essenceRate: 0, max: MAX_CARD_LEVEL, costs: {} };
 const nextCost = id => lvInfo().costs[myLevel(id) + 1] || null;
-// Essence universelle : les doublons d'une carte au niveau maximum en donnent ; elle s'échange contre l'essence d'une autre carte.
+// Essence universelle : une carte est au plafond quand son essence suffit à la monter jusqu'au niveau maximum (montée ou non) ;
+// ses doublons donnent alors de l'essence universelle, qui s'échange contre l'essence d'une autre carte.
 const uniOf = () => ui.account?.uniEssence || 0;
 const uniPer = () => lvInfo().uniPerEssence || 2;
-const isMaxed = id => myLevel(id) >= MAX_CARD_LEVEL;
+const toMax = id => { let need = 0; for (let n = myLevel(id) + 1; n <= MAX_CARD_LEVEL; n++) need += lvInfo().costs[n]?.essence || 0; return Math.max(0, need - essenceOf(id)); };
+const isCapped = id => toMax(id) === 0;
 // Ce qu'un doublon de cette carte vient de donner (booster, achat), pour son étiquette.
-const dupTag = id => `Doublon · +${shardRate()} Éclats${isMaxed(id) ? (lvInfo().uniRate ? ` · +${lvInfo().uniRate} essence universelle` : '') : lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}`;
+const dupTag = id => `Doublon · +${shardRate()} Éclats${isCapped(id) ? (lvInfo().uniRate ? ` · +${lvInfo().uniRate} essence universelle` : '') : lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}`;
 // Essence qui manque à une carte pour son prochain niveau (0 : elle a de quoi monter, ou elle est au maximum).
 const missingEssence = id => { const c = nextCost(id); return c ? Math.max(0, c.essence - essenceOf(id)) : 0; };
 async function convertEssence(id, amount) {
@@ -600,7 +602,8 @@ function upgradeHTML(id) {
   const ladder = CARD_LEVELS.slice(2).map((x, i) => `<li class="${lvl >= i + 2 ? 'done' : ''}"><span class="lvsw lv lv-${x.look}"></span><span><b>Niv. ${i + 2} · ${x.name}</b> <small class="hint">${esc(x.perk)}</small></span>${lvl >= i + 2 ? '<span class="ok">✓</span>' : ''}</li>`).join('');
   const next = c ? `<div class="row" style="gap:8px"><div class="bar" style="flex:1" role="progressbar" aria-valuenow="${Math.min(ess, c.essence)}" aria-valuemin="0" aria-valuemax="${c.essence}" aria-label="Essence"><span style="width:${pct(ess, c.essence)}%"></span></div><small class="num">${ess}/${c.essence} essence</small></div>
       <button class="btn ${canUpgrade(id) ? 'primary' : ''}" data-act="upgrade" data-id="${id}" ${canUpgrade(id) && !ui.busy ? '' : 'disabled'}>Passer au niveau ${lvl + 1} · ${c.essence} essence + ${c.shards} Éclats</button>
-      ${ess < c.essence ? `<p class="hint">Chaque doublon de cette carte donne ${rate} essence.</p>${uniHTML(id)}` : ui.account.shards < c.shards ? `<p class="hint">Il vous manque ${c.shards - ui.account.shards} Éclats.</p>` : ''}`
+      ${ess < c.essence ? `<p class="hint">Chaque doublon de cette carte donne ${rate} essence.</p>${uniHTML(id)}` : ui.account.shards < c.shards ? `<p class="hint">Il vous manque ${c.shards - ui.account.shards} Éclats.</p>` : ''}
+      ${isCapped(id) ? `<p class="hint">Cette carte a déjà toute l'essence qu'il lui faut jusqu'au niveau ${MAX_CARD_LEVEL} : ses prochains doublons donnent ${lvInfo().uniRate} essence universelle ${ico('essence')} chacun.</p>` : ''}`
     : `<p class="hint">Niveau maximum atteint. Ses doublons donnent maintenant ${lvInfo().uniRate} essence universelle ${ico('essence')} chacun, à échanger contre l'essence d'une autre carte ou un art du rayon Essence.</p>
       <button class="btn" data-act="shop-essence">Rayon Essence · ${ico('essence')}${fmt(uniOf())}</button>`;
   return `<div class="zacts lvbox"><span class="eyebrow">Niveau de la carte · ${lvl}/${MAX_CARD_LEVEL}</span>
@@ -1048,26 +1051,18 @@ function dupsHTML(sh) {
     return { art: artHTML(o.id, nameOf(o.id), lvl, '', mySel(o.id)), zoom: zoomKey(o.id, mySel(o.id) || ''), name, caption: false,
       sub: c ? `Niv. ${lvl} · <span class="num">${essenceOf(o.id)}/${c.essence}</span> essence` : 'Niveau maximum', cost: gen ? null : d.x ? 'X' : d.cost,
       style: `${famVar(gen ? [gen.fam] : d.kw)};--glow:var(--fam)`, badge: `+${rate} essence`,
-      state: o.bought ? 'sold' : o.maxed ? 'owned' : 'sale', done: o.maxed && !o.bought ? 'Niveau max' : '', act: 'buy-dup', id: o.id, off: !canPay(price) || ui.busy,
+      state: o.bought ? 'sold' : o.capped ? 'owned' : 'sale', done: o.capped && !o.bought ? 'Essence au complet' : '', act: 'buy-dup', id: o.id, off: !canPay(price) || ui.busy,
       price: `${ico('shard')}${price}`, label: `Acheter un doublon de ${name} pour ${price} Éclats` }; }) });
   return `<section class="card-box shopset dupbox">
     ${vit}
     ${ui.msg && !ui.sheet && ui.shopTab !== 'essence' ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
-    <p class="hint" style="margin:0">Des cartes de votre collection qui peuvent encore monter de niveau, celles de vos decks d'abord. Un doublon acheté donne ${rate} essence de la carte ; renouvelés chaque jour à minuit.</p>
+    <p class="hint" style="margin:0">Des cartes de votre collection à qui il manque encore de l'essence, celles de vos decks d'abord. Un doublon acheté donne ${rate} essence de la carte ; renouvelés chaque jour à minuit.</p>
   </section>`;
 }
 // Rayon Essence : l'essence universelle (doublons des cartes au niveau maximum) contre l'essence d'une autre carte ou un art de l'édition Essence.
 function essenceShopHTML(E) {
   if (!E) return '';
   const per = uniPer(), have = E.universal;
-  // Cartes à aider : possédées, pas au maximum, à qui il manque de l'essence pour le prochain niveau ; celles des decks d'abord, puis les plus proches du but.
-  const inDecks = new Set(ui.account.decks.flatMap(d => [...d.cards, d.general]));
-  const todo = OWNABLE.filter(id => owned(id) && !isMaxed(id) && missingEssence(id) > 0)
-    .sort((x, y) => inDecks.has(y) - inDecks.has(x) || missingEssence(x) - missingEssence(y) || myLevel(y) - myLevel(x)).slice(0, 6);
-  const row = id => { const miss = missingEssence(id), cost = miss * per, c = nextCost(id);
-    return `<li style="${famVar(GENERALS[id] ? [GENERALS[id].fam] : CARDS[id].kw)}"><button class="unithumb" data-zoom="${zoomKey(id, mySel(id) || '')}" aria-label="Voir ${esc(nameOf(id))} en grand">${artHTML(id, nameOf(id), myLevel(id), '', mySel(id))}</button>
-      <span class="uniname"><b>${esc(nameOf(id))}</b><small class="hint">Niv. ${myLevel(id)} · <span class="num">${essenceOf(id)}/${c.essence}</span> essence${inDecks.has(id) ? ' · dans un deck' : ''}</small></span>
-      <button class="btn ${have >= cost ? 'primary' : ''}" data-act="uni-convert" data-id="${id}" data-n="${miss}" ${have >= cost && !ui.busy ? '' : 'disabled'} aria-label="${miss} essence de ${esc(nameOf(id))} pour ${cost} essence universelle">+${miss} · ${ico('essence')}${cost}</button></li>`; };
   const vit = vitrineHTML({ title: 'Arts de l\'essence', sub: 'Édition Essence · famille Astrale', timer: false, cls: 'essvit', slots: E.arts.map(o => { const art = ARTS[o.id], name = esc(art.name);
     return { art: artHTML(art.card, nameOf(art.card), 1, '', art.id), zoom: zoomKey(art.card, art.id), name, cls: `rar-${rarityKey(art)}`, style: '--glow:var(--rar)',
       sub: esc(nameOf(art.card)), badge: esc(rarityName(art)), state: o.owned ? 'owned' : 'sale',
@@ -1075,12 +1070,9 @@ function essenceShopHTML(E) {
   return `<section class="card-box shopset essbox">
     <div><span class="eyebrow">Rayon Essence</span><h2 style="font-size:22px">Essence universelle</h2></div>
     <div class="unibal">${ico('essence')}<b class="num">${fmt(have)}</b><span class="hint">essence universelle</span></div>
-    <p class="hint" style="margin:0">Une carte au niveau ${MAX_CARD_LEVEL} n'a plus besoin de son essence : chacun de ses doublons donne ${lvInfo().uniRate} essence universelle. Échangez-la ici contre l'essence de vos autres cartes (${per} pour 1) ou contre les arts de l'édition Essence, vendus seulement dans ce rayon.</p>
+    <p class="hint" style="margin:0">Quand une carte a toute l'essence qu'il lui faut jusqu'au niveau ${MAX_CARD_LEVEL}, même sans être montée, chacun de ses doublons donne ${lvInfo().uniRate} essence universelle.
+      Pour donner de l'essence à une autre carte (${per} pour 1), ouvrez-la en grand dans la collection. Ici, elle s'échange contre les arts de l'édition Essence, vendus seulement dans ce rayon.</p>
     ${ui.msg && !ui.sheet ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
-    <div class="gal-h">Essence pour vos cartes</div>
-    ${todo.length ? `<ul class="unilist">${todo.map(row).join('')}</ul><p class="hint" style="margin:0">Chaque bouton donne juste ce qui manque pour le prochain niveau. Pour une autre carte, ouvrez-la en grand dans la collection.</p>`
-      : '<p class="hint" style="margin:0">Aucune carte n\'attend d\'essence pour le moment.</p>'}
-    <div class="gal-h">Arts de l'édition Essence</div>
     ${vit}
     <p class="hint" style="margin:0">Toujours en vente ici, jamais au coffre ni dans les arts du jour. Réunissez-les tous pour compléter la famille d'arts Astrale et gagner son titre.</p>
   </section>`;
@@ -1091,7 +1083,7 @@ async function buyDup(id) {
   const r = await call('POST', '/api/shop/dup', { card: id });
   if (!r) return;
   ui.shop = r.shop;
-  ui.msg = `+${r.essence} essence de ${nameOf(id)}.${myLevel(id) < MAX_CARD_LEVEL && missingEssence(id) === 0 ? ' Elle peut monter de niveau dans la collection.' : ''}`;
+  ui.msg = `+${r.essence} essence de ${nameOf(id)}${r.universal ? ` et ${r.universal} essence universelle` : ''}.${myLevel(id) < MAX_CARD_LEVEL && missingEssence(id) === 0 ? ' Elle peut monter de niveau dans la collection.' : ''}`;
   play('reveal'); render();
 }
 // Prix d'un booster d'un set (le serveur l'envoie avec chaque set de la boutique).
