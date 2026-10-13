@@ -30,7 +30,7 @@ if (!byGeneral) {
   }
   console.log('Taux de victoire du deck en ligne contre le deck en colonne :');
 } else {
-  for (const g of Object.keys(GENERALS)) {
+  for (const g of Object.keys(GENERALS).filter(x => !GENERALS[x].boss)) {
     const a = famDeck(GENERALS[g].fam) || keys[0];
     let w = 0, n = 0;
     for (const b of keys) for (let i = 0; i < N; i++) { const r = await play(a, b, g); if (r === 0) w++; else if (r < 0) w += 0.5; n++; }

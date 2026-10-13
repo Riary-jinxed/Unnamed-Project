@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { WebSocketServer } from 'ws';
-import { DECKS, newGame, startTurn, runTurn, viewFor, aiPlan, pick, forfeitGame } from '@jeu/engine';
+import { DECKS, GENERALS, newGame, startTurn, runTurn, viewFor, aiPlan, pick, forfeitGame, bossStep } from '@jeu/engine';
+import { newBossGame, bossScore } from '@jeu/engine/boss';
 import { tierOf } from '@jeu/engine/ranked';
 import { deckError, aiDeckKeys } from '@jeu/engine/collection';
 import { openStore } from './store.js';
@@ -17,6 +18,7 @@ import { createCatalog } from './cards.js';
 import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
 import { createClans } from './clans.js';
+import { createBoss } from './boss.js';
 import { NOTES_MAJ } from './notes-maj.js';
 
 const PORT = +process.env.PORT || 8787;
@@ -44,7 +46,10 @@ accounts.progress.setSeasonHook(id => clans.closeSeason(id));
 // Le profil public d'un joueur montre aussi son clan.
 const playerRoute = games.routes['GET /api/player'];
 games.routes['GET /api/player'] = (...x) => { const r = playerRoute(...x); r.player.clan = clans.badge(r.player.login); return r; };
-const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...accounts.progress.events.routes, ...clans.routes }, catalog.public);
+// Boss mondial : tentatives jouées dans un salon du serveur (message « boss »), classement de la semaine, magasin.
+const boss = createBoss(store, accounts);
+accounts.setBossTile(a => boss.tile(a));
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...accounts.progress.events.routes, ...clans.routes, ...boss.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
 // Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.
@@ -105,6 +110,8 @@ function broadcast(room, flash = null) {
       names: room.seats.map(x => x && x.name), connected: room.seats.map(x => !!(x && (x.ai || (x.ws && x.ws.readyState === 1)))),
       badges: room.seats.map((x, j) => x && (j === i ? x.badge : shownBadge(x.badge, room.st.p[j]))),
       away: room.seats.map(x => (x && x.forfeitAt ? Math.max(0, x.forfeitAt - Date.now()) : null)), reward: room.rewards ? room.rewards[i] : null, ranked: room.ranked || null,
+      // Boss mondial : le boss, son action de ce tour et le score du moment.
+      boss: room.boss ? { id: room.boss, step: bossStep(room.st), score: bossScore(room.st, boss.cfg()) } : undefined,
       // Images de profil : lourdes, envoyées une seule fois par connexion et par partie.
       avatars: s.avatarsSent ? undefined : room.seats.map(x => (x && x.avatar) || null) }) });
     if (s.ws && s.ws.readyState === 1) s.avatarsSent = true;
@@ -117,13 +124,16 @@ function lobby(room) {
 // L'IA d'une partie classée prend un deck préconstruit au hasard, et sa force suit le rang actuel du joueur.
 function startMatch(room) {
   if (room.ranked === 'ai') { const acc = accounts.byToken(room.seats[0].auth); if (acc) room.seats[1] = aiSeat(acc); }
-  const decks = room.seats.map(s => { if (s.ai) return pick(aiDeckKeys());
+  const decks = room.seats.map(s => { if (s.boss) return null; if (s.ai) return pick(aiDeckKeys());
     const acc = accounts.byToken(s.auth), d = acc && deckOf(acc, s.deckId); return d && !deckError(d, acc) ? d : s.deck; });
-  room.decks = decks.map(d => (typeof d === 'string' ? DECKS[d].cards : d.cards));
-  room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => (typeof d === 'string' ? null : d.general)) });
+  room.decks = decks.map(d => (!d ? [] : typeof d === 'string' ? DECKS[d].cards : d.cards));
+  room.st = room.boss ? newBossGame(decks[0], room.boss, room.seats[0].name)
+    : newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => (typeof d === 'string' ? null : d.general)) });
   startTurn(room.st); room.st.phase = 'plan';
   room.plans = [null, null]; room.rematch = [false, false]; room.rewards = null;
   room.seats.forEach((s, i) => { const acc = accounts.byToken(s.auth); if (acc) { s.badge = accounts.progress.badge(acc, decks[i]); s.avatar = acc.avatar || null; } s.avatarsSent = false; });
+  // Le boss se montre avec son art (portrait).
+  if (room.boss) room.seats[1].badge = { boss: true, arts: { [room.boss]: GENERALS[room.boss].art }, looks: {}, borders: {} };
   broadcast(room);
 }
 async function resolve(room) {
@@ -135,7 +145,15 @@ async function resolve(room) {
 }
 // Partie terminée (fin du dernier tour ou forfait) : enregistrée une seule fois, avec les récompenses de chacun, puis diffusée.
 async function endMatch(room) {
-  if (room.st.over && !room.st.recorded) {
+  if (room.st.over && !room.st.recorded && room.boss) {
+    // Boss mondial : le score de la tentative, ses paliers et le total de la semaine (pas de victoire ni de défaite).
+    room.seats.forEach(s => s && stopAway(s));
+    room.st.recorded = true;
+    const acc = accounts.byToken(room.seats[0].auth);
+    const r = acc ? boss.finish(acc, room.st, { abandoned: !!room.st.result?.forfeit }) : null;
+    if (acc) await store.put(acc).catch(e => console.error('Tentative non enregistrée :', e));
+    room.rewards = [r ? { boss: r, account: accounts.me(acc) } : null, null];
+  } else if (room.st.over && !room.st.recorded) {
     room.seats.forEach(s => s && stopAway(s));
     room.st.recorded = true;
     const mode = room.ranked === 'ai' ? 'pve' : 'pvp';
@@ -173,6 +191,15 @@ function forfeit(room, seat) {
   room.forfeited = true;
   rankedResults(room, i => (i === seat ? 'loss' : 'win'));
   room.seats.forEach(s => { const acc = !s.ai && accounts.byToken(s.auth); if (acc) store.put(acc).catch(e => console.error('Rang non enregistré :', e)); });
+}
+
+// Tentative contre le boss quittée ou expirée en cours de partie : elle compte avec le plateau du moment.
+function abandonBoss(room) {
+  if (!room.boss || !room.st || room.st.over) return;
+  // Le joueur est déjà parti : plus rien ne lui est envoyé.
+  room.seats.forEach(s => { if (s) s.ws = null; });
+  forfeitGame(room.st, 0, 'tentative abandonnée');
+  endMatch(room).catch(e => console.error('Tentative non enregistrée :', e));
 }
 
 // Déconnexion en pleine partie : le joueur a AWAY_FORFEIT_MS pour revenir, sinon il perd par forfait et l'autre gagne
@@ -244,6 +271,15 @@ function handle(ws, msg) {
     rooms.set(room.code, room); ws.room = room; ws.seat = 0;
     lobby(room); startMatch(room); friends.changed(seat.login); return;
   }
+  // Boss mondial : une tentative contre le boss de la semaine, comptée dès que la partie commence.
+  if (msg.t === 'boss') {
+    const seat = seatFor(ws, msg); if (!seat) return;
+    const acc = accounts.byToken(msg.auth);
+    let id; try { id = boss.start(acc); } catch (e) { return send(ws, { t: 'error', msg: e.message }); }
+    const room = { code: newCode(), seats: [seat, { ai: true, boss: true, name: GENERALS[id].name, login: null }], plans: [null, null], st: null, busy: false, lastActive: Date.now(), boss: id };
+    rooms.set(room.code, room); ws.room = room; ws.seat = 0;
+    lobby(room); startMatch(room); friends.changed(seat.login); return;
+  }
   if (msg.t === 'join') {
     const room = rooms.get(String(msg.room || '').toUpperCase());
     if (!room) return send(ws, { t: 'error', msg: 'Aucune partie avec ce code.' });
@@ -278,12 +314,19 @@ function handle(ws, msg) {
     if (msg.turn != null && msg.turn !== room.st.turn) return;
     room.plans[ws.seat] = { cards: Array.isArray(msg.cards) ? msg.cards.slice(0, 12) : [], moves: Array.isArray(msg.moves) ? msg.moves.slice(0, 12) : [], general: msg.general ?? null };
     const ai = room.seats.findIndex(s => s && s.ai);
-    if (ai >= 0) room.plans[ai] = aiPlan(room.st, ai, room.seats[ai].tries);
+    if (ai >= 0) room.plans[ai] = room.seats[ai].boss ? { cards: [], moves: [], general: null } : aiPlan(room.st, ai, room.seats[ai].tries);
     if (room.plans[0] && room.plans[1]) resolve(room); else broadcast(room);
     return;
   }
   if (msg.t === 'rematch') {
     if (!room.st || !room.st.over) return;
+    if (room.boss) {
+      // Nouvelle tentative contre le boss de la semaine (il peut avoir changé depuis lundi minuit).
+      const acc = accounts.byToken(room.seats[0].auth); if (!acc) return;
+      try { room.boss = boss.start(acc); } catch (e) { return send(ws, { t: 'error', msg: e.message }); }
+      room.seats[1].name = GENERALS[room.boss].name;
+      return startMatch(room);
+    }
     room.rematch[ws.seat] = true;
     room.seats.forEach((s, i) => { if (s.ai) room.rematch[i] = true; });
     if (room.rematch[0] && room.rematch[1]) startMatch(room); else broadcast(room);
@@ -293,6 +336,7 @@ function handle(ws, msg) {
     ws.room = null;
     if (room.invite && !room.st) return closeInvite(room, room.seats[ws.seat].login);
     forfeit(room, ws.seat);
+    abandonBoss(room);
     room.seats.forEach((s, i) => i !== ws.seat && s && send(s.ws, { t: 'left' }));
     rooms.delete(room.code); seatsChanged(room);
   }
@@ -324,11 +368,14 @@ setInterval(() => {
   catalog.refresh();
   // Fin du mois : le classement de la saison finie est figé tout de suite, sans attendre qu'un joueur revienne.
   accounts.progress.closeSeason();
+  // Fin de semaine : le classement du boss mondial est figé et ses récompenses données.
+  boss.closeWeek();
   const now = Date.now();
   for (const [code, r] of rooms) {
     if (now - r.lastActive <= ROOM_TTL_MS) continue;
     const gone = r.seats.map(away);
     if (gone[0] !== gone[1]) forfeit(r, gone[0] ? 0 : 1);
+    abandonBoss(r);
     rooms.delete(code);
   }
 }, 60_000);

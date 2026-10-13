@@ -80,6 +80,7 @@ Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDu
 | `mail.js` | `createMail(store, accounts, { notify })` : courrier (messages de `/admin` à tous ou à quelques joueurs, avec récompense facultative, documents `courrier`) et codes cadeaux (document `codes`, 10 codes faux par heure au plus). Comptes : `mail = { read, got, hidden }`, `redeemed`. Routes `/api/mail…`, `/api/redeem`, `/api/admin/mail…`, `/api/admin/codes…`. |
 | `notes-maj.js` | `NOTES_MAJ` : notes de mise à jour, envoyées une seule fois dans le courrier de tous les comptes existants au premier démarrage du serveur qui les contient (`publishNotes`, identifiants retenus dans `courrier.notes`). Pour une nouvelle note : l'ajouter en fin de liste avec un identifiant nouveau. |
 | `clans.js` | `createClans(store, accounts)` : clans (document `clans`), missions de clan avancées à chaque fin de partie (`accounts.setGameHook`), dons contre des Écus, magasin du clan, classement des clans figé à la fin du mois en même temps que le classement classé (`progress.setSeasonHook`, document `classement-clans`) avec ses récompenses et bannières. Comptes : `clan`, `clanCoins`, `clanReq`, `clanDon`. Rôles (`roles`, Maître = `leader`), trésor (`bank`) et projets (`boosts`, `chest`). Routes `/api/clan…` (dont `role`, `claim`, `fund`), `/api/clans`, `/api/clans/ladder`, `/api/admin/clans…`. |
+| `boss.js` | `createBoss(store, accounts)` : boss mondial (`packages/engine/src/boss.js`). Tentatives du jour (`start`, comptée dès que la partie commence), score et paliers d'une tentative (`finish`, appelé à la fin de la partie ou à l'abandon), classement de la semaine figé chaque lundi à minuit avec les récompenses de chaque tranche (`closeWeek`, appelé chaque minute et quand un joueur passe à la semaine suivante ; document `boss-classement`), magasin du boss, tuile de l'accueil (`tile`, dans `accounts.me`), réglages de `/admin` (document `boss`). Comptes : `boss` (`{ week, boss, total, best, runs, day, used, last }`), `bossCoins` (Insignes), `bossBuys`. Routes `/api/boss`, `/api/boss/ladder`, `/api/boss/avatars`, `/api/boss/buy`, `/api/admin/boss`. |
 | `cards.js` | `createCatalog(store, accounts)` : brouillon du catalogue, publication (refusée si elle retire une carte qu'un joueur possède), catalogue public. |
 | `index.js` | Assemble le tout, sert les fichiers, gère les salons et les WebSockets. |
 
@@ -135,6 +136,9 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `GET /api/clans?q=`, `GET /api/clans/ladder` | Clans à rejoindre (recherche par nom ou étiquette) ; classement des clans du mois, récompenses et podium du mois précédent. |
 | `POST /api/clan/create`, `/join`, `/cancel`, `/leave` | Créer un clan (50 Prismes), le rejoindre (ou demander si sur demande), annuler sa demande, le quitter. |
 | `POST /api/clan/accept`, `/refuse`, `/kick`, `/promote`, `/edit` | Chef du clan : demandes, exclusion, passer la main, blason, description et accès. |
+| `GET /api/boss` | Écran du boss mondial : boss de la semaine (script, cartes renforcées), tentatives du jour, total, meilleure tentative et place, barème, paliers, tranches, Insignes, magasin, boss de la semaine suivante et podium de la semaine passée. `GET /api/boss/ladder` : classement de la semaine ; `GET /api/boss/avatars` : images du top 10. |
+| `POST /api/boss/buy` | `{ item }` : achat au magasin du boss, en Insignes (ressources limitées par semaine, cosmétiques une fois). |
+| `GET`/`POST /api/admin/boss` | Réglages du boss mondial (ouverture, tentatives par jour, barème, rotation, paliers, tranches, prix et limites du magasin) ; `{ reset: true }` revient aux valeurs par défaut. |
 | `POST /api/clan/donate`, `/buy` | `{ res, amount }` : don contre des Écus ; `{ item }` : achat au magasin du clan. |
 | `POST /api/friends/accept`, `/remove` | Accepte une demande ; refuse une demande, annule la sienne ou retire un ami (`{ login }`, des deux côtés). |
 
@@ -161,6 +165,7 @@ Messages JSON, champ `t` pour le type.
 | --- | --- | --- |
 | `create` | `{ auth }` (session) | `lobby` |
 | `ranked` | `{ auth, deck? }` | `lobby` puis `state` : partie classée contre l'IA, jouée par le serveur |
+| `boss` | `{ auth }` | `lobby` puis `state` : tentative contre le boss mondial de la semaine, jouée par le serveur (`error` s'il ne reste plus de tentative). `rematch` y lance aussitôt une nouvelle tentative ; `leave` en cours de partie la termine avec le plateau du moment. La vue porte `boss` (`{ id, step, score }`) et, à la fin, `reward.boss` (score, paliers, gains, total de la semaine). |
 | `join` | `{ room, auth, deck? }` (`deck` : identifiant du deck à jouer, sinon le deck joué) | `lobby` aux deux, puis `state` (la partie démarre) |
 | `rejoin` | `{ room, token }` (jeton du `lobby`) | `state` ou `lobby` ; `gone` si le salon n'existe plus. L'ancienne connexion du siège est fermée. |
 | `plan` | `{ cards: [{ uid, zone }], moves: [{ uid, zone }], general, turn }` (`turn` : tour visé ; un plan renvoyé après une reconnexion pour un tour déjà joué est ignoré) | `state` (attente de l'autre, puis chaque étape de la révélation) |

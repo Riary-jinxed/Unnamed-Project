@@ -1,0 +1,76 @@
+/* Boss mondial (boss.js) : écran du boss, classement, magasin, bandeau à la table et fin de tentative. */
+
+/* Insigne : dessin provisoire en attendant celui de cosmetics.js (même gabarit que les autres icônes). */
+.ico-insigne { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M3 2.5h14V9c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9z' fill='%235a5a66' stroke='%2322222a' stroke-width='1.2'/%3E%3Cpath d='M6.5 5.5c.6 3 1.4 5.5 2.6 8M10 5c.4 3 .6 5.6.4 8.4M13.5 5.5c-.6 3-1.4 5.5-2.6 8' stroke='%23ffa030' stroke-width='1.6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E"); }
+.chip.cur.insigne { color: #ffc27a; }
+
+.btabs { display: flex; width: 100%; }
+.btabs button { flex: 1; }
+
+/* Le boss en grand : son illustration en bandeau, le texte et le bouton dessous. */
+.bhero { display: grid; border-radius: 10px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--fam, var(--accent)) 60%, var(--line));
+  background: linear-gradient(color-mix(in srgb, var(--fam, var(--accent)) 18%, var(--surface)), var(--surface)); }
+.bhero-art { position: relative; height: clamp(180px, 34dvh, 320px); isolation: isolate;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--fam, var(--accent)) 45%, #000), #000 75%); }
+.bhero-art::after { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(transparent 55%, color-mix(in srgb, var(--fam, var(--accent)) 18%, var(--surface))); }
+.bhero-tx { display: grid; gap: 10px; padding: 0 16px 16px; margin-top: -28px; position: relative; z-index: 2; }
+.bhero-tx h2 { margin: 0; font-family: var(--famfont, var(--display)); font-size: clamp(22px, 6.5vw, 30px); line-height: 1.1; text-shadow: 0 2px 8px rgb(0 0 0 / .6); }
+.bstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.bstats span { display: grid; gap: 1px; padding: 8px; border-radius: var(--r); background: var(--sunk, var(--bg)); text-align: center; }
+.bstats b { font-size: 20px; font-family: var(--display); }
+.bstats small { font-size: 11.5px; color: var(--muted); line-height: 1.2; }
+.bplay { background: linear-gradient(#e2602a, #a8321a); border-color: #ffb04a; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / .5); }
+.bplay:disabled { filter: grayscale(.7); opacity: .7; }
+
+.bboosts { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip.bboost { background: color-mix(in srgb, var(--up) 18%, var(--surface)); border-color: var(--up); color: var(--text); font-weight: 600; }
+
+.bscript { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.bscript li { display: flex; gap: 10px; align-items: flex-start; }
+.bscript li > div { display: grid; gap: 1px; min-width: 0; }
+.bturn { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; font-weight: 700; font-size: 13px;
+  background: color-mix(in srgb, var(--foe) 25%, var(--surface)); border: 1px solid var(--foe); }
+
+.btiers li { background: var(--sunk, var(--bg)); }
+.btiers li b { min-width: 5.5em; }
+.btiers li span { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.btiers li.done { outline: 1px solid var(--up); }
+.btiers li .ok { color: var(--up); font-weight: 700; margin-left: auto; }
+
+.blast { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.blast li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 2px; border-top: 1px solid var(--line); }
+.blast li:first-child { border-top: 0; }
+.bnext { display: flex; gap: 12px; align-items: center; }
+.bnext .gport { flex: none; width: 64px; height: 64px; border-radius: 10px; }
+.bnext > div { display: grid; gap: 4px; min-width: 0; }
+
+/* Magasin : ressources (icône et quantité) et booster. */
+.bres { display: grid; place-items: center; gap: 4px; min-height: 100px; }
+.bres .ico { width: 48px; height: 48px; }
+.bpack { width: 62px; height: 88px; border-radius: 6px; border: 2px solid #ffb04a;
+  background: repeating-linear-gradient(45deg, rgb(255 255 255 / .08) 0 6px, transparent 6px 12px), linear-gradient(#8a2a14, #2a0a06); box-shadow: 0 4px 10px rgb(0 0 0 / .4); }
+
+/* Tuile de l'accueil : le portrait du boss en fond, à droite. */
+.btile { position: relative; overflow: hidden; isolation: isolate; border-color: #c0602a; }
+.btile-art { position: absolute; inset: 0 0 0 45%; z-index: -1; opacity: .55; -webkit-mask-image: linear-gradient(90deg, transparent, #000 60%); mask-image: linear-gradient(90deg, transparent, #000 60%); }
+.btile-art .gport-art { position: absolute; inset: 0; overflow: hidden; }
+.btile-art .gport-art img { position: absolute; left: 50%; top: 50%; width: 250%; transform: translate(calc(var(--fx) * -1%), calc(var(--fy) * -1%)); height: auto; max-width: none; }
+
+/* À la table : action du boss ce tour et score du moment, entre son bandeau et le plateau (une rangée de plus avant celle du plateau). */
+#app.ingame:has(> .bbar) { grid-template-rows: auto auto auto minmax(min-content, 1fr); }
+.bbar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: var(--r); font-size: 12.5px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--foe) 22%, var(--surface)), var(--surface)); border: 1px solid color-mix(in srgb, var(--foe) 55%, var(--line)); }
+.bbar-step { flex: 1; min-width: 0; display: grid; gap: 1px; line-height: 1.25; }
+.bbar-step b { font-family: var(--display); font-size: 14px; }
+.bbar-step small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.bbar-score { flex: none; display: grid; justify-items: center; line-height: 1.05; }
+.bbar-score small { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.bbar-score b { font-family: var(--display); font-size: 22px; color: var(--accent); }
+/* Carte de la main renforcée contre le boss. */
+.hc .bboost-tag { position: absolute; left: 4px; bottom: 4px; z-index: 3; padding: 0 5px; border-radius: 999px; font-size: 11px; font-weight: 800;
+  background: var(--up); color: #062a12; box-shadow: 0 1px 3px rgb(0 0 0 / .5); }
+
+/* Fin d'une tentative. */
+.bend .bend-score { font-size: 44px; line-height: 1; margin: 0; }
+.bend .bend-score small { font-size: 16px; color: var(--muted); }
+.bend .zs small { display: block; }

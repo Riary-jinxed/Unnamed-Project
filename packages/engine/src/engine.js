@@ -503,6 +503,11 @@ export const CARDS = {
   rancon:      { set: 'set3', name: 'Ransomware', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware. Quand vous le piochez, il s\'exécute et disparaît : la carte la plus chère de votre main coûte 1 de plus.',
                  malware: (st, p) => { const c = st.p[p].hand.filter(x => costOf(st, x) !== null).sort((a, b) => costOf(st, b) - costOf(st, a))[0];
                    if (c) { c.costMod = (c.costMod || 0) + 1; log(st, `${nm(c.id)} coûte 1 de plus.`, 'down'); } } },
+  // Jetons des boss mondiaux (boss.js) : ses sbires, et ce qu'il pose chez le joueur.
+  sbire:       { name: 'Sbire du boss', type: 'C', cost: 0, power: 4, kw: [], token: true, text: 'Jeton du boss, un dans chaque zone au début de la partie. Dépassez la puissance du boss dans une zone pour marquer des points en plus.' },
+  cendres:     { name: 'Cendres d\'éclipse', type: 'C', cost: 0, power: -1, kw: [], token: true, text: 'Jeton du boss Ignaroth. Il prend une place dans votre zone.' },
+  givre:       { name: 'Éclat de givre', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware du boss Vael\'Thar. Quand vous le piochez, il s\'exécute et disparaît : vous perdez 1 sceau ce tour et votre créature la plus puissante perd 1.',
+                 malware: (st, p) => { const P = st.p[p]; if (P.seals > 0) { P.seals--; log(st, `${who(st, p)} : -1 sceau.`, 'down'); } const s = strongest(st, mine(st, p)); if (s) buff(st, s, -1); } },
 };
 
 // ---- Généraux : rattachés à une famille pour le thème, sans restreindre le deck ----
@@ -625,7 +630,95 @@ export const GENERALS = {
                text: 'Début de partie : la carte la plus chère de votre main coûte 1 de moins.',
                onStart: (p, st) => { const c = st.p[p].hand.filter(x => (costOf(st, x) ?? 0) > 0).sort((a, b) => costOf(st, b) - costOf(st, a))[0];
                  if (c) { c.discount = (c.discount || 0) - 1; log(st, `${who(st, p)} : ${nm(c.id)} coûte 1 de moins.`, 'up'); } } },
+
+  // ---- Boss mondiaux (boss.js) ----
+  // Jamais en collection (boss: true, voir GENERAL_IDS). Le boss est le joueur 1, sans deck ni terrain, avec un Sbire dans chaque zone : à chaque tour, il joue
+  // l'étape de son script (script[tour - 1], au début ou à la fin du tour) contre le joueur 0. boost : bonus de puissance de vos
+  // créatures de ces familles ou de ces cartes contre lui (aura, cumulés). art : art alternatif qui le représente (portrait).
+  boss_ignaroth: { boss: true, name: 'Ignaroth sous l\'éclipse', fam: 'Dragon', kind: 'Boss', art: 'ignaroth_eclipse',
+               text: 'Boss mondial. Il frappe votre plateau : ses Cendres prennent vos places, son Souffle brûle votre créature la plus puissante.',
+               boost: { fams: { Ange: 2, Vampire: 2, Elfe: 1 }, cards: { feu_follet: 2, juge: 2, archange: 2 } },
+               script: [
+                 { when: 'end', name: 'Pluie de cendres', text: 'Cendres d\'éclipse (-1) dans votre zone Gauche', act: (st, p) => ashes(st, p, 0) },
+                 { when: 'end', name: 'Souffle d\'éclipse', text: 'votre créature la plus puissante au Centre perd 3', act: (st, p) => scorch(st, p, 1, 3) },
+                 { when: 'end', name: 'Pluie de cendres', text: 'Cendres d\'éclipse (-1) dans votre zone Droite', act: (st, p) => ashes(st, p, 2) },
+                 { when: 'end', name: 'Souffle d\'éclipse', text: 'votre créature la plus puissante à Gauche perd 3', act: (st, p) => scorch(st, p, 0, 3) },
+                 { when: 'end', name: 'Pluie de cendres', text: 'Cendres d\'éclipse (-1) dans votre zone Centre', act: (st, p) => ashes(st, p, 1) },
+                 { when: 'end', name: 'Souffle d\'éclipse', text: 'votre créature la plus puissante à Droite perd 3', act: (st, p) => scorch(st, p, 2, 3) },
+                 { when: 'end', name: 'Éclipse totale', text: 'votre créature la plus puissante de chaque zone perd 2', act: (st, p) => [0, 1, 2].forEach(z => scorch(st, p, z, 2)) },
+               ],
+               aura: bossAura, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') },
+  boss_vorgoth: { boss: true, name: 'Vorgoth, le cercle infernal', fam: 'Démon', kind: 'Boss', art: 'vorgoth_cercle',
+               text: 'Boss mondial. Il s\'en prend à votre main : cartes plus chères, cartes défaussées, créatures affaiblies avant d\'être jouées.',
+               boost: { fams: { 'Mort-vivant': 2, Gobelin: 1 }, cards: { goule: 2, zombie: 2, recruteur: 2 } },
+               script: [
+                 { when: 'start', name: 'Tentation', text: 'la carte la plus chère de votre main coûte 1 de plus', act: (st, p) => tempt(st, p, 1) },
+                 { when: 'end', name: 'Pacte rompu', text: 'vous défaussez une carte de votre main au hasard', act: (st, p) => pact(st, p) },
+                 { when: 'start', name: 'Tentation', text: 'les 2 cartes les plus chères de votre main coûtent 1 de plus', act: (st, p) => tempt(st, p, 2) },
+                 { when: 'end', name: 'Pacte rompu', text: 'vous défaussez une carte de votre main au hasard', act: (st, p) => pact(st, p) },
+                 { when: 'start', name: 'Murmure', text: 'les créatures de votre main perdent 1', act: (st, p) => whisper(st, p) },
+                 { when: 'end', name: 'Pacte rompu', text: 'vous défaussez une carte de votre main au hasard', act: (st, p) => pact(st, p) },
+                 { when: 'end', name: 'Cercle de flammes', text: 'chacune de vos zones qui n\'est pas pleine perd 3', act: (st, p) => [0, 1, 2].forEach(z => { if (creaturesAt(st, p, z).length < SLOTS) addZone(st, p, z, -3); }) },
+               ],
+               aura: bossAura, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') },
+  boss_vaelthar: { boss: true, name: 'Vael\'Thar du glacier', fam: 'Dragon', kind: 'Boss', art: 'vaelthar_glacier',
+               text: 'Boss mondial. Il gèle votre deck : Éclats de givre glissés dans vos pioches, créatures engourdies, cartes perdues.',
+               boost: { fams: { 'Démon': 2, Dragon: 1 }, cards: { pyromane: 2, rouge: 2, bete: 2 } },
+               script: [
+                 { when: 'end', name: 'Givre', text: '2 Éclats de givre sont glissés dans le haut de votre deck', act: (st, p) => frost(st, p, 2) },
+                 { when: 'end', name: 'Engourdissement', text: 'les 2 prochaines créatures de votre deck perdent 2', act: (st, p) => numb(st, p) },
+                 { when: 'end', name: 'Givre', text: '2 Éclats de givre sont glissés dans le haut de votre deck', act: (st, p) => frost(st, p, 2) },
+                 { when: 'end', name: 'Engourdissement', text: 'les 2 prochaines créatures de votre deck perdent 2', act: (st, p) => numb(st, p) },
+                 { when: 'end', name: 'Givre', text: '2 Éclats de givre sont glissés dans le haut de votre deck', act: (st, p) => frost(st, p, 2) },
+                 { when: 'end', name: 'Gel profond', text: 'les 2 premières cartes de votre deck partent à la défausse', act: (st, p) => mill(st, p, 2) },
+                 { when: 'start', name: 'Blizzard', text: 'vos créatures en jeu de puissance 1 ou moins sont détruites', act: (st, p) => mine(st, p).filter(c => power(st, c) <= 1).forEach(c => destroy(st, c, 1 - p)) },
+               ],
+               aura: bossAura, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') },
 };
+
+// ---- Boss mondiaux : actions de leur script ----
+// p : le joueur visé (celui qui affronte le boss). Le boss écrit d'abord le nom de son action au journal (genHook : il a agi).
+export const bossStep = (st, p = 1) => GENERALS[st.p[p].general]?.script?.[st.turn - 1] || null;
+function bossAct(p, st, when) {
+  // Ses Sbires arrivent au début du premier tour (avant, ses crochets ne se déclenchent pas : genHacked au tour 0).
+  if (when === 'start' && st.turn === 1) bossMinions(p, st);
+  const s = bossStep(st, p); if (!s || s.when !== when) return;
+  log(st, `${GENERALS[st.p[p].general].name} : ${s.name}, ${s.text}.`, 'reveal');
+  s.act(st, 1 - p);
+}
+// Bonus de vos créatures contre le boss : famille et carte, cumulés.
+export function bossBoost(general, id) {
+  const b = GENERALS[general]?.boost, d = CARDS[id]; if (!b || !d || d.type !== 'C' || d.token) return 0;
+  return d.kw.reduce((n, k) => n + (b.fams[k] || 0), 0) + (b.cards[id] || 0);
+}
+function bossMinions(p, st) { for (const z of [0, 1, 2]) summon(st, p, z, 'sbire'); }
+function bossAura(p, c, st) { return c.owner === p ? 0 : bossBoost(st.p[p].general, c.id); }
+// Cendres : un jeton -1 dans la zone ; zone pleine, sa créature la plus faible perd 1.
+function ashes(st, p, z) {
+  if (free(st, p, z) <= 0) { const w = weakest(st, creaturesAt(st, p, z)); if (w) buff(st, w, -1); return; }
+  st.p[p].board[z].push({ uid: st.nextUid++, id: 'cendres', owner: p, zone: z, buff: 0, revealed: true, order: st.order++ });
+  log(st, `Des Cendres d'éclipse tombent chez ${who(st, p)} (${ZONE_NAMES[z]}).`, 'down');
+}
+// Souffle : la créature la plus puissante de la zone perd n ; zone vide, la zone perd n.
+function scorch(st, p, z, n) { const s = strongest(st, creaturesAt(st, p, z)); if (s) buff(st, s, -n); else addZone(st, p, z, -n); }
+function tempt(st, p, n) {
+  st.p[p].hand.filter(c => costOf(st, c) !== null).sort((a, b) => costOf(st, b) - costOf(st, a)).slice(0, n)
+    .forEach(c => { c.costMod = (c.costMod || 0) + 1; log(st, `${nm(c.id)} coûte 1 de plus.`, 'down'); });
+}
+function pact(st, p) { const h = st.p[p].hand; if (h.length) discardCard(st, p, pick(h)); }
+function whisper(st, p) {
+  const h = st.p[p].hand.filter(isCreature); h.forEach(c => { c.buff -= 1; });
+  if (h.length) log(st, `Les créatures de la main de ${who(st, p)} perdent 1.`, 'down');
+}
+function frost(st, p, n) { for (let i = 0; i < n; i++) plant(st, p, 'givre'); log(st, `${n} Éclats de givre rejoignent le deck de ${who(st, p)}.`, 'down'); }
+function numb(st, p) {
+  const list = st.p[p].deck.filter(isCreature).slice(0, 2); list.forEach(c => { c.buff -= 2; });
+  if (list.length) log(st, `${list.length > 1 ? `${list.length} créatures` : 'Une créature'} du deck de ${who(st, p)} ${list.length > 1 ? 'perdent' : 'perd'} 2.`, 'down');
+}
+function mill(st, p, n) {
+  const P = st.p[p], gone = P.deck.splice(0, n);
+  for (const c of gone) { if (!CARDS[c.id].token) P.discard.push(c); log(st, `${nm(c.id)} part du deck de ${who(st, p)} à la défausse.`, 'down'); }
+}
 
 // ---- Terrains ----
 // Crochets : flat (bonus de zone), aura, onReveal, onStartTurn, onEndTurn, onAllyDestroyed, onCardReveal.
@@ -896,7 +989,7 @@ function bestZone(st, p, from) {
 function draw(st, p, n, extra = false) {
   const P = st.p[p], got = [];
   for (let i = 0; i < n; i++) {
-    const c = P.deck.shift(); if (!c) { log(st, `${who(st, p)} : deck vide, pas de pioche.`); break; }
+    const c = P.deck.shift(); if (!c) { if (!GENERALS[P.general]?.boss) log(st, `${who(st, p)} : deck vide, pas de pioche.`); break; }
     if (CARDS[c.id].malware) { runMalware(st, p, c); continue; }
     if (P.hand.length >= HAND_MAX) { log(st, `${who(st, p)} : main pleine, ${nm(c.id)} part à la défausse.`); P.hand.push(c); discardCard(st, p, c, true); continue; }
     P.hand.push(c); got.push(c);
@@ -1040,6 +1133,7 @@ function hack(st, c) {
 }
 // Piratage du général : son pouvoir ne fonctionne plus jusqu'à la fin du tour suivant.
 function hackGeneral(st, p) {
+  if (GENERALS[st.p[p].general].boss) return;
   st.p[p].genHacked = st.turn + 1;
   log(st, `${GENERALS[st.p[p].general].name} est piraté jusqu'à la fin du tour suivant.`, 'down');
 }
