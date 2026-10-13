@@ -4,7 +4,7 @@
 // rendu CSS, et tout reste en CSS sans WebGL.
 // Pour ne pas ralentir le démarrage : PixiJS arrive après le premier rendu, et les images sont gardées dans le cache du
 // navigateur, si bien que les visites suivantes les posent tout de suite sans rien redessiner. Changer un dessin : augmenter VERSION.
-const VERSION = 3, CACHE = 'cosmetiques', DPR = () => Math.min(2, Math.max(1, devicePixelRatio || 1));
+const VERSION = 4, CACHE = 'cosmetiques', DPR = () => Math.min(2, Math.max(1, devicePixelRatio || 1));
 const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
 const key = (kind, id) => `/__cosmetiques/v${VERSION}/x${DPR()}/${kind}/${id}.png`;
 
@@ -13,7 +13,7 @@ export async function renderAll() {
   const [{ autoDetectRenderer, Rectangle }, art] = await Promise.all([import('pixi.js'), import('./cosmetics-art.js')]);
   const renderer = await autoDetectRenderer({ preference: 'webgl', backgroundAlpha: 0, width: 8, height: 8, antialias: true });
   const jobs = [['icon', art.ICON_IDS, art.drawIcon, art.ICON_S, art.ICON_S, 0.75], ['back', art.BACK_IDS, art.drawBack, art.BACK_W, art.BACK_H, 1],
-    ['frame', art.FRAME_IDS, art.drawFrame, art.FRAME_S, art.FRAME_S, 0.5]];
+    ['frame', art.FRAME_IDS, art.drawFrame, art.FRAME_S + 2 * art.FRAME_PAD, art.FRAME_S + 2 * art.FRAME_PAD, 0.5]];
   const out = { icon: {}, back: {}, frame: {} }, blobs = [];
   for (const [kind, ids, draw, w, h, scale] of jobs) for (const id of ids) {
     const c = draw(id); if (!c) continue;
@@ -27,7 +27,9 @@ export async function renderAll() {
   return { urls: out, blobs };
 }
 
-const FRAME_OUT = 14; // en % : l'anneau déborde du portrait de chaque côté (cosmetics-art.js, FRAME_OUT)
+// En % du portrait : l'anneau déborde de FRAME_OUT de chaque côté, et l'image ajoute sa marge FRAME_PAD (cosmetics-art.js),
+// soit 40 / 256 du carré du dessin, lequel vaut 1 + 2 × 14 % du portrait.
+const FRAME_OUT = 14 + 40 / 256 * (100 + 2 * 14);
 const cssId = id => String(id).replace(/[^a-z0-9_-]/gi, '');
 function apply({ icon, back, frame }) {
   const rules = [
