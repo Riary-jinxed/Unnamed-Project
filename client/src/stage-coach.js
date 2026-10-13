@@ -54,8 +54,11 @@ export function set(c) {
   readIn = 0;
 }
 
-const rectOf = sel => { if (!sel) return null; const el = document.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return r.width ? r : null; };
-const rectsOf = sels => sels.flatMap(s => [...document.querySelectorAll(s)]).map(el => el.getBoundingClientRect()).filter(r => r.width);
+// La carte qu'on glisse est un clone (.dragghost) qui garde les attributs de l'original : il ne compte jamais comme cible,
+// sinon le liseré suivrait le doigt.
+const live = sel => [...document.querySelectorAll(sel)].filter(el => !el.closest('.dragghost'));
+const rectOf = sel => { if (!sel) return null; const el = live(sel)[0]; if (!el) return null; const r = el.getBoundingClientRect(); return r.width ? r : null; };
+const rectsOf = sels => sels.flatMap(live).map(el => el.getBoundingClientRect()).filter(r => r.width);
 // Deux trous qui se chevauchent s'annuleraient : on les fond en un seul rectangle.
 function merge(list) {
   const out = [];
@@ -99,6 +102,8 @@ function tick(tk) {
 function gesture(now) {
   const { from, to, tap } = rects, ease = k => 1 - Math.pow(1 - k, 3);
   ghost.clear(); ring.clear();
+  // Pendant que le joueur glisse lui-même une carte, la main s'efface pour ne pas le gêner.
+  if (document.querySelector('.dragghost')) { hand.visible = false; return; }
   if (from && to) {
     const k = ((now - t0) % 2400) / 2400;
     const ax = from.left + from.width / 2, ay = from.top + from.height * 0.55, bx = to.left + to.width / 2, by = to.top + to.height * 0.72;
