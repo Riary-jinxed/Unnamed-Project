@@ -1040,9 +1040,15 @@ function eventCard(ev, text) {
   return `<div class="card-box evcard ev-${esc(ev.effect)}"><span class="evmult num">${multLabel(ev.mult)}</span>
     <div><span class="eyebrow">Événement · ${evRemaining(ev)}</span><b>${esc(ev.name)}</b><small>${text}</small></div></div>`;
 }
-// Pastilles « ×2 XP », « ×2 PC » en haut à gauche de la vitrine de l'accueil ; chacune ouvre la feuille de son événement.
-const eventChips = evs => (evs.length ? `<div class="sc-events">${evs.map(ev => `<button class="evchip ev-${esc(ev.effect)}" data-act="event" data-ev="${esc(ev.id)}"
-  aria-label="Événement ${esc(ev.name)}">${multLabel(ev.mult)} ${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}</button>`).join('')}</div>` : '');
+// Médailles « ×2 XP », « ×2 PC » en haut à gauche de la vitrine de l'accueil (rubans, bord dentelé, centre bombé) ;
+// chacune ouvre la feuille de son événement. Les couleurs viennent de la classe de l'effet (style.css : --m-hi, --m-mid, --m-lo, --m-rib).
+const MEDAL = `<svg class="medal-svg" viewBox="0 0 60 76" aria-hidden="true">
+  <path class="rib" d="M14 0h12l8 30-9 4z"/><path class="rib alt" d="M46 0H34l-8 30 9 4z"/>
+  <polygon class="rim" points="30.0,23.0 34.4,25.9 39.6,24.9 42.5,29.3 47.7,30.3 48.7,35.5 53.1,38.4 52.1,43.6 55.0,48.0 52.1,52.4 53.1,57.6 48.7,60.5 47.7,65.7 42.5,66.7 39.6,71.1 34.4,70.1 30.0,73.0 25.6,70.1 20.4,71.1 17.5,66.7 12.3,65.7 11.3,60.5 6.9,57.6 7.9,52.4 5.0,48.0 7.9,43.6 6.9,38.4 11.3,35.5 12.3,30.3 17.5,29.3 20.4,24.9 25.6,25.9"/>
+  <circle class="face" cx="30" cy="48" r="19"/><circle class="ring" cx="30" cy="48" r="16.5"/>
+  <ellipse class="shine" cx="23" cy="40" rx="8" ry="4.5" transform="rotate(-30 23 40)"/></svg>`;
+const eventChips = evs => (evs.length ? `<div class="sc-events">${evs.map(ev => `<button class="medal ev-${esc(ev.effect)}" data-act="event" data-ev="${esc(ev.id)}"
+  aria-label="Événement ${esc(ev.name)} : ${multLabel(ev.mult)} ${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}">${MEDAL}<span class="medal-txt"><b>${multLabel(ev.mult)}</b><small>${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}</small></span></button>`).join('')}</div>` : '');
 // Temps qui reste avant la fin (minuit, heure de Paris) : en jours, puis en heures le dernier jour.
 function evRemaining(ev) {
   if (ev.daysLeft > 1) return `encore ${ev.daysLeft} jours`;
