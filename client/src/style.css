@@ -637,6 +637,13 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
    Dans la fenêtre, rien ne change : le nom, le contour et le reflet restent devant le personnage. */
 .zoomart.pop { --hors-fenetre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 960 1424' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M0 0H960V1424H0ZM92 200H868A20 20 0 0 1 888 220V1332A20 20 0 0 1 868 1352H92A20 20 0 0 1 72 1332V220A20 20 0 0 1 92 200Z'/%3E%3C/svg%3E"); }
 .perso-out { z-index: 3; -webkit-mask: var(--hors-fenetre) 0 0 / 100% 100% no-repeat; mask: var(--hors-fenetre) 0 0 / 100% 100% no-repeat; }
+/* Le bandeau du nom assombrit le bas de la fenêtre : sa copie .name-shade (même texte, donc même hauteur) prolonge cet assombrissement
+   sur la partie du personnage qui déborde en bas et sur les côtés. Elle couvre le gabarit jusqu'à ses bords (7.6923cqi autour de la
+   fenêtre), son dégradé est recalé sur celui du nom, et elle est découpée au personnage hors de la fenêtre. */
+.name-shade { z-index: 3; left: -7.6923cqi; right: -7.6923cqi; bottom: -7.6923cqi; padding: 18cqi 13.6923cqi 12.6923cqi; border-radius: 0;
+  color: transparent; text-shadow: none; background: linear-gradient(transparent, rgb(0 0 0 / .72) calc(55% - 4.2308cqi));
+  -webkit-mask: var(--perso) left bottom / 115.3846cqi 171.1538cqi no-repeat, var(--hors-fenetre) left bottom / 115.3846cqi 171.1538cqi no-repeat;
+  mask: var(--perso) left bottom / 115.3846cqi 171.1538cqi no-repeat, var(--hors-fenetre) left bottom / 115.3846cqi 171.1538cqi no-repeat; mask-composite: intersect; }
 
 /* accueil : un bloc « Jouer », la progression, et une barre de menu en bas pour le reste */
 .home { gap: 12px; }
