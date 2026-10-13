@@ -574,6 +574,11 @@ body:has(#app.ingame) { margin: 0; }
 .zoomwrap:has(.zoomart) .zoomcard .zh h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .zoomwrap:has(.zoomart) .zoomcard .zh { justify-content: space-between; }
 .zoomart.pop .art-perso { filter: drop-shadow(0 8px 10px rgb(0 0 0 / .45)); }
+/* La partie du personnage hors de la fenêtre passe devant le contour de la carte (.art.rar::after) et le reflet : une copie du
+   personnage, au-dessus, découpée au gabarit privé de la fenêtre (rétrécie de 8 px pour couvrir le trait du contour qu'il franchit).
+   Dans la fenêtre, rien ne change : le nom, le contour et le reflet restent devant le personnage. */
+.zoomart.pop { --hors-fenetre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 960 1424' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M0 0H960V1424H0ZM92 200H868A20 20 0 0 1 888 220V1332A20 20 0 0 1 868 1352H92A20 20 0 0 1 72 1332V220A20 20 0 0 1 92 200Z'/%3E%3C/svg%3E"); }
+.perso-out { z-index: 3; -webkit-mask: var(--hors-fenetre) 0 0 / 100% 100% no-repeat; mask: var(--hors-fenetre) 0 0 / 100% 100% no-repeat; }
 
 /* accueil : un bloc « Jouer », la progression, et une barre de menu en bas pour le reste */
 .home { gap: 12px; }

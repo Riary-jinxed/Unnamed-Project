@@ -89,11 +89,14 @@ export function artHTML(id, name, lvl = 1, cls = '', artId = null) {
   const a = ART[id]; if (!a?.decor) return provFor(id) ? provHTML(id, name, cls) : '';
   return layers(a, name, lvl, `${holoOff()[id] ? '' : holoLv(lvl)} ${cls}`, isSpell(id), id);
 }
-const layers = (a, name, lvl, cls, spell, card) => { const perso = !spell && a.perso;
-  return `<div class="art ${pops(lvl) && perso && !popOff()[card] ? 'pop' : ''} ${cls}" aria-hidden="true">
+// Personnage qui sort du cadre : la partie hors de la fenêtre est redessinée par-dessus le contour de la carte (style.css, .perso-out),
+// avec son propre reflet découpé à la silhouette du personnage (holo.css, .perso-foil, --perso).
+const layers = (a, name, lvl, cls, spell, card) => { const perso = !spell && a.perso, pop = pops(lvl) && perso && !popOff()[card], holo = cls.includes('holo');
+  return `<div class="art ${pop ? 'pop' : ''} ${cls}"${pop && holo ? ` style="--perso: url('${perso}')"` : ''} aria-hidden="true">
     <div class="art-clip"><img class="art-decor" src="${a.decor}" alt="" loading="lazy" decoding="async"></div>
     ${perso ? `<img class="art-perso" src="${a.perso}" alt="" loading="lazy" decoding="async">` : ''}
-    ${cls.includes('holo') ? FOIL : ''}<span class="art-name">${esc(name)}</span></div>`; };
+    ${holo ? FOIL : ''}${pop ? `<img class="art-perso perso-out" src="${a.perso}" alt="" loading="lazy" decoding="async">` : ''}
+    ${pop && holo ? '<span class="foil perso-foil"></span>' : ''}<span class="art-name">${esc(name)}</span></div>`; };
 // Portrait du général en partie : l'illustration (décor et personnage) agrandie et centrée sur le visage.
 // FACES : position du visage dans l'image, en % de sa largeur et de sa hauteur ; par défaut, en haut au centre.
 // Le portrait montre environ 40 % de la largeur et 33 % de la hauteur de l'image : le centre est borné pour ne jamais sortir de l'image.
