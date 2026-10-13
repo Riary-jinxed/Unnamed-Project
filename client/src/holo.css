@@ -28,6 +28,13 @@
     radial-gradient(circle at 58% 40%, #fff 0 1.5px, transparent 2.5px), radial-gradient(circle at 12% 88%, #fff 0 1px, transparent 2px);
   animation: holosparkle 2.6s ease-in-out infinite alternate; }
 @keyframes holosparkle { from { opacity: .15; } to { opacity: .8; } }
+/* Personnage qui sort du cadre (style.css, .perso-out) : son reflet à lui, posé sur tout le gabarit 960x1424 et découpé à la partie
+   du personnage hors de la fenêtre (--perso, posé par art.js). L'arc-en-ciel est recalé pour prolonger exactement celui de la carte. */
+.zoomart.pop.holo .perso-foil { inset: auto; left: -7.6923%; top: -16.4384%; width: 115.3846%; height: 121.9178%; z-index: 3; border-radius: 0;
+  background-size: 100% 100%, 190.67% 180.45%;
+  background-position: 0 0, calc(50% + var(--tx) * 51.62%) calc(44.41% + var(--ty) * 55.05%);
+  -webkit-mask: var(--perso) 0 0 / 100% 100% no-repeat, var(--hors-fenetre) 0 0 / 100% 100% no-repeat;
+  mask: var(--perso) 0 0 / 100% 100% no-repeat, var(--hors-fenetre) 0 0 / 100% 100% no-repeat; mask-composite: intersect; }
 
 /* Sans capteur ni souris (ordinateur, ou avant le premier mouvement du téléphone) : le reflet ondule lentement tout seul. */
 @property --tilt-x { syntax: "<number>"; inherits: true; initial-value: 0; }
