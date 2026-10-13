@@ -10,11 +10,15 @@ import { CARD_LEVELS } from '@jeu/engine/rewards';
 import { ARTS, rarityKey, rarityName } from '@jeu/engine/arts';
 
 const files = import.meta.glob(['./art/*/*.webp', './art/alt/*/*.webp'], { eager: true, query: '?url', import: 'default' });
+// Vignettes : les mêmes images en 640 px de large, faites à la compilation (client/vignettes.js). La galerie de la collection
+// les propose au navigateur à côté de l'original (srcset), et il prend la plus petite qui reste nette à la taille affichée.
+const thumbs = import.meta.glob(['./art/*/*.webp', './art/alt/*/*.webp'], { eager: true, query: '?vignette', import: 'default' });
 const ART = {}, ALT = {};
-for (const [path, url] of Object.entries(files)) {
+const add = (list, key) => { for (const [path, url] of Object.entries(list)) {
   const [, alt, id, layer] = path.match(/^\.\/art\/(alt\/)?([^/]+)\/(decor|perso)\.webp$/) || [];
-  if (id) ((alt ? ALT : ART)[id] ||= {})[layer] = url;
-}
+  if (id) ((alt ? ALT : ART)[id] ||= {})[key ? `${layer}${key}` : layer] = url;
+} };
+add(files); add(thumbs, 'Thumb');
 export const hasArt = id => !!ART[id]?.decor;
 
 // Visuels des terrains : une image par terrain, art/terrain/<id>.webp, en 832x1168 (le ratio de la fenêtre des cartes),
@@ -91,12 +95,19 @@ export function artHTML(id, name, lvl = 1, cls = '', artId = null) {
   const a = ART[id]; if (!a?.decor) return provFor(id) ? provHTML(id, name, cls) : '';
   return layers(a, name, lvl, `${holoOff()[id] ? '' : holoLv(lvl)} ${cls}`, isSpell(id), id);
 }
+// Calque d'une illustration. En vignette (classe « vignette », galerie de la collection), la version réduite est proposée avec
+// l'original : le navigateur prend la plus petite qui reste nette à la taille affichée (« auto » : sa vraie largeur ; sinon une
+// moitié d'écran sur téléphone, 380 px au-delà), si bien que la vignette n'est jamais moins nette que l'original à l'écran.
+const img = (c, a, layer, cls) => { const thumb = /\bvignette\b/.test(cls) && a[`${layer}Thumb`];
+  return `<img class="${c}" src="${a[layer]}"${thumb ? ` srcset="${thumb} 640w, ${a[layer]} 960w" sizes="auto, (max-width: 520px) 50vw, 380px"` : ''} alt="" loading="lazy" decoding="async">`; };
 // Personnage qui sort du cadre : la partie hors de la fenêtre est redessinée par-dessus le contour de la carte (style.css, .perso-out),
 // avec son propre reflet découpé à la silhouette du personnage (holo.css, .perso-foil, --perso) et l'ombre du bandeau du nom (.name-shade).
-const layers = (a, name, lvl, cls, spell, card) => { const perso = !spell && a.perso, pop = pops(lvl) && perso && !popOff()[card], holo = cls.includes('holo');
+// Seule la vue en grand (« zoomart ») fait déborder le personnage : en vignette, ses calques de débordement ne serviraient à rien
+// et, sans les règles de .zoomart.pop, recouvriraient le nom de la carte.
+const layers = (a, name, lvl, cls, spell, card) => { const perso = !spell && a.perso, pop = pops(lvl) && perso && !popOff()[card] && /\bzoomart\b/.test(cls), holo = cls.includes('holo');
   return `<div class="art ${pop ? 'pop' : ''} ${cls}"${pop ? ` style="--perso: url('${perso}')"` : ''} aria-hidden="true">
-    <div class="art-clip"><img class="art-decor" src="${a.decor}" alt="" loading="lazy" decoding="async"></div>
-    ${perso ? `<img class="art-perso" src="${a.perso}" alt="" loading="lazy" decoding="async">` : ''}
+    <div class="art-clip">${img('art-decor', a, 'decor', cls)}</div>
+    ${perso ? img('art-perso', a, 'perso', cls) : ''}
     ${holo ? FOIL : ''}${pop ? `<img class="art-perso perso-out" src="${a.perso}" alt="" loading="lazy" decoding="async">` : ''}
     ${pop && holo ? '<span class="foil perso-foil"></span>' : ''}${pop ? `<span class="art-name name-shade">${esc(name)}</span>` : ''}<span class="art-name">${esc(name)}</span></div>`; };
 // Portrait du général en partie : l'illustration (décor et personnage) agrandie et centrée sur le visage.
@@ -133,7 +144,7 @@ function altHTML(alt, name, lvl, cls) {
   if (ALT[alt.id]?.decor) return layers(ALT[alt.id], name, lvl, `${rar} ${cls}`, isSpell(alt.card), alt.card);
   const base = ART[alt.card]?.decor;
   return `<div class="art ph ${rar} ${cls}" aria-hidden="true">
-    <div class="art-clip">${base ? `<img class="art-decor" src="${base}" alt="" loading="lazy" decoding="async">` : ''}<span class="ph-veil"></span></div>
+    <div class="art-clip">${base ? img('art-decor', ART[alt.card], 'decor', cls) : ''}<span class="ph-veil"></span></div>
     ${holo ? FOIL : ''}<span class="ph-tag">${esc(rarityName(alt))}</span><span class="ph-title">${esc(alt.name)}</span>
     <span class="art-name">${esc(name)}</span></div>`;
 }

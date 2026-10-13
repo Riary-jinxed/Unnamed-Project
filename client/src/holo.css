@@ -50,6 +50,9 @@
 :root:not([data-tilt]) .art.holo:not(.hover) .foil { animation: holodrift 7s ease-in-out infinite alternate; }
 @keyframes holodrift { 0% { --tilt-x: -.8; --tilt-y: -.5; } 50% { --tilt-x: .3; --tilt-y: .6; } 100% { --tilt-x: .9; --tilt-y: -.3; } }
 
+/* Carte hors de l'écran (holo.js) : ses animations attendent qu'elle revienne. */
+.horsvue, .horsvue *, .horsvue::before, .horsvue::after, .horsvue *::before, .horsvue *::after { animation-play-state: paused !important; }
+
 /* Carte en grand : elle penche aussi un peu, en relief. */
 .zoomwrap .zoomart.holo { transform: perspective(900px) rotateY(calc(var(--tx) * 7deg)) rotateX(calc(var(--ty) * -7deg)); transition: transform .12s linear; }
 

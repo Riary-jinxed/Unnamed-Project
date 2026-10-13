@@ -977,7 +977,8 @@ const famRank = id => { const i = FAMILIES.indexOf(famOfCard(id)); return i < 0 
 const byFamCost = (a, b) => famRank(a) - famRank(b) || costKey(a) - costKey(b) || nameOf(a).localeCompare(nameOf(b));
 // Carte ou général, tel qu'il sort d'un booster ou s'affiche dans la collection.
 // border : niveau de la bordure montrée (myBorder), par défaut celle du niveau.
-const anyCard = (id, lvl = 1, art = null, border = lvl) => GENERALS[id] ? genCard(id, lvl, art, border) : fullCard(id, lvl, art, border);
+// cls : classe de l'illustration (« vignette » dans la galerie de la collection, art.js).
+const anyCard = (id, lvl = 1, art = null, border = lvl, cls = '') => GENERALS[id] ? genCard(id, lvl, art, border, cls) : fullCard(id, lvl, art, border, cls);
 // art : montrer cet art alternatif en grand (aperçu en boutique).
 const zoomKey = (id, art = '') => `${GENERALS[id] ? 'general' : 'card'}:${id}${art ? `:${art}` : ''}`;
 function renderLoading() {
@@ -1130,12 +1131,12 @@ function renderCollection() {
   const shown = OWNABLE.filter(id => !hiddenCard(id) && (!ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam)).sort(byFamCost);
   const tile = id => { const n = owned(id), lvl = myLevel(id), up = canUpgrade(id);
     return `<button class="ccard ${n ? '' : 'locked'} ${n && (lvl > 1 || up) ? 'tagged' : ''}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? `, niveau ${lvl}${up ? ', peut monter de niveau' : ''}` : ', pas encore obtenue'}">
-      ${anyCard(id, n ? lvl : 1, n ? mySel(id) : null, n ? myBorder(id) : 1)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
+      ${anyCard(id, n ? lvl : 1, n ? mySel(id) : null, n ? myBorder(id) : 1, 'vignette')}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
       ${n && (lvl > 1 || up) ? `<span class="lvtag num ${up ? 'up' : ''}">${lvl > 1 ? `Niv. ${lvl}` : ''}${up ? `${lvl > 1 ? ' · ' : ''}↑ Améliorer` : ''}</span>` : ''}</button>`; };
   return `<div class="top"><span class="title">Ma collection</span><button class="btn" data-act="edit">Modifier le deck</button></div>
   <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.filter(id => !hiddenCard(id)).length}, généraux compris. Touchez une carte pour la voir en grand et la faire monter de niveau avec l'essence de ses doublons.</p>
   <div class="seg famseg" role="group" aria-label="Famille"><button data-fam="" class="${ui.colFam ? '' : 'on'}">Toutes</button>${fams.map(f => `<button data-fam="${f}" class="${ui.colFam === f ? 'on' : ''}">${f}</button>`).join('')}</div>
-  <div class="gallery">${shown.map(tile).join('')}</div>
+  <div class="gallery vignettes">${shown.map(tile).join('')}</div>
   <div class="gal-h">Vos terrains</div><p class="hint" style="margin:0">Les terrains neutres, et ceux des familles dont vous possédez un général.</p>
   <div class="gallery">${allowedTerrains(a).map(terrainCard).join('')}</div>`;
 }
@@ -1514,10 +1515,10 @@ function renderLobby() {
     <button class="btn" data-act="quit">Annuler</button>
   </div>`;
 }
-function fullCard(id, lvl = 1, art = null, border = lvl) { const d = CARDS[id];
-  return `<div class="fc${lvCls(border)}" style="${famVar(d.kw)}">${artHTML(id, d.name, lvl, '', art)}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
+function fullCard(id, lvl = 1, art = null, border = lvl, cls = '') { const d = CARDS[id];
+  return `<div class="fc${lvCls(border)}" style="${famVar(d.kw)}">${artHTML(id, d.name, lvl, cls, art)}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
     <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
-const genCard = (k, lvl = 1, art = null, border = lvl) => { const g = GENERALS[k]; return `<div class="fc${lvCls(border)}" style="${famVar([g.fam])}">${artHTML(k, g.name, lvl, '', art)}<b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
+const genCard = (k, lvl = 1, art = null, border = lvl, cls = '') => { const g = GENERALS[k]; return `<div class="fc${lvCls(border)}" style="${famVar([g.fam])}">${artHTML(k, g.name, lvl, cls, art)}<b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
 const terrainCard = k => { const t = TERRAINS[k]; return `<div class="fc" style="${famVar([t.fam])}">${terrainHTML(k, t.name)}<b>${t.name}</b><span class="k">Terrain</span><span class="x">${rich(t.text)}</span></div>`; };
 // Carte affichée en grand, avec les actions possibles sur elle pendant la planification.
 const artLine = art => (ARTS[art] ? ` · art ${esc(ARTS[art].name)} (${esc(rarityName(ARTS[art]))})` : '');
@@ -1707,6 +1708,8 @@ function sheetHTML() {
   return '';
 }
 const SEASON_OVERRIDE = (q => q === null ? null : q === 'base' ? '' : q)(new URLSearchParams(location.search).get('saison'));
+// Dernier écran posé (render) : son HTML et ses nœuds, gardés tels quels tant que l'écran ne change pas.
+const lastScreen = { body: null, nodes: [] };
 function render() {
   const h = document.getElementById('hand'); const sx = h ? h.scrollLeft : 0;
   // Défilement de la fenêtre ouverte, gardé quand elle se redessine (ex. : après une amélioration, en bas de la fiche).
@@ -1720,7 +1723,7 @@ function render() {
   if (ui.screen === 'home' && !ui.sheet && ui.account?.starter && ui.account.tutoGift === false && !ui.guide) ui.sheet = 'gift';
   firstLaunch();
   ui.coach = ui.screen === 'game' ? (ui.mode === 'tuto' && ui.ctrl ? ui.ctrl.coach(ui) : null) : guideCoach();
-  const body = screens[ui.screen]() + (ui.screen in TABBED ? tabbar(TABBED[ui.screen]) : '');
+  const body = screens[ui.screen](), bar = ui.screen in TABBED ? tabbar(TABBED[ui.screen]) : '';
   app.classList.toggle('ingame', ui.screen === 'game');
   // Thème de l'interface (décors PixiJS, habillage.css) : ?saison=… dans l'adresse pour en essayer un (« base » : aucun), sinon celui
   // choisi dans la personnalisation, sinon celui de la saison en cours.
@@ -1733,7 +1736,17 @@ function render() {
   const hop = moved && slides(ui.shownScreen) && slides(ui.screen), dir = hop && motion ? screenDir(ui.shownScreen, ui.screen) : 0;
   if (dir) ghostScreen(app, dir);
   if (motion && ui.shownSheet && !ui.sheet) ghostSheet(app.querySelector(':scope > .sheet'));
-  app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : ui.coach && ui.screen !== 'game' && !ui.sheet ? coachHTML(ui.coach, 'bottom') : '');
+  const tail = bar + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : ui.coach && ui.screen !== 'game' && !ui.sheet ? coachHTML(ui.coach, 'bottom') : '');
+  // Écran inchangé (on ouvre ou ferme une carte en grand, une fenêtre…) : il reste en place et seul ce qui est par-dessus est
+  // redessiné, avec la barre du bas (son onglet ne glisse qu'au premier rendu d'un écran). Refaire toute la collection (plus de
+  // 200 cartes et leurs images) à chaque toucher prenait près d'une seconde sur téléphone. La partie, elle, est toujours
+  // redessinée en entier (ses effets partent d'éléments neufs).
+  if (!moved && ui.screen !== 'game' && body === lastScreen.body && lastScreen.nodes.every(n => n.parentNode === app)) {
+    const keep = new Set(lastScreen.nodes);
+    for (const n of [...app.childNodes]) if (!keep.has(n)) n.remove();
+    app.querySelectorAll('.coach-hl').forEach(el => el.classList.remove('coach-hl'));
+  } else { app.innerHTML = body; lastScreen.body = body; lastScreen.nodes = [...app.childNodes]; }
+  app.insertAdjacentHTML('beforeend', tail);
   if (hop) scrollTo({ top: 0, behavior: 'instant' });
   setHome(app); setShop(app); setEnd(app, endReel());
   app.style.setProperty('--dx', `${dir * 36}px`); app.style.setProperty('--dy', dir ? '0px' : '10px');

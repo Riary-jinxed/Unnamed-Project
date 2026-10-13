@@ -325,6 +325,10 @@ body:has(#app.ingame) { margin: 0; }
 .famseg { flex-wrap: wrap; align-self: start; }
 .ccard { position: relative; display: grid; padding: 0; border: 0; background: none; text-align: left; }
 .ccard .fc { height: 100%; box-sizing: border-box; }
+/* Galerie de la collection (plus de 200 cartes) : le navigateur ne met en page et ne dessine que les cartes proches de l'écran,
+   les autres gardent la place de leur dernière taille connue (400 px avant la première). Ouvrir la collection demandait plus
+   d'une seconde de mise en page sur téléphone. La marge laisse déborder la lueur des bordures (Or, Astral) comme avant. */
+.gallery.vignettes > .ccard { content-visibility: auto; contain-intrinsic-size: auto 400px; overflow-clip-margin: 24px; }
 .ccard.locked .fc { opacity: .4; filter: grayscale(1); }
 .ccard .count { position: absolute; top: 8px; right: 8px; background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 1px 8px; font-weight: 700; font-size: 13px; }
 .ccard .lock { position: absolute; left: 8px; right: 8px; bottom: 8px; text-align: center; font-size: 12px; font-weight: 700; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 2px 6px; }
@@ -628,6 +632,8 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
    et calée en haut, pour que le haut du personnage (tête, ailes, armes) reste visible ; seul le bas, sous le nom, est rogné. */
 .art:not(.zoomart.pop) :is(.art-decor, .art-perso) { left: 0; top: 0; width: 100%; }
 .art-clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+/* Vignette (art.js, sizes="auto") : le navigateur ne lit plus la hauteur dans l'image (contain: size), on lui donne le gabarit. */
+.art img[sizes] { aspect-ratio: 960 / 1424; }
 .art-decor, .art-perso { position: absolute; left: -7.6923%; top: -16.4384%; width: 115.3846%; height: auto; max-width: none; pointer-events: none; user-select: none; }
 .art-name { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 18% 6% 5%; text-align: center; color: #fff; line-height: 1.05;
   font-family: var(--famfont, var(--display)); font-size: clamp(12px, 11cqi, 30px); text-wrap: balance;

@@ -23,11 +23,15 @@ function onTilt(e) {
   if (!root.dataset.tilt) root.dataset.tilt = '1';
   frame ||= requestAnimationFrame(step);
 }
+// L'inclinaison est écrite sur les seules cartes holographiques à l'écran (shown, plus bas) : posée sur <html> à chaque image,
+// elle obligeait le téléphone à recalculer le style de toute la page (des milliers d'éléments dans la collection).
+// <html> la reçoit quand le mouvement s'arrête, pour les cartes qui arrivent ensuite.
+const tilt = el => { el.style.setProperty('--tilt-x', cur[0].toFixed(3)); el.style.setProperty('--tilt-y', cur[1].toFixed(3)); };
 function step() {
   cur = cur.map((v, i) => v + (goal[i] - v) * .25);
-  root.style.setProperty('--tilt-x', cur[0].toFixed(3));
-  root.style.setProperty('--tilt-y', cur[1].toFixed(3));
+  for (const el of shown) if (el !== hovered) tilt(el);
   frame = Math.abs(cur[0] - goal[0]) + Math.abs(cur[1] - goal[1]) > .002 ? requestAnimationFrame(step) : 0;
+  if (!frame) tilt(root);
 }
 addEventListener('deviceorientation', onTilt);
 
@@ -54,3 +58,19 @@ addEventListener('pointermove', e => {
 }, { passive: true });
 document.addEventListener('mouseleave', () => hovered && leave(hovered));
 function leave(el) { el.style.removeProperty('--tilt-x'); el.style.removeProperty('--tilt-y'); el.classList.remove('hover'); hovered = null; }
+
+// Cartes hors de l'écran : leurs animations (reflet qui ondule, bordure astrale qui tourne, éclat des légendaires) sont mises
+// en pause (holo.css, .horsvue) et reprennent où elles en étaient en revenant à l'écran. Dans la collection, plus de
+// 200 cartes animées faisaient travailler le téléphone sans arrêt alors qu'on n'en voit que quelques-unes.
+// Les cartes à l'écran (shown) reçoivent aussi l'inclinaison du téléphone.
+const ANIMATED = '.art.holo, .art.rar, .lv-astral', shown = new Set(), watched = new Set();
+const seen = new IntersectionObserver(list => { for (const e of list) {
+  e.target.classList.toggle('horsvue', !e.isIntersecting);
+  if (e.isIntersecting && e.target.matches('.art.holo')) { shown.add(e.target); if (root.dataset.tilt && e.target !== hovered) tilt(e.target); } else shown.delete(e.target);
+} }, { rootMargin: '120px' });
+new MutationObserver(muts => {
+  for (const el of watched) if (!el.isConnected) { seen.unobserve(el); watched.delete(el); shown.delete(el); }
+  for (const m of muts) for (const n of m.addedNodes) if (n.nodeType === 1) {
+    for (const el of n.matches(ANIMATED) ? [n, ...n.querySelectorAll(ANIMATED)] : n.querySelectorAll(ANIMATED)) if (!watched.has(el)) { watched.add(el); seen.observe(el); }
+  }
+}).observe(document.documentElement, { childList: true, subtree: true });
