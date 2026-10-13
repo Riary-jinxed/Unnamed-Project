@@ -129,6 +129,14 @@ export function dailyOffers(set, owned, n = SHOP.dailyCards, rand = Math.random)
   const order = ids => ids.map(id => [rand(), id]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
   return [...order(set.cards.filter(id => !owned[id])), ...order(set.cards.filter(id => owned[id]))].slice(0, n);
 }
+// Doublons du jour : n cartes ou généraux possédés qui peuvent encore recevoir de l'essence (canLevel : pas au plafond), ceux des decks d'abord.
+// Acheter un doublon donne l'essence d'un doublon de la carte.
+export function dupOffers(account, n, canLevel, rand = Math.random) {
+  const order = ids => ids.map(id => [rand(), id]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+  const mine = OWNABLE.filter(id => account.cards?.[id] && !unrevealed(id) && canLevel(id));
+  const inDecks = new Set((account.decks || []).flatMap(d => [...d.cards, d.general]));
+  return [...order(mine.filter(id => inDecks.has(id))), ...order(mine.filter(id => !inDecks.has(id)))].slice(0, n);
+}
 export function setBooster(set, rand = pick) { return Array.from({ length: SHOP.boosterSize }, () => rand(set.cards)); }
 
 // ---- Change de devises ----

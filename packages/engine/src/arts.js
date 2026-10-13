@@ -15,10 +15,13 @@ export const ART_RARITIES = {
 };
 export const RARITY_IDS = Object.keys(ART_RARITIES);
 // Édition Promo : jamais en vente ; donnée par un code, un événement, un succès (aujourd'hui, depuis /admin). Garde sa rareté.
+// Édition Essence : vendue seulement au rayon Essence de la boutique, contre de l'essence universelle (jamais au coffre ni en arts du jour).
 export function rarityName(art) {
   const name = ART_RARITIES[art.rarity]?.name || art.rarity;
-  return art.edition === 'promo' ? `Promo ${name.toLowerCase()}` : name;
+  return art.edition === 'promo' ? `Promo ${name.toLowerCase()}` : art.edition === 'essence' ? `Essence ${name.toLowerCase()}` : name;
 }
+// Prix par défaut des arts de l'édition Essence, en essence universelle, selon la rareté (réglables dans /admin : essArtPrice_<rareté>).
+export const ESSENCE_ART_PRICES = { rare: 150, epique: 300, legendaire: 600 };
 // Classe CSS de la rareté (style.css, « .rar-… »).
 export const rarityKey = art => art.rarity;
 
@@ -30,6 +33,7 @@ export const ART_THEMES = {
   eclipse: { name: 'Éclipse', style: 'ciel sombre, soleil noir, contre-jour', title: 'Enfant de l\'éclipse' },
   tresors: { name: 'Trésors', style: 'or, joyaux et lumière chaude', title: 'Chasseur de trésors' },
   taverne: { name: 'La taverne', style: 'scène de fête, lumière de taverne', title: 'Roi de la fête' },
+  astral: { name: 'Astrale', style: 'constellations, nébuleuses et poussière d\'étoiles, bleu nuit et or', title: 'Tisseur d\'étoiles' },
 };
 export const THEME_IDS = Object.keys(ART_THEMES);
 
@@ -70,6 +74,13 @@ export const ARTS = Object.fromEntries([
   A('golem_mousse', 'golem', 'Golem moussu', 'rare'),
   A('barde_taverne', 'barde', 'Barde de la taverne', 'rare', { theme: 'taverne' }),
   A('wyrm_or', 'wyrm_tresor', 'Wyrm sur la montagne d\'or', 'epique', { theme: 'tresors' }),
+  // Édition Essence (famille Astrale) : seulement au rayon Essence de la boutique, contre de l'essence universelle.
+  A('seraphin_constellation', 'seraphin', 'Séraphin des constellations', 'rare', { edition: 'essence', theme: 'astral' }),
+  A('eclaireur_etoiles', 'eclaireur', 'Éclaireur, voleur d\'étoiles', 'rare', { edition: 'essence', theme: 'astral' }),
+  A('cerf_voie_lactee', 'cerf', 'Chevaucheur de la Voie lactée', 'rare', { edition: 'essence', theme: 'astral' }),
+  A('wyverne_comete', 'wyverne', 'Wyverne, la comète', 'epique', { edition: 'essence', theme: 'astral' }),
+  A('vorgoth_nebuleuse', 'vorgoth', 'Vorgoth de la nébuleuse', 'epique', { edition: 'essence', theme: 'astral' }),
+  A('archidemon_trou_noir', 'archidemon', 'Archidémon du trou noir', 'legendaire', { edition: 'essence', theme: 'astral' }),
   // Promo
   A('seraphine_pionniere', 'seraphine', 'Séraphine des pionniers', 'rare', { edition: 'promo', how: 'Offert aux premiers joueurs.' }),
   // Promo des passes de saison (pass.js) : season = mois de la saison ; cachés dans l'appli avant le début de leur saison.
@@ -90,6 +101,10 @@ export const artsOf = card => Object.values(ARTS).filter(a => a.card === card &&
 export const isClassic = a => !a.edition && !!ART_RARITIES[a.rarity];
 // Prix d'un art en Prismes, avec les réglages de la boutique (artPrice_<rareté>).
 export const artPrice = (a, cfg = {}) => cfg[`artPrice_${a.rarity}`] ?? ART_RARITIES[a.rarity]?.price ?? 0;
+// Arts de l'édition Essence et leur prix en essence universelle (essArtPrice_<rareté>).
+export const isEssenceArt = a => a?.edition === 'essence';
+export const essenceArts = () => Object.values(ARTS).filter(a => isEssenceArt(a) && artExists(a.id) && artVisible(a));
+export const essenceArtPrice = (a, cfg = {}) => cfg[`essArtPrice_${a.rarity}`] ?? ESSENCE_ART_PRICES[a.rarity] ?? 0;
 
 // Tirage pondéré par la rareté. bonus(art) multiplie la chance (offres : les arts des cartes possédées d'abord).
 export function weightedPick(arts, rand = Math.random, bonus = () => 1) {

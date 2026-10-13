@@ -23,7 +23,8 @@ export function stallHTML(items, { title = '', info = '' } = {}) {
 
 // Sélection du jour : une vitrine tendue de velours où les offres du jour sont exposées côte à côte sous des projecteurs,
 // chacune avec son prix sur une étiquette dorée ; « Vendue » en travers une fois achetée. Toucher l'illustration l'agrandit.
-// slots : [{ art, zoom, style (avec --glow, la couleur de sa lumière), cls, badge, cost, price, act, id, set, state: 'sale' | 'sold' | 'owned', off, label, name, sub }]
+// slots : [{ art, zoom, style (avec --glow, la couleur de sa lumière), cls, badge, cost, price, act, id, set, state: 'sale' | 'sold' | 'owned', done, off, label, name, sub }]
+// done : ce qui remplace « Possédée » sous une offre qui n'est plus en vente (« Niveau max » pour un doublon).
 // Sans zoom, l'illustration ne s'agrandit pas (offres de change). timer : false pour une vitrine qui ne change pas à minuit.
 export function vitrineHTML({ title, sub, slots, timer = true, cls = '' }) {
   const slot = (x, i) => `<div class="vit-slot ${x.state}${x.cls ? ` ${x.cls}` : ''}" style="--i:${i};${x.style}">
@@ -32,7 +33,7 @@ export function vitrineHTML({ title, sub, slots, timer = true, cls = '' }) {
         ${x.state === 'sold' ? '<span class="vit-stamp">Vendue</span>' : ''}${x.zoom ? '</button>' : '</div>'}
       ${x.caption === false ? '' : `<span class="vit-name">${x.name}</span>`}${x.sub ? `<span class="vit-sub">${x.sub}</span>` : ''}
       ${x.state === 'sale' ? `<button class="vit-buy" data-act="${x.act}" data-id="${x.id}"${x.set ? ` data-set="${x.set}"` : ''} ${x.off ? 'disabled' : ''} aria-label="${x.label}">${x.price}</button>`
-        : `<span class="vit-done">${x.state === 'sold' ? 'Achetée' : 'Possédée'}</span>`}</div>`;
+        : `<span class="vit-done">${x.state === 'sold' ? 'Achetée' : x.done || 'Possédée'}</span>`}</div>`;
   return `<div class="vitrine${cls ? ` ${cls}` : ''}"><div class="vit-velvet"></div>
     <div class="vit-head"><div><span class="eyebrow">${sub}</span><h3 class="vit-title">${title}</h3></div>
       ${timer ? `<span class="vit-timer" title="Nouvelle sélection à minuit"><i aria-hidden="true"></i><span data-reset>${resetIn()}</span></span>` : ''}</div>

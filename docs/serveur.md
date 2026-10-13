@@ -44,6 +44,8 @@ Un compte est un objet JSON (colonne `data`) :
 | `cards` | Collection : `{ id: 1 }` (un exemplaire ; les doublons deviennent des Éclats). |
 | `shards` | Éclats. |
 | `essence`, `cardLevels` | Essence de chaque carte (gagnée avec ses doublons) et niveau cosmétique atteint (`{ id: 2..5 }`, 1 si absent). |
+| `uniEssence` | Essence universelle : l'essence des doublons au-delà du plafond d'une carte (de quoi la monter jusqu'au niveau maximum). |
+| `dupShop` | Doublons du jour : `{ date, rotation, n, offers, bought }`. |
 | `decks`, `active` | Jusqu'à 5 decks `{ id, name, general, terrains, cards }` ; identifiant du deck joué. |
 | `lastBooster` | Jour du dernier booster quotidien ouvert. |
 | `shop` | Par set : `{ date, rotation, offers, bought }`, les cartes du jour du joueur. |
@@ -115,6 +117,9 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/tuto` | `{ lesson }` : leçon du tutoriel finie (`TUTO_LESSONS` du moteur). La première fois, donne `tutoShards` Éclats ; quand toutes sont finies, `tutoBoosters` boosters offerts. Renvoie `reward` (`kind: 'tuto'`, `shards`, `boosters`, `all`) et le compte. |
 | `POST /api/tuto/gift` | Cadeau d'amélioration, une seule fois après le deck de départ (`tutoGift === false`) : un doublon du général du deck joué, et de quoi le monter au niveau 2 (Éclats et essence complétés jusqu'au coût). Renvoie `card`, `shards` et le compte. |
 | `POST /api/cards/upgrade` | `{ card }` : monte une carte possédée d'un niveau contre son essence et des Éclats (`progress.upgradeCard`). |
+| `POST /api/essence/convert` | `{ card, amount }` : `amount` essence d'une carte possédée qui peut encore monter, contre `amount × uniPerEssence` essence universelle, sans dépasser ce qui lui manque pour le niveau maximum (`progress.convertEssence`). Renvoie `essence`, `price`, la boutique et le compte. |
+| `POST /api/shop/dup` | `{ card }` : achète un doublon du jour (`dupPrice` Éclats) ; il donne `essencePerDuplicate` essence de la carte (au-delà du plafond, de l'essence universelle), sans Éclats. |
+| `POST /api/shop/essence-art` | `{ art }` : achète un art de l'édition Essence avec l'essence universelle (`essArtPrice_<rareté>`). Renvoie `art`, la boutique et le compte. |
 | `POST /api/games/solo` | Résultat d'une partie contre l'IA (non classée) → récompenses. |
 | `GET /api/ranked` | Mode classé : rang du joueur (`ranked`), classement de la saison (`ladder`), récompenses de fin de saison par palier (`rewards`) et par place au classement final (`places`), podium figé de la saison précédente (`last`, ou `null`). |
 | `GET /api/friends` | Amis (avec statut `online`, `game` ou `off`, niveau, titre, cadre, empreinte de l'image), demandes reçues et envoyées, défi en cours. |
@@ -181,6 +186,8 @@ Un salon (`rooms` dans `index.js`) garde ses deux sièges (compte, deck, jeton, 
 - **Succès des fonctions récentes** : `statsOf` calcule arts possédés et légendaires, cartes montées de niveau, amis, meilleur palier classé ; `progress.check(a)` les vérifie après un achat d'art, un coffre, une montée de niveau, un ami accepté ou un don depuis `/admin`. `grant` ajoute les coffres (`chests`) à `freeChests`.
 - **Arts alternatifs** (`server/src/arts.js`) : le compte garde `prisms` (monnaie des arts, donnée par `grant` avec les succès et la fin de saison classée), `arts` (arts possédés), `artSel` (art choisi par carte) et `artShop` (arts du jour, renouvelés à minuit ou avec la rotation de la boutique). Le badge de partie porte `arts` comme `looks`, et l'adversaire ne reçoit que ceux du général et des cartes révélées (`shownBadge`, `index.js`).
 - **Niveaux de carte** (`progress.upgradeCard`) : chaque doublon donne `essencePerDuplicate` essence de la carte (`addCards`, `accounts.js`) ; passer au niveau n coûte `lvlNEssence` essence et `lvlNShards` Éclats. Les niveaux et leur aspect sont dans `CARD_LEVELS` (`rewards.js`).
+- **Essence universelle** (`progress.giveEssence`) : une carte est au plafond quand son essence en réserve suffit à la monter jusqu'au niveau maximum, montée ou non (`essenceToMax`). L'essence qu'elle reçoit au-delà (doublons, doublons du jour, coffre de fin de passe) devient de l'essence universelle, `uniPerDuplicate` pour `essencePerDuplicate`. Elle s'échange contre l'essence d'une autre carte depuis la carte ouverte en grand (`uniPerEssence` pour 1, `progress.convertEssence`) ou contre un art de l'édition Essence au rayon Essence (`arts.buyEssence`). Au démarrage, l'essence en réserve au-delà du plafond est convertie une pour une (`settleCapped`).
+- **Doublons du jour** (`dupDay`, `accounts.js`) : `dupOffers` cartes possédées qui ne sont pas au plafond d'essence (celles des decks d'abord, `dupOffers` de `collection.js`), au prix de `dupPrice` Éclats, renouvelées à minuit ou avec les autres offres.
 - Chaque récompense passe par `grant`, qui l'applique au compte et la range dans `inbox`.
 
 ## Mode classé
