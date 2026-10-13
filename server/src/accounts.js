@@ -6,6 +6,7 @@ import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today
 import { pick, CARDS, GENERALS } from '@jeu/engine';
 import { ART_RARITIES, RARITY_IDS } from '@jeu/engine/arts';
 import { SEASON_THEMES } from '@jeu/engine/pass';
+import { TUTO_LESSONS, levelCost } from '@jeu/engine/rewards';
 import { createProgress } from './progress.js';
 import { createArts } from './arts.js';
 import { createActivity } from './activity.js';
@@ -53,9 +54,11 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   // Cartes dont le reflet holographique est coupé.
   holoOff: a.holoOff || {},
   // Cartes dont le débordement du personnage est coupé.
-  popOff: a.popOff || {} });
+  popOff: a.popOff || {},
+  // Leçons du tutoriel déjà finies (récompensées).
+  tuto: a.tuto || [], tutoGift: !!a.tutoGift });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte.
 function addCards(a, ids, rate, essenceRate) {
@@ -87,7 +90,7 @@ export function createAccounts(store) {
   let catalogVersion = 0;
   // Courrier (mail.js) : messages non lus ou récompenses à récupérer, pour la pastille de l'accueil.
   let mailCount = () => 0;
-  const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a) });
+  const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), tutoShards: progress.cfg().tutoShards });
   // Les nouvelles cartes rapportent de l'XP et peuvent compléter une famille ou un set.
   const add = (a, ids) => { const got = addCards(a, ids, cfg().shardsPerDuplicate, progress.essenceRate()); return { ...got, xp: progress.onCards(a, got.fresh) }; };
   const ready = Promise.all(store.all().filter(a => {
@@ -333,6 +336,34 @@ export function createAccounts(store) {
   async function reroll(a, body) { await progress.reroll(a, body); await store.put(a); return { account: me(a) }; }
   async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
   async function equip(a, body) { await progress.equip(a, body || {}); await store.put(a); return { account: me(a) }; }
+  // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes le sont. Affiché par le panneau de fin (silent).
+  async function lessonDone(a, { lesson } = {}) {
+    const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l) throw new HttpError(400, 'Leçon inconnue.');
+    progress.init(a);
+    const done = a.tuto ||= [];
+    if (done.includes(l.id)) return { reward: null, account: me(a) };
+    done.push(l.id);
+    const r = progress.cfg(), all = TUTO_LESSONS.every(x => done.includes(x.id));
+    const reward = { kind: 'tuto', label: `Leçon finie : ${l.name}`, shards: r.tutoShards, boosters: all ? r.tutoBoosters : 0, all };
+    progress.grant(a, reward, { silent: true });
+    await store.put(a);
+    return { reward, account: me(a) };
+  }
+  // Tutoriel « Améliorer une carte », une fois par compte : un doublon du général du deck joué (Éclats et essence du doublon),
+  // plus les Éclats (et au besoin l'essence) du passage au niveau 2, pour que le joueur l'améliore aussitôt.
+  async function tutoGift(a) {
+    if (a.tutoGift) throw new HttpError(409, 'Cadeau déjà reçu.');
+    const card = activeDeck(a)?.general;
+    if (!card || !a.cards?.[card]) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    progress.init(a);
+    add(a, [card]);
+    const cost = levelCost(2, progress.cfg());
+    a.shards = (a.shards || 0) + cost.shards;
+    a.essence = { ...(a.essence || {}), [card]: Math.max(a.essence?.[card] || 0, cost.essence) };
+    a.tutoGift = true;
+    await store.put(a);
+    return { card, shards: cost.shards, account: me(a) };
+  }
   async function upgradeCard(a, body) { const level = await progress.upgradeCard(a, body || {}); progress.check(a); await store.put(a); return { level, account: me(a) }; }
 
   // Administration : créer un compte, ou changer le mot de passe d'un compte existant.
@@ -439,7 +470,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, passView, buyPass, buyArt, openChest, convertPrisms, claimDay, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, passView, buyPass, buyArt, openChest, convertPrisms, claimDay, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, upgradeCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -478,6 +509,8 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'PUT /api/arts/holo': (a, body) => accounts.holoArt(a, body),
     'PUT /api/arts/pop': (a, body) => accounts.popArt(a, body),
     'POST /api/missions/reroll': (a, body) => accounts.reroll(a, body),
+    'POST /api/tuto': (a, body) => accounts.lessonDone(a, body),
+    'POST /api/tuto/gift': a => accounts.tutoGift(a),
     'POST /api/rewards/seen': a => accounts.seen(a),
     'PUT /api/cosmetics': (a, body) => accounts.equip(a, body),
     'POST /api/cards/upgrade': (a, body) => accounts.upgradeCard(a, body),

@@ -520,6 +520,8 @@ body:has(#app.ingame) { margin: 0; }
 @keyframes coachin { from { opacity: 0; transform: translateY(10px) scale(.97); } }
 @keyframes coachface { 0% { box-shadow: 0 0 0 0 var(--accent); } 60% { box-shadow: 0 0 0 8px transparent; } }
 .coach.float { position: fixed; top: 8px; left: 8px; right: 8px; max-width: 720px; margin-inline: auto; z-index: 11; }
+/* Guide dans les menus (« Améliorer une carte ») : en bas de l'écran, au-dessus de la barre d'onglets. */
+.coach.float.bottom { top: auto; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 8; }
 .coach-hl { outline: 3px solid var(--accent); outline-offset: 2px; animation: coachhl 1s ease-in-out infinite alternate; }
 @keyframes coachhl { to { outline-color: transparent; } }
 body.coached .coach-hl { outline-color: transparent; animation: none; }
@@ -535,6 +537,17 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .lesson-t { display: grid; gap: 2px; min-width: 0; }
 .lesson-t b { font-family: var(--display); font-size: 16px; }
 .lesson-t small { color: var(--muted); font-size: 13px; }
+.lesson-r { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; color: var(--accent); font-weight: 700; font-size: 14px; }
+.lesson.done { opacity: .8; }
+.lesson.done .lesson-n { background: var(--up); }
+/* Cadeau de Séraphine (premier passage à l'accueil) : un doublon du général joué. */
+.panel.gift { text-align: left; }
+.gift-head { display: flex; align-items: center; gap: 12px; }
+.gift-head h2 { margin: 0; }
+.panel.gift p strong { color: var(--accent); }
+.gift-card { width: 150px; margin: 4px auto; animation: giftin .6s cubic-bezier(.2, .8, .2, 1); }
+@keyframes giftin { from { opacity: 0; transform: translateY(16px) rotate(-4deg) scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .gift-card { animation: none; } }
 
 /* Codex des mots-clés */
 .cxs { display: grid; gap: 8px; }

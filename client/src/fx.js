@@ -25,10 +25,11 @@ export function setInGame(app, on) {
   if (stage || on) go(); else (window.requestIdleCallback || (f => setTimeout(f, 1200)))(go, { timeout: 2500 });
 }
 // Guide du tutoriel (stage-coach.js) : { hl, drag, tap, text } de tutorial.js, ou null. Appelé après chaque rendu.
-// Sans le plateau PixiJS, rien : le contour CSS des cibles (.coach-hl) reste seul ; avec, il laisse la place au liseré PixiJS.
+// En partie comme dans les menus (guide « Améliorer une carte »). Sans PixiJS, rien : le contour CSS des cibles (.coach-hl)
+// reste seul ; avec, il laisse la place au liseré PixiJS.
 export function coachGuide(c) {
   coachWant = c;
-  const on = !!(c && staged() && coach);
+  const on = !!(c && stage?.scene() && coach);
   coach?.set(on ? c : null);
   document.body.classList.toggle('coached', on);
 }

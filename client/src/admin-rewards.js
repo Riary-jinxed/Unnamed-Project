@@ -19,6 +19,7 @@ const GROUPS = [
     ['missionsPerDay', 'Missions par jour', 'Entre 0 et 6.'], ['missionRerolls', 'Missions qu\'on peut changer par jour'],
     ['familyShards', 'Éclats : famille complétée dans un set'],
     ['setShards', 'Éclats : set complété'], ['setBoosters', 'Boosters offerts : set complété'],
+    ['tutoShards', 'Éclats : leçon du tutoriel finie (une fois par leçon)'], ['tutoBoosters', 'Boosters offerts : toutes les leçons finies'],
   ]],
   ['Niveaux de carte', 'Purement cosmétiques. Chaque doublon donne de l\'essence de la carte (en plus des Éclats par doublon de l\'onglet Boutique) ; essence et Éclats font monter la carte : bronze, argent, or, puis astral avec un effet de mise en jeu.', [
     ['essencePerDuplicate', 'Essence par doublon'],

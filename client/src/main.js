@@ -70,6 +70,7 @@ const handlers = {
     if (view.phase === 'plan' && view.turn !== ui.lastTurn) ui.msg = '';
     ui.lastTurn = view.turn; ui.view = view; ui.screen = 'game';
     if (view.phase === 'over' && (!ui.sheet || ui.sheet === 'zoom')) { ui.sheet = 'end'; ui.zoom = null; }
+    if (view.phase === 'over' && ui.mode === 'tuto') lessonDone();
     if (view.phase !== 'over') { ui.rematchAsked = false; if (ui.sheet === 'end') ui.sheet = null; }
     viewEffects(prev, view);
     render();
@@ -136,12 +137,33 @@ function goSolo() {
 // Premier lancement : un compte qui n'a pas encore de deck de départ entre directement dans l'initiation, une fois par appareil.
 const tutoKey = () => `tuto-${ui.account?.login || ''}`;
 function goTutorial(lesson = 'initiation') {
-  store.set(tutoKey(), true);
+  store.set(tutoKey(), true); ui.tutoReward = null; ui.tutoSent = false;
   toTable('Séraphine vous attend…', () => {
     ui.mode = 'tuto'; ui.sheet = null; ui.lastTurn = 0; ui.error = '';
     ui.ctrl = startTutorial(handlers, { name: ui.account?.name || 'Vous', lesson });
     render();
   });
+}
+// Leçon finie (une fois par partie jouée) : le serveur donne sa récompense la première fois, affichée dans le panneau de fin.
+function lessonDone() {
+  if (ui.tutoSent || !ui.auth || !ui.ctrl?.lesson) return;
+  ui.tutoSent = true;
+  api('POST', '/api/tuto', { lesson: ui.ctrl.lesson }, ui.auth).then(r => { ui.tutoReward = r.reward; if (r.account) ui.account = r.account; render(); }).catch(() => {});
+}
+// Guide « Améliorer une carte » dans les menus : Séraphine offre un doublon du général joué (et de quoi le passer au niveau 2),
+// puis montre où l'ouvrir dans la collection et le bouton de niveau. ui.guide : { gen } tant que le guide est ouvert.
+async function takeGift() {
+  const r = await call('POST', '/api/tuto/gift');
+  if (!r) return;
+  ui.guide = { gen: r.card }; ui.sheet = null; ui.screen = 'collection'; play('fresh'); render();
+}
+function guideCoach() {
+  const g = ui.guide; if (!g) return null;
+  const name = nameOf(g.gen).split(',')[0], at = `[data-zoom="${zoomKey(g.gen)}"]`;
+  if (myLevel(g.gen) >= 2) return { done: true, info: true, hl: [], text: `Bravo ! ${name} passe au niveau 2 et gagne sa bordure de bronze. Chaque doublon de vos cartes donne de l'essence pour monter plus haut.` };
+  if (ui.sheet === 'zoom' && ui.zoom?.id === g.gen) return { hl: ['[data-act="upgrade"]'], text: 'Touchez **Passer au niveau 2**. Le niveau ne change pas la façon de jouer : c\'est la parure de la carte.' };
+  if (ui.screen === 'collection' && !ui.sheet) return { hl: [at], tap: at, text: `Votre doublon de ${name} donne de l'**essence**. Touchez ${name} pour l'ouvrir en grand.` };
+  return null;
 }
 // Appelé à chaque rendu : lance l'initiation au premier lancement (hors du rendu en cours).
 function firstLaunch() {
@@ -681,7 +703,7 @@ function terrainChip(side, z, isMe) {
   const t = side.terrains[z];
   const soon = isMe && side.terrainPlan && side.terrainPlan.find(x => x.z === z);
   if (!t && soon) return `<button class="terrain soon" data-terrain="${soon.t}">Tour ${soon.turn} : ${TERRAINS[soon.t].name}</button>`;
-  if (!t) return ui.view.bare ? '<div class="terrain none"></div>' : `<div class="terrain">${ui.view.turn < 3 ? 'Terrain à venir' : '—'}</div>`;
+  if (!t) return ui.view.noTerrain ? '<div class="terrain none"></div>' : `<div class="terrain">${ui.view.turn < 3 ? 'Terrain à venir' : '—'}</div>`;
   return `<button class="terrain set ${isMe ? 'me' : 'foe'}" data-terrain="${t}">${TERRAINS[t].name}</button>`;
 }
 // Titre, niveau, cadre et dos de carte de chaque joueur : envoyés par le serveur en ligne ; contre l'IA, ceux du compte.
@@ -724,7 +746,7 @@ function pbar(side, isMe, connected, canGen = false) {
     <span class="pav">${avatarHTML(who, 'pa')}${!isMe && ui.mode === 'online' ? `<span class="dot ${connected ? '' : 'off'}" title="${connected ? 'Connecté' : 'Déconnecté'}"></span>` : ''}</span>
     <div class="pid"><div class="pline"><span class="who">${isMe ? 'Vous' : esc(side.name)}</span>${b ? `<small class="lv num">niv. ${b.level}</small>` : ''}${ready ? '<span class="chip ok">Prêt</span>' : ''}${b?.title ? `<span class="ptitle">${esc(b.title)}</span>` : ''}</div>
       <div class="pstats">${stats}</div></div>
-    ${ui.view.bare ? '' : genSlot(side, isMe, canGen)}</div>`;
+    ${ui.view.noGeneral ? '' : genSlot(side, isMe, canGen)}</div>`;
 }
 // Tour en cours, dans la barre du haut sous le type de partie : numéro et un point par tour.
 function turnHTML(label) {
@@ -809,11 +831,11 @@ const coachText = t => rich(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 // La bulle s'anime quand la consigne change (.new, ui.coachShown).
 const coachHTML = (c, float = false) => {
   const dots = c.steps ? `<span class="coach-dots" aria-label="Étape ${c.step} sur ${c.steps}">${Array.from({ length: c.steps }, (_, i) => `<i class="${i + 1 < c.step ? 'past' : i + 1 === c.step ? 'now' : ''}"></i>`).join('')}</span>` : '';
-  return `<div class="coach ${float ? 'float' : ''} ${c.text !== ui.coachShown ? 'new' : ''}" role="status" aria-live="polite">
+  return `<div class="coach ${float ? 'float' : ''} ${float === 'bottom' ? 'bottom' : ''} ${c.text !== ui.coachShown ? 'new' : ''}" role="status" aria-live="polite">
   <span class="coach-face" aria-hidden="true">${portraitHTML('seraphine')}</span>
-  <div class="coach-body"><div class="coach-head"><b>Séraphine</b>${dots}<button class="coach-skip" data-act="quit">Passer</button></div>
+  <div class="coach-body"><div class="coach-head"><b>Séraphine</b>${dots}${c.done ? '' : `<button class="coach-skip" data-act="${ui.screen === 'game' ? 'quit' : 'guide-skip'}">Passer</button>`}</div>
     <p>${coachText(c.text)}</p></div>
-  ${c.info ? '<button class="btn primary sm coach-next" data-act="tuto-next">Suivant</button>' : ''}</div>`;
+  ${c.info ? `<button class="btn primary sm coach-next" data-act="tuto-next">${c.done ? 'Terminer' : 'Suivant'}</button>` : ''}</div>`;
 };
 // ---- Écrans du compte : connexion, deck de départ, accueil, collection, deck ----
 const errLine = () => (ui.error ? `<p class="err" role="alert">${esc(ui.error)}</p>` : '');
@@ -1357,11 +1379,20 @@ function sheetHTML() {
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Missions du jour</h2><button class="btn" data-act="close">Fermer</button></div>
       ${levelBar(prog())}${missionsHTML()}</div></div>`;
   }
+  if (ui.sheet === 'gift') {
+    const g = ui.account.deck?.general;
+    return `<div class="sheet"><div class="panel gift" role="dialog" aria-label="Cadeau de Séraphine">
+      <div class="gift-head"><span class="coach-face" aria-hidden="true">${portraitHTML('seraphine')}</span><h2>Un cadeau pour bien commencer</h2></div>
+      <p style="margin:0">Je vous offre un <strong>doublon</strong> de votre général${g ? `, ${esc(nameOf(g).split(',')[0])}` : ''}, et les Éclats pour l'améliorer. Les doublons font monter vos cartes de niveau : je vais vous montrer comment.</p>
+      ${g ? `<div class="gift-card">${anyCard(g, myLevel(g), mySel(g))}</div>` : ''}${errLine()}
+      <div class="row"><button class="btn primary" data-act="gift-take" ${ui.busy ? 'disabled' : ''}>Recevoir et l'améliorer</button></div></div></div>`;
+  }
   if (ui.sheet === 'learn') {
-    const lessons = Object.entries(LESSONS).map(([k, l], i) => `<button class="lesson" data-act="tuto" data-lesson="${k}"><span class="lesson-n num">${i + 1}</span>
-      <span class="lesson-t"><b>${esc(l.title)}</b><small>${esc(l.blurb)}</small></span></button>`).join('');
+    const done = ui.account?.tuto || [];
+    const lessons = Object.entries(LESSONS).map(([k, l], i) => `<button class="lesson ${done.includes(k) ? 'done' : ''}" data-act="tuto" data-lesson="${k}"><span class="lesson-n num">${done.includes(k) ? '✓' : i + 1}</span>
+      <span class="lesson-t"><b>${esc(l.title)}</b><small>${esc(l.blurb)}</small></span>${done.includes(k) ? '' : `${ui.account?.tutoShards ? `<span class="lesson-r num">+${ui.account.tutoShards}${ico('shard')}</span>` : ''}`}</button>`).join('');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Apprendre</h2><button class="btn" data-act="close">Fermer</button></div>
-      <p class="hint" style="margin:0">Séraphine vous guide pendant une partie contre l'IA, avec un deck prêt à jouer. Le codex explique chaque mot-clé des cartes.</p>
+      <p class="hint" style="margin:0">Séraphine vous guide pendant une partie contre l'IA, avec un deck prêt à jouer. Chaque leçon finie rapporte des Éclats la première fois, et un booster vous attend quand elles le sont toutes.</p>
       <div class="lessons">${lessons}</div>
       <div class="row"><button class="btn" data-act="codex">Codex des mots-clés</button><button class="btn" data-act="set">Toutes les cartes</button></div></div></div>`;
   }
@@ -1414,7 +1445,8 @@ function sheetHTML() {
     const reason = renderLog(r.reason, s, ui.view.names);
     const zs = [0, 1, 2].map(z => `<div class="${['', 'me', 'foe'][zoneSide(ui.view, z)]}"><div class="eyebrow">${ZONE_NAMES[z]}</div><b>${ui.view.me.zonePower[z]}</b> contre ${ui.view.foe.zonePower[z]}</div>`).join('');
     if (ui.mode === 'tuto') return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p><div class="zs">${zs}</div>
-      <p style="margin:0">${esc(ui.ctrl?.endText || '')}</p><div class="row">
+      <p style="margin:0">${esc(ui.ctrl?.endText || '')}</p>${ui.tutoReward ? `<div class="rewards">${rewardItem(ui.tutoReward)}</div>
+      ${ui.tutoReward.boosters ? '<p class="hint" style="margin:0">Toutes les leçons sont finies : votre booster offert vous attend sur l\'accueil.</p>' : ''}` : ''}<div class="row">
       <button class="btn primary" data-act="quit">${ui.account?.starter ? 'Retour à l\'accueil' : 'Choisir mon deck'}</button><button class="btn" data-act="again">Rejouer la leçon</button>
       ${ui.account?.starter ? '<button class="btn" data-act="codex">Ouvrir le codex</button>' : ''}</div></div></div>`;
     return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p>
@@ -1434,8 +1466,10 @@ function render() {
   if (ui.screen === 'home' && !ui.sheet && prog().inbox.length) ui.sheet = 'inbox';
   // Récompense du jour du calendrier pas encore récupérée : le calendrier s'ouvre une fois par visite.
   if (ui.screen === 'home' && !ui.sheet && prog().calendar?.ready && !ui.calShown) { ui.calShown = true; ui.calGot = null; ui.sheet = 'calendar'; }
+  // Cadeau de Séraphine, une fois par compte : un doublon du général joué, à améliorer aussitôt (guide « Améliorer une carte »).
+  if (ui.screen === 'home' && !ui.sheet && ui.account?.starter && ui.account.tutoGift === false && !ui.guide) ui.sheet = 'gift';
   firstLaunch();
-  ui.coach = ui.screen === 'game' && ui.mode === 'tuto' && ui.ctrl ? ui.ctrl.coach(ui) : null;
+  ui.coach = ui.screen === 'game' ? (ui.mode === 'tuto' && ui.ctrl ? ui.ctrl.coach(ui) : null) : guideCoach();
   const body = screens[ui.screen]() + (ui.screen in TABBED ? tabbar(TABBED[ui.screen]) : '');
   app.classList.toggle('ingame', ui.screen === 'game');
   // Thème de l'interface (décors PixiJS, habillage.css) : ?saison=… dans l'adresse pour en essayer un (« base » : aucun), sinon celui
@@ -1449,7 +1483,7 @@ function render() {
   const hop = moved && slides(ui.shownScreen) && slides(ui.screen), dir = hop && motion ? screenDir(ui.shownScreen, ui.screen) : 0;
   if (dir) ghostScreen(app, dir);
   if (motion && ui.shownSheet && !ui.sheet) ghostSheet(app.querySelector(':scope > .sheet'));
-  app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : '');
+  app.innerHTML = body + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : ui.coach && ui.screen !== 'game' && !ui.sheet ? coachHTML(ui.coach, 'bottom') : '');
   if (hop) scrollTo({ top: 0, behavior: 'instant' });
   setHome(app); setShop(app); setEnd(app, endReel());
   app.style.setProperty('--dx', `${dir * 36}px`); app.style.setProperty('--dy', dir ? '0px' : '10px');
@@ -1466,7 +1500,7 @@ function render() {
   const hl = ui.coach?.hl?.length ? [...app.querySelectorAll(ui.coach.hl.join(','))] : [];
   hl.forEach(el => el.classList.add('coach-hl'));
   const fresh = ui.coach && ui.coach.text !== ui.coachShown;
-  if (fresh) { ui.coachShown = ui.coach.text; if (hl[0] && !ui.sheet) hl[0].scrollIntoView({ block: 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' }); if (ui.coach.hl.length) play('coach'); }
+  if (fresh) { ui.coachShown = ui.coach.text; if (hl[0] && (!ui.sheet || ui.guide)) hl[0].scrollIntoView({ block: 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' }); if (ui.coach.hl.length) play('coach'); }
   coachGuide(ui.coach && !ui.sheet ? ui.coach : null);
   veil.check();
 }
@@ -1794,7 +1828,9 @@ app.addEventListener('click', e => {
     else if (a === 'join') { if (ui.joinCode.length !== 4) { ui.error = 'Le code fait 4 lettres.'; render(); } else goOnline('join'); }
     else if (a === 'solo') goSolo();
     else if (a === 'tuto') goTutorial(ds.lesson);
-    else if (a === 'tuto-next') { ui.ctrl?.next(); render(); }
+    else if (a === 'tuto-next') { if (ui.guide) ui.guide = null; else ui.ctrl?.next(); render(); }
+    else if (a === 'guide-skip') { ui.guide = null; render(); }
+    else if (a === 'gift-take' && !ui.busy) takeGift();
     else if (a === 'codex') { ui.sheet = 'codex'; ui.zoom = null; render(); }
     else if (a === 'copy') { const link = document.getElementById('link');
       navigator.clipboard.writeText(link.value).then(() => { t.textContent = 'Lien copié'; }).catch(() => { link.select(); }); }
@@ -1808,7 +1844,7 @@ app.addEventListener('click', e => {
       // Le coût du général passe avant les cartes : on retire les dernières cartes posées s'il manque des sceaux.
       while (ui.genZone !== null && sealsLeft() < 0 && ui.pending.length) ui.pending.pop();
       play(ui.genZone === null ? 'unplace' : 'place'); render(); }
-    else if (a === 'again') { ui.rematchAsked = true; ui.soloReward = null; ui.ctrl.rematch(); render(); }
+    else if (a === 'again') { ui.tutoSent = false; ui.tutoReward = null; ui.rematchAsked = true; ui.soloReward = null; ui.ctrl.rematch(); render(); }
     else if (a === 'quit') {
       if (ui.screen === 'game' && ui.view?.ranked && ui.view.phase !== 'over' && !confirm('Quitter une partie classée en cours compte comme une défaite. Quitter quand même ?')) return;
       quit(); }
