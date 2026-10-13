@@ -20,6 +20,8 @@ export const MOTES = {
   Dragon:        { tint: 0xffa040, vy: -0.7, scale: [0.1, 0.2], ttl: 45, every: 900 },
   'Mort-vivant': { tint: 0x9fffc8, glow: true, vy: -0.3, scale: [0.04, 0.06], ttl: 80, every: 1300 },
   Vampire:       { tint: 0xd02040, vy: 0.3, scale: [0.12, 0.18], ttl: 60, every: 1300 },
+  Hacker:        { tint: 0x3ad7ff, glow: true, vy: 0.6, scale: [0.04, 0.07], ttl: 55, every: 700 },
+  Cyborg:        { tint: 0xff4fbf, glow: true, vy: -0.5, vx: 0.4, scale: [0.05, 0.08], ttl: 40, every: 900 },
   '':            { tint: 0xd8c8a0, vy: -0.15, vx: 0.2, scale: [0.1, 0.15], ttl: 80, every: 1700 },
 };
 

@@ -4,7 +4,7 @@
 // Chaque récompense gagnée est aussi rangée dans la boîte « inbox » du compte, que l'appli affiche puis vide.
 import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, ACHIEVEMENTS, familyReward, SET_REWARDS, TITLES, FRAMES, BACKS,
   xpToNext, familyOf, statValue, missionLabel, MAX_CARD_LEVEL, levelCost, loginCalendar, loginReward, monthDays } from '@jeu/engine/rewards';
-import { SETS, OWNABLE, today } from '@jeu/engine/collection';
+import { SETS, OWNABLE, today, setRevealed, setById } from '@jeu/engine/collection';
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { TIERS, PLACES, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics,
   placeOf, placeShardsKey, placePrismsKey, placeTitles } from '@jeu/engine/ranked';
@@ -122,7 +122,7 @@ export function createProgress(store) {
     if (!a.level) return;
     const c = cfg();
     for (const set of SETS) {
-      if (!set.cards.length) continue;
+      if (!set.cards.length || !setRevealed(set)) continue;
       for (const fam of new Set(set.cards.map(familyOf).filter(Boolean))) {
         const key = `${set.id}:${fam}`;
         if (a.completed[key] || !set.cards.filter(id => familyOf(id) === fam).every(id => a.cards[id])) continue;
@@ -490,11 +490,11 @@ export function createProgress(store) {
   // Succès et complétions avec leur avancement, pour la page de profil.
   function achievementsView(a) {
     const s = statsOf(a), c = cfg();
-    return ACHIEVEMENTS.map(x => ({ id: x.id, group: x.group, label: x.label, goal: x.goal, value: Math.min(x.goal, statValue(s, x.stat)), done: !!a.achievements?.[x.id],
+    return ACHIEVEMENTS.filter(x => !x.set || setRevealed(setById(x.set))).map(x => ({ id: x.id, group: x.group, label: x.label, goal: x.goal, value: Math.min(x.goal, statValue(s, x.stat)), done: !!a.achievements?.[x.id],
       shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id], title: x.title || null, frame: x.frame ? FRAMES[x.frame] : null }));
   }
   function collectionView(a) {
-    return SETS.filter(s => s.cards.length).map(set => ({ id: set.id, name: set.name, done: !!a.completed?.[set.id], reward: SET_REWARDS[set.id] || null,
+    return SETS.filter(s => s.cards.length && setRevealed(s)).map(set => ({ id: set.id, name: set.name, done: !!a.completed?.[set.id], reward: SET_REWARDS[set.id] || null,
       families: [...new Set(set.cards.map(familyOf).filter(Boolean))].map(fam => {
         const ids = set.cards.filter(id => familyOf(id) === fam), r = familyReward(set.id, fam);
         return { fam, owned: ids.filter(id => a.cards[id]).length, total: ids.length, done: !!a.completed?.[`${set.id}:${fam}`], card: r?.card || null, title: r?.title || null };

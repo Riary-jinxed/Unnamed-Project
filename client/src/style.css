@@ -3,10 +3,11 @@
   /* Une seule palette, sombre, quel que soit le réglage du téléphone : celle d'un jeu (cuir, pierre et or), pas d'un site. */
   --bg: #120d0a; --surface: #241a13; --sunk: #0d0907; --ink: #f1e6cf; --muted: #b29f80; --line: #5a4530;
   --accent: #e3b552; --accent-ink: #2a1a06; --mine: #77a3e6; --foe: #e48069; --up: #6cc583; --down: #f07a66;
-  --f-ange: #e2b93e; --f-elfe: #4fbcad; --f-demon: #de5c56; --f-gobelin: #79b85f; --f-dragon: #e48447; --f-mortvivant: #8fb19c; --f-vampire: #d0547f; --f-dieux: #a585e6; --f-neutre: #99a1b0;
+  --f-ange: #e2b93e; --f-elfe: #4fbcad; --f-demon: #de5c56; --f-gobelin: #79b85f; --f-dragon: #e48447; --f-mortvivant: #8fb19c; --f-vampire: #d0547f; --f-hacker: #3ad7ff; --f-cyborg: #ff4fbf; --f-dieux: #a585e6; --f-neutre: #99a1b0;
   --display: "Cinzel", "Alegreya SC", "Palatino Linotype", Georgia, serif;
   --ff-ange: "Cinzel Decorative", var(--display); --ff-demon: "Pirata One", var(--display); --ff-gobelin: "Metal Mania", var(--display); --ff-elfe: "Uncial Antiqua", var(--display);
   --ff-dragon: "MedievalSharp", var(--display); --ff-mortvivant: "Creepster", var(--display); --ff-vampire: "UnifrakturMaguntia", var(--display);
+  --ff-hacker: "Share Tech Mono", var(--display); --ff-cyborg: "Orbitron", var(--display);
   --body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
   --r: 6px;
   color-scheme: dark;
@@ -420,6 +421,7 @@ body:has(#app.ingame) { margin: 0; }
 .frame-etoile { background: radial-gradient(circle, #fff 0 1px, transparent 2px) 0 0 / 7px 7px, linear-gradient(135deg, #1d2a5a, #4b3a8f); }
 .frame-base { background: linear-gradient(135deg, var(--f-ange), var(--f-demon), var(--f-gobelin), var(--f-elfe), var(--f-dragon)); }
 .frame-set2 { background: linear-gradient(135deg, #2b1d3a, var(--f-vampire) 45%, var(--f-mortvivant)); box-shadow: 0 0 8px rgb(140 35 80 / .5); }
+.frame-set3 { background: linear-gradient(135deg, #0b1530, var(--f-hacker) 45%, var(--f-cyborg)); box-shadow: 0 0 9px rgb(58 215 255 / .55); }
 .frame-platine { background: linear-gradient(135deg, #e9f6f4, #7fb7b0 50%, #d4ece8); box-shadow: 0 0 8px rgb(127 183 176 / .6); }
 .frame-diamant { background: conic-gradient(#bfe9ff, #5aa8e6, #e4f6ff, #3a7fd0, #bfe9ff); box-shadow: 0 0 10px rgb(90 168 230 / .7); }
 .frame-maitre { background: conic-gradient(from 90deg, #6a2bd0, #e04aa0, #ffcf4a, #6a2bd0); box-shadow: 0 0 12px rgb(160 70 210 / .7); }
@@ -462,6 +464,15 @@ body:has(#app.ingame) { margin: 0; }
 .mc.back.back-gobelin_set2 { background: radial-gradient(circle at 50% 50%, #f2c46b, transparent 45%), linear-gradient(#2b1d3a, #4a3a6a), repeating-linear-gradient(45deg, #3e6e2c 0 6px, #6c9a3e 6px 12px); }
 .mc.back.back-elfe_set2 { background: radial-gradient(circle, #fff 0 1px, transparent 2px) 0 0 / 8px 8px, linear-gradient(#1d2a5a, #2a8a7e); }
 .mc.back.back-dragon_set2 { background: radial-gradient(ellipse at 50% 70%, #ffb36b, transparent 35%), linear-gradient(#2b1d3a, #7a3a1a); }
+
+/* Dos de la Cité Néon : les deux nouvelles familles, puis les autres sous une nuit bleue traversée de circuits. */
+.mc.back.back-hacker { background: linear-gradient(90deg, transparent 0 46%, #3ad7ff 46% 54%, transparent 54%) 0 0 / 12px 12px, linear-gradient(#0f2a3a, #04090f); border-top-color: #3ad7ff; }
+.mc.back.back-cyborg { background: radial-gradient(circle at 50% 50%, #ff4fbf 0 6%, #c0c8d4 7% 22%, transparent 23%), repeating-linear-gradient(90deg, #3a1238 0 6px, #5a1f56 6px 8px); border-top-color: #ff4fbf; }
+.mc.back.back-ange_set3, .mc.back.back-demon_set3, .mc.back.back-gobelin_set3, .mc.back.back-elfe_set3, .mc.back.back-dragon_set3, .mc.back.back-mortvivant_set3, .mc.back.back-vampire_set3 {
+  background: radial-gradient(circle at 50% 50%, var(--fam, #19c8e6), transparent 40%), linear-gradient(90deg, transparent 0 47%, rgb(25 200 230 / .45) 47% 53%, transparent 53%) 0 0 / 14px 14px, linear-gradient(#12244a, #060c1c);
+  border-top-color: #d42bb8; }
+.mc.back.back-ange_set3 { --fam: #e2b93e; } .mc.back.back-demon_set3 { --fam: #de5c56; } .mc.back.back-gobelin_set3 { --fam: #79b85f; } .mc.back.back-elfe_set3 { --fam: #4fbcad; }
+.mc.back.back-dragon_set3 { --fam: #e48447; } .mc.back.back-mortvivant_set3 { --fam: #8fb19c; } .mc.back.back-vampire_set3 { --fam: #d0547f; }
 
 /* amis : liste avec statut, bandeau de défi */
 .flist { display: grid; gap: 8px; }

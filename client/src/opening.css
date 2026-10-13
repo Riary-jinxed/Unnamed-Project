@@ -17,6 +17,7 @@
 /* ---------- Booster ---------- */
 .oppack { --pk1: #2d4f8f; --pk2: #c99a1e; --pk3: #0f1d3a; }
 .oppack.pk-set2 { --pk1: #4b2a6b; --pk2: #d0547f; --pk3: #1a0f29; }
+.oppack.pk-set3 { --pk1: #12244a; --pk2: #3ad7ff; --pk3: #060c1c; }
 .pack { --w: min(240px, 60vw); position: relative; width: var(--w); aspect-ratio: 230 / 368; z-index: 2;
   transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .12s ease-out;
   animation: packin .7s cubic-bezier(.2,.9,.3,1.25) backwards, packfloat 3.2s ease-in-out .7s infinite;

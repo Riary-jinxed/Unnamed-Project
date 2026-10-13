@@ -1,5 +1,6 @@
 // Partie contre l'IA : le même moteur tourne directement dans le navigateur.
-import { DECKS, newGame, startTurn, runTurn, aiSearch, viewFor, pick } from '@jeu/engine';
+import { newGame, startTurn, runTurn, aiSearch, viewFor, pick } from '@jeu/engine';
+import { aiDeckKeys } from '@jeu/engine/collection';
 
 // L'IA essaie 250 plans au hasard et garde le meilleur. Elle les essaie pendant que le joueur prépare son tour,
 // par petites tranches entre deux images : valider ne bloque plus l'écran le temps qu'elle réfléchisse.
@@ -27,7 +28,7 @@ export function startSolo(handlers, { name, deck }) {
     if (job.left > 0) { const r = aiSearch(st, 1, job.left); if (r.value > job.value) job.plan = r.plan; }
     return job.plan;
   }
-  function begin() { st = newGame(deck, pick(Object.keys(DECKS)), names, { generals: [deck.general, null] }); startTurn(st); st.phase = 'plan'; ready = false; emit(null); startThinking(); }
+  function begin() { st = newGame(deck, pick(aiDeckKeys()), names, { generals: [deck.general, null] }); startTurn(st); st.phase = 'plan'; ready = false; emit(null); startThinking(); }
   begin();
   return {
     async submit(plan) {

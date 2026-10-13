@@ -63,6 +63,7 @@ export function catalogError(cat) {
     if (typeof s.name !== 'string' || !s.name.trim() || s.name.length > 40) return 'Chaque set a un nom de 1 à 40 caractères.';
     if (typeof s.teaser !== 'string' || s.teaser.length > 300) return `${s.name} : présentation de 300 caractères au plus.`;
     if (s.boosterExtra !== undefined && (!Number.isInteger(s.boosterExtra) || s.boosterExtra < 0 || s.boosterExtra > 100000)) return `${s.name} : supplément du booster entre 0 et 100000 Éclats.`;
+    if (s.reveal !== undefined && s.reveal !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(String(s.reveal))) return `${s.name} : date de sortie au format AAAA-MM-JJ.`;
     if (!Array.isArray(s.cards) || s.cards.some(id => !(BASE_CARDS[id] && !BASE_CARDS[id].token) && !GENERALS[id] && !cat.cards[id])) return `${s.name} contient une carte inconnue.`;
   }
   if (!cat.sets.some(s => s.daily && s.cards.length)) return 'Au moins un set non vide doit alimenter le booster quotidien.';
@@ -70,7 +71,7 @@ export function catalogError(cat) {
 }
 
 // Tout ce que le catalogue connaît : à enregistrer dans « known » à chaque sauvegarde du brouillon.
-export const knownIds = cat => [...new Set([...OWNABLE, ...Object.keys(cat.cards || {})])];
+export const knownIds = cat => [...new Set([...OWNABLE, ...Object.keys(cat.cards || {}), ...(cat.sets || []).map(s => `set:${s.id}`)])];
 
 // Applique un catalogue au moteur : CARDS, cartes à collectionner, sets et booster quotidien sont mis à jour sur place.
 export function applyCatalog(cat) {
@@ -92,6 +93,8 @@ export function applyCatalog(cat) {
 // Sets du catalogue, avec les cartes et généraux qu'il ne connaissait pas encore ajoutés à leur set d'origine (s'il existe).
 export function withNewcomers(cat) {
   const sets = cat.sets.map(s => ({ ...s, cards: s.cards.slice() }));
+  // Un set ajouté au code après l'enregistrement du catalogue (set 3…) y entre avec ses réglages par défaut.
+  for (const d of DEFAULT_SETS) if (!sets.some(s => s.id === d.id) && !(cat.known || []).includes(`set:${d.id}`)) sets.push({ ...d, cards: [] });
   const known = new Set(cat.known || [...BASE_KNOWN, ...Object.keys(cat.cards || {})]);
   for (const id of OWNABLE) {
     if (known.has(id) || sets.some(s => s.cards.includes(id))) continue;

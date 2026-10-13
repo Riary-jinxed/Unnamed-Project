@@ -150,7 +150,7 @@ export function cardsTab({ call, render, say, esc, notice, onPublished }) {
     if (S.set) return `${notice()}${renderSetEditor()}`;
     const list = draft().sets.map((s, i) => `<div class="card-box">
       <div class="row"><h3 style="margin-right:auto">${esc(s.name)}</h3><small class="hint">${s.cards.length} cartes</small><button class="btn" data-set-edit="${i}">Modifier</button></div>
-      <div class="row">${s.open ? '<span class="chip">En boutique</span>' : '<span class="chip">Bientôt disponible</span>'}${s.daily ? '<span class="chip">Booster quotidien</span>' : ''}${boosterExtraOf(s) ? `<span class="chip">Booster +${boosterExtraOf(s)} Éclats</span>` : ''}</div>
+      <div class="row">${s.open ? '<span class="chip">En boutique</span>' : '<span class="chip">Bientôt disponible</span>'}${s.daily ? '<span class="chip">Booster quotidien</span>' : ''}${boosterExtraOf(s) ? `<span class="chip">Booster +${boosterExtraOf(s)} Éclats</span>` : ''}${s.reveal ? `<span class="chip">Sortie le ${esc(s.reveal.split('-').reverse().join('/'))}</span>` : ''}</div>
       ${s.teaser ? `<p class="hint" style="margin:0">${esc(s.teaser)}</p>` : ''}</div>`).join('');
     const loose = setIds(draft()).filter(id => !draft().sets.some(s => s.cards.includes(id)));
     return `${notice()}${banner()}
@@ -176,6 +176,7 @@ export function cardsTab({ call, render, say, esc, notice, onPublished }) {
       <div class="row"><label class="check"><input type="checkbox" id="sf-open" ${s.open ? 'checked' : ''}> Ouvert en boutique</label>
         <label class="check"><input type="checkbox" id="sf-daily" ${s.daily ? 'checked' : ''}> Dans le booster quotidien</label></div>
       <div class="field"><label class="eyebrow" for="sf-extra">Supplément du booster (Éclats, ajouté au prix d'un booster de l'onglet Boutique)</label><input id="sf-extra" type="number" min="0" max="100000" step="1" value="${boosterExtraOf(s)}"></div>
+      <div class="field"><label class="eyebrow" for="sf-reveal">Date de sortie (vide : déjà sorti). Avant cette date, le set, ses cartes et ses decks d'IA restent invisibles pour les joueurs.</label><input id="sf-reveal" type="date" value="${esc(s.reveal || '')}"></div>
       <div class="field"><label class="eyebrow" for="sf-teaser">Présentation (affichée tant que le set est fermé)</label><textarea id="sf-teaser" maxlength="300" rows="2">${esc(s.teaser)}</textarea></div>
       <div class="row"><b style="margin-right:auto">Cartes du set</b><small class="hint">${s.cards.length} cartes</small></div>
       ${chips}
@@ -188,6 +189,7 @@ export function cardsTab({ call, render, say, esc, notice, onPublished }) {
     if (!el('set-form')) return;
     S.set.name = el('sf-name').value; S.set.teaser = el('sf-teaser').value; S.set.open = el('sf-open').checked; S.set.daily = el('sf-daily').checked;
     S.set.boosterExtra = Math.max(0, Math.round(+el('sf-extra').value || 0));
+    S.set.reveal = el('sf-reveal').value || '';
     if (el('sf-id')) S.set.id = el('sf-id').value.trim();
   }
   function saveSet() {

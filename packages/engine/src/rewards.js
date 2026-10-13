@@ -114,18 +114,21 @@ export const missionLabel = m => MISSIONS[m.id]?.label(m.target, m.fam, CARDS[m.
 export const FRAMES = {
   bronze: 'Cadre de bronze', argent: 'Cadre d\'argent', or: 'Cadre d\'or', legende: 'Cadre légendaire',
   flamme: 'Cadre de flammes', duel: 'Cadre du duelliste', tresor: 'Cadre du trésor', etoile: 'Cadre étoilé',
-  base: 'Couronne du Set de base', set2: 'Couronne du Crépuscule',
+  base: 'Couronne du Set de base', set2: 'Couronne du Crépuscule', set3: 'Couronne de la Cité Néon',
   platine: 'Cadre de platine', diamant: 'Cadre de diamant', maitre: 'Cadre du grand maître',
   // Cadres des passes de saison (pass.js).
   ...Object.fromEntries(SEASON_FRAMES),
 };
-const FAM_KEY = { 'Ange': 'ange', 'Démon': 'demon', 'Gobelin': 'gobelin', 'Elfe': 'elfe', 'Dragon': 'dragon', 'Mort-vivant': 'mortvivant', 'Vampire': 'vampire' };
+const FAM_KEY = { 'Ange': 'ange', 'Démon': 'demon', 'Gobelin': 'gobelin', 'Elfe': 'elfe', 'Dragon': 'dragon', 'Mort-vivant': 'mortvivant', 'Vampire': 'vampire', 'Hacker': 'hacker', 'Cyborg': 'cyborg' };
 export const famKey = fam => FAM_KEY[fam] || 'neutre';
 // Dos de carte : celui par défaut, puis un par famille complétée dans chaque set. Il se voit sur vos cartes cachées, côté adversaire.
 export const BACKS = { classique: 'Dos classique', ange: 'Dos céleste', demon: 'Dos infernal', gobelin: 'Dos de la horde', elfe: 'Dos sylvestre',
   dragon: 'Dos d\'écailles', mortvivant: 'Dos funéraire', vampire: 'Dos écarlate',
   ange_set2: 'Dos céleste du Crépuscule', demon_set2: 'Dos infernal du Crépuscule', gobelin_set2: 'Dos du banquet', elfe_set2: 'Dos des arcanes',
-  dragon_set2: 'Dos des couvées', ...Object.fromEntries(SEASON_BACKS) };
+  dragon_set2: 'Dos des couvées',
+  hacker: 'Dos du réseau', cyborg: 'Dos chromé', ange_set3: 'Dos de la Grille', demon_set3: 'Dos des daemons', gobelin_set3: 'Dos survolté',
+  elfe_set3: 'Dos technomancien', dragon_set3: 'Dos corporatiste', mortvivant_set3: 'Dos fantôme', vampire_set3: 'Dos néon rouge',
+  ...Object.fromEntries(SEASON_BACKS) };
 
 // ---- Niveaux de carte ----
 // Purement cosmétiques : la carte joue pareil à tous les niveaux. Chaque doublon donne de l'essence propre à la carte (ou au général) ;
@@ -161,12 +164,22 @@ export const FAMILY_REWARDS = [
   F('set2', 'Gobelin', 'maitre_banquet', 'Grand ripailleur', 'gobelin_set2'),
   F('set2', 'Elfe', 'archimage', 'Arcaniste des sylves', 'elfe_set2'),
   F('set2', 'Dragon', 'doyenne_couvees', 'Gardien des couvées', 'dragon_set2'),
+  F('set3', 'Hacker', 'architecte_chaos', 'Maître du réseau', 'hacker'),
+  F('set3', 'Cyborg', 'chrome_absolu', 'Chrome intégral', 'cyborg'),
+  F('set3', 'Ange', 'ange_grille', 'Ange de la Grille', 'ange_set3'),
+  F('set3', 'Démon', 'daemon_racine', 'Daemon racine', 'demon_set3'),
+  F('set3', 'Gobelin', 'surchauffeur', 'Grand surchauffeur', 'gobelin_set3'),
+  F('set3', 'Elfe', 'archi_techno', 'Technomancien', 'elfe_set3'),
+  F('set3', 'Dragon', 'dragon_holding', 'Actionnaire majoritaire', 'dragon_set3'),
+  F('set3', 'Mort-vivant', 'revenant_binaire', 'Spectre binaire', 'mortvivant_set3'),
+  F('set3', 'Vampire', 'baronne_donnees', 'Buveur de données', 'vampire_set3'),
 ];
 export const familyReward = (set, fam) => FAMILY_REWARDS.find(r => r.set === set && r.fam === fam) || null;
 // Set complété : Éclats, boosters offerts, une carte Dieu (pour le deck le plus faible du moment), un titre et un cadre.
 export const SET_REWARDS = {
   base: { card: 'dieu_base', title: 'Gardien du Set de base', frame: 'base' },
   set2: { card: 'dieu_set2', title: 'Gardien du Crépuscule', frame: 'set2' },
+  set3: { card: 'dieu_set3', title: 'Gardien de la Cité Néon', frame: 'set3' },
 };
 // Cartes qu'on ne trouve dans aucun booster : elles ne s'obtiennent qu'en récompense.
 export const REWARD_CARDS = [...FAMILY_REWARDS.map(f => f.card), ...Object.values(SET_REWARDS).map(s => s.card)];
@@ -209,8 +222,8 @@ export const ACHIEVEMENTS = [
   A('families3', 'Collection', 'Compléter 3 familles', 'families', 3, 300, { prisms: 15, title: 'Généalogiste' }),
   ...[
     ['Ange', 'Voix des cieux'], ['Démon', 'Signataire du pacte'], ['Gobelin', 'Meneur de horde'], ['Elfe', 'Gardien des bois'],
-    ['Dragon', 'Dompteur de dragons'], ['Mort-vivant', 'Nécromant'], ['Vampire', 'Enfant de la nuit'],
-  ].map(([fam, title]) => A(`fam_${famKey(fam)}`, 'Familles', `Gagner 10 parties avec un général ${fam}`, `famWins.${fam}`, 10, 150, { title, prisms: 5 })),
+    ['Dragon', 'Dompteur de dragons'], ['Mort-vivant', 'Nécromant'], ['Vampire', 'Enfant de la nuit'], ['Hacker', 'Netrunner', 'set3'], ['Cyborg', 'Augmenté', 'set3'],
+  ].map(([fam, title, set]) => A(`fam_${famKey(fam)}`, 'Familles', `Gagner 10 parties avec un général ${fam}`, `famWins.${fam}`, 10, 150, { title, prisms: 5, ...(set ? { set } : {}) })),
   A('art1', 'Arts alternatifs', 'Obtenir un premier art alternatif', 'arts', 1, 50, { title: 'Esthète' }),
   A('art10', 'Arts alternatifs', 'Posséder 10 arts alternatifs', 'arts', 10, 300, { prisms: 10 }),
   A('art20', 'Arts alternatifs', 'Posséder 20 arts alternatifs', 'arts', 20, 600, { chests: 1, title: 'Mécène' }),

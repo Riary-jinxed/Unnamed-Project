@@ -192,6 +192,22 @@ const EMBLEMS = {
     g.roundRect(-36, -36, 72, 72, 8).fill(0x0b1530).stroke(ink(5)).roundRect(-36, -36, 72, 72, 8).stroke({ width: 3, color: 0x19c8e6 });
     g.roundRect(-20, -20, 40, 40, 4).stroke({ width: 3, color: 0xd42bb8 }); g.circle(0, 0, 9).fill(0x7cffff);
     return g; },
+  // Hacker : terminal qui affiche une invite, sous un masque de pirate.
+  terminal: () => { const g = new Graphics();
+    g.roundRect(-58, -42, 116, 80, 8).fill(0x0a1a14).stroke(ink(5)).roundRect(-58, -42, 116, 80, 8).stroke({ width: 3, color: 0x3ad7ff });
+    g.moveTo(-40, -18).lineTo(-24, -4).lineTo(-40, 10).stroke({ width: 6, color: 0x3ad7ff, cap: 'round', join: 'round' });
+    g.rect(-14, 6, 26, 6).fill(0x3ad7ff);
+    for (const [y, w] of [[-26, 60], [-14, 40], [20, 70]]) g.rect(-8 + (70 - w) / 2, y, w * 0.5, 3).fill(0x1d6b80);
+    g.roundRect(-22, 38, 44, 10, 3).fill(0x1d2a3a).stroke(ink(3)).moveTo(-34, 56).lineTo(34, 56).stroke({ width: 6, color: INK, cap: 'round' });
+    return g; },
+  // Cyborg : engrenage chromé autour d'un œil rouge.
+  engrenage: () => { const g = new Graphics();
+    for (let i = 0; i < 10; i++) { const a = i * TAU / 10, [x, y] = pt(0, 0, 50, a); g.circle(x, y, 10); }
+    g.fill(0xb8c0cc).stroke(ink(3.5));
+    g.circle(0, 0, 48).fill(grad([[0, 0xe8edf2], [1, 0x7a8494]])).stroke(ink(4.5));
+    g.circle(0, 0, 26).fill(0x1a1d24).stroke(ink(4)); g.circle(0, 0, 14).fill(0xff4fbf); g.circle(-5, -5, 4).fill(0xffd6f0);
+    g.moveTo(-48, 0).lineTo(-26, 0).moveTo(26, 0).lineTo(48, 0).stroke({ width: 3, color: 0x4a5260 });
+    return g; },
 };
 // Plume : forme effilée qui part du centre de l'aile.
 function featherPoly(x, y, a, len, w) {
@@ -224,6 +240,10 @@ const FAMILY_BACKS = {
 };
 // Familles vues au Crépuscule : même emblème, voile violet nocturne, filet argent lavande.
 for (const f of ['ange', 'demon', 'gobelin', 'elfe', 'dragon']) FAMILY_BACKS[`${f}_set2`] = { ...FAMILY_BACKS[f], bg: [0x4a3470, 0x120a24], ray: 0x5a4288, rim: 0xd8c8ff, med: 0x1d1236, night: true, pattern: null };
+// Cité Néon : les deux nouvelles familles, puis les autres sous la nuit bleue de la mégapole, filet néon et circuits.
+FAMILY_BACKS.hacker = { bg: [0x0f2a3a, 0x04090f], ray: 0x16405a, rim: 0x3ad7ff, med: 0x061218, emblem: 'terminal', pattern: 'circuit', glow: 0x3ad7ff };
+FAMILY_BACKS.cyborg = { bg: [0x3a1238, 0x0c040e], ray: 0x5a1f56, rim: 0xff4fbf, med: 0x18081a, emblem: 'engrenage', pattern: 'circuit', glow: 0xff4fbf };
+for (const f of ['ange', 'demon', 'gobelin', 'elfe', 'dragon', 'mortvivant', 'vampire']) FAMILY_BACKS[`${f}_set3`] = { ...FAMILY_BACKS[f], bg: [0x12244a, 0x060c1c], ray: 0x1a3060, rim: 0x19c8e6, med: 0x081022, pattern: 'circuit', glow: 0xd42bb8 };
 
 function panelShape(g, inset, r) { return g.roundRect(inset, inset, BACK_W - inset * 2, BACK_H - inset * 2, r); }
 function backFrame(c, t, inner) {
@@ -393,6 +413,9 @@ const FRAMES = {
   set2: g => { add(g, glow(() => new Graphics().circle(C, C, RB).stroke({ width: 10, color: 0xffffff }), 0x8c2350, 10, 0.7));
     ring(g, METAL.violet); beads(g, 10, (RH + RB) / 2, 0x8c2350, 3.5); crown(g, 0xd8c8ff, [0x8c2350, 0x5f7a6a, 0x8c2350]);
     g.circle(C, C - RB - 44, 12).fill(0xfff3cf).stroke(ink(2.5)); g.circle(C + 6, C - RB - 48, 10).fill(0x4a3470); },
+  set3: g => { add(g, glow(() => new Graphics().circle(C, C, RB).stroke({ width: 10, color: 0xffffff }), 0x3ad7ff, 10, 0.8));
+    ring(g, METAL.neon); beads(g, 12, (RH + RB) / 2, 0xff4fbf, 3.5); crown(g, 0x3ad7ff, [0x3ad7ff, 0xff4fbf, 0x3ad7ff]);
+    g.circle(C, C, RB - 3).stroke({ width: 2.5, color: 0x3ad7ff }).circle(C, C, RH + 3).stroke({ width: 2.5, color: 0xff4fbf }); },
   halloween: g => { const r = add(g, new Graphics()), m = (RH + RB) / 2, w = RB - RH;
     for (let i = 0; i < 12; i++) arc(r, C, C, m, i * TAU / 12, (i + 1) * TAU / 12).stroke({ width: w, color: i % 2 ? 0x1d1226 : 0xe8741c });
     r.circle(C, C, RB).stroke(ink(4.5)).circle(C, C, RH).stroke(ink(4.5));

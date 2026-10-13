@@ -30,7 +30,7 @@ export function createCatalog(store, accounts) {
   }
   async function saveDraft({ draft: d }) {
     const err = catalogError(d); if (err) throw new HttpError(400, err);
-    const clean = { version: published.version, known: knownIds(d), cards: d.cards, sets: d.sets.map(s => ({ id: s.id, name: s.name.trim(), open: !!s.open, daily: !!s.daily, teaser: s.teaser || '', ...(s.boosterExtra !== undefined ? { boosterExtra: s.boosterExtra } : {}), cards: [...new Set(s.cards)] })) };
+    const clean = { version: published.version, known: knownIds(d), cards: d.cards, sets: d.sets.map(s => ({ id: s.id, name: s.name.trim(), open: !!s.open, daily: !!s.daily, teaser: s.teaser || '', ...(s.boosterExtra !== undefined ? { boosterExtra: s.boosterExtra } : {}), ...(s.reveal ? { reveal: s.reveal } : {}), cards: [...new Set(s.cards)] })) };
     await store.putDoc('brouillon', clean);
     return view();
   }

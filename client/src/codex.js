@@ -1,6 +1,7 @@
 // Codex : les règles de base et chaque mot-clé des cartes, avec son effet exact et des cartes d'exemple.
 // À compléter quand une mécanique apparaît (avec KEYWORDS dans common.js, qui met les mots-clés en gras).
 import { CARDS } from '@jeu/engine';
+import { setById, setRevealed } from '@jeu/engine/collection';
 import { esc, famStyle, rich } from './common.js';
 
 // fam : famille qui utilise surtout le mot-clé (couleur de la pastille) ; ex : cartes d'exemple (identifiants).
@@ -48,6 +49,14 @@ export const CODEX = [
     { name: 'Échange', fam: 'Démon', text: 'Votre créature de puissance négative la plus faible de la zone passe chez l\'adversaire, et vous prenez la créature adverse visée. Sans créature négative, rien ne se passe. La Chèvre (-1) compte.', ex: ['tentateur', 'marche_dupes'] },
     { name: 'Sortilège', fam: 'Elfe', text: 'Se déclenche quand vous révélez un sort, dans n\'importe quelle zone.', ex: ['apprentie', 'mage_bois'] },
   ] },
+  // set : groupe caché avant la sortie de son set.
+  { id: 'set3', set: 'set3', title: 'Mots-clés de la Cité Néon', items: [
+    { name: 'Malware', fam: 'Hacker', text: 'Malware N : N Malwares sont glissés au hasard parmi les 6 premières cartes du deck adverse. Quand l\'adversaire en pioche un, il s\'exécute et disparaît sans être remplacé : le Virus fait perdre 1 à sa créature la plus puissante (1 sceau s\'il n\'en a pas), le Worm fait de même puis glisse un Virus dans son deck, le Ransomware fait coûter 1 de plus à la carte la plus chère de sa main.', ex: ['script_kiddie', 'ver_polymorphe', 'casseuse'] },
+    { name: 'Piratage', fam: 'Hacker', text: 'La créature piratée perd tous ses effets (Persistant, Fin de tour, Grâce, Destruction, Déplaçable…) jusqu\'à ce qu\'elle quitte le jeu ; sa puissance et ses bonus déjà reçus restent. Un général piraté n\'agit plus jusqu\'à la fin du tour suivant, et ne peut pas être activé.', ex: ['glitcheuse', 'brise_glace', 'coupe_circuit'] },
+    { name: 'Pare-feu', text: 'Pare-feu : vos créatures dans la zone d\'une carte avec Pare-feu (ou sur le terrain Pare-feu) ne peuvent pas être piratées.', ex: ['garde_securite'] },
+    { name: 'Surcharge', fam: 'Cyborg', text: 'Surcharge N : à la révélation de la carte, s\'il vous reste au moins N sceaux, ils sont dépensés et l\'effet Surcharge s\'applique. Gardez des sceaux en préparant votre tour pour la déclencher.', ex: ['samourai', 'bras_canon', 'ferrailleur'] },
+    { name: 'Implant', fam: 'Cyborg', text: 'Implant N : la créature gagne +N et un Implant. Des cartes comptent les Implants ou renforcent les créatures qui en ont.', ex: ['charcudoc', 'chrome', 'legende_chrome'] },
+  ] },
 ];
 
 const norm = s => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -58,7 +67,7 @@ export function codexHTML(query = '') {
   const ex = id => CARDS[id] ? `<button class="chip" data-zoom="card:${id}">${esc(CARDS[id].name)}</button>` : '';
   const item = it => `<div class="cx" style="${it.fam ? famStyle(it.fam) : ''}"><div class="cxh"><b>${esc(it.name)}</b>${it.fam ? `<span class="cxf">${esc(it.fam)}</span>` : ''}</div>
     <p>${rich(it.text)}</p>${it.ex ? `<div class="cxex"><small class="hint">Exemples :</small>${it.ex.map(ex).join('')}</div>` : ''}</div>`;
-  const groups = CODEX.map(g => ({ ...g, items: g.items.filter(match) })).filter(g => g.items.length);
+  const groups = CODEX.filter(g => !g.set || setRevealed(setById(g.set))).map(g => ({ ...g, items: g.items.filter(match) })).filter(g => g.items.length);
   return groups.length ? groups.map(g => `<div class="gal-h">${esc(g.title)}</div><div class="cxs">${g.items.map(item).join('')}</div>`).join('')
     : '<p class="hint" style="margin:0">Aucun mot-clé ne correspond.</p>';
 }

@@ -4,7 +4,7 @@ import './habillage.css';
 import './cyber.css';
 import './halloween.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
-import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, allowedGenerals, allowedTerrains, starterGenerals, deckError, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder, today } from '@jeu/engine/collection';
+import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, setById, setRevealed, unrevealed, allowedGenerals, allowedTerrains, starterGenerals, deckError, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder, today } from '@jeu/engine/collection';
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
@@ -25,7 +25,7 @@ import { TABS, screenDir, slides, ghostScreen, ghostSheet } from './transition.j
 import { openPack, openChest } from './opening.js';
 import { setHome } from './lobby.js';
 import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
-import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
+import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL, FAMILY_REWARDS, SET_REWARDS } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { SEASONS, PASS_TIERS, SEASON_THEMES, seasonOfCard, seasonStarted, seasonStart, currentSeason, releaseMonth } from '@jeu/engine/pass';
 import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName, chestPool } from '@jeu/engine/arts';
@@ -442,8 +442,14 @@ function nextPassLine() {
 }
 // Cosmétiques et cartes des saisons pas encore commencées : cachés tant qu'on ne les a pas.
 const futureSeasons = () => SEASONS.filter(x => !seasonStarted(x.id, today()));
-const futureCosmetic = id => futureSeasons().some(x => [x.frame[0], x.framePremium[0], x.back[0], x.backPremium[0]].includes(id));
-const hiddenCard = id => { const x = seasonOfCard(id); return !!x && !seasonStarted(x.id, today()) && !owned(id); };
+// Sets pas encore sortis (date de sortie à venir) : leurs cartes, familles, récompenses et cosmétiques restent cachés.
+const setHidden = id => !!id && !setRevealed(setById(id));
+const futureCosmetic = id => futureSeasons().some(x => [x.frame[0], x.framePremium[0], x.back[0], x.backPremium[0]].includes(id))
+  || FAMILY_REWARDS.some(r => r.back === id && setHidden(r.set)) || Object.entries(SET_REWARDS).some(([set, r]) => r.frame === id && setHidden(set));
+const hiddenCard = id => { if (owned(id)) return false; const x = seasonOfCard(id); if (x && !seasonStarted(x.id, today())) return true;
+  return unrevealed(id) || setHidden(rewardSourceOf(id)?.set); };
+// Familles à montrer : celles qui ont au moins une carte visible.
+const shownFamilies = () => FAMILIES.filter(f => OWNABLE.some(id => famOfCard(id) === f && !hiddenCard(id)));
 // Une récompense de palier, en court (un palier peut en avoir plusieurs, comme un coffre et un cadre).
 function passGift(r) {
   const parts = [
@@ -843,7 +849,7 @@ function renderHome() {
   // Booster du jour, boosters et coffres offerts : un seul bandeau, seulement quand il y a quelque chose à ouvrir.
   // Les cadeaux s'ouvrent ici même (un bouton par set ouvert), sans passer par la boutique.
   const plural = (n, w) => `${n} ${w}${n > 1 ? 's' : ''}`, dis = ui.busy ? 'disabled' : '';
-  const openSets = shopOrder(SETS).filter(x => x.open && x.cards.length), chests = p.freeChests && chestPool(a.arts).length ? p.freeChests : 0;
+  const openSets = shopOrder(SETS).filter(x => x.open && x.cards.length && setRevealed(x)), chests = p.freeChests && chestPool(a.arts).length ? p.freeChests : 0;
   const giftBtns = [
     ...(p.freeBoosters ? openSets.map(x => `<button class="btn primary" data-act="free-booster" data-set="${x.id}" ${dis}>${openSets.length > 1 ? `Booster ${esc(x.name)}` : 'Ouvrir un booster'}</button>`) : []),
     chests ? `<button class="btn primary" data-act="chest-free" ${dis}>Ouvrir un coffre</button>` : '',
@@ -919,7 +925,7 @@ function lockLabel(id) {
   return src.kind === 'family' ? `Récompense : famille ${src.fam} complète (${set})` : `Récompense : set ${set} complet`;
 }
 function renderCollection() {
-  const a = ui.account, fams = [...FAMILIES, 'Neutre'];
+  const a = ui.account, fams = [...shownFamilies(), 'Neutre'];
   const shown = OWNABLE.filter(id => !hiddenCard(id) && (!ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam)).sort(byFamCost);
   const tile = id => { const n = owned(id), lvl = myLevel(id), up = canUpgrade(id);
     return `<button class="ccard ${n ? '' : 'locked'} ${n && (lvl > 1 || up) ? 'tagged' : ''}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? `, niveau ${lvl}${up ? ', peut monter de niveau' : ''}` : ', pas encore obtenue'}">
@@ -1138,11 +1144,11 @@ function achievementsHTML() {
 const PROFILE_TABS = [['profil', 'Profil'], ['collection', 'Collection'], ['perso', 'Personnalisation'], ['succes', 'Succès']];
 function renderProfile() {
   const a = ui.account, st = ui.profile, p = prog();
-  const sets = SETS.filter(s => s.cards.length).map(s => { const n = s.cards.filter(owned).length, pct = Math.round(100 * n / s.cards.length);
+  const sets = SETS.filter(s => s.cards.length && setRevealed(s)).map(s => { const n = s.cards.filter(owned).length, pct = Math.round(100 * n / s.cards.length);
     return `<div class="setline ${n === s.cards.length ? 'done' : ''}"><div class="row" style="justify-content:space-between"><b>${esc(s.name)}</b>
       <span class="num">${n === s.cards.length ? 'Complété · ' : ''}${n}/${s.cards.length}</span></div>
       <div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(s.name)}"><span style="width:${pct}%"></span></div></div>`; }).join('');
-  const complete = SETS.filter(s => s.cards.length && s.cards.every(owned)).length;
+  const complete = SETS.filter(s => s.cards.length && setRevealed(s) && s.cards.every(owned)).length;
   const tile = (label, r) => `<div class="stat"><span class="eyebrow">${label}</span><b class="num">${r.rate === null ? '–' : `${r.rate} %`}</b>
     <small class="hint num">${r.games} partie${r.games > 1 ? 's' : ''} · ${r.wins} V · ${r.losses} D${r.draws ? ` · ${r.draws} N` : ''}</small></div>`;
   const RES = { wins: 'Victoire', losses: 'Défaite', draws: 'Match nul' };
@@ -1308,12 +1314,12 @@ function sheetHTML() {
   if (ui.sheet === 'set') {
     const ids = o => Object.keys(o);
     let h = '';
-    for (const fam of [...FAMILIES, null]) {
-      const cards = ids(CARDS).filter(k => !CARDS[k].token && (CARDS[k].kw[0] || null) === fam);
-      const tokens = fam === null ? ids(CARDS).filter(k => CARDS[k].token) : [];
+    for (const fam of [...shownFamilies(), null]) {
+      const cards = ids(CARDS).filter(k => !CARDS[k].token && (CARDS[k].kw[0] || null) === fam && !hiddenCard(k));
+      const tokens = fam === null ? ids(CARDS).filter(k => CARDS[k].token && !unrevealed(k)) : [];
       h += `<div class="gal-h">${fam || 'Neutres et jetons'}</div><div class="gallery">
-        ${ids(GENERALS).filter(k => GENERALS[k].fam === fam).map(k => genCard(k)).join('')}
-        ${cards.map(k => fullCard(k)).join('')}${ids(TERRAINS).filter(k => TERRAINS[k].fam === fam).map(terrainCard).join('')}${tokens.map(k => fullCard(k)).join('')}</div>`;
+        ${ids(GENERALS).filter(k => GENERALS[k].fam === fam && !hiddenCard(k)).map(k => genCard(k)).join('')}
+        ${cards.map(k => fullCard(k)).join('')}${ids(TERRAINS).filter(k => TERRAINS[k].fam === fam && !unrevealed(k)).map(terrainCard).join('')}${tokens.map(k => fullCard(k)).join('')}</div>`;
     }
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Toutes les cartes</h2><div class="row"><button class="btn" data-act="codex">Mots-clés</button><button class="btn" data-act="close">Fermer</button></div></div>
       <p class="hint" style="margin:0">Un deck : ${DECK_SIZE} cartes différentes de votre collection, ${DECK_TERRAINS} terrains et un général de votre collection. Terrains : les neutres et ceux des familles de vos généraux.</p>${h}</div></div>`;

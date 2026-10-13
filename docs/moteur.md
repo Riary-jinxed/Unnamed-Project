@@ -27,6 +27,8 @@ Champs d'une carte : `name`, `type`, `cost`, `power`, `kw` (la famille, ex. `['E
 | `mobile` | Déplaçable par le joueur pendant la préparation. |
 | `token` | Jeton : créé par un effet, jamais en collection, disparaît sans aller à la défausse. |
 | `raise` | Relève : défaussée depuis la main, la carte entre en jeu. |
+| `firewall` | Pare-feu : vos créatures dans sa zone (elle comprise) ne peuvent pas être piratées. |
+| `malware(st, p)` | Malware (jeton) : la fonction s'exécute quand le joueur `p` pioche la carte, qui disparaît sans être remplacée. |
 | `egg` | Œuf : éclôt selon son propre effet. |
 
 ### Crochets
@@ -48,9 +50,11 @@ Un effet est une fonction attachée à la carte. Arguments : `c` (la carte en je
 | `onSpell(c, st, zone, sort)` | Vous révélez un sort. |
 | `onSwitch(c, st)` | La carte change de camp (Échange). |
 
-Les généraux ont `activate` (+ `needsZone`, `activateCost`) pour un effet activable une fois par partie, `aura`, `preview` (voit ses terrains à venir) et les crochets `onStart`, `onStartTurn`, `onEndTurn`, `onEndGame`, `onDraw`, `onDiscard`, `onSpell`, `onAllyDestroyed`, qui reçoivent le numéro du joueur (`p`) au lieu d'une carte. Ces crochets passent par `genHook` : s'il a écrit au journal, le général a agi, et `P.genFired` compte un déclenchement de plus (envoyé dans la vue, `genFired`, pour que l'appli joue son effet). Les terrains ont `flat` (bonus de zone), `aura`, `onReveal`, `onStartTurn`, `onEndTurn`, `onAllyDestroyed`, `onCardReveal`, `onSpellHere`, avec `p` et la zone.
+Une carte piratée (`c.hacked`, posé par `hack(st, c)`) perd tous ses effets : ses crochets ne passent plus que par `fx(c)`, et `self`/`aura` sont ignorés. Un Pare-feu (`firewall`, ou le terrain Pare-feu) l'en protège.
 
-Les effets s'écrivent avec les petites fonctions du moteur : `buff(st, carte, n)`, `addZone`, `draw`, `summon`, `horde`, `feast`, `move`, `destroy`, `drain`, `exhume`, `discardFromHand`, et les sélecteurs `creaturesAt(st, p, zone)`, `mine(st, p)`, `weakest`, `strongest`, `bestZone`.
+Les généraux ont `activate` (+ `needsZone`, `activateCost`) pour un effet activable une fois par partie, `aura`, `preview` (voit ses terrains à venir) et les crochets `onStart`, `onStartTurn`, `onEndTurn`, `onEndGame`, `onDraw`, `onDiscard`, `onSpell`, `onAllyDestroyed`, `onMalware` (un de vos Malwares s'exécute chez l'adversaire), `onHack(p, st, carte)`, `onOverload(p, st, zone, carte)` (Surcharge payée), `onRaise` (une carte se relève), qui reçoivent le numéro du joueur (`p`) au lieu d'une carte. Ces crochets passent par `genHook` : s'il a écrit au journal, le général a agi, et `P.genFired` compte un déclenchement de plus (envoyé dans la vue, `genFired`, pour que l'appli joue son effet). Les terrains ont `flat` (bonus de zone), `aura`, `onReveal`, `onStartTurn`, `onEndTurn`, `onAllyDestroyed`, `onCardReveal`, `onSpellHere`, `onFoeReveal` (une créature adverse est révélée ici), avec `p` et la zone. Un général piraté (`hackGeneral`, `genHacked(st, p)`) est muet jusqu'à la fin du tour suivant : ni crochets, ni activation.
+
+Les effets s'écrivent avec les petites fonctions du moteur : `buff(st, carte, n)`, `addZone`, `draw`, `summon`, `horde`, `feast`, `move`, `destroy`, `drain`, `exhume`, `discardFromHand`, `malware(st, p, n, type)` (type `virus`, `ver`, `rancon` ou `mix`), `hack`, `hackGeneral`, `implant(st, carte, n)`, `overload(st, carte, n)` (renvoie `true` si la Surcharge a été payée), et les sélecteurs `creaturesAt(st, p, zone)`, `mine(st, p)`, `weakest`, `strongest`, `bestZone`.
 
 ## État d'une partie
 

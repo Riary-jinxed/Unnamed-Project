@@ -23,7 +23,7 @@ export const starterGenerals = starter => GENERAL_IDS.filter(k => setOf(k) === '
 export const allowedGenerals = ({ cards = {} } = {}) => GENERAL_IDS.filter(k => cards[k]);
 export function allowedTerrains(account) {
   const fams = new Set(allowedGenerals(account).map(k => GENERALS[k].fam).filter(Boolean));
-  return Object.keys(TERRAINS).filter(k => TERRAINS[k].fam === null || fams.has(TERRAINS[k].fam));
+  return Object.keys(TERRAINS).filter(k => (TERRAINS[k].fam === null && !unrevealed(k)) || fams.has(TERRAINS[k].fam));
 }
 // Ajoute à un compte les généraux de son deck de départ qui lui manquent. Renvoie true si le compte a changé.
 export function grantStarterGenerals(a) {
@@ -102,9 +102,22 @@ export const DEFAULT_SETS = [
   { id: 'base', name: 'Set de base', cards: OWNABLE.filter(id => setOf(id) === 'base'), open: true, daily: true, teaser: '', boosterExtra: 0 },
   { id: 'set2', name: 'Crépuscule', cards: OWNABLE.filter(id => setOf(id) === 'set2'), open: true, daily: false, boosterExtra: 50,
     teaser: 'Morts-vivants et Vampires rejoignent la bataille, avec de nouveaux généraux pour chaque famille. Ses cartes arriveront d\'abord ici, en boosters et à l\'unité, avant de rejoindre le booster quotidien.' },
+  { id: 'set3', name: 'Cité Néon', cards: OWNABLE.filter(id => setOf(id) === 'set3'), open: true, daily: false, boosterExtra: 50, reveal: '2026-11-02',
+    teaser: 'Hackers et Cyborgs envahissent la mégapole : Malwares glissés dans le deck adverse, Piratage, Implants et Surcharge, avec un soutien néon pour chaque famille.' },
 ];
 export const SETS = structuredClone(DEFAULT_SETS);
 export const setById = id => SETS.find(s => s.id === id);
+// Date de sortie d'un set (reveal, AAAA-MM-JJ heure de Paris) : avant, il n'existe pas pour les joueurs (boutique, collection, IA).
+export const setRevealed = (set, day = today()) => !set?.reveal || day >= set.reveal;
+// Un identifiant (carte, général, terrain, deck) dont le set d'origine n'est pas encore sorti. Les cartes de récompense suivent le set qui les donne.
+export function unrevealed(id, day = today()) {
+  const set = (CARDS[id] || GENERALS[id] || TERRAINS[id])?.set;
+  if (!set || set === 'base') return false;
+  const s = SETS.find(x => x.id === set) || DEFAULT_SETS.find(x => x.id === set);
+  return !!s && !setRevealed(s, day);
+}
+// Decks préconstruits que l'IA peut jouer : ceux des sets déjà sortis.
+export const aiDeckKeys = (day = today()) => Object.keys(DECKS).filter(k => { const s = DECKS[k].set && (SETS.find(x => x.id === DECKS[k].set) || DEFAULT_SETS.find(x => x.id === DECKS[k].set)); return !s || setRevealed(s, day); });
 // Supplément du booster d'un set : celui du catalogue, sinon celui du set par défaut (catalogue publié avant le réglage).
 export const boosterExtraOf = set => Math.max(0, Math.round(+(set.boosterExtra ?? DEFAULT_SETS.find(d => d.id === set.id)?.boosterExtra ?? 0) || 0));
 export const setBoosterPrice = (set, price = SHOP.boosterPrice) => price + boosterExtraOf(set);
