@@ -51,9 +51,9 @@ export const CODEX = [
   ] },
   // set : groupe caché avant la sortie de son set.
   { id: 'set3', set: 'set3', title: 'Mots-clés de la Cité Néon', items: [
-    { name: 'Malware', fam: 'Hacker', text: 'Malware N : N Malwares sont glissés au hasard parmi les 6 premières cartes du deck adverse. Quand l\'adversaire en pioche un, il s\'exécute et disparaît sans être remplacé : le Virus fait perdre 1 à sa créature la plus puissante (1 sceau s\'il n\'en a pas), le Ver fait de même puis glisse un Virus dans son deck, le Rançongiciel fait coûter 1 de plus à la carte la plus chère de sa main.', ex: ['script_kiddie', 'ver_polymorphe', 'casseuse'] },
+    { name: 'Malware', fam: 'Hacker', text: 'Malware N : N Malwares sont glissés au hasard parmi les 6 premières cartes du deck adverse. Quand l\'adversaire en pioche un, il s\'exécute et disparaît sans être remplacé : le Virus fait perdre 1 à sa créature la plus puissante (1 sceau s\'il n\'en a pas), le Worm fait de même puis glisse un Virus dans son deck, le Ransomware fait coûter 1 de plus à la carte la plus chère de sa main.', ex: ['script_kiddie', 'ver_polymorphe', 'casseuse'] },
     { name: 'Piratage', fam: 'Hacker', text: 'La créature piratée perd tous ses effets (Persistant, Fin de tour, Grâce, Destruction, Déplaçable…) jusqu\'à ce qu\'elle quitte le jeu ; sa puissance et ses bonus déjà reçus restent. Un général piraté n\'agit plus jusqu\'à la fin du tour suivant, et ne peut pas être activé.', ex: ['glitcheuse', 'brise_glace', 'coupe_circuit'] },
-    { name: 'Pare-feu', text: 'Une créature avec Pare-feu (ou sur le terrain Pare-feu) ne peut pas être piratée.', ex: ['garde_securite'] },
+    { name: 'Pare-feu', text: 'Pare-feu : vos créatures dans la zone d\'une carte avec Pare-feu (ou sur le terrain Pare-feu) ne peuvent pas être piratées.', ex: ['garde_securite'] },
     { name: 'Surcharge', fam: 'Cyborg', text: 'Surcharge N : à la révélation de la carte, s\'il vous reste au moins N sceaux, ils sont dépensés et l\'effet Surcharge s\'applique. Gardez des sceaux en préparant votre tour pour la déclencher.', ex: ['samourai', 'bras_canon', 'ferrailleur'] },
     { name: 'Implant', fam: 'Cyborg', text: 'Implant N : la créature gagne +N et un Implant. Des cartes comptent les Implants ou renforcent les créatures qui en ont.', ex: ['charcudoc', 'chrome', 'legende_chrome'] },
   ] },

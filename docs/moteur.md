@@ -27,7 +27,7 @@ Champs d'une carte : `name`, `type`, `cost`, `power`, `kw` (la famille, ex. `['E
 | `mobile` | Déplaçable par le joueur pendant la préparation. |
 | `token` | Jeton : créé par un effet, jamais en collection, disparaît sans aller à la défausse. |
 | `raise` | Relève : défaussée depuis la main, la carte entre en jeu. |
-| `firewall` | Pare-feu : la carte ne peut pas être piratée. |
+| `firewall` | Pare-feu : vos créatures dans sa zone (elle comprise) ne peuvent pas être piratées. |
 | `malware(st, p)` | Malware (jeton) : la fonction s'exécute quand le joueur `p` pioche la carte, qui disparaît sans être remplacée. |
 | `egg` | Œuf : éclôt selon son propre effet. |
 

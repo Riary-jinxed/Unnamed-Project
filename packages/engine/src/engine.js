@@ -277,7 +277,7 @@ export const CARDS = {
                  onReveal: (c, st) => hack(st, strongestFoe(st, c)) },
   injection:   { set: 'set3', name: 'Injection', type: 'S', cost: 1, power: 0, kw: ['Hacker'], text: 'Malware 2.',
                  onReveal: (c, st) => malware(st, c.owner, 2) },
-  casseuse:    { set: 'set3', name: 'Casseuse de code', type: 'C', cost: 2, power: 2, kw: ['Hacker'], text: 'Révélation : Malware 1 (Rançongiciel).',
+  casseuse:    { set: 'set3', name: 'Casseuse de code', type: 'C', cost: 2, power: 2, kw: ['Hacker'], text: 'Révélation : Malware 1 (Ransomware).',
                  onReveal: (c, st) => malware(st, c.owner, 1, 'rancon') },
   fixer:       { set: 'set3', name: 'Fixer', type: 'C', cost: 3, power: 3, kw: ['Hacker'], text: 'Révélation : piochez 1 carte, puis Malware 1.',
                  onReveal: (c, st) => { draw(st, c.owner, 1, true); malware(st, c.owner, 1); } },
@@ -287,9 +287,9 @@ export const CARDS = {
                  onReveal: (c, st) => { hackGeneral(st, 1 - c.owner); malware(st, c.owner, 1); } },
   brise_glace: { set: 'set3', name: 'Brise-glace', type: 'C', cost: 4, power: 4, kw: ['Hacker'], text: 'Révélation : Piratage sur chaque créature adverse ici.',
                  onReveal: (c, st) => creaturesAt(st, 1 - c.owner, c.zone).forEach(x => hack(st, x)) },
-  ver_polymorphe:{ set: 'set3', name: 'Ver polymorphe', type: 'C', cost: 4, power: 4, kw: ['Hacker'], text: 'Révélation : Malware 2 (Ver).',
+  ver_polymorphe:{ set: 'set3', name: 'Ver polymorphe', type: 'C', cost: 4, power: 4, kw: ['Hacker'], text: 'Révélation : Malware 2 (Worm).',
                  onReveal: (c, st) => malware(st, c.owner, 2, 'ver') },
-  ia_rebelle:  { set: 'set3', name: 'IA rebelle', type: 'C', cost: 5, power: 5, kw: ['Hacker'], text: 'Révélation : Malware 3 (un Virus, un Ver et un Rançongiciel).',
+  ia_rebelle:  { set: 'set3', name: 'IA rebelle', type: 'C', cost: 5, power: 5, kw: ['Hacker'], text: 'Révélation : Malware 3 (un Virus, un Worm et un Ransomware).',
                  onReveal: (c, st) => malware(st, c.owner, 3, 'mix') },
   seigneur_reseau:{ set: 'set3', name: 'Seigneur du réseau', type: 'C', cost: 6, power: 7, kw: ['Hacker'], text: 'Révélation : Piratage sur la créature adverse la plus puissante de chaque zone, puis Malware 1.',
                  onReveal: (c, st) => { [0, 1, 2].forEach(z => hack(st, strongest(st, creaturesAt(st, 1 - c.owner, z)))); malware(st, c.owner, 1); } },
@@ -335,7 +335,7 @@ export const CARDS = {
                  onDestroyed: (c, st) => malware(st, c.owner, 1) },
   possession:  { set: 'set3', name: 'Possession numérique', type: 'S', cost: 2, power: 0, kw: ['Démon'], text: 'Détruisez votre créature la plus faible ici, puis Malware 1 et piochez 1 carte.',
                  onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, c.owner, c.zone)); if (w) destroy(st, w, c.owner); malware(st, c.owner, 1); draw(st, c.owner, 1, true); } },
-  daemon_corrupteur:{ set: 'set3', name: 'Daemon corrupteur', type: 'C', cost: 3, power: 3, kw: ['Démon'], text: 'Révélation : Malware 1 (Ver).',
+  daemon_corrupteur:{ set: 'set3', name: 'Daemon corrupteur', type: 'C', cost: 3, power: 3, kw: ['Démon'], text: 'Révélation : Malware 1 (Worm).',
                  onReveal: (c, st) => malware(st, c.owner, 1, 'ver') },
   archidaemon: { set: 'set3', name: 'Archidaemon', type: 'C', cost: 5, power: 7, kw: ['Démon'], sacrifice: 1, text: 'Sacrifice. Révélation : Malware 1.',
                  onReveal: (c, st) => malware(st, c.owner, 1) },
@@ -400,7 +400,7 @@ export const CARDS = {
                  onReveal: (c, st) => { const h = st.p[c.owner].hand.filter(x => (costOf(st, x) ?? 0) > 0); if (h.length) { const x = pick(h); x.discount = (x.discount || 0) - 1; log(st, `${who(st, c.owner)} : une carte de la main coûte 1 de moins.`, 'up'); } } },
   tourelle:    { set: 'set3', name: 'Tourelle automatique', type: 'C', cost: 3, power: 2, kw: [], text: 'Fin de tour : la créature adverse la plus faible ici perd 1.',
                  onEndTurn: (c, st) => { const w = weakest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (w) buff(st, w, -1); else return false; } },
-  garde_securite:{ set: 'set3', name: 'Garde de sécurité', type: 'C', cost: 3, power: 4, kw: [], firewall: true, text: 'Pare-feu : ne peut pas être piraté.' },
+  garde_securite:{ set: 'set3', name: 'Garde de sécurité', type: 'C', cost: 3, power: 4, kw: [], firewall: true, text: 'Pare-feu : vos créatures ici ne peuvent pas être piratées.' },
   unite_securite:{ set: 'set3', name: 'Unité de sécurité', type: 'C', cost: 5, power: 7, kw: [], text: '' },
 
   // ---- Récompenses : jamais dans les boosters (voir rewards.js) ----
@@ -491,9 +491,9 @@ export const CARDS = {
   // Malwares (set 3) : mélangés dans le deck adverse, ils s'exécutent quand on les pioche et disparaissent sans être remplacés.
   virus:       { set: 'set3', name: 'Virus', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware. Quand vous le piochez, il s\'exécute et disparaît : votre créature la plus puissante en jeu perd 1 (sans créature, vous perdez 1 sceau ce tour).',
                  malware: (st, p) => virusHit(st, p) },
-  ver:         { set: 'set3', name: 'Ver', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware. Quand vous le piochez, il s\'exécute et disparaît : comme un Virus, puis un Virus est mélangé dans votre deck.',
-                 malware: (st, p) => { virusHit(st, p); plant(st, p, 'virus'); log(st, `Le Ver se copie : un Virus rejoint le deck de ${who(st, p)}.`, 'down'); } },
-  rancon:      { set: 'set3', name: 'Rançongiciel', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware. Quand vous le piochez, il s\'exécute et disparaît : la carte la plus chère de votre main coûte 1 de plus.',
+  ver:         { set: 'set3', name: 'Worm', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware. Quand vous le piochez, il s\'exécute et disparaît : comme un Virus, puis un Virus est mélangé dans votre deck.',
+                 malware: (st, p) => { virusHit(st, p); plant(st, p, 'virus'); log(st, `Le Worm se copie : un Virus rejoint le deck de ${who(st, p)}.`, 'down'); } },
+  rancon:      { set: 'set3', name: 'Ransomware', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware. Quand vous le piochez, il s\'exécute et disparaît : la carte la plus chère de votre main coûte 1 de plus.',
                  malware: (st, p) => { const c = st.p[p].hand.filter(x => costOf(st, x) !== null).sort((a, b) => costOf(st, b) - costOf(st, a))[0];
                    if (c) { c.costMod = (c.costMod || 0) + 1; log(st, `${nm(c.id)} coûte 1 de plus.`, 'down'); } } },
 };
@@ -1023,7 +1023,8 @@ function virusHit(st, p) {
 }
 // Piratage : la créature perd ses effets jusqu'à ce qu'elle quitte le jeu (Pare-feu : impossible).
 function hack(st, c) {
-  if (!c || c.hacked || CARDS[c.id].firewall || st.p[c.owner].terrains[c.zone] === 'parefeu') return false;
+  if (!c || c.hacked || st.p[c.owner].terrains[c.zone] === 'parefeu'
+      || creaturesAt(st, c.owner, c.zone).some(x => CARDS[x.id].firewall && !x.hacked)) return false;
   c.hacked = true; log(st, `${nm(c.id)} est piratée : ses effets ne fonctionnent plus.`, 'down');
   genHook(st, 1 - c.owner, 'onHack', c);
   return true;
