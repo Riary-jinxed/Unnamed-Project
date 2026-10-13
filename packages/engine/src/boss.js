@@ -90,7 +90,7 @@ export const BOSS_SHOP = [
   S('art:chevalier_boss', 'art', 'Chevalier, tueur de boss', 500, 0),
   S('art:vaelthar_trophee', 'art', 'Vael\'Thar, trophée du glacier', 800, 0),
   S('art:vorgoth_trophee', 'art', 'Vorgoth, trophée du cercle', 800, 0),
-  S('art:ignaroth_trophee', 'art', 'Ignaroth, trophée de l\'éclipse', 1200, 0),
+  S('art:ignaroth_trophee', 'art', 'Ignaroth, vaincu sous l\'éclipse', 1200, 0),
 ];
 export const bossItem = id => BOSS_SHOP.find(x => x.id === id) || null;
 // Prix et limite d'un objet avec les réglages de /admin.

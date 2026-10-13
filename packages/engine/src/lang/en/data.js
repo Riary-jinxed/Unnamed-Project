@@ -471,7 +471,7 @@ export default {
   'Chevalier, tueur de boss': 'Knight, Boss Slayer',
   "Vael'Thar, trophée du glacier": "Vael'Thar, Glacier Trophy",
   'Vorgoth, trophée du cercle': 'Vorgoth, Circle Trophy',
-  "Ignaroth, trophée de l'éclipse": 'Ignaroth, Eclipse Trophy',
+  "Ignaroth, vaincu sous l'éclipse": 'Ignaroth, Felled Under the Eclipse',
   'Morgrath, nuit des citrouilles': 'Morgrath, Night of the Pumpkins',
   'Grisk, farce ou friandise': 'Grisk, Trick or Treat',
   'Lirael sous les néons': 'Lirael Under the Neon',
