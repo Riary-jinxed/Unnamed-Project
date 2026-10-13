@@ -828,6 +828,12 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .tbg.me::after { background: linear-gradient(0deg, color-mix(in srgb, var(--sunk) 30%, transparent), color-mix(in srgb, var(--sunk) 85%, transparent)); }
 .zone:has(> .tbg) .slot { background: color-mix(in srgb, var(--sunk) 55%, transparent); }
 .zone:has(> .tbg) .terrain.set { background: color-mix(in srgb, var(--surface) 82%, transparent); backdrop-filter: blur(2px); }
+/* Les visuels couvrent le fond et le liseré intérieur de la zone : la surbrillance (zone visée, survolée, gagnée) passe sur un calque au-dessus d'eux, sous les cartes. */
+.zone:has(> .tbg)::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; transition: box-shadow .3s; }
+.zone:has(> .tbg).won-me::after { box-shadow: inset 0 0 0 1px var(--mine); }
+.zone:has(> .tbg).won-foe::after { box-shadow: inset 0 0 0 1px var(--foe); }
+.zone:has(> .tbg).target:hover::after { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.zone:has(> .tbg).over::after { background: color-mix(in srgb, var(--accent) 22%, transparent); box-shadow: inset 0 0 0 2px var(--accent); }
 
 /* Courrier et codes cadeaux (mail.js) */
 .mailbtn { position: relative; }
