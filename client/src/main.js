@@ -8,7 +8,7 @@ import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE,
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
-import { startTutorial } from './tutorial.js';
+import { startTutorial, LESSONS } from './tutorial.js';
 import { codexHTML } from './codex.js';
 import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
@@ -19,7 +19,7 @@ import './holo.js';
 import './cosmetics.js';
 import { unlockAudio, audioContext, play, isMuted, setMuted, sfxVolume, setSfxVolume, canVibrate, vibrations, setVibrations, buzz, feel } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
-import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, stageReady, sparkle, shards, trail, ending, clearEnding, setEnd } from './fx.js';
+import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, stageReady, sparkle, shards, trail, ending, clearEnding, setEnd, coachGuide } from './fx.js';
 import * as veil from './veil.js';
 import { TABS, screenDir, slides, ghostScreen, ghostSheet } from './transition.js';
 import { openPack, openChest } from './opening.js';
@@ -132,15 +132,21 @@ function goSolo() {
     ui.ctrl = startSolo(handlers, { name: ui.account.name, deck: ui.account.deck });
   });
 }
-// Tutoriel : partie guidée contre l'IA avec un deck fixé, sans deck du joueur ni récompense. Proposé une fois par compte et par appareil.
+// Tutoriel : leçons guidées contre l'IA avec un deck fixé, sans deck du joueur ni récompense (tutorial.js).
+// Premier lancement : un compte qui n'a pas encore de deck de départ entre directement dans l'initiation, une fois par appareil.
 const tutoKey = () => `tuto-${ui.account?.login || ''}`;
-function goTutorial() {
+function goTutorial(lesson = 'initiation') {
   store.set(tutoKey(), true);
-  toTable('Le guide vous attend…', () => {
+  toTable('Séraphine vous attend…', () => {
     ui.mode = 'tuto'; ui.sheet = null; ui.lastTurn = 0; ui.error = '';
-    ui.ctrl = startTutorial(handlers, { name: ui.account?.name || 'Vous' });
+    ui.ctrl = startTutorial(handlers, { name: ui.account?.name || 'Vous', lesson });
     render();
   });
+}
+// Appelé à chaque rendu : lance l'initiation au premier lancement (hors du rendu en cours).
+function firstLaunch() {
+  if (ui.screen !== 'starter' || ui.sheet || !ui.account || ui.account.starter || store.get(tutoKey(), false)) return;
+  store.set(tutoKey(), true); setTimeout(() => goTutorial('initiation'));
 }
 
 // ---- Compte ----
@@ -675,7 +681,7 @@ function terrainChip(side, z, isMe) {
   const t = side.terrains[z];
   const soon = isMe && side.terrainPlan && side.terrainPlan.find(x => x.z === z);
   if (!t && soon) return `<button class="terrain soon" data-terrain="${soon.t}">Tour ${soon.turn} : ${TERRAINS[soon.t].name}</button>`;
-  if (!t) return `<div class="terrain">${ui.view.turn < 3 ? 'Terrain à venir' : '—'}</div>`;
+  if (!t) return ui.view.bare ? '<div class="terrain none"></div>' : `<div class="terrain">${ui.view.turn < 3 ? 'Terrain à venir' : '—'}</div>`;
   return `<button class="terrain set ${isMe ? 'me' : 'foe'}" data-terrain="${t}">${TERRAINS[t].name}</button>`;
 }
 // Titre, niveau, cadre et dos de carte de chaque joueur : envoyés par le serveur en ligne ; contre l'IA, ceux du compte.
@@ -718,7 +724,7 @@ function pbar(side, isMe, connected, canGen = false) {
     <span class="pav">${avatarHTML(who, 'pa')}${!isMe && ui.mode === 'online' ? `<span class="dot ${connected ? '' : 'off'}" title="${connected ? 'Connecté' : 'Déconnecté'}"></span>` : ''}</span>
     <div class="pid"><div class="pline"><span class="who">${isMe ? 'Vous' : esc(side.name)}</span>${b ? `<small class="lv num">niv. ${b.level}</small>` : ''}${ready ? '<span class="chip ok">Prêt</span>' : ''}${b?.title ? `<span class="ptitle">${esc(b.title)}</span>` : ''}</div>
       <div class="pstats">${stats}</div></div>
-    ${genSlot(side, isMe, canGen)}</div>`;
+    ${ui.view.bare ? '' : genSlot(side, isMe, canGen)}</div>`;
 }
 // Tour en cours, dans la barre du haut sous le type de partie : numéro et un point par tour.
 function turnHTML(label) {
@@ -796,9 +802,19 @@ function linkHTML(v) {
 const secsLeft = until => `${Math.max(0, Math.ceil((until - Date.now()) / 1000))} s`;
 const countdown = until => `<b class="num" data-until="${until}">${secsLeft(until)}</b>`;
 setInterval(() => document.querySelectorAll('[data-until]').forEach(el => { el.textContent = secsLeft(+el.dataset.until); }), 1000);
-// Bulle du tutoriel : à la place de l'encadré d'info, ou en haut de l'écran par-dessus une carte ouverte en grand.
-const coachHTML = (c, float = false) => `<div class="coach ${float ? 'float' : ''}" role="status" aria-live="polite"><span class="eyebrow">Tutoriel</span><p>${rich(c.text)}</p>
-  ${c.info ? '<div class="row"><button class="btn primary sm" data-act="tuto-next">Suivant</button></div>' : ''}</div>`;
+// Consigne du guide : mots-clés en gras (rich), et **mots importants** en or.
+const coachText = t => rich(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+// Bulle du tutoriel, entre votre bandeau et la main : portrait de Séraphine, la guide, avancée de la leçon, consigne en une ou deux
+// lignes et bouton Suivant pour une étape d'information. « Passer » quitte la leçon (au premier lancement : vers le choix du deck).
+// La bulle s'anime quand la consigne change (.new, ui.coachShown).
+const coachHTML = (c, float = false) => {
+  const dots = c.steps ? `<span class="coach-dots" aria-label="Étape ${c.step} sur ${c.steps}">${Array.from({ length: c.steps }, (_, i) => `<i class="${i + 1 < c.step ? 'past' : i + 1 === c.step ? 'now' : ''}"></i>`).join('')}</span>` : '';
+  return `<div class="coach ${float ? 'float' : ''} ${c.text !== ui.coachShown ? 'new' : ''}" role="status" aria-live="polite">
+  <span class="coach-face" aria-hidden="true">${portraitHTML('seraphine')}</span>
+  <div class="coach-body"><div class="coach-head"><b>Séraphine</b>${dots}<button class="coach-skip" data-act="quit">Passer</button></div>
+    <p>${coachText(c.text)}</p></div>
+  ${c.info ? '<button class="btn primary sm coach-next" data-act="tuto-next">Suivant</button>' : ''}</div>`;
+};
 // ---- Écrans du compte : connexion, deck de départ, accueil, collection, deck ----
 const errLine = () => (ui.error ? `<p class="err" role="alert">${esc(ui.error)}</p>` : '');
 const owned = id => (ui.account && ui.account.cards[id]) || 0;
@@ -834,7 +850,7 @@ function renderStarter() {
     const gens = starterGenerals(k).filter(g => GENERALS[g].fam).map(g => GENERALS[g].name).join(', ');
     return `<button class="deckopt ${ui.starterPick === k ? 'sel' : ''}" data-starter="${k}" style="${famVar([d.fam])}" aria-pressed="${ui.starterPick === k}">
       <span class="eyebrow">${d.fam}</span><h3>${d.name}</h3><small>Généraux : ${gens}, plus les généraux neutres.</small></button>`; }).join('');
-  return `<div class="top"><span class="title">Bienvenue, ${esc(ui.account.name)}</span><button class="btn" data-act="tuto">Tutoriel</button><button class="btn" data-act="set">Voir les cartes</button><button class="btn" data-act="logout">Se déconnecter</button></div>
+  return `<div class="top"><span class="title">Bienvenue, ${esc(ui.account.name)}</span><button class="btn" data-act="tuto">Initiation</button><button class="btn" data-act="set">Voir les cartes</button><button class="btn" data-act="logout">Se déconnecter</button></div>
   <div class="setup">
     <p>Choisissez votre deck de départ. Ses ${DECK_SIZE} cartes et ses généraux forment votre collection ; les boosters l'agrandissent ensuite, généraux compris. Ce choix est définitif.</p>
     <div class="decks starters">${opts}</div>
@@ -1342,14 +1358,12 @@ function sheetHTML() {
       ${levelBar(prog())}${missionsHTML()}</div></div>`;
   }
   if (ui.sheet === 'learn') {
+    const lessons = Object.entries(LESSONS).map(([k, l], i) => `<button class="lesson" data-act="tuto" data-lesson="${k}"><span class="lesson-n num">${i + 1}</span>
+      <span class="lesson-t"><b>${esc(l.title)}</b><small>${esc(l.blurb)}</small></span></button>`).join('');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Apprendre</h2><button class="btn" data-act="close">Fermer</button></div>
-      <p class="hint" style="margin:0">Le tutoriel vous guide pendant une partie contre l'IA. Le codex explique chaque mot-clé des cartes.</p>
-      <div class="row"><button class="btn primary" data-act="tuto">Tutoriel</button><button class="btn" data-act="codex">Codex des mots-clés</button><button class="btn" data-act="set">Toutes les cartes</button></div></div></div>`;
-  }
-  if (ui.sheet === 'tuto-offer') {
-    return `<div class="sheet"><div class="panel" role="dialog" aria-label="Tutoriel"><h2>Première partie ?</h2>
-      <p style="margin:0">Le tutoriel vous apprend les règles en quelques tours contre l'IA, avec un deck prêt à jouer. Vous pourrez le relancer depuis l'accueil.</p>
-      <div class="row"><button class="btn primary" data-act="tuto">Lancer le tutoriel</button><button class="btn" data-act="tuto-later">Plus tard</button></div></div></div>`;
+      <p class="hint" style="margin:0">Séraphine vous guide pendant une partie contre l'IA, avec un deck prêt à jouer. Le codex explique chaque mot-clé des cartes.</p>
+      <div class="lessons">${lessons}</div>
+      <div class="row"><button class="btn" data-act="codex">Codex des mots-clés</button><button class="btn" data-act="set">Toutes les cartes</button></div></div></div>`;
   }
   if (ui.sheet === 'chest-info' && ui.screen === 'shop') return chestInfo(ui.shop?.arts);
   if (ui.sheet === 'need' && ui.need) {
@@ -1400,8 +1414,9 @@ function sheetHTML() {
     const reason = renderLog(r.reason, s, ui.view.names);
     const zs = [0, 1, 2].map(z => `<div class="${['', 'me', 'foe'][zoneSide(ui.view, z)]}"><div class="eyebrow">${ZONE_NAMES[z]}</div><b>${ui.view.me.zonePower[z]}</b> contre ${ui.view.foe.zonePower[z]}</div>`).join('');
     if (ui.mode === 'tuto') return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p><div class="zs">${zs}</div>
-      <p style="margin:0">Tutoriel terminé : vous connaissez les bases. Le codex, dans « Apprendre » sur l'accueil, explique tous les autres mots-clés.</p><div class="row">
-      <button class="btn primary" data-act="quit">Retour à l'accueil</button><button class="btn" data-act="again">Rejouer le tutoriel</button><button class="btn" data-act="codex">Ouvrir le codex</button></div></div></div>`;
+      <p style="margin:0">${esc(ui.ctrl?.endText || '')}</p><div class="row">
+      <button class="btn primary" data-act="quit">${ui.account?.starter ? 'Retour à l\'accueil' : 'Choisir mon deck'}</button><button class="btn" data-act="again">Rejouer la leçon</button>
+      ${ui.account?.starter ? '<button class="btn" data-act="codex">Ouvrir le codex</button>' : ''}</div></div></div>`;
     return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p>
       <div class="zs">${zs}</div>${endRewardHTML()}<div class="row">
       <button class="btn primary" data-act="again" ${ui.rematchAsked ? 'disabled' : ''}>${ui.rematchAsked ? 'Revanche demandée…' : 'Revanche'}</button>
@@ -1419,8 +1434,7 @@ function render() {
   if (ui.screen === 'home' && !ui.sheet && prog().inbox.length) ui.sheet = 'inbox';
   // Récompense du jour du calendrier pas encore récupérée : le calendrier s'ouvre une fois par visite.
   if (ui.screen === 'home' && !ui.sheet && prog().calendar?.ready && !ui.calShown) { ui.calShown = true; ui.calGot = null; ui.sheet = 'calendar'; }
-  // Première connexion sur cet appareil : le tutoriel est proposé une fois.
-  if ((ui.screen === 'home' || ui.screen === 'starter') && !ui.sheet && ui.account && !store.get(tutoKey(), false)) ui.sheet = 'tuto-offer';
+  firstLaunch();
   ui.coach = ui.screen === 'game' && ui.mode === 'tuto' && ui.ctrl ? ui.ctrl.coach(ui) : null;
   const body = screens[ui.screen]() + (ui.screen in TABBED ? tabbar(TABBED[ui.screen]) : '');
   app.classList.toggle('ingame', ui.screen === 'game');
@@ -1447,10 +1461,13 @@ function render() {
   if (sy) { const p2 = app.querySelector(':scope > .sheet .panel'); if (p2) p2.scrollTop = sy; }
   const lb = document.getElementById('logbox'); if (lb) lb.parentElement.scrollTop = lb.scrollHeight;
   applyFx();
-  // Tutoriel : l'élément à toucher est mis en valeur, et amené à l'écran quand l'étape change.
-  const hl = ui.coach?.hl ? [...app.querySelectorAll(ui.coach.hl)] : [];
+  // Tutoriel : l'élément à toucher est mis en valeur, et amené à l'écran quand l'étape change. Sur PixiJS, le reste de l'écran
+  // s'assombrit et une main montre le geste (coachGuide, stage-coach.js) ; sinon, un contour qui clignote.
+  const hl = ui.coach?.hl?.length ? [...app.querySelectorAll(ui.coach.hl.join(','))] : [];
   hl.forEach(el => el.classList.add('coach-hl'));
-  if (ui.coach && ui.coach.text !== ui.coachShown) { ui.coachShown = ui.coach.text; if (hl[0] && !ui.sheet) hl[0].scrollIntoView({ block: 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' }); }
+  const fresh = ui.coach && ui.coach.text !== ui.coachShown;
+  if (fresh) { ui.coachShown = ui.coach.text; if (hl[0] && !ui.sheet) hl[0].scrollIntoView({ block: 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' }); if (ui.coach.hl.length) play('coach'); }
+  coachGuide(ui.coach && !ui.sheet ? ui.coach : null);
   veil.check();
 }
 
@@ -1776,8 +1793,7 @@ app.addEventListener('click', e => {
     else if (a === 'create') goOnline('create');
     else if (a === 'join') { if (ui.joinCode.length !== 4) { ui.error = 'Le code fait 4 lettres.'; render(); } else goOnline('join'); }
     else if (a === 'solo') goSolo();
-    else if (a === 'tuto') goTutorial();
-    else if (a === 'tuto-later') { store.set(tutoKey(), true); ui.sheet = null; render(); }
+    else if (a === 'tuto') goTutorial(ds.lesson);
     else if (a === 'tuto-next') { ui.ctrl?.next(); render(); }
     else if (a === 'codex') { ui.sheet = 'codex'; ui.zoom = null; render(); }
     else if (a === 'copy') { const link = document.getElementById('link');
@@ -1879,7 +1895,7 @@ app.addEventListener('click', e => {
   if (ds.general) { if (doubleTap(`general:${ds.side}`)) { ui.focus = { kind: 'general', id: ds.general }; ui.msg = ''; openZoom({ kind: 'general', id: ds.general, mine: ds.side === 'me', side: ds.side }); render(); } return; }
   const zone = t.closest('[data-z]'); if (zone) tryPlace(+zone.dataset.z);
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.sheet && ui.sheet !== 'tuto-offer' && ui.sheet !== 'friend-deck') closeSheet(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.sheet && ui.sheet !== 'friend-deck') closeSheet(); });
 app.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.zone.target')) { e.preventDefault(); tryPlace(+e.target.dataset.z); } });
 
 // Reprise d'une partie en ligne après rechargement de la page

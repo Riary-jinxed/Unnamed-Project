@@ -1,5 +1,7 @@
 // Moteur de règles : pur, sans DOM ni réseau. Partagé par le serveur (parties en ligne) et l'appli (partie contre l'IA).
 export const TURNS = 7, SLOTS = 4, HAND_MAX = 7, START_HAND = 3;
+// Nombre de tours de la partie : TURNS, sauf partie plus courte (newGame, opts.turns).
+const turnsOf = st => st.turns || TURNS;
 export const ZONE_NAMES = ['Gauche', 'Centre', 'Droite'];
 export const FAMILIES = ['Ange', 'Démon', 'Gobelin', 'Elfe', 'Dragon', 'Mort-vivant', 'Vampire', 'Hacker', 'Cyborg'];
 
@@ -808,6 +810,8 @@ export function newGame(deck0, deck1, names = ['Joueur 1', 'Joueur 2'], opts = {
     };
   };
   const st = { turn: 0, p: [mk(0, deck0), mk(1, deck1)], log: [], nextUid: 1000, order: 0, leader: 0, over: false, sim: false };
+  // Partie plus courte que TURNS (initiation du tutoriel).
+  if (opts.turns) st.turns = opts.turns;
   for (const p of [0, 1]) draw(st, p, START_HAND);
   for (const p of [0, 1]) genHook(st, p, 'onStart');
   return st;
@@ -1220,7 +1224,7 @@ export function endTurn(st) {
     P.treasure += P.seals; P.lastUnspent = P.seals;
     if (P.seals === 0) P.perfectTurns++;
   }
-  if (st.turn >= TURNS) finish(st);
+  if (st.turn >= turnsOf(st)) finish(st);
 }
 function finish(st) {
   for (const p of [st.leader, 1 - st.leader]) genHook(st, p, 'onEndGame');
@@ -1260,13 +1264,13 @@ function evalFor(st, p) {
   let s = 0;
   for (const z of [0, 1, 2]) { const d = zonePower(st, p, z) - zonePower(st, 1 - p, z); s += Math.tanh(d / 4) * 10; }
   const P = st.p[p];
-  if (st.turn < TURNS) {
+  if (st.turn < turnsOf(st)) {
     // Valeur future des sceaux gardés (Trésor) ou dépensés au sceau près (Grâce).
-    if (deckHas(P, 'Dragon') || P.general === 'vaelthar') s += P.treasure * 0.6 * (TURNS - st.turn) / TURNS;
+    if (deckHas(P, 'Dragon') || P.general === 'vaelthar') s += P.treasure * 0.6 * (turnsOf(st) - st.turn) / turnsOf(st);
     if (P.general === 'aurelia' || deckHas(P, 'Ange')) s += P.perfectTurns * 0.8;
     // Malwares en attente dans le deck adverse : chacun coûtera une pioche et un peu de puissance.
     const mw = st.p[1 - p].deck.reduce((n, c) => n + (CARDS[c.id].malware ? 1 : 0), 0);
-    if (mw) s += mw * 1.2 * (TURNS - st.turn) / TURNS;
+    if (mw) s += mw * 1.2 * (turnsOf(st) - st.turn) / turnsOf(st);
   }
   return s;
 }
@@ -1364,7 +1368,7 @@ export function viewFor(st, seat, extra = {}) {
     };
   };
   return {
-    seat, turn: st.turn, turns: TURNS, phase: st.phase || 'plan',
+    seat, turn: st.turn, turns: turnsOf(st), phase: st.phase || 'plan',
     me: side(seat, true), foe: side(1 - seat, false),
     log: st.log.slice(-80), result: st.result || null, ...extra,
   };
