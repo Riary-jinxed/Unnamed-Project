@@ -143,10 +143,19 @@ Catalogue des arts (`ARTS` : carte, nom, rareté ; `edition: 'promo'` avec `how`
 
 Le rang d'un joueur tient en un nombre d'étoiles `r` : 3 étoiles par division, 3 divisions par palier (III, II, I), paliers `TIERS` Bronze, Argent, Or, Platine, Diamant, puis Maître où les étoiles deviennent des points sans plafond (`MASTER`). `rankOf(r)` donne palier, division, étoiles, plancher et libellé.
 
-- `applyResult(r, { result, streak, foeR })` : victoire +1 étoile, plus 1 pour une série de 3 victoires ou plus (jusqu'au Diamant) et plus 1 pour avoir battu un ami mieux classé ; défaite −1, jamais sous le début du palier ; nul sans effet.
+- `applyResult(r, { result, streak, foeR, mult })` : victoire +1 étoile, plus 1 pour une série de 3 victoires ou plus (jusqu'au Diamant) et plus 1 pour avoir battu un ami mieux classé, le tout multiplié par `mult` (événement « points de classé », `events.js`) ; défaite −1, jamais sous le début du palier ; nul sans effet.
 - Chaque palier règle la force de l'IA (`ai` : essais d'`aiPlan`) et ses récompenses de fin de saison (`title`, `frame` ; Éclats dans les réglages `rankShards…` de `rewards.js`, voir `seasonShardsKey`).
 - Saisons : une par mois, heure de Paris (`seasonId`, `seasonName`, `seasonDaysLeft`) ; `seasonReset(r)` fait redescendre d'un palier au début de la suivante.
 - Classement final : `PLACES` (1re place, podium, top 10) donne en plus des Éclats et Prismes (réglages `rankPlaceShards…` et `rankPlacePrisms…`, voir `placeShardsKey`, `placePrismsKey`) et un titre (`rang:top1`, `rang:top3`, `rang:top10`, avec ceux des places en dessous : `placeTitles`), aux joueurs qui ont joué au moins `rankPlaceGames` parties classées dans la saison.
+
+## Événements temporaires (`events.js`)
+
+Un événement multiplie un gain (`EVENT_EFFECTS` : `xp`, `ranked`, `shards`, `passXp`) par `mult` (`MULTS` : ×1,5, ×2 ou ×3) pendant une période (`EVENT_WHEN`) : chaque week-end, dernier week-end du mois (le dernier samedi et le lendemain), dernière semaine du mois (les 7 derniers jours) ou entre deux dates (`from`, `to`). Les jours sont ceux du jeu (heure de Paris), de minuit à minuit.
+
+- `DEFAULT_EVENTS` : week-end double XP et semaine double points de classé, tant que `/admin` n'a rien enregistré.
+- `occurrence(ev, jour)` : la période qui contient ce jour, ou la prochaine ; `isLive`, `liveEvents`, `daysLeft`.
+- `multiplier(events, effet, jour)` : le plus fort des événements en cours sur cet effet (ils ne se cumulent pas) ; `boost(n, mult)` arrondit le gain.
+- Nouvel effet : une entrée dans `EVENT_EFFECTS`, puis `events.mult('<effet>')` là où le gain se calcule (`server/src/progress.js`).
 
 ## Outils
 

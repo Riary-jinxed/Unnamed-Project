@@ -36,7 +36,7 @@ const friends = createFriends(store, accounts, { playing, inviteRoom, abortInvit
 // Courrier : un joueur connecté voit aussitôt arriver un nouveau message (par sa connexion de présence).
 const mail = createMail(store, accounts, { notify: logins => logins.forEach(l => friends.notify(l, { t: 'mail' })) });
 await mail.publishNotes(NOTES_MAJ);
-const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes }, catalog.public);
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...accounts.progress.events.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
 // Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.

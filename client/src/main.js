@@ -27,6 +27,7 @@ import { setHome } from './lobby.js';
 import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL, FAMILY_REWARDS, SET_REWARDS } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
+import { EVENT_EFFECTS, multLabel } from '@jeu/engine/events';
 import { SEASONS, PASS_TIERS, SEASON_THEMES, seasonOfCard, seasonStarted, seasonStart, currentSeason, releaseMonth } from '@jeu/engine/pass';
 import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName, chestPool, MAX_FAV_ARTS } from '@jeu/engine/arts';
 
@@ -472,7 +473,7 @@ function closeInbox() {
 // ---- Mode classé ----
 const rankHTML = k => `<span class="rank rank-${k.id}">${esc(k.label)}</span>${k.max ? ` <span class="rstars" role="img" aria-label="${k.stars} étoile${k.stars > 1 ? 's' : ''} sur ${k.max}">${'★'.repeat(k.stars)}<span class="off">${'★'.repeat(k.max - k.stars)}</span></span>` : ''}`;
 function rankedLine(k) {
-  const d = k.delta > 0 ? `+${k.delta} étoile${k.delta > 1 ? 's' : ''}${k.bonus ? ' (bonus compris)' : ''}` : k.delta < 0 ? `${k.delta} étoile` : 'rang inchangé';
+  const d = k.delta > 0 ? `+${k.delta} étoile${k.delta > 1 ? 's' : ''}${k.bonus ? ' (bonus compris)' : ''}${k.mult ? ` · <span class="evtag">${multLabel(k.mult)} événement</span>` : ''}` : k.delta < 0 ? `${k.delta} étoile` : 'rang inchangé';
   return `<p style="margin:0">Classé : ${rankHTML(k.after)} · ${d}${k.promoted ? ' · <b>Promotion !</b>' : ''}</p>`;
 }
 async function openRanked() {
@@ -503,7 +504,9 @@ function renderRanked() {
   const last = D?.last?.top.length ? `<div class="card-box"><span class="eyebrow">Podium de ${esc(D.last.seasonName)}</span>
     <ol class="ladder">${D.last.top.map(p => `<li class="${p.login === ui.account.login ? 'me' : ''}"><span class="lpos num">${p.pos}</span>
       ${who({ ...p, title: null })}<span class="lrank">${rankHTML(p.rank)}</span></li>`).join('')}</ol></div>` : '';
+  const evs = (prog().events?.live || []).filter(ev => ev.effect === 'ranked');
   return `${head}
+  ${evs.map(ev => eventCard(ev, `Chaque victoire classée rapporte ${multLabel(ev.mult)} étoiles, bonus de série compris. Une défaite n'en retire toujours qu'une.`)).join('')}
   <div class="card-box">
     <span class="eyebrow">Saison ${esc(R.seasonName)} · encore ${R.daysLeft} jour${R.daysLeft > 1 ? 's' : ''}</span>
     <h2 style="font-size:24px">${rankHTML(R.rank)}</h2>
@@ -613,12 +616,14 @@ function renderPass() {
       <small class="hint">Tous les ${P.bonusChest.every} XP de saison, pour tous : ${P.bonusChest.odds.shards} % de chances d'avoir ${P.bonusChest.shards} Éclats ${ico('shard')}, ${P.bonusChest.odds.prisms} % ${P.bonusChest.prisms} Prismes ${ico('prism')}, ${P.bonusChest.odds.essence} % ${P.bonusChest.essence} essence d'une de vos cartes.</small></div></div></div>`;
 }
 
+// Multiplicateurs d'événement appliqués aux gains d'une partie (XP ×2…).
+const eventTags = ev => Object.entries(ev || {}).map(([k, m]) => ` <span class="evtag">${multLabel(m)} ${esc(EVENT_EFFECTS[k]?.short || k)}</span>`).join('');
 // Fin de partie : XP, Éclats et niveau gagnés.
 function endRewardHTML() {
   const r = ui.mode === 'online' ? ui.view.reward : ui.soloReward;
   if (!r) return `<p class="hint" style="margin:0">${ui.auth ? 'Calcul des récompenses…' : ''}</p>`;
   return `<div class="endreward">${levelBar(r.progress)}
-    <p style="margin:0">${r.rewarded ? (gains(r) || 'Pas de gain pour cette partie.') : `Plus de récompense de partie aujourd'hui ; les missions avancent toujours.${r.passXp ? ` · +${r.passXp} XP de saison` : ''}`}${r.levelUp ? ` · <b>Niveau ${r.progress.level} !</b>` : ''}${r.missions ? ` · ${r.missions} mission${r.missions > 1 ? 's' : ''} accomplie${r.missions > 1 ? 's' : ''}` : ''}</p>${r.ranked ? rankedLine(r.ranked) : ''}</div>`;
+    <p style="margin:0">${r.rewarded ? (gains(r) || 'Pas de gain pour cette partie.') + eventTags(r.events) : `Plus de récompense de partie aujourd'hui ; les missions avancent toujours.${r.passXp ? ` · +${r.passXp} XP de saison` : ''}`}${r.levelUp ? ` · <b>Niveau ${r.progress.level} !</b>` : ''}${r.missions ? ` · ${r.missions} mission${r.missions > 1 ? 's' : ''} accomplie${r.missions > 1 ? 's' : ''}` : ''}</p>${r.ranked ? rankedLine(r.ranked) : ''}</div>`;
 }
 // Ce que l'écran de fin anime sur PixiJS (fx.js, setEnd) : les récompenses de la partie, une fois connues.
 function endReel() {
@@ -1031,6 +1036,7 @@ function renderHome() {
     ${gift}
     <section class="showcase" style="${g ? famVar([g.fam]) : ''}" data-fam="${esc(g?.fam || '')}">
       <div class="sc-art">${hero || `<span class="sc-init" aria-hidden="true">${esc((g?.name || '?')[0])}</span>`}</div>
+      ${eventChips(p.events?.live || [])}
       ${p.ranked ? `<button class="sc-rank" data-act="ranked" aria-label="Classement">${rankHTML(p.ranked.rank)}<small>${esc(p.ranked.seasonName)}</small></button>` : ''}
       <button class="sc-deck" data-act="decks"><span class="eyebrow">Deck joué</span><b>${esc(d ? d.name : 'Aucun deck')}</b>${g ? `<small>${esc(g.name)}</small>` : ''}<span class="sc-change">Changer</span></button>
     </section>
@@ -1050,6 +1056,38 @@ function renderHome() {
     </div>
     ${p.ranked ? '<button class="learnline" data-act="learn">Apprendre à jouer : tutoriel et codex des mots-clés</button>' : ''}
   </div>`;
+}
+// ---- Événements temporaires ----
+// Week-end double XP, semaine double points de classé… : réglés depuis /admin, appliqués par le serveur (events.js du moteur).
+function eventCard(ev, text) {
+  return `<div class="card-box evcard ev-${esc(ev.effect)}"><span class="evmult num">${multLabel(ev.mult)}</span>
+    <div><span class="eyebrow">Événement · ${evRemaining(ev)}</span><b>${esc(ev.name)}</b><small>${text}</small></div></div>`;
+}
+// Médailles « ×2 XP », « ×2 PC » en haut à gauche de la vitrine de l'accueil (rubans, bord dentelé, centre bombé) ;
+// chacune ouvre la feuille de son événement. Les couleurs viennent de la classe de l'effet (style.css : --m-hi, --m-mid, --m-lo, --m-rib).
+const MEDAL = `<svg class="medal-svg" viewBox="0 0 60 76" aria-hidden="true">
+  <path class="rib" d="M14 0h12l8 30-9 4z"/><path class="rib alt" d="M46 0H34l-8 30 9 4z"/>
+  <polygon class="rim" points="30.0,23.0 34.4,25.9 39.6,24.9 42.5,29.3 47.7,30.3 48.7,35.5 53.1,38.4 52.1,43.6 55.0,48.0 52.1,52.4 53.1,57.6 48.7,60.5 47.7,65.7 42.5,66.7 39.6,71.1 34.4,70.1 30.0,73.0 25.6,70.1 20.4,71.1 17.5,66.7 12.3,65.7 11.3,60.5 6.9,57.6 7.9,52.4 5.0,48.0 7.9,43.6 6.9,38.4 11.3,35.5 12.3,30.3 17.5,29.3 20.4,24.9 25.6,25.9"/>
+  <circle class="face" cx="30" cy="48" r="19"/><circle class="ring" cx="30" cy="48" r="16.5"/>
+  <ellipse class="shine" cx="23" cy="40" rx="8" ry="4.5" transform="rotate(-30 23 40)"/></svg>`;
+const eventChips = evs => (evs.length ? `<div class="sc-events">${evs.map(ev => `<button class="medal ev-${esc(ev.effect)}" data-act="event" data-ev="${esc(ev.id)}"
+  aria-label="Événement ${esc(ev.name)} : ${multLabel(ev.mult)} ${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}">${MEDAL}<span class="medal-txt"><b>${multLabel(ev.mult)}</b><small>${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}</small></span></button>`).join('')}</div>` : '');
+// Temps qui reste avant la fin (minuit, heure de Paris) : en jours, puis en heures le dernier jour.
+function evRemaining(ev) {
+  if (ev.daysLeft > 1) return `encore ${ev.daysLeft} jours`;
+  const h = Math.max(0, Math.ceil((Date.parse(ev.ends) - Date.now()) / 3600000));
+  return h > 1 ? `encore ${h} heures` : 'dernière heure';
+}
+function eventSheet(ev) {
+  const what = EVENT_EFFECTS[ev.effect];
+  return `<div class="sheet" data-act="close"><div class="panel" data-stop="1" role="dialog" aria-label="${esc(ev.name)}">
+    <div class="ph"><h2>${esc(ev.name)}</h2><button class="btn" data-act="close">Fermer</button></div>
+    <div class="evcard ev-${esc(ev.effect)}"><span class="evmult num">${multLabel(ev.mult)}</span>
+      <div><span class="eyebrow">Événement · ${evRemaining(ev)}</span><b>${multLabel(ev.mult)} sur les ${esc(what?.what || '')}</b>
+      <small>${esc(ev.period[0].toUpperCase() + ev.period.slice(1))}, jusqu'à minuit (heure de Paris).</small></div></div>
+    ${ev.effect === 'ranked' ? `<p class="hint" style="margin:0">Chaque victoire classée rapporte ${multLabel(ev.mult)} étoiles, bonus de série compris. Une défaite n'en retire toujours qu'une.</p>
+      <div class="row"><button class="btn primary" data-act="ranked">Jouer en classé</button></div>` : ''}
+  </div></div>`;
 }
 // Monnaies du joueur, en haut de l'accueil : chacune ouvre le rayon de la boutique où elle se dépense.
 function walletHTML() {
@@ -1619,6 +1657,7 @@ function sheetHTML() {
       <div class="row"><button class="btn primary" data-act="close">Super !</button></div></div></div>`;
   }
   if (ui.sheet === 'calendar' && prog().calendar) return calendarHTML(prog().calendar);
+  if (ui.sheet === 'event') { const ev = prog().events?.live.find(x => x.id === ui.evSel); if (ev) return eventSheet(ev); }
   if (ui.sheet === 'mail-got') return mail.gotSheet();
   if (ui.sheet === 'art' && ui.gotArt) {
     const art = ARTS[ui.gotArt.id], on = mySel(art.card) === art.id;
@@ -2047,7 +2086,7 @@ app.addEventListener('click', e => {
     else if (a === 'quit') {
       if (ui.screen === 'game' && ui.view?.ranked && ui.view.phase !== 'over' && !confirm('Quitter une partie classée en cours compte comme une défaite. Quitter quand même ?')) return;
       quit(); }
-    else if (a === 'ranked') openRanked();
+    else if (a === 'ranked') { ui.sheet = null; openRanked(); }
     else if (a === 'pass') openPass();
     else if (a === 'pass-buy' && !ui.busy) buyPass();
     else if (a === 'ranked-play') goRanked();
@@ -2075,6 +2114,7 @@ app.addEventListener('click', e => {
     else if (a === 'chest-info') { ui.sheet = 'chest-info'; render(); }
     else if (a === 'booster-info') { ui.sheet = 'booster-info'; render(); }
     else if (a === 'calendar') { ui.sheet = 'calendar'; ui.calGot = null; render(); }
+    else if (a === 'event') { ui.sheet = 'event'; ui.evSel = t.dataset.ev; render(); }
     else if (a === 'claim-day' && !ui.busy) claimDay();
     else if (a === 'art-pick' && !ui.busy) selectArt(ds.card, ds.art);
     else if (a === 'holo-toggle' && !ui.busy) toggleHolo(ds.card);

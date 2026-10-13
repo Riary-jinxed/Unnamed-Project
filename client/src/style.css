@@ -937,3 +937,34 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .favopt.on { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
 .favopt:disabled:not(.on) { opacity: .45; }
 .favopt .favn { position: absolute; top: 2px; left: 2px; z-index: 3; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 13px; }
+
+/* Événements temporaires (week-end double XP…) : pastilles de la vitrine de l'accueil, leur feuille, bandeau de l'écran classé, marque « ×2 » des gains. */
+.sc-events { position: absolute; top: 6px; left: 8px; z-index: 2; display: flex; gap: 4px; }
+.medal { position: relative; width: 54px; height: 68px; border: 0; padding: 0; background: none; cursor: pointer; filter: drop-shadow(0 3px 4px rgb(0 0 0 / .6));
+  --m-hi: #fff3c4; --m-mid: #f0b440; --m-lo: #9a5a14; --m-rib: #b8322a; --m-rib2: #e0574a; --m-ink: #3a1d04; animation: medalsway 3.2s ease-in-out infinite; transform-origin: 50% 0; }
+.medal.ev-ranked { --m-hi: #f2f8ff; --m-mid: #8ec2f5; --m-lo: #2f5f9a; --m-rib: #1f3d75; --m-rib2: #3d68b5; --m-ink: #0b2242; }
+.medal.ev-shards { --m-rib: #6a3fb0; --m-rib2: #8f62d8; }
+.medal.ev-passXp { --m-hi: #f6ecff; --m-mid: #b58ae8; --m-lo: #5a2f94; --m-rib: #2f6b3a; --m-rib2: #4f9a5c; --m-ink: #22093f; }
+.medal-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.medal .rib { fill: var(--m-rib); stroke: #000; stroke-width: 1; } .medal .rib.alt { fill: var(--m-rib2); }
+.medal .rim { fill: var(--m-lo); stroke: #000; stroke-width: 1; }
+.medal .face { fill: var(--m-mid); stroke: var(--m-hi); stroke-width: 1.5; }
+.medal .ring { fill: none; stroke: var(--m-lo); stroke-width: 1; stroke-dasharray: 2 2; opacity: .7; }
+.medal .shine { fill: var(--m-hi); opacity: .55; }
+.medal-txt { position: absolute; left: 0; right: 0; top: 30px; height: 26px; display: grid; place-content: center; justify-items: center; gap: 1px; line-height: .95; color: var(--m-ink);
+  text-shadow: 0 1px 0 rgb(255 255 255 / .45); font-family: var(--display); }
+.medal-txt b { font-size: 13.5px; font-weight: 800; }
+.medal-txt small { font-size: 8.5px; font-weight: 800; letter-spacing: .03em; }
+@keyframes medalsway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+.evcard { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #d98b2b; border-radius: 10px;
+  background: linear-gradient(100deg, color-mix(in srgb, #d98b2b 26%, var(--surface)), var(--surface) 70%); }
+.evcard.ev-ranked { border-color: #6aa7e8; background: linear-gradient(100deg, color-mix(in srgb, #6aa7e8 24%, var(--surface)), var(--surface) 70%); }
+.evcard > div { display: grid; gap: 1px; min-width: 0; }
+.evcard b { font-family: var(--display); font-size: 17px; line-height: 1.15; }
+.evcard small { color: var(--muted); font-size: 12.5px; line-height: 1.35; }
+.evmult { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; font-family: var(--display); font-size: 21px; font-weight: 700;
+  color: #2a1606; background: radial-gradient(circle at 35% 30%, #fff0b8, #f0b04a 55%, #a5631c); box-shadow: 0 0 0 2px #000, 0 0 16px -2px #f0b04a; animation: evpulse 2.4s ease-in-out infinite; }
+.ev-ranked .evmult { background: radial-gradient(circle at 35% 30%, #e8f4ff, #7fb6f0 55%, #2f5f9a); box-shadow: 0 0 0 2px #000, 0 0 16px -2px #7fb6f0; }
+@keyframes evpulse { 50% { transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .evmult, .medal { animation: none; } }
+.evtag { display: inline-block; padding: 0 6px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #2a1606; background: #f0b04a; }

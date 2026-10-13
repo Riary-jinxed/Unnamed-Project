@@ -46,13 +46,15 @@ const rewardLabel = r => [r.shards && `${r.shards} Éclats`, r.prisms && `${r.pr
 // notify(logins) : prévient les joueurs connectés qu'un message est arrivé (connexion de présence des amis).
 export function createMail(store, accounts, { notify = () => {} } = {}) {
   const messages = () => store.doc('courrier')?.messages || [];
+  // Messages des événements temporaires en cours (events.js), ajoutés à ceux de l'administration le temps de l'événement.
+  const withEvents = () => [...messages(), ...accounts.progress.events.mails()];
   const codes = () => store.doc('codes')?.codes || [];
   const box = a => (a.mail ||= { read: [], got: [], hidden: [] });
 
   // Messages que voit un joueur : à tous ou à lui, pas encore expirés ni supprimés, du plus récent au plus ancien.
   // newcomers false : un message à tous ne va qu'aux comptes qui existaient à l'envoi.
   const reaches = (a, m) => (m.to ? m.to.includes(a.login) : m.newcomers !== false || !a.created || a.created <= m.at);
-  const mine = a => messages().filter(m => reaches(a, m) && live(m) && !box(a).hidden.includes(m.id)).reverse();
+  const mine = a => withEvents().filter(m => reaches(a, m) && live(m) && !box(a).hidden.includes(m.id)).reverse();
   const pending = (a, m) => !!m.reward && !box(a).got.includes(m.id);
   const count = a => (a.starter ? mine(a).filter(m => !box(a).read.includes(m.id) || pending(a, m)).length : 0);
   accounts.setMailCount(count);

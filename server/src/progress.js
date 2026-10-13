@@ -11,7 +11,9 @@ import { TIERS, PLACES, rankOf, applyResult, seasonId, seasonName, seasonDaysLef
 import { ARTS, artExists, THEME_IDS, MAX_FAV_ARTS } from '@jeu/engine/arts';
 import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seasonById, passTrack, refundTier, tierOf as passTierOf, weekOf, passMissionLabel, releasedCards, addMonths,
   currentSeason, THEME_TIER, SEASON_THEMES } from '@jeu/engine/pass';
+import { boost } from '@jeu/engine/events';
 import { HttpError } from './accounts.js';
+import { createEvents } from './events.js';
 
 const INBOX_MAX = 40;
 // Art alternatif choisi pour chacune de ces cartes, s'il est toujours possédé (arts.js).
@@ -21,6 +23,8 @@ const newStats = () => ({ games: 0, wins: 0, pvpWins: 0, pveWins: 0, streak: 0, 
 const bump = (s, k, n = 1) => { s[k] = (s[k] || 0) + n; };
 
 export function createProgress(store) {
+  // Événements temporaires (week-end double XP…) : multiplient certains gains tant qu'ils durent.
+  const events = createEvents(store);
   // Réglages : valeurs par défaut, puis celles enregistrées depuis /admin.
   function cfg() {
     const doc = store.doc('recompenses') || {};
@@ -113,10 +117,10 @@ export function createProgress(store) {
 
   // ---- Collection : nouvelles cartes, familles et sets complétés ----
   function onCards(a, fresh) {
-    const n = fresh.filter(Boolean).length;
-    if (n) addXp(a, n * cfg().xpNewCard);
+    const n = fresh.filter(Boolean).length, xp = boost(n * cfg().xpNewCard, events.mult('xp'));
+    if (xp) addXp(a, xp);
     checkCollection(a);
-    return n * cfg().xpNewCard;
+    return xp;
   }
   function checkCollection(a) {
     if (!a.level) return;
@@ -168,7 +172,7 @@ export function createProgress(store) {
       m.n = Math.min(m.target, m.n + test(m));
       if (m.n < m.target) continue;
       m.done = true; a.stats.missions++;
-      grant(a, { kind: 'mission', label: `Mission : ${missionLabel(m)}`, xp: m.xp, shards: m.shards });
+      grant(a, { kind: 'mission', label: `Mission : ${missionLabel(m)}`, xp: boost(m.xp, events.mult('xp')), shards: m.shards });
       passAdvance(a, x => (x.kind === 'missions' ? 1 : 0));
     }
   }
@@ -195,8 +199,10 @@ export function createProgress(store) {
     if (s.day !== today()) { s.day = today(); s.dayGames = 0; }
     countGame(s, win, pvp, general);
     const rewarded = s.dayGames < c.gamesPerDay; s.dayGames++;
-    const xp = rewarded ? (win ? (pvp ? c.xpPvpWin : c.xpPveWin) : (pvp ? c.xpPvpLoss : c.xpPveLoss)) : 0;
-    const shards = rewarded ? (win ? (pvp ? c.shardsPvpWin : c.shardsPveWin) : c.shardsLoss) : 0;
+    // Événements en cours : leur multiplicateur s'applique aux gains de la partie (montrés tels quels à l'écran de fin, avec l'événement).
+    const xpMult = events.mult('xp'), shardMult = events.mult('shards'), passMult = events.mult('passXp');
+    const xp = rewarded ? boost(win ? (pvp ? c.xpPvpWin : c.xpPveWin) : (pvp ? c.xpPvpLoss : c.xpPveLoss), xpMult) : 0;
+    const shards = rewarded ? boost(win ? (pvp ? c.shardsPvpWin : c.shardsPveWin) : c.shardsLoss, shardMult) : 0;
     a.shards = (a.shards || 0) + shards;
     const doneBefore = missions(a).list.filter(m => m.done).length;
     advance(a, m => (MISSIONS[m.id]?.count ? MISSIONS[m.id].count(m, played) : {
@@ -204,7 +210,7 @@ export function createProgress(store) {
     }[m.id] || 0));
     addXp(a, xp);
     const P = pass(a);
-    if (P && rewarded) gainPassXp(a, win ? c.passXpWin : c.passXpLoss);
+    if (P && rewarded) gainPassXp(a, boost(win ? c.passXpWin : c.passXpLoss, passMult));
     passAdvance(a, m => ({
       play: 1, win: win ? 1 : 0, pvp: win && pvp ? 1 : 0, ranked: ranked ? 1 : 0, sweep: win && sweep ? 1 : 0,
       spells: played.filter(id => CARDS[id]?.type === 'S').length, creatures: played.filter(id => CARDS[id]?.type === 'C').length,
@@ -212,6 +218,7 @@ export function createProgress(store) {
     }[m.kind] || 0));
     return { xp, shards, rewarded, passXp: (pass(a)?.xp || 0) - passBefore, gamesLeft: Math.max(0, c.gamesPerDay - s.dayGames), levelUp: a.level > before.level,
       missions: missions(a).list.filter(m => m.done).length - doneBefore, progress: levelView(a), totalShards: a.shards - before.shards,
+      events: Object.fromEntries([['xp', xpMult], ['shards', shardMult], ['passXp', passMult]].filter(([, m]) => rewarded && m !== 1)),
       // Niveau d'avant la partie : la barre de l'écran de fin part de là.
       progressBefore: { level: before.level, xp: before.xp, xpNext: before.xpNext } };
   }
@@ -266,17 +273,18 @@ export function createProgress(store) {
     const R = ranked(a), before = rankOf(R.r);
     R.games++;
     if (result === 'win') { R.wins++; R.streak++; bump(a.stats, 'rankedWins'); } else R.streak = 0;
-    const { r, bonus } = applyResult(R.r, { result, streak: R.streak, foeR });
+    const mult = events.mult('ranked');
+    const { r, bonus } = applyResult(R.r, { result, streak: R.streak, foeR, mult });
     R.r = r; R.best = Math.max(R.best, r);
     a.stats.bestTier = Math.max(a.stats.bestTier || 0, rankOf(R.best).tier);
     const after = rankOf(r);
-    return { before, after, delta: after.r - before.r, bonus, promoted: after.tier > before.tier || (after.division !== before.division && after.r > before.r) };
+    return { before, after, delta: after.r - before.r, bonus, ...(mult !== 1 && result === 'win' ? { mult } : {}), promoted: after.tier > before.tier || (after.division !== before.division && after.r > before.r) };
   }
   // Ce que voit le joueur de son rang (accueil, écran classé).
   function rankedView(a) {
     const R = ranked(a);
     return { season: R.season, seasonName: seasonName(R.season), daysLeft: seasonDaysLeft(), rank: rankOf(R.r), best: rankOf(R.best),
-      games: R.games, wins: R.wins, streak: R.streak, ai: TIERS[rankOf(R.r).tier].name };
+      games: R.games, wins: R.wins, streak: R.streak, ai: TIERS[rankOf(R.r).tier].name, mult: events.mult('ranked') };
   }
   // Classement d'une saison (la saison en cours par défaut) : les joueurs qui y ont joué au moins une partie classée.
   function ladder(season = seasonId()) {
@@ -544,7 +552,7 @@ export function createProgress(store) {
     return { ...levelView(a), freeBoosters: a.freeBoosters || 0,
       missions: ms.list.map(m => ({ label: missionLabel(m), n: m.n, target: m.target, done: m.done, xp: m.xp, shards: m.shards })),
       rerollsLeft: Math.max(0, c.missionRerolls - ms.rerolls), inbox: a.inbox || [], badge: badge(a), cardLevels: levelsView(), ranked: rankedView(a),
-      freeChests: a.freeChests || 0, calendar: calendarView(a), pass: passSummary(a),
+      freeChests: a.freeChests || 0, calendar: calendarView(a), pass: passSummary(a), events: events.view(),
       title: a.title, frame: a.frame, back: a.back, theme: a.uiTheme ?? null, favArts: favArts(a),
       cosmetics: { titles: a.cosmetics.titles.map(id => ({ id, label: TITLES[id] || id })), frames: a.cosmetics.frames.map(id => ({ id, label: FRAMES[id] || id })),
         backs: a.cosmetics.backs.map(id => ({ id, label: BACKS[id] || id })), themes: (a.cosmetics.themes || []).map(id => ({ id, label: SEASON_THEMES[id] || id })) } };
@@ -605,6 +613,6 @@ export function createProgress(store) {
     passPool: Object.fromEntries(Object.entries(PASS_KINDS).map(([k, x]) => [k, { daily: x.daily, weekly: x.weekly }])),
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
-  return { init, grant, cfg, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
+  return { init, grant, cfg, events, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
     seen: a => { a.inbox = []; } };
 }
