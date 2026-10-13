@@ -360,13 +360,24 @@ const avatarHTML = (a, cls = '', frame = a.progress?.frame) => (frame ? `<span c
 const winTile = (label, r) => `<div class="stat"><span class="eyebrow">${label}</span><b class="num">${r.rate === null ? '–' : `${r.rate} %`}</b>
   <small class="hint num">${r.games} partie${r.games > 1 ? 's' : ''} · ${r.wins} V · ${r.losses} D${r.draws ? ` · ${r.draws} N` : ''}</small></div>`;
 const winTiles = st => `<div class="stats">${winTile('Toutes les parties', st.all)}${winTile('En ligne', st.pvp)}${winTile('Contre l\'IA', st.pve)}</div>`;
-// Général et cartes les plus joués : { id, games | plays, level, art }. Chaque carte s'ouvre en grand.
-const topCard = (c, n) => `<div class="topcard"><button class="ccard" data-zoom="${zoomKey(c.id, c.art || '')}">${anyCard(c.id, c.level, c.art)}</button>
-  <small class="hint num">${n}</small></div>`;
+// Général et cartes les plus joués : { id, games | plays, level, art }, en version réduite comme sur le plateau
+// (illustration, nom, puissance, sans le texte) ; touchée, la carte s'ouvre en grand.
+function smallCard(c) {
+  const d = CARDS[c.id], g = GENERALS[c.id], name = (d || g).name;
+  const p = g ? '<span class="p sm">Général</span>' : d.type === 'C' ? `<span class="p num">${d.power}</span>` : '<span class="p sm">Sort</span>';
+  return `<button class="mc topmc${lvCls(c.level)}" style="${famVar(g ? [g.fam] : d.kw)}" data-zoom="${zoomKey(c.id, c.art || '')}" aria-label="${esc(name)} : voir en grand">
+    ${artBg(c.id, c.art)}<span class="n">${esc(name)}</span>${p}</button>`;
+}
+const topCard = (c, n) => `<div class="topcard">${smallCard(c)}<small class="hint num">${n}</small></div>`;
+// Art préféré : l'illustration seule (avec le nom de la carte), sans le texte de la carte ; touché, il s'ouvre en grand.
+const artOnly = id => artHTML(ARTS[id].card, nameOf(ARTS[id].card), 1, '', id);
+const favArt = (id, n) => `<div class="topcard"><button class="favart" data-zoom="${zoomKey(ARTS[id].card, id)}" aria-label="${esc(ARTS[id].name)} : voir en grand">${artOnly(id)}</button>
+  <small class="hint">${n}</small></div>`;
 const plays = n => `${n} partie${n > 1 ? 's' : ''}`;
 function cardStatsHTML(cards, gen) {
   if (!cards.length && !gen) return '<p class="hint" style="margin:0">Aucune carte jouée pour l\'instant.</p>';
-  return `<div class="topcards">${gen ? `<div class="topgen"><span class="eyebrow">Général le plus joué</span>${topCard(gen, `${plays(gen.games)}${gen.rate !== null ? ` · ${gen.rate} % de victoires` : ''}`)}</div>` : ''}
+  return `<div class="topcards">${gen ? `<div class="topgen"><span class="eyebrow">Général le plus joué</span><div class="topgenrow">${smallCard(gen)}
+      <span><b>${esc(GENERALS[gen.id].name)}</b><br><small class="hint num">${plays(gen.games)}${gen.rate !== null ? ` · ${gen.rate} % de victoires` : ''}</small></span></div></div>` : ''}
     ${cards.length ? `<div class="topfive"><span class="eyebrow">${cards.length > 1 ? `Les ${cards.length} cartes les plus jouées` : 'Carte la plus jouée'}</span>
       <div class="topgrid">${cards.map(c => topCard(c, plays(c.plays))).join('')}</div></div>` : ''}</div>`;
 }
@@ -401,7 +412,7 @@ function playerSheet() {
     <div class="row" role="status">${friend}</div>${errLine()}
     <span class="eyebrow">Victoires</span>${winTiles(P.stats)}
     ${cardStatsHTML(P.cards, P.general)}
-    <span class="eyebrow">Arts préférés</span>${favs.length ? `<div class="topgrid favgrid">${favs.map(x => topCard({ id: ARTS[x.id].card, level: x.level, art: x.id }, esc(ARTS[x.id].name))).join('')}</div>`
+    <span class="eyebrow">Arts préférés</span>${favs.length ? `<div class="favgrid">${favs.map(x => favArt(x.id, esc(ARTS[x.id].name))).join('')}</div>`
       : '<p class="hint" style="margin:0">Pas encore d\'arts préférés.</p>'}
   </div></div>`;
 }
@@ -1299,9 +1310,9 @@ function favArtsHTML() {
   return `<div class="gal-h">Arts préférés · <span class="num">${fav.length}/${MAX_FAV_ARTS}</span></div>
     <p class="hint" style="margin:0">${mine.length ? `Choisissez jusqu'à ${MAX_FAV_ARTS} de vos arts alternatifs : les joueurs les voient sur votre profil. Touchez un art choisi pour le retirer.`
       : 'Vos arts alternatifs (boutique, coffres, récompenses) apparaîtront ici : choisissez-en jusqu\'à 3 à montrer sur votre profil.'}</p>
-    ${mine.length ? `<div class="topgrid favpick">${mine.map(art => { const i = fav.indexOf(art.id), full = i < 0 && fav.length >= MAX_FAV_ARTS;
+    ${mine.length ? `<div class="favpick">${mine.map(art => { const i = fav.indexOf(art.id), full = i < 0 && fav.length >= MAX_FAV_ARTS;
       return `<button class="favopt ${i >= 0 ? 'on' : ''}" data-act="fav-art" data-id="${art.id}" aria-pressed="${i >= 0}" ${ui.busy || full ? 'disabled' : ''}>
-        ${anyCard(art.card, myLevel(art.card), art.id)}${i >= 0 ? `<span class="favn num" aria-label="Choix ${i + 1}">${i + 1}</span>` : ''}<small>${esc(art.name)}</small></button>`; }).join('')}</div>` : ''}`;
+        ${artOnly(art.id)}${i >= 0 ? `<span class="favn num" aria-label="Choix ${i + 1}">${i + 1}</span>` : ''}<small>${esc(art.name)}</small></button>`; }).join('')}</div>` : ''}`;
 }
 function toggleFavArt(id) {
   const fav = favArts().slice(), i = fav.indexOf(id);
