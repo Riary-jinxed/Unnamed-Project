@@ -398,6 +398,23 @@ function witchHat(g, x, y, rot = 0) {
   k.rect(-7, -18, 14, 13).fill(0xffd45a).stroke(ink(2.5)); k.rect(-3, -14, 6, 5).fill(0x3a1d5a);
   k.position.set(x, y); k.rotation = rot; g.addChild(k);
 }
+// Croissant de lune : le disque (x, y, r) privé du disque (x + dx, y + dy, r2), en polygone (contour d'encre propre).
+function crescent(x, y, r, dx, dy, r2, n = 48) {
+  const inCut = (px, py) => Math.hypot(px - x - dx, py - y - dy) < r2, out = [], inner = [];
+  for (let i = 0; i < n; i++) { const p = pt(x, y, r, i * TAU / n); if (!inCut(...p)) out.push(p); }
+  for (let i = 0; i < n; i++) { const p = pt(x + dx, y + dy, r2, i * TAU / n); if (Math.hypot(p[0] - x, p[1] - y) < r) inner.push(p); }
+  // Mettre le contour extérieur dans l'ordre (il peut commencer au milieu de l'arc), puis revenir par l'arc intérieur.
+  const gap = out.findIndex((p, i) => i && Math.hypot(p[0] - out[i - 1][0], p[1] - out[i - 1][1]) > 2 * TAU * r / n);
+  const arcOut = gap > 0 ? [...out.slice(gap), ...out.slice(0, gap)] : out;
+  const gi = inner.findIndex((p, i) => i && Math.hypot(p[0] - inner[i - 1][0], p[1] - inner[i - 1][1]) > 2 * TAU * r2 / n);
+  const arcIn = gi > 0 ? [...inner.slice(gi), ...inner.slice(0, gi)] : inner;
+  return [...arcOut, ...arcIn.reverse()].flat();
+}
+// Langue de feu posée sur (x, y), haute de h, large de 2w, pointe déportée de lean.
+function flameTongue(g, x, y, h, w, lean, color) {
+  g.moveTo(x - w, y).bezierCurveTo(x - w * 1.3, y - h * 0.45, x + lean * 0.3 - w * 0.5, y - h * 0.7, x + lean, y - h)
+    .bezierCurveTo(x + lean * 0.5 + w * 0.2, y - h * 0.6, x + w * 1.2, y - h * 0.4, x + w, y).closePath().fill(color).stroke(ink(color === 0xc0261a ? 3 : 0.01));
+}
 const FAM_GEMS = [0xe2b93e, 0xd0443a, 0x4f8c3a, 0x2a8a7e, 0xe07a2a];
 const FRAMES = {
   bronze: g => { ring(g, METAL.bronze); beads(g, 4, (RH + RB) / 2, 0x7a4218, 4.5, Math.PI / 4); },
@@ -409,17 +426,34 @@ const FRAMES = {
   diamant: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 4).stroke({ width: 14, color: 0xffffff }), 0x5aa8e6, 12, 0.85));
     ring(g, METAL.diamant); [0, 1, 2, 3].forEach(i => { const [x, y] = pt(C, C, RB, -Math.PI / 2 + i * Math.PI / 2); gem(g, x, y, i ? 12 : 17, 0xbfe9ff); });
     [[C + 70, C - 92, 9], [C - 96, C - 60, 7], [C + 98, C + 60, 7], [C - 66, C + 98, 8]].forEach(([x, y, r]) => sparkle(g, x, y, r)); },
+  // Grand maître : grandes ailes déployées, étoile d'or à huit branches au sommet, ruban sous l'anneau (pas de couronne : ce sont les sets).
   maitre: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 4).stroke({ width: 16, color: 0xffffff }), 0xc060e0, 14, 0.9));
-    for (const s of [-1, 1]) { const [x, y] = pt(C, C, RB - 6, s < 0 ? Math.PI + 0.2 : -0.2);
-      for (let i = 4; i >= 0; i--) g.poly(featherPoly(x, y, s < 0 ? Math.PI + 0.05 + i * 0.24 : -0.05 - i * 0.24, 54 - i * 4, 10)).fill(i % 2 ? 0xf08ad8 : 0xffd45a).stroke(ink(2.5)); }
-    ring(g, METAL.maitre); beads(g, 12, (RH + RB) / 2, 0xffd45a, 3); crown(g, 0xffd45a, [0xf08ad8, 0x9a4ad0, 0xf08ad8]); roundGem(g, C, C + RB, 9, 0xf08ad8); },
+    for (const s of [-1, 1]) { const [x, y] = pt(C, C, RB - 16, s < 0 ? Math.PI + 0.3 : -0.3), dir = a => (s < 0 ? Math.PI + a : -a);
+      for (let i = 6; i >= 0; i--) g.poly(featherPoly(x, y, dir(0.02 + i * 0.2), 68 - i * 3, 15)).fill(i % 2 ? 0xe3a83a : 0xffd45a).stroke(ink(2.5));
+      for (let i = 4; i >= 0; i--) g.poly(featherPoly(x, y, dir(0.16 + i * 0.24), 44 - i * 2, 13)).fill(i % 2 ? 0xc060e0 : 0xf08ad8).stroke(ink(2.5)); }
+    ring(g, METAL.maitre); beads(g, 12, (RH + RB) / 2, 0xffd45a, 3);
+    const r = new Graphics(), y = C + RB + 4;
+    for (const s of [-1, 1]) r.poly([C + s * 40, y - 12, C + s * 66, y - 10, C + s * 56, y + 2, C + s * 68, y + 14, C + s * 40, y + 12]).fill(0x9a4ad0).stroke(ink(3));
+    r.moveTo(C - 46, y - 14).quadraticCurveTo(C, y - 4, C + 46, y - 14).lineTo(C + 46, y + 10).quadraticCurveTo(C, y + 20, C - 46, y + 10).closePath().fill(0xf08ad8).stroke(ink(3));
+    r.moveTo(C - 40, y - 6).quadraticCurveTo(C, y + 4, C + 40, y - 6).stroke({ width: 2, color: 0xffd45a });
+    g.addChild(r);
+    add(g, glow(() => star(new Graphics(), C, C - RB - 4, 36, 8, 0.45).fill(0xffffff), 0xffd45a, 8, 0.8));
+    star(g, C, C - RB - 4, 36, 8, 0.45).fill(0xffd45a).stroke(ink(3)); star(g, C, C - RB - 4, 21, 8, 0.5, -Math.PI / 2 + Math.PI / 8).fill(0xfff0b0).stroke(ink(2));
+    roundGem(g, C, C - RB - 4, 9, 0xf08ad8); },
   legende: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2).stroke({ width: 12, color: 0xffffff }), 0xfff0d0, 10, 0.7));
     ring(g, METAL.or); [0xd0547f, 0xe2b93e, 0x4fbcad, 0x77a3e6, 0xa585e6, 0xff7a52, 0x7cd05a, 0x5ad2ff].forEach((c, i) => { const [x, y] = pt(C, C, (RH + RB) / 2, -Math.PI / 2 + i * TAU / 8); roundGem(g, x, y, 8, c); }); },
-  flamme: g => { const f = add(g, new Graphics()), rnd = seeded(5);
-    for (const [k, color] of [[1, 0xb2241a], [0.78, 0xf06a1f], [0.5, 0xffcf4a]]) for (let i = 0; i < 18; i++) { const a = i * TAU / 18 + (k < 1 ? 0.1 : 0), len = (18 + rnd() * 18) * k + 6;
-      const [bx, by] = pt(C, C, RB - 4, a - 0.16), [cx, cy] = pt(C, C, RB - 4, a + 0.16), [tx, ty] = pt(C, C, RB + len, a + 0.12);
-      f.moveTo(bx, by).quadraticCurveTo(...pt(C, C, RB + len * 0.6, a - 0.12), tx, ty).quadraticCurveTo(...pt(C, C, RB + len * 0.4, a + 0.2), cx, cy).closePath().fill(color).stroke(ink(k === 1 ? 3 : 0.01)); }
-    ring(g, METAL.fer); g.circle(C, C, RB - 5).stroke({ width: 2, color: 0xf06a1f }); },
+  // Flammes : anneau d'obsidienne fendu de lave, flammes qui montent vers le haut (plus hautes au sommet), braises en bas.
+  flamme: g => { add(g, glow(() => new Graphics().circle(C, C - 10, RB + 10).fill(0xffffff), 0xff6a1f, 16, 0.75));
+    const rnd = seeded(7);
+    for (const [k, color] of [[1, 0xc0261a], [0.72, 0xf06a1f], [0.44, 0xffd24a]]) for (let i = 0; i <= 12; i++) {
+      const a = Math.PI + i * Math.PI / 12, up = Math.sin(-a), [x, y] = pt(C, C, RB - 8, a), h = (22 + 44 * up * up + rnd() * 10) * k, w = (13 + 4 * up) * Math.max(0.55, k);
+      flameTongue(g, x, y, h + (k < 1 ? 4 : 0), w, (i - 6) * 1.6 * k, color); }
+    ring(g, METAL.fer);
+    // Bord intérieur en fusion : la lave luit entre l'anneau et le portrait.
+    add(g, glow(() => new Graphics().circle(C, C, RH + 4).stroke({ width: 6, color: 0xffffff }), 0xff8a2a, 6, 1));
+    arc(g, C, C, RB - 5, Math.PI * 1.1, Math.PI * 1.9).stroke({ width: 3, color: 0xffcf4a, alpha: 0.9, cap: 'round' });
+    g.circle(C, C, RH + 3).stroke({ width: 3, color: 0xffb02a });
+    for (const [a, r, z] of [[0.35, 14, 3], [0.6, 22, 2.2], [0.9, 10, 2.6], [2.25, 12, 3], [2.5, 22, 2], [2.8, 15, 2.4], [1.57, 18, 2.2]]) { const [x, y] = pt(C, C, RB + r, a); g.circle(x, y, z).fill(0xffcf4a).stroke(ink(1.2)); } },
   duel: g => { for (const s of [-1, 1]) { const w = new Graphics();
       w.poly([0, -196, 7, -182, 6, 30, -6, 30, -7, -182]).fill(0xe4e8ee).stroke(ink(3)); w.poly([0, -196, 7, -182, 6, 30, 0, 30]).fill(0xa8b0ba); w.poly([0, -196, 7, -182, 6, 30, -6, 30, -7, -182]).stroke(ink(3));
       w.roundRect(-20, 30, 40, 9, 3).fill(0xe3b552).stroke(ink(3)); w.roundRect(-5, 39, 10, 22, 3).fill(s < 0 ? 0x2d5a9c : 0xa23f2d).stroke(ink(3)); w.circle(0, 64, 6).fill(0xe3b552).stroke(ink(2.5));
@@ -449,7 +483,7 @@ const FRAMES = {
     bat(g, C, C - RB - 4, 1.4); },
   // Sabbat : chapeau de sorcière penché sur l'anneau, croissant de lune derrière, runes vertes gravées, bougies qui coulent.
   halloween_p: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2).stroke({ width: 12, color: 0xffffff }), 0x7cff6a, 12, 0.55));
-    g.circle(C + 58, C - RB - 16, 19).fill(0xfff3cf).circle(C + 66, C - RB - 22, 16).cut(); g.circle(C + 58, C - RB - 16, 19).stroke(ink(2.5));
+    g.poly(crescent(C + 58, C - RB - 16, 19, 9, -6, 16)).fill(0xfff3cf).stroke(ink(2.5));
     ring(g, METAL.violet);
     // Runes : traits verts lumineux gravés sur l'anneau, entre les bougies et le chapeau.
     const m = (RH + RB) / 2, GLYPHS = [[[0, -6, 0, 6], [0, -2, 5, -6], [0, 2, -5, -2]], [[0, -6, 0, 6], [0, -1, -5, -6], [0, -1, 5, -6]], [[-4, -6, -4, 6], [-4, -5, 4, 0], [4, 0, -4, 5]]];
@@ -476,12 +510,24 @@ const FRAMES = {
     g.roundRect(C - 20, C - RB - 20, 40, 22, 4).fill(0x0e1a36).stroke(ink(3));
     for (let i = 0; i < 4; i++) g.rect(C - 15 + i * 8, C - RB - 24, 3, 5).fill(0x8ea2c8).stroke(ink(1));
     g.circle(C, C - RB - 9, 5).fill(0x7cffff).stroke(ink(2)); },
-  cyber_p: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2).stroke({ width: 14, color: 0xffffff }), 0xd42bb8, 14, 0.9));
-    const holo = grad([[0, 0x19c8e6], [0.33, 0x7cffb2], [0.66, 0xd42bb8], [1, 0xfff05a]], 'linear', [0, 0, 1, 1]);
-    g.circle(C, C, RB).fill(holo).circle(C, C, RH).cut();
-    arc(g, C, C, (RH + RB) / 2, Math.PI * 1.05, Math.PI * 1.5).stroke({ width: 7, color: 0xffffff, alpha: 0.7, cap: 'round' });
-    g.circle(C, C, RB).stroke(ink(4.5)).circle(C, C, RH).stroke(ink(4.5));
-    for (let i = 0; i < 6; i++) { const [x, y] = pt(C, C, RB + 4, -Math.PI / 2 + i * TAU / 6); g.regularPoly(x, y, i ? 9 : 13, 6).fill(i % 2 ? 0x19c8e6 : 0xd42bb8).stroke(ink(2.5)); } },
+  // Holographique : anneau de facettes irisées et éclats de prisme en orbite, reflet arc-en-ciel.
+  cyber_p: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 4).stroke({ width: 16, color: 0xffffff }), 0xd42bb8, 14, 0.8));
+    add(g, glow(() => new Graphics().circle(C, C, RB + 4).stroke({ width: 10, color: 0xffffff }), 0x19c8e6, 10, 0.6));
+    const PAL = [0x7cffff, 0xa0b4ff, 0xe08aff, 0xff9ad8, 0xfff09a, 0x9affc8], N = 18, f = add(g, new Graphics());
+    for (let i = 0; i < N; i++) { const a0 = -Math.PI / 2 + i * TAU / N, a1 = a0 + TAU / N, mid = (RH + RB) / 2;
+      f.poly([...pt(C, C, RB, a0), ...pt(C, C, RB, a1), ...pt(C, C, mid, a1), ...pt(C, C, mid, a0)]).fill(PAL[i % 6]);
+      f.poly([...pt(C, C, mid, a0), ...pt(C, C, mid, a1), ...pt(C, C, RH, a1), ...pt(C, C, RH, a0)]).fill(PAL[(i + 2) % 6]); }
+    for (let i = 0; i < N; i++) { const a = -Math.PI / 2 + i * TAU / N; f.moveTo(...pt(C, C, RH, a)).lineTo(...pt(C, C, RB, a)); }
+    f.stroke({ width: 1.5, color: 0x3a2050, alpha: 0.7 });
+    arc(f, C, C, (RH + RB) / 2 + 3, Math.PI * 1.08, Math.PI * 1.42).stroke({ width: 6, color: 0xffffff, alpha: 0.8, cap: 'round' });
+    f.circle(C, C, RB).stroke(ink(4.5)).circle(C, C, RH).stroke(ink(4.5));
+    // Éclats de prisme : losanges à deux faces pointés vers l'extérieur.
+    for (const [a, len, w, c] of [[-Math.PI / 2, 44, 15, 0xe08aff], [-Math.PI / 2 - 0.7, 30, 11, 0x7cffff], [-Math.PI / 2 + 0.7, 30, 11, 0xfff09a],
+      [Math.PI * 0.1, 26, 10, 0xff9ad8], [Math.PI * 0.9, 26, 10, 0x9affc8], [Math.PI / 2, 24, 10, 0xa0b4ff]]) {
+      const [bx, by] = pt(C, C, RB - 2, a), [tx, ty] = pt(C, C, RB + len, a), [mx, my] = pt(C, C, RB + len * 0.45, a), n = a + Math.PI / 2,
+        l = [mx + Math.cos(n) * w, my + Math.sin(n) * w], r = [mx - Math.cos(n) * w, my - Math.sin(n) * w];
+      g.poly([bx, by, ...l, tx, ty]).fill(0xffffff).poly([bx, by, ...r, tx, ty]).fill(c).poly([bx, by, ...l, tx, ty, ...r]).stroke(ink(2.5)); }
+    [[C + 84, C - 82, 7], [C - 90, C - 70, 6], [C + 92, C + 74, 6], [C - 70, C + 94, 7]].forEach(([x, y, r]) => sparkle(g, x, y, r)); },
 };
 export function drawFrame(id) {
   const f = FRAMES[id]; if (!f) return null;
