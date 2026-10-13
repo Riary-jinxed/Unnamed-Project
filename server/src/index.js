@@ -87,7 +87,7 @@ const send = (ws, msg) => { if (ws && ws.readyState === 1) ws.send(JSON.stringif
 function shownBadge(b, P) {
   if (!b) return b;
   const ids = new Set([P.general, ...P.played]), only = o => Object.fromEntries(Object.entries(o || {}).filter(([id]) => ids.has(id)));
-  return { ...b, looks: only(b.looks), arts: only(b.arts) };
+  return { ...b, looks: only(b.looks), arts: only(b.arts), borders: only(b.borders) };
 }
 function broadcast(room, flash = null) {
   room.seats.forEach((s, i) => {
