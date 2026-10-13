@@ -4,12 +4,13 @@
 // - Bouton Jouer : quelques étincelles qui montent de son bord.
 // - Ce qui attend le joueur (booster du jour, tuile « à faire ») : une étincelle de temps en temps.
 // - Halloween : de temps en temps, quelques chauves-souris traversent l'écran.
+// - Néon 2099 : de temps en temps, une voiture volante passe au loin, phare devant et feu arrière rouge.
 // Rien ne s'affiche au-dessus d'une feuille ouverte, et rien ne tourne en partie.
 import { Container, Sprite, Texture } from 'pixi.js';
 import { kit, scene } from './stage.js';
-import { season, palette, batCanvases } from './season.js';
+import { season, palette, batCanvases, spinnerCanvas } from './season.js';
 
-let started = false, bats = null, batTex = null, lastSpark = 0, lastTodo = 0, nextBats = 0;
+let started = false, bats = null, batTex = null, carTex = null, lastSpark = 0, lastTodo = 0, nextBats = 0, nextCar = 0;
 
 // L'élément est-il à l'écran et non couvert (feuille, booster qui s'ouvre) ? Renvoie sa place, ou null.
 function shown(el) {
@@ -32,10 +33,21 @@ function flock(rnd) {
   }
 }
 
+// Une voiture volante d'un bord à l'autre, plus petite et plus pâle quand elle passe haut (au loin).
+function spinner(rnd) {
+  const dir = Math.random() < 0.5 ? 1 : -1, y = rnd(innerHeight * 0.06, innerHeight * 0.4), far = 1 - y / (innerHeight * 0.5);
+  const b = new Sprite(carTex); b.anchor.set(0.5); b.alpha = 0.95 - far * 0.35;
+  const sc = rnd(0.45, 0.65) * (1 - far * 0.4); b.scale.set(sc * dir, sc);
+  b.position.set(dir > 0 ? -90 : innerWidth + 90, y);
+  Object.assign(b, { vx: dir * rnd(4, 6.5), y0: y, amp: rnd(2, 5), seed: rnd(0, 6), flap: 0, car: true });
+  bats.addChild(b);
+}
+
 export function start() {
   if (started) return; started = true;
   const { over, sparkTex, rnd } = kit();
   batTex = batCanvases().map(c => Texture.from(c));
+  carTex = Texture.from(spinnerCanvas());
   // Gardé d'une scène à l'autre : stage.js ne le détruit pas en vidant la toile (keep).
   bats = Object.assign(new Container(), { keep: true });
 
@@ -58,10 +70,12 @@ export function start() {
 
     // Halloween : une volée de chauves-souris toutes les 10 à 20 secondes, jamais par-dessus une feuille.
     if (season() === 'halloween' && !busy && now > nextBats) { if (nextBats) flock(rnd); nextBats = now + rnd(10000, 20000); }
+    // Néon 2099 : une voiture volante toutes les 8 à 16 secondes.
+    if (season() === 'cyber' && !busy && now > nextCar) { if (nextCar) spinner(rnd); nextCar = now + rnd(8000, 16000); }
     bats.visible = !busy;
     for (const b of [...bats.children]) {
       b.x += b.vx * dt; b.y = b.y0 + Math.sin(b.x / 70 + b.seed) * b.amp;
-      b.texture = batTex[Math.floor(now / (1000 / b.flap) + b.seed) % 2];
+      if (!b.car) b.texture = batTex[Math.floor(now / (1000 / b.flap) + b.seed) % 2];
       if (b.x < -260 || b.x > innerWidth + 260) b.destroy();
     }
   });

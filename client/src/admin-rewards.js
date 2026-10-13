@@ -2,7 +2,7 @@
 // Tout est enregistré dans le document « recompenses » ; les valeurs vides reprennent les valeurs par défaut.
 import { MISSIONS, ACHIEVEMENTS, FAMILY_REWARDS, SET_REWARDS, FRAMES, CARD_LEVELS, xpToNext } from '@jeu/engine/rewards';
 import { CARDS } from '@jeu/engine';
-import { TIERS, seasonShardsKey, seasonPrismsKey } from '@jeu/engine/ranked';
+import { TIERS, PLACES, seasonShardsKey, seasonPrismsKey, placeShardsKey, placePrismsKey } from '@jeu/engine/ranked';
 import { PASS_KINDS, PASS_TIERS, SEASONS, passMissionLabel, refundTier } from '@jeu/engine/pass';
 
 const GROUPS = [
@@ -24,8 +24,10 @@ const GROUPS = [
     ['essencePerDuplicate', 'Essence par doublon'],
     ...[2, 3, 4, 5].flatMap(n => [[`lvl${n}Essence`, `Niveau ${n} (${CARD_LEVELS[n].name}) : essence`], [`lvl${n}Shards`, `Niveau ${n} (${CARD_LEVELS[n].name}) : Éclats`]]),
   ]],
-  ['Mode classé', 'Éclats et Prismes (monnaie des arts alternatifs) reçus à la fin de chaque saison (un mois) selon le meilleur palier atteint. Les titres et cadres des paliers sont fixes.',
-    TIERS.flatMap((t, i) => [[seasonShardsKey(i), `Éclats : saison finie en ${t.name}`], [seasonPrismsKey(i), `Prismes : saison finie en ${t.name}`]])],
+  ['Mode classé', 'Éclats et Prismes (monnaie des arts alternatifs) reçus à la fin de chaque saison (un mois) selon le meilleur palier atteint, puis en plus selon la place au classement final (figé à la fin du mois). Les titres et cadres sont fixes.',
+    [...TIERS.flatMap((t, i) => [[seasonShardsKey(i), `Éclats : saison finie en ${t.name}`], [seasonPrismsKey(i), `Prismes : saison finie en ${t.name}`]]),
+      ...PLACES.flatMap((p, i) => [[placeShardsKey(i), `Éclats en plus : classement final, ${p.name}`], [placePrismsKey(i), `Prismes en plus : classement final, ${p.name}`]]),
+      ['rankPlaceGames', 'Parties classées dans la saison pour avoir une place au classement final']]],
   ['Calendrier du mois', 'Une récompense par jour de connexion, à récupérer le jour même ; tout repart le 1er du mois. Dimanche : des coffres d\'arts offerts, plus des Prismes les 2e et 4e dimanches.', [
     ['loginShards', 'Éclats : jour de semaine'], ['loginChests', 'Coffres d\'arts : dimanche'], ['loginPrisms', 'Prismes : 2e et 4e dimanches'],
   ]],

@@ -317,7 +317,7 @@ export const CARDS = {
                  onReveal: (c, st) => creaturesAt(st, c.owner, c.zone).forEach(x => implant(st, x, 1)) },
   androide:    { set: 'set3', name: 'Androïde de combat', type: 'C', cost: 4, power: 5, kw: ['Cyborg'], text: 'Surcharge 2 : Implant 4 sur lui-même.',
                  onReveal: (c, st) => { if (overload(st, c, 2)) implant(st, c, 4); } },
-  legende_chrome:{ set: 'set3', name: 'Légende chromée', type: 'C', cost: 6, power: 9, kw: ['Cyborg'], text: 'Persistant : vos autres créatures avec Implant ont +1.',
+  legende_chrome:{ set: 'set3', name: 'Légende des rues', type: 'C', cost: 6, power: 9, kw: ['Cyborg'], text: 'Persistant : vos autres créatures avec Implant ont +1.',
                  aura: (s, t) => t !== s && t.owner === s.owner && t.implants ? 1 : 0 },
 
   // ANGE : anges synthétiques (Implant)
@@ -475,11 +475,16 @@ export const CARDS = {
                    if (foes.length > mine.length) buff(st, strongest(st, foes), -2); else mine.filter(x => x !== c).forEach(x => buff(st, x, 1)); } },
   sorciere_sabbat:{ set: 'saison', name: 'Sorcière du sabbat', type: 'C', cost: 4, power: 3, kw: [], text: 'Révélation : piochez 1 carte, puis votre zone ici gagne +1 par sort que vous avez révélé cette partie.',
                  onReveal: (c, st) => { draw(st, c.owner, 1, true); const n = st.p[c.owner].spells || 0; if (n) addZone(st, c.owner, c.zone, n); } },
-  // Néon 2099 (novembre 2026, préparée)
+  // Néon 2099 (novembre 2026) : le Drone harcèle en se déplaçant, le Netrunner pirate la main adverse, le Mécha largue un Drone.
   drone:       { set: 'saison', name: 'Drone éclaireur', type: 'C', cost: 2, power: 2, kw: [], mobile: true, text: 'Déplaçable. Déplacement : la créature adverse la plus puissante de la zone d\'arrivée perd 1.',
                  onMove: (c, st) => { const s = strongest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (s) buff(st, s, -1); } },
-  netrunner:   { set: 'saison', name: 'Netrunner', type: 'C', cost: 3, power: 3, kw: [], text: 'Révélation : la créature adverse la plus puissante ici perd 1, puis piochez 1 carte.',
-                 onReveal: (c, st) => { const s = strongest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (s) buff(st, s, -1); draw(st, c.owner, 1, true); } },
+  netrunner:   { set: 'saison', name: 'Netrunner', type: 'C', cost: 3, power: 2, kw: [], text: 'Révélation : piratage ! La carte la plus chère de la main adverse coûte 1 de plus, puis piochez 1 carte.',
+                 onReveal: (c, st) => { const h = st.p[1 - c.owner].hand.filter(x => costOf(st, x) !== null);
+                   if (h.length) { const t = h.reduce((a, b) => (costOf(st, b) > costOf(st, a) ? b : a)); t.discount = (t.discount || 0) + 1;
+                     log(st, `${who(st, 1 - c.owner)} : piratage, une carte de la main coûte 1 de plus.`, 'down'); }
+                   draw(st, c.owner, 1, true); } },
+  mecha:       { set: 'saison', name: 'Mécha de la mégapole', type: 'C', cost: 5, power: 5, kw: [], text: 'Révélation : créez un Drone éclaireur dans la zone où vous êtes le plus en retard.',
+                 onReveal: (c, st) => { const z = bestZone(st, c.owner, -1); if (z !== null) summon(st, c.owner, z, 'drone'); } },
 
   // JETONS
   horde:       { name: 'Horde', type: 'C', cost: 0, power: 0, kw: ['Gobelin'], token: true, text: 'Jeton. Une seule Horde par zone : les effets Horde la font grandir.' },

@@ -11,6 +11,7 @@ import { cardsTab } from './admin-cards.js';
 import { rewardsTab } from './admin-rewards.js';
 import { mailTab } from './admin-mail.js';
 import { ARTS, ART_RARITIES, RARITY_IDS, rarityName } from '@jeu/engine/arts';
+import { SEASON_THEMES } from '@jeu/engine/pass';
 
 const app = document.getElementById('app');
 const KEY = 'jeu-admin-key';
@@ -143,6 +144,7 @@ function renderDetail() {
       ${changed ? '<button class="btn" data-act="cards-undo">Annuler les changements</button>' : ''}</div>
   </div>
   ${artsBlock(a)}
+  ${themesBlock(a)}
   <form class="card-box" id="pass">
     <h3>Accès</h3>
     <div class="field"><label class="eyebrow" for="p-pass">Nouveau mot de passe</label><input id="p-pass" minlength="4" required autocomplete="new-password"></div>
@@ -174,6 +176,18 @@ function artsBlock(a) {
     <div class="row"><select id="give-art" aria-label="Art à donner">${Object.keys(ARTS).filter(id => !a.arts?.[id]).map(id => `<option value="${id}">${label(id)}</option>`).join('')}</select>
       <button class="btn" data-act="give-art" ${dis()}>Donner cet art</button></div>
     <p class="hint" style="margin:0">Les arts Promo ne sont jamais en vente : ils se donnent d'ici.</p>
+  </div>`;
+}
+// Thèmes de saison du joueur : en donner un pour tester avant sa saison, ou le retirer.
+function themesBlock(a) {
+  const mine = (a.themes || []).filter(id => SEASON_THEMES[id]), other = Object.keys(SEASON_THEMES).filter(id => !mine.includes(id));
+  return `<div class="card-box">
+    <div class="row"><h3 style="margin-right:auto">Thèmes de saison</h3><small class="hint">${mine.length}/${Object.keys(SEASON_THEMES).length}</small></div>
+    ${mine.length ? `<div class="chips">${mine.map(id => `<span class="pick on">${esc(SEASON_THEMES[id])}
+      <button class="btn sm" type="button" data-theme-take="${id}" ${dis()}>Retirer</button></span>`).join('')}</div>` : '<p class="hint" style="margin:0">Aucun thème pour l\'instant.</p>'}
+    ${other.length ? `<div class="row"><select id="give-theme" aria-label="Thème à donner">${other.map(id => `<option value="${id}">${esc(SEASON_THEMES[id])}</option>`).join('')}</select>
+      <button class="btn" data-act="give-theme" ${dis()}>Donner ce thème</button></div>` : ''}
+    <p class="hint" style="margin:0">Le joueur le choisit ensuite dans Personnalisation, même avant le début de sa saison.</p>
   </div>`;
 }
 // Catalogue des arts alternatifs : rareté, prix, nombre de joueurs qui l'ont.
@@ -286,6 +300,7 @@ app.addEventListener('click', e => {
     render(); return;
   }
   if (stats.onClick(t) || cards.onClick(t) || rewards.onClick(t) || mail.onClick(t)) return;
+  if (t.dataset.themeTake) { act('/api/admin/account/theme', { theme: t.dataset.themeTake, give: false }, 'Thème retiré.'); return; }
   if (t.dataset.artTake) { act('/api/admin/account/art', { art: t.dataset.artTake, give: false }, 'Art retiré.'); return; }
   if (t.dataset.addShards) { const i = document.getElementById('p-shards'); i.value = (Number(i.value) || 0) + Number(t.dataset.addShards); return; }
   const fam = t.dataset.famAll || t.dataset.famNone;
@@ -329,6 +344,7 @@ app.addEventListener('click', e => {
       saveSettings({ cardPrice, boosterPrice, boosterSize, shardsPerDuplicate }, 'Prix remis par défaut.'); break;
     }
     case 'give-art': { const id = document.getElementById('give-art')?.value; if (id) act('/api/admin/account/art', { art: id, give: true }, `Art « ${esc(ARTS[id].name)} » donné.`); break; }
+    case 'give-theme': { const id = document.getElementById('give-theme')?.value; if (id) act('/api/admin/account/theme', { theme: id, give: true }, `Thème « ${esc(SEASON_THEMES[id])} » donné.`); break; }
     case 'art-defaults': saveSettings(Object.fromEntries(ART_KEYS.map(k => [k, st.defaults[k]])), 'Prix des arts remis par défaut.'); break;
     case 'renew':
       if (confirm('Tirer de nouvelles cartes du jour pour tous les joueurs ?')) saveSettings({ renew: true }, 'Offres du jour renouvelées pour tous.');
