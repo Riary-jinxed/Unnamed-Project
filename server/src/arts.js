@@ -6,6 +6,7 @@
 import { CARDS, GENERALS } from '@jeu/engine';
 import { ARTS, artExists, isClassic, artPrice, artOffers, chestPool, chestRates, weightedPick, rarityName, isEssenceArt, essenceArts, essenceArtPrice } from '@jeu/engine/arts';
 import { today } from '@jeu/engine/collection';
+import { CLAN_SHOP } from '@jeu/engine/clans';
 import { HttpError } from './accounts.js';
 
 export function createArts(store, cfg) {
@@ -36,6 +37,7 @@ export function createArts(store, cfg) {
     if (owns(a, id)) throw new HttpError(409, 'Vous avez déjà cet art.');
     if (art.edition === 'promo') throw new HttpError(409, 'Cet art ne se vend pas : il s\'obtient en récompense.');
     if (isEssenceArt(art)) throw new HttpError(409, 'Cet art se vend au rayon Essence, contre de l\'essence universelle.');
+    if (art.edition === 'clan') throw new HttpError(409, 'Cet art se vend au magasin de clan, contre des Écus.');
     const d = day(a);
     if (!isClassic(art) || !d.offers.includes(id)) throw new HttpError(400, 'Cet art n\'est plus en vente aujourd\'hui.');
     pay(a, artPrice(art, cfg()));
@@ -84,7 +86,7 @@ export function createArts(store, cfg) {
   // Catalogue avec le nombre de joueurs qui ont chaque art, pour l'onglet Boutique.
   function adminList() {
     const all = store.all();
-    return Object.values(ARTS).map(art => ({ ...art, exists: artExists(art.id), rarityName: rarityName(art), price: art.edition === 'promo' ? null : isEssenceArt(art) ? essenceArtPrice(art, cfg()) : artPrice(art, cfg()),
+    return Object.values(ARTS).map(art => ({ ...art, exists: artExists(art.id), rarityName: rarityName(art), price: art.edition === 'promo' ? null : art.edition === 'clan' ? CLAN_SHOP.find(x => x.id === `art:${art.id}`)?.price ?? null : isEssenceArt(art) ? essenceArtPrice(art, cfg()) : artPrice(art, cfg()),
       owners: all.filter(x => owns(x, art.id)).length }));
   }
   // Donner (Promo, geste commercial) ou retirer un art.

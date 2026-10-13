@@ -84,6 +84,7 @@ export function createProgress(store) {
   function grant(a, r, { silent = false } = {}) {
     if (r.shards) a.shards = (a.shards || 0) + r.shards;
     if (r.prisms) a.prisms = (a.prisms || 0) + r.prisms;
+    if (r.clanCoins) a.clanCoins = (a.clanCoins || 0) + r.clanCoins;
     if (r.chests) a.freeChests = (a.freeChests || 0) + r.chests;
     if (r.boosters) a.freeBoosters = (a.freeBoosters || 0) + r.boosters;
     if (r.card && !a.cards[r.card]) a.cards[r.card] = 1;
@@ -258,8 +259,11 @@ export function createProgress(store) {
   // { [saison]: { closed, top } }). Seule la saison précédente peut être figée : pour une plus ancienne, trop de comptes ont déjà changé.
   // top : les places qui ont une récompense (PLACES), parmi les joueurs qui ont joué au moins rankPlaceGames parties classées.
   const finalLadder = id => (store.doc('classement') || {})[id] || null;
+  // seasonHook(id) : le classement des clans (clans.js) est figé au même moment, avant que les rangs ne repartent.
+  let seasonHook = () => {};
   function closeSeason(id = addMonths(seasonId(), -1)) {
     if (id !== addMonths(seasonId(), -1) || finalLadder(id)) return;
+    seasonHook(id);
     const min = cfg().rankPlaceGames, max = PLACES[PLACES.length - 1].max;
     const top = ladder(id).filter(x => x.games >= min).slice(0, max).map((x, i) => ({ ...x, pos: i + 1 }));
     store.putDoc('classement', { ...(store.doc('classement') || {}), [id]: { closed: new Date().toISOString(), top } })
@@ -614,5 +618,5 @@ export function createProgress(store) {
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
   return { init, grant, cfg, events, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
-    seen: a => { a.inbox = []; } };
+    seen: a => { a.inbox = []; }, setSeasonHook: f => { seasonHook = f; } };
 }
