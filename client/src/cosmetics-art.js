@@ -1,14 +1,16 @@
 // Dessins des cosmétiques avec PixiJS : icônes des monnaies, dos de carte et cadres de profil, dans la patte « BD encrée »
 // des cartes (encrage noir épais, aplats, ombre franche décalée, trame de points). Tout est vectoriel : cosmetics.js rend
 // chaque dessin une fois en image, à la définition de l'écran, et la pose sur les classes existantes (.ico-…, .back-…, .frame-…).
-// Chaque fonction rend un Container de taille fixe (BACK_W × BACK_H, FRAME_S², ICON_S²), ou null pour un identifiant inconnu
+// Chaque fonction rend un Container de taille fixe (BACK_W × BACK_H, (FRAME_S + 2 × FRAME_PAD)², ICON_S²), ou null pour un identifiant inconnu
 // (le dessin CSS de style.css reste alors en place).
 import { BlurFilter, Container, FillGradient, Graphics, Sprite, Texture } from 'pixi.js';
 
 export const BACK_W = 240, BACK_H = 336, FRAME_S = 256, ICON_S = 64;
 // Le cadre déborde du portrait : l'image fait 1 + 2 × FRAME_OUT fois la taille du portrait encadré (cosmetics.js).
 // Trou central : rayon FRAME_HOLE × FRAME_S, un peu plus petit que le portrait pour que l'anneau en morde le bord.
-export const FRAME_OUT = 0.14, FRAME_HOLE = 0.33;
+// Couronnes, flammes, ailes et lueurs dépassent du carré FRAME_S : l'image a une marge vide de FRAME_PAD tout autour pour
+// qu'aucun ornement ne soit coupé (le plus haut, la lune du Crépuscule, monte à 34 au-dessus du carré).
+export const FRAME_OUT = 0.14, FRAME_HOLE = 0.33, FRAME_PAD = 40;
 const INK = 0x170d08, TAU = Math.PI * 2;
 
 // ---- Outils ----
@@ -331,7 +333,7 @@ export function drawBack(id) {
   return c;
 }
 
-// ---- Cadres de profil (256 × 256, trou rond au centre) ----
+// ---- Cadres de profil (256 × 256 plus la marge FRAME_PAD, trou rond au centre) ----
 const C = FRAME_S / 2, RH = FRAME_HOLE * FRAME_S, RB = RH + 20;
 // Anneau de métal BD : aplat, reflet franc en haut à gauche, ombre franche en bas à droite, deux traits d'encre.
 function ring(g, { base, hi, lo }, r0 = RH, r1 = RB) {
@@ -445,7 +447,9 @@ export function drawFrame(id) {
   const c = new Container(), g = layers(); f(g); c.addChild(g.root);
   // Rien d'opaque dans le trou : le portrait du joueur s'y place.
   const hole = add(c, new Graphics().circle(C, C, RH - 1.5).fill(0xffffff)); hole.blendMode = 'erase';
-  return c;
+  c.position.set(FRAME_PAD, FRAME_PAD);
+  const out = new Container(); out.addChild(c);
+  return out;
 }
 export const BACK_IDS = [...Object.keys(FAMILY_BACKS), ...Object.keys(SCENES)];
 export const FRAME_IDS = Object.keys(FRAMES);

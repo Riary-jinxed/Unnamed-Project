@@ -359,6 +359,7 @@ body:has(#app.ingame) { margin: 0; }
 .avatar.big { width: 96px; height: 96px; border-width: 3px; }
 .avatar.big.initials { font-size: 44px; }
 .card-box.profile { grid-template-columns: auto 1fr; align-items: center; gap: 16px; }
+.card-box.profile:has(> .frame) { column-gap: 28px; } /* les ailes et les lueurs du cadre débordent sur le côté */
 .setline { display: grid; gap: 4px; }
 .setline.done b { color: var(--up); }
 .bar { height: 8px; border-radius: 999px; background: var(--sunk); overflow: hidden; }
@@ -406,9 +407,11 @@ body:has(#app.ingame) { margin: 0; }
 .pickc.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .pickc.locked { opacity: .45; }
 .pickc .mc.back { width: 44px; height: 60px; cursor: inherit; }
+.pickc > .frame { margin-block: 8px 6px; } /* place pour les couronnes et les flammes qui débordent du cadre */
 
 /* Cadres de profil : un anneau autour de l'image. */
-.frame { display: inline-grid; place-items: center; border-radius: 50%; padding: 3px; background: var(--line); line-height: 0; }
+/* Centré et jamais étiré : dans une grille ou une ligne flex plus haute (vignettes de la Personnalisation), il deviendrait ovale. */
+.frame { display: inline-grid; place-items: center; border-radius: 50%; padding: 3px; background: var(--line); line-height: 0; align-self: center; justify-self: center; flex: none; }
 .frame.big { padding: 5px; }
 .frame .avatar { border-color: var(--surface); }
 .frame-bronze { background: linear-gradient(135deg, #e0a36b, #8a4f22 60%, #d08b50); }
