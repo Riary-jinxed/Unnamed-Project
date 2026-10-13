@@ -101,6 +101,7 @@ export function createClans(store, accounts) {
       if (!c.members.includes(login)) continue;
       const b = login === current?.login ? current : store.get(login); if (!b) continue;
       progress.grant(b, { kind: 'clan', label, clanCoins: r.coins });
+      progress.count(b, 'clanMissions');
       if (b !== current) put(b);
     }
     const after = level(c);
@@ -109,6 +110,7 @@ export function createClans(store, accounts) {
       for (const login of c.members) {
         const b = login === current?.login ? current : store.get(login); if (!b) continue;
         progress.grant(b, { kind: 'clan', label: `Votre clan ${c.name} passe au niveau ${after}` });
+        progress.best(b, 'bestClanLevel', after);
         if (b !== current) put(b);
       }
     }
@@ -250,6 +252,7 @@ export function createClans(store, accounts) {
     c.requests = c.requests.filter(l => l !== b.login);
     (c.joined ||= {})[b.login] = now();
     log(c, `${b.name} rejoint le clan.`);
+    progress.count(b, 'clanJoins'); progress.best(b, 'bestClanLevel', level(c));
   }
   async function create(a, body) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
@@ -429,6 +432,7 @@ export function createClans(store, accounts) {
     c.week.dons[a.login] = (c.week.dons[a.login] || 0) + coins;
     log(c, `${a.name} donne ${give} ${give > 1 ? d.name : d.name.replace(/s$/, '')} (${plural(coins, 'Écu')}).`);
     advance(c, a, { dons: coins });
+    progress.count(a, 'clanDonated', coins);
     await Promise.all([save(), store.put(a)]);
     return done(a, `Merci ! +${plural(coins, 'Écu')}.`);
   }
@@ -459,6 +463,9 @@ export function createClans(store, accounts) {
 
   // Ce que montre le profil public d'un joueur.
   const badge = login => { const b = store.get(login), c = b && clanOf(b); return c ? { ...short(c), role: CLAN_ROLES[roleOf(c, login)] } : null; };
+
+  // Au démarrage : le niveau du clan de chaque membre compte pour le succès « clan de niveau maximum » (membres d'avant ce succès).
+  for (const c of Object.values(clans)) for (const login of c.members) { const b = store.get(login); if (b && progress.best(b, 'bestClanLevel', level(c))) put(b); }
 
   return {
     onGame, closeSeason, badge, clanOf,

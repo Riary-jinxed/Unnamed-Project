@@ -8,7 +8,7 @@ import { SETS, OWNABLE, today, setRevealed, setById } from '@jeu/engine/collecti
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { TIERS, PLACES, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics,
   placeOf, placeShardsKey, placePrismsKey, placeTitles } from '@jeu/engine/ranked';
-import { ARTS, artExists, THEME_IDS, MAX_FAV_ARTS } from '@jeu/engine/arts';
+import { ARTS, artExists, THEME_IDS, MAX_FAV_ARTS, isEssenceArt } from '@jeu/engine/arts';
 import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seasonById, passTrack, refundTier, tierOf as passTierOf, weekOf, passMissionLabel, releasedCards, addMonths,
   currentSeason, THEME_TIER, SEASON_THEMES } from '@jeu/engine/pass';
 import { boost } from '@jeu/engine/events';
@@ -103,9 +103,15 @@ export function createProgress(store) {
     const families = Object.keys(a.completed || {}).filter(k => k.includes(':')).length;
     const arts = Object.keys(a.arts || {}).filter(artExists), levels = Object.values(a.cardLevels || {});
     return { ...a.stats, level: a.level, cards: owned, families, arts: arts.length, artThemes: Object.fromEntries(THEME_IDS.map(t => [t, arts.filter(id => ARTS[id].theme === t).length])), legendArts: arts.filter(id => ARTS[id].rarity === 'legendaire').length,
+      essenceArts: arts.filter(id => isEssenceArt(ARTS[id])).length, favArts: favArts(a).length, bordersChosen: Object.keys(a.lvLook || {}).length,
       upgraded: levels.filter(l => l >= 2).length, maxCards: levels.filter(l => l >= MAX_CARD_LEVEL).length, friends: (a.friends || []).length,
-      bestTier: Math.max(a.stats?.bestTier || 0, a.ranked?.games ? rankOf(a.ranked.best).tier : 0) };
+      bestTier: Math.max(a.stats?.bestTier || 0, a.ranked?.games ? rankOf(a.ranked.best).tier : 0),
+      // Comptes d'avant ces succès : un clan déjà rejoint, l'essence universelle déjà en réserve.
+      clanJoins: Math.max(a.stats?.clanJoins || 0, a.clan ? 1 : 0), uniGained: Math.max(a.stats?.uniGained || 0, a.uniEssence || 0) };
   }
+  // Compteurs tenus ailleurs (clans) : count ajoute n, best garde le plus grand ; les succès suivent.
+  function count(a, k, n = 1) { if (!a.level || !n) return; bump(a.stats, k, n); checkAchievements(a); }
+  function best(a, k, v) { if (!a.level || v <= (a.stats[k] || 0)) return false; a.stats[k] = v; checkAchievements(a); return true; }
   function checkAchievements(a) {
     const s = statsOf(a), c = cfg();
     for (const x of ACHIEVEMENTS) {
@@ -199,6 +205,7 @@ export function createProgress(store) {
     const before = { level: a.level, shards: a.shards || 0, xp: a.xp || 0, xpNext: xpToNext(a.level, c) };
     if (s.day !== today()) { s.day = today(); s.dayGames = 0; }
     countGame(s, win, pvp, general);
+    if (events.view().live.length) bump(s, 'eventGames');
     const rewarded = s.dayGames < c.gamesPerDay; s.dayGames++;
     // Événements en cours : leur multiplicateur s'applique aux gains de la partie (montrés tels quels à l'écran de fin, avec l'événement).
     const xpMult = events.mult('xp'), shardMult = events.mult('shards'), passMult = events.mult('passXp');
@@ -278,10 +285,12 @@ export function createProgress(store) {
     R.games++;
     if (result === 'win') { R.wins++; R.streak++; bump(a.stats, 'rankedWins'); } else R.streak = 0;
     const mult = events.mult('ranked');
+    if (result === 'win' && mult !== 1) bump(a.stats, 'eventRankedWins');
     const { r, bonus } = applyResult(R.r, { result, streak: R.streak, foeR, mult });
     R.r = r; R.best = Math.max(R.best, r);
     a.stats.bestTier = Math.max(a.stats.bestTier || 0, rankOf(R.best).tier);
     const after = rankOf(r);
+    checkAchievements(a);
     return { before, after, delta: after.r - before.r, bonus, ...(mult !== 1 && result === 'win' ? { mult } : {}), promoted: after.tier > before.tier || (after.division !== before.division && after.r > before.r) };
   }
   // Ce que voit le joueur de son rang (accueil, écran classé).
@@ -507,7 +516,7 @@ export function createProgress(store) {
     const c = cfg(), toCard = Math.min(n, essenceRoom(a, id));
     if (toCard) a.essence = { ...(a.essence || {}), [id]: (a.essence?.[id] || 0) + toCard };
     const universal = n > toCard && c.essencePerDuplicate ? Math.round((n - toCard) * c.uniPerDuplicate / c.essencePerDuplicate) : 0;
-    if (universal) a.uniEssence = (a.uniEssence || 0) + universal;
+    if (universal) { a.uniEssence = (a.uniEssence || 0) + universal; if (a.stats) bump(a.stats, 'uniGained', universal); }
     return { essence: toCard, universal };
   }
   // Au démarrage (anciens comptes) : l'essence en réserve au-delà du plafond devient de l'essence universelle, une pour une.
@@ -518,7 +527,7 @@ export function createProgress(store) {
       const over = e - essenceToMax(a.cardLevels?.[id] || 1, 0, cfg());
       if (over > 0) { n += over; a.essence[id] = e - over; if (!a.essence[id]) delete a.essence[id]; }
     }
-    if (n) a.uniEssence = (a.uniEssence || 0) + n;
+    if (n) { a.uniEssence = (a.uniEssence || 0) + n; if (a.stats) bump(a.stats, 'uniGained', n); }
     return n;
   }
   // Essence universelle échangée contre `amount` essence d'une carte possédée qui peut encore monter, au taux uniPerEssence,
@@ -534,6 +543,7 @@ export function createProgress(store) {
     if (have < price) throw new HttpError(409, `Il vous faut ${price} essence universelle (vous en avez ${have}).`);
     a.uniEssence = have - price;
     a.essence = { ...(a.essence || {}), [card]: (a.essence?.[card] || 0) + n };
+    if (a.level) { bump(a.stats, 'essenceConverts'); checkAchievements(a); }
     return { card, essence: n, price };
   }
   const levelsView = () => { const c = cfg();
@@ -565,7 +575,7 @@ export function createProgress(store) {
   function achievementsView(a) {
     const s = statsOf(a), c = cfg();
     return ACHIEVEMENTS.filter(x => !x.set || setRevealed(setById(x.set))).map(x => ({ id: x.id, group: x.group, label: x.label, goal: x.goal, value: Math.min(x.goal, statValue(s, x.stat)), done: !!a.achievements?.[x.id],
-      shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id], title: x.title || null, frame: x.frame ? FRAMES[x.frame] : null }));
+      shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id], title: x.title || null, frame: x.frame ? FRAMES[x.frame] : null, frameId: x.frame || null }));
   }
   function collectionView(a) {
     return SETS.filter(s => s.cards.length && setRevealed(s)).map(set => ({ id: set.id, name: set.name, done: !!a.completed?.[set.id], reward: SET_REWARDS[set.id] || null,
@@ -617,6 +627,6 @@ export function createProgress(store) {
     passPool: Object.fromEntries(Object.entries(PASS_KINDS).map(([k, x]) => [k, { daily: x.daily, weekly: x.weekly }])),
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
-  return { init, grant, cfg, events, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
+  return { init, grant, cfg, events, count, best, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
     seen: a => { a.inbox = []; }, setSeasonHook: f => { seasonHook = f; } };
 }

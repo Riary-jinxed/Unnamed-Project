@@ -3,8 +3,9 @@
 import { CARDS, GENERALS, FAMILIES } from './engine.js';
 import { TIERS, PLACES } from './ranked.js';
 import { SEASON_TITLES, SEASON_FRAMES, SEASON_BACKS } from './pass.js';
-import { ARTS, ART_THEMES } from './arts.js';
-import { CLAN_TITLES, CLAN_FRAMES, CLAN_BACKS } from './clans.js';
+import { ARTS, ART_THEMES, MAX_FAV_ARTS } from './arts.js';
+import { CLAN_TITLES, CLAN_FRAMES, CLAN_BACKS, CLAN_LEVELS } from './clans.js';
+import { DEFAULT_SETS, setOf } from './collection.js';
 
 // ---- Réglages chiffrés ----
 // Les valeurs par défaut sont justifiées dans la proposition d'économie (recompenses/economie.md).
@@ -134,6 +135,7 @@ export const FRAMES = {
   ...Object.fromEntries(SEASON_FRAMES),
   // Cadres du magasin de clan (clans.js).
   ...Object.fromEntries(CLAN_FRAMES),
+  // Cadres des paliers des familles d'arts : ajoutés plus bas (ART_THEME_FRAMES).
 };
 const FAM_KEY = { 'Ange': 'ange', 'Démon': 'demon', 'Gobelin': 'gobelin', 'Elfe': 'elfe', 'Dragon': 'dragon', 'Mort-vivant': 'mortvivant', 'Vampire': 'vampire', 'Hacker': 'hacker', 'Cyborg': 'cyborg' };
 export const famKey = fam => FAM_KEY[fam] || 'neutre';
@@ -211,6 +213,27 @@ export const rewardSourceOf = id => {
   return s ? { kind: 'set', set: s[0] } : null;
 };
 
+// ---- Paliers des familles d'arts ----
+// Une famille d'arts (arts.js) grandit quand un nouveau set apporte des arts sur ses cartes : chaque set qui l'agrandit ajoute un palier.
+// Un palier demande un nombre d'arts de la famille, d'où qu'ils viennent : le premier, autant d'arts qu'en avait la famille à sa création
+// (le titre de la famille, acquis pour de bon) ; le dernier, tous ses arts. Chaque palier au-delà du premier débloque un cadre de la famille
+// (cosmetics-art.js le dessine, ou un rendu provisoire à ses couleurs). Les arts d'une carte de récompense comptent avec le set qui la donne.
+const SET_ORDER = DEFAULT_SETS.map(s => s.id);
+const artSetIndex = a => Math.max(0, SET_ORDER.indexOf(rewardSourceOf(a.card)?.set || setOf(a.card)));
+export function themeTiers(t) {
+  const arts = Object.values(ARTS).filter(a => a.theme === t), steps = [...new Set(arts.map(artSetIndex))].sort((x, y) => x - y);
+  return steps.map((i, n) => ({ n: n + 1, set: SET_ORDER[i], setName: DEFAULT_SETS[i].name, arts: arts.filter(a => artSetIndex(a) <= i).map(a => a.id) }));
+}
+export const ART_FRAME_NAMES = { vitraux: 'Cadre du vitrail', saisons: 'Cadre des saisons', eclipse: 'Cadre de l\'Éclipse', tresors: 'Cadre du butin',
+  taverne: 'Cadre de la taverne', astral: 'Cadre astral', bannieres: 'Cadre aux bannières', bal: 'Cadre du bal masqué' };
+export const artFrameId = (t, set) => `art_${t}_${set}`;
+// [identifiant, nom] des cadres de familles d'arts : un par palier au-delà du premier (le deuxième porte le nom de la famille seul).
+export const ART_THEME_FRAMES = Object.entries(ART_THEMES).flatMap(([t, x]) => themeTiers(t).slice(1).map((tier, i) => {
+  const name = ART_FRAME_NAMES[t] || `Cadre ${x.name}`;
+  return [artFrameId(t, tier.set), i ? `${name} · ${tier.setName}` : name];
+}));
+Object.assign(FRAMES, Object.fromEntries(ART_THEME_FRAMES));
+
 // Famille d'une carte ou d'un général (null pour les neutres).
 export const familyOf = id => (GENERALS[id] ? GENERALS[id].fam : CARDS[id]?.kw.find(k => FAMILIES.includes(k))) || null;
 
@@ -249,9 +272,14 @@ export const ACHIEVEMENTS = [
   A('art10', 'Arts alternatifs', 'Posséder 10 arts alternatifs', 'arts', 10, 300, { prisms: 10 }),
   A('art20', 'Arts alternatifs', 'Posséder 20 arts alternatifs', 'arts', 20, 600, { chests: 1, title: 'Mécène' }),
   A('artLeg', 'Arts alternatifs', 'Obtenir un art légendaire', 'legendArts', 1, 200, { prisms: 10, title: 'Œil d\'or' }),
-  // Familles d'arts (arts.js) : posséder tous les arts d'une famille.
-  ...Object.entries(ART_THEMES).map(([t, x]) => A(`theme_${t}`, 'Arts alternatifs', `Compléter la famille d'arts ${x.name}`, `artThemes.${t}`,
-    Object.values(ARTS).filter(a => a.theme === t).length, 300, { prisms: 10, title: x.title })),
+  // Familles d'arts (arts.js) : palier par palier (themeTiers), un nombre d'arts de la famille quelle que soit leur provenance ;
+  // le dernier palier demande toute la famille. Le premier donne le titre de la famille, les suivants un cadre.
+  ...Object.entries(ART_THEMES).flatMap(([t, x]) => { const tiers = themeTiers(t);
+    return tiers.map((tier, i) => {
+      const n = tier.arts.length, label = i === tiers.length - 1 ? `Compléter la famille d'arts ${x.name}` : `Réunir ${n} arts de la famille ${x.name}`;
+      return i ? A(`theme_${t}_${tier.set}`, 'Arts alternatifs', label, `artThemes.${t}`, n, 400, { prisms: 15, frame: artFrameId(t, tier.set), set: tier.set })
+        : A(`theme_${t}`, 'Arts alternatifs', label, `artThemes.${t}`, n, 300, { prisms: 10, title: x.title, ...(tier.set !== SET_ORDER[0] ? { set: tier.set } : {}) });
+    }); }),
   A('chest10', 'Arts alternatifs', 'Ouvrir 10 coffres d\'arts', 'chests', 10, 200, { prisms: 10 }),
   A('up1', 'Niveaux de carte', 'Monter une carte au niveau 2', 'upgraded', 1, 50, { prisms: 1 }),
   A('up10', 'Niveaux de carte', 'Monter 10 cartes au niveau 2 ou plus', 'upgraded', 10, 200, { prisms: 5 }),
@@ -271,7 +299,26 @@ export const ACHIEVEMENTS = [
   A('login100', 'Connexion', 'Se connecter 100 jours', 'loginDays', 100, 800, { prisms: 20, chests: 1 }),
   A('perfect1', 'Connexion', 'Ne manquer aucun jour d\'un mois', 'perfectMonths', 1, 500, { chests: 1, title: 'Fidèle' }),
   A('perfect6', 'Connexion', 'Ne manquer aucun jour pendant 6 mois', 'perfectMonths', 6, 1500, { prisms: 30, chests: 3, title: 'Gardien du calendrier' }),
+  // Clans (clans.js) : comptés par le serveur des clans (progress.count et progress.best).
+  A('clan1', 'Clans', 'Rejoindre un clan', 'clanJoins', 1, 50, { prisms: 2 }),
+  A('clanMis10', 'Clans', 'Contribuer à 10 missions de clan accomplies', 'clanMissions', 10, 200, { prisms: 5, title: 'Pilier du clan' }),
+  A('clanMis50', 'Clans', 'Contribuer à 50 missions de clan accomplies', 'clanMissions', 50, 500, { prisms: 15 }),
+  A('clanDon500', 'Clans', 'Rapporter 500 Écus en dons au trésor du clan', 'clanDonated', 500, 300, { prisms: 10, title: 'Bienfaiteur' }),
+  A('clanLvlMax', 'Clans', `Faire partie d'un clan de niveau ${CLAN_LEVELS.length}`, 'bestClanLevel', CLAN_LEVELS.length, 600, { prisms: 20, chests: 1, title: 'Bâtisseur de clan' }),
+  // Événements temporaires (events.js) : parties jouées pendant qu'un événement a lieu.
+  A('event1', 'Événements', 'Jouer une partie pendant un événement', 'eventGames', 1, 50, { prisms: 2 }),
+  A('event25', 'Événements', 'Jouer 25 parties pendant des événements', 'eventGames', 25, 300, { prisms: 10, title: 'Toujours de la fête' }),
+  A('eventRk10', 'Événements', 'Gagner 10 parties classées pendant une semaine double points', 'eventRankedWins', 10, 300, { prisms: 10 }),
+  // Essence universelle et rayon Essence.
+  A('uni100', 'Essence', 'Recueillir 100 essence universelle', 'uniGained', 100, 100, { prisms: 3 }),
+  A('uni1000', 'Essence', 'Recueillir 1 000 essence universelle', 'uniGained', 1000, 500, { prisms: 15, title: 'Distillateur' }),
+  A('uniConv1', 'Essence', 'Échanger de l\'essence universelle contre l\'essence d\'une carte', 'essenceConverts', 1, 50, { prisms: 2 }),
+  A('essArt1', 'Essence', 'Obtenir un art de l\'édition Essence', 'essenceArts', 1, 100, { prisms: 5 }),
+  // Profil public et bordures de niveau.
+  A('fav3', 'Profil', `Choisir ${MAX_FAV_ARTS} arts préférés pour son profil public`, 'favArts', MAX_FAV_ARTS, 100, { prisms: 3, title: 'Galeriste' }),
+  A('border1', 'Profil', 'Choisir la bordure d\'une carte', 'bordersChosen', 1, 50, { prisms: 2 }),
 ];
+
 export const statValue = (stats, stat) => stat.split('.').reduce((o, k) => (o ? o[k] : 0), stats) || 0;
 
 // Tous les titres : ceux des succès, des familles et des sets.

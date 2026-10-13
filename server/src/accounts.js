@@ -405,7 +405,7 @@ export function createAccounts(store) {
   async function recordGame(a, info) { const reward = progress.onGame(a, info); gameHook(a, info); await store.put(a); return reward; }
   async function reroll(a, body) { await progress.reroll(a, body); await store.put(a); return { account: me(a) }; }
   async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
-  async function equip(a, body) { await progress.equip(a, body || {}); await store.put(a); return { account: me(a) }; }
+  async function equip(a, body) { await progress.equip(a, body || {}); progress.check(a); await store.put(a); return { account: me(a) }; }
   // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes le sont. Affiché par le panneau de fin (silent).
   async function lessonDone(a, { lesson } = {}) {
     const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l) throw new HttpError(400, 'Leçon inconnue.');
@@ -435,7 +435,7 @@ export function createAccounts(store) {
     return { card, shards: cost.shards, account: me(a) };
   }
   async function upgradeCard(a, body) { const level = await progress.upgradeCard(a, body || {}); progress.check(a); await store.put(a); return { level, account: me(a) }; }
-  async function borderCard(a, body) { progress.chooseBorder(a, body || {}); await store.put(a); return { account: me(a) }; }
+  async function borderCard(a, body) { progress.chooseBorder(a, body || {}); progress.check(a); await store.put(a); return { account: me(a) }; }
 
   // Administration : créer un compte, ou changer le mot de passe d'un compte existant.
   async function adminUpsert({ login, password, name, create }) {
