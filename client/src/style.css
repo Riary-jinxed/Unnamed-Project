@@ -568,9 +568,12 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
    Le dégradé est peint sous un cadre transparent (fond en deux couches), ce qui garde les coins arrondis de la carte. */
 .mc { --lvbg: var(--surface); } .hc { --lvbg: var(--surface); } .fc, .gencard { --lvbg: var(--bg); } .zoomcard { --lvbg: var(--surface); }
 .gencard.armed { --lvbg: color-mix(in srgb, var(--accent) 16%, var(--bg)); }
-.lv { border-left: 2px solid transparent; border-right: 2px solid transparent; border-bottom: 2px solid transparent;
-  background: linear-gradient(var(--lvbg), var(--lvbg)) padding-box, var(--lvg) border-box; }
-.fc.lv, .hc.lv, .zoomcard.lv { border-left-width: 3px; border-right-width: 3px; border-bottom-width: 3px; }
+/* habillage.css et les thèmes de saison, chargés après, redessinent le cadre des cartes et le fond des panneaux avec des sélecteurs
+   plus forts : la bordure passe donc par « :is(#app, body) » (le poids d'un id), sans quoi elle disparaissait sous leur cadre.
+   --lvfill : fond de la carte sous le cadre transparent, quand ce n'est pas une couleur unie (panneau de la carte en grand, habillage.css). */
+:is(#app, body) .lv { border-left: 2px solid transparent; border-right: 2px solid transparent; border-bottom: 2px solid transparent;
+  background: var(--lvfill, linear-gradient(var(--lvbg), var(--lvbg))) padding-box, var(--lvg) border-box; }
+:is(#app, body) :is(.fc, .hc, .zoomcard).lv { border-left-width: 3px; border-right-width: 3px; border-bottom-width: 3px; }
 .lv-bronze { --lvg: linear-gradient(135deg, #e7ad78, #8a4f22 55%, #d08b50); }
 .lv-argent { --lvg: linear-gradient(135deg, #ffffff, #8d96a2 55%, #e3e8ee); }
 .lv-or { --lvg: linear-gradient(135deg, #ffe7a0, #b07c0c 50%, #ffd45a); filter: drop-shadow(0 0 3px rgb(224 170 40 / .55)); }
@@ -587,8 +590,14 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .lvladder li { display: flex; align-items: center; gap: 8px; opacity: .7; }
 .lvladder li.done { opacity: 1; }
 .lvladder li > span:nth-child(2) { flex: 1; line-height: 1.25; }
-.lvladder .lvsw { flex: none; width: 22px; height: 28px; border-radius: 4px; border-top: 4px solid var(--fam, var(--f-neutre)); --lvbg: var(--bg); }
+.lvladder .lvsw, .bdopt .lvsw { flex: none; width: 22px; height: 28px; border-radius: 4px; border-top: 4px solid var(--fam, var(--f-neutre)); --lvbg: var(--bg); }
 .lvladder .ok { color: var(--up); font-weight: 700; }
+/* Menu « Bordure » (main.js, borderHTML) : une case par bordure obtenue, sur une ligne ; « Aucune » garde le cadre gris d'origine. */
+.bdopts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.bdopt { flex-direction: column; gap: 4px; text-align: center; padding: 8px 4px; }
+.bdopt > span:nth-child(2) { display: grid; font-size: 13px; }
+.bdopt small { font-size: 11px; }
+.bdopt .lvsw { border: 2px solid var(--line); border-top: 4px solid var(--fam, var(--f-neutre)); background: var(--bg); }
 .zoomcard.lv-up { animation: lvup .7s cubic-bezier(.2,.8,.2,1); }
 @keyframes lvup { 40% { transform: scale(1.04); box-shadow: 0 0 0 3px var(--accent), 0 0 30px 6px var(--accent); } }
 /* Effet de mise en jeu (niveau maximum) : la carte s'illumine, un anneau de lumière et des étincelles s'en échappent. */

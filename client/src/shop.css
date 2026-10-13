@@ -123,7 +123,14 @@ body[data-season="cyber"] .vit-velvet { background: radial-gradient(80% 60% at 5
   border: 1.5px solid #1a0f05; box-shadow: 0 2px 0 #000, 0 0 10px -2px rgb(240 196 84 / .8); transition: scale .1s; }
 .stall-info:hover { scale: 1.08; } .stall-info:active { scale: .92; }
 .stall-info:focus-visible { outline: 2px solid #fff3c0; outline-offset: 2px; }
+.stall-info.infobtn { position: static; flex: none; } /* le même « i » à côté du titre « Booster du set » */
 .panel.infobox { max-width: 440px; gap: 10px; }
+/* Boosters (main.js, boosterInfo) : un set par ligne, avec son nombre de cartes et son prix. */
+.boosterlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.boosterlist li { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+/* Booster d'un set : titre, « i » et boutons d'achat sur une ligne qui passe à la ligne au besoin ; la description est derrière le « i ». */
+.boosterrow { flex-wrap: wrap; gap: 8px; }
+.boosterrow .gal-h { flex: 1 0 auto; margin: 0; white-space: nowrap; }
 .closex { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; font-size: 24px; line-height: 1; }
 
 /* Rayon Change : bourses d'Éclats en vitrine (shardPileSVG), quatre de front, deux par ligne sur les petits écrans. */
