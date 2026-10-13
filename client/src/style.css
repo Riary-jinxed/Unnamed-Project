@@ -942,10 +942,10 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .medal .face { fill: var(--m-mid); stroke: var(--m-hi); stroke-width: 1.5; }
 .medal .ring { fill: none; stroke: var(--m-lo); stroke-width: 1; stroke-dasharray: 2 2; opacity: .7; }
 .medal .shine { fill: var(--m-hi); opacity: .55; }
-.medal-txt { position: absolute; left: 0; right: 0; top: 30px; height: 36px; display: grid; place-content: center; justify-items: center; line-height: 1; color: var(--m-ink);
+.medal-txt { position: absolute; left: 0; right: 0; top: 30px; height: 26px; display: grid; place-content: center; justify-items: center; gap: 1px; line-height: .95; color: var(--m-ink);
   text-shadow: 0 1px 0 rgb(255 255 255 / .45); font-family: var(--display); }
-.medal-txt b { font-size: 15px; font-weight: 800; }
-.medal-txt small { font-size: 9.5px; font-weight: 800; letter-spacing: .04em; }
+.medal-txt b { font-size: 13.5px; font-weight: 800; }
+.medal-txt small { font-size: 8.5px; font-weight: 800; letter-spacing: .03em; }
 @keyframes medalsway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
 .evcard { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #d98b2b; border-radius: 10px;
   background: linear-gradient(100deg, color-mix(in srgb, #d98b2b 26%, var(--surface)), var(--surface) 70%); }
