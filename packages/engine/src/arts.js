@@ -44,7 +44,6 @@ export const ARTS = Object.fromEntries([
   A('archange_jugement', 'archange', 'Archange du Jugement dernier', 'legendaire', { theme: 'eclipse' }),
   A('archange_vitrail', 'archange', 'Archange de verre', 'epique', { theme: 'vitraux' }),
   // Démons
-  A('morgrath_braises', 'morgrath', 'Morgrath dans les braises', 'rare'),
   A('vorgoth_cercle', 'vorgoth', 'Vorgoth et le cercle pourpre', 'epique', { theme: 'eclipse' }),
   A('diablotin_farceur', 'diablotin', 'Diablotin farceur', 'rare', { theme: 'taverne' }),
   A('archidemon_couronne', 'archidemon', 'Archidémon couronné', 'epique'),
@@ -55,7 +54,6 @@ export const ARTS = Object.fromEntries([
   A('grand_chef_totem', 'grand_chef', 'Grand-chef du totem', 'epique'),
   // Elfes
   A('sylvaen_automne', 'sylvaen', 'Sylvaën d\'automne', 'rare', { theme: 'saisons' }),
-  A('lirael_tempete', 'lirael', 'Lirael dans la tempête', 'epique'),
   A('rodeuse_eclipse', 'rodeuse', 'Rôdeuse de l\'éclipse', 'rare', { theme: 'eclipse' }),
   A('lirael_vitrail', 'lirael', 'Lirael en vitrail', 'rare', { theme: 'vitraux' }),
   A('feu_follet_lanterne', 'feu_follet', 'Feu follet des lanternes', 'rare'),
@@ -67,17 +65,22 @@ export const ARTS = Object.fromEntries([
   A('dragonnet_tresor', 'dragonnet', 'Dragonnet sur le trésor', 'rare', { theme: 'tresors' }),
   A('dragon_or_soleil', 'dragon_or', 'Dragon d\'or, soleil levant', 'legendaire', { theme: 'tresors' }),
   // Neutres
-  A('golem_mousse', 'golem', 'Golem moussu', 'rare'),
   A('barde_taverne', 'barde', 'Barde de la taverne', 'rare', { theme: 'taverne' }),
   A('wyrm_or', 'wyrm_tresor', 'Wyrm sur la montagne d\'or', 'epique', { theme: 'tresors' }),
-  // Promo
-  A('seraphine_pionniere', 'seraphine', 'Séraphine des pionniers', 'rare', { edition: 'promo', how: 'Offert aux premiers joueurs.' }),
   // Promo des passes de saison (pass.js) : season = mois de la saison ; cachés dans l'appli avant le début de leur saison.
   A('morgrath_citrouilles', 'morgrath', 'Morgrath, nuit des citrouilles', 'epique', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : palier 18.' }),
   A('grisk_farce', 'grisk', 'Grisk, farce ou friandise', 'legendaire', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : palier 38.' }),
   A('lirael_neon', 'lirael', 'Lirael sous les néons', 'epique', { edition: 'promo', season: '2026-11', how: 'Passe de saison Néon 2099 : palier 18.' }),
   A('vaelthar_chrome', 'vaelthar', 'Vael\'Thar chromé', 'legendaire', { edition: 'promo', season: '2026-11', how: 'Passe de saison Néon 2099 : palier 38.' }),
 ]);
+
+// Arts retirés du jeu : les joueurs qui en avaient un le perdent et reçoivent ces Prismes (accounts.js, au démarrage du serveur).
+export const RETIRED_ARTS = {
+  morgrath_braises: { name: 'Morgrath dans les braises', prisms: 60 },
+  lirael_tempete: { name: 'Lirael dans la tempête', prisms: 60 },
+  golem_mousse: { name: 'Golem moussu', prisms: 60 },
+  seraphine_pionniere: { name: 'Séraphine des pionniers', prisms: 60 },
+};
 
 // Les arts dont la carte existe (le catalogue publié depuis /admin peut en avoir retiré).
 export const artExists = id => { const a = ARTS[id]; return !!a && !!(CARDS[a.card] || GENERALS[a.card]); };

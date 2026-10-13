@@ -4,7 +4,7 @@ import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, setRevealed, dailyOffers, exchangeOffers, setBoosterPrice, shopOrder } from '@jeu/engine/collection';
 import { pick, CARDS, GENERALS } from '@jeu/engine';
-import { ART_RARITIES, RARITY_IDS } from '@jeu/engine/arts';
+import { ART_RARITIES, RARITY_IDS, RETIRED_ARTS } from '@jeu/engine/arts';
 import { SEASON_THEMES } from '@jeu/engine/pass';
 import { TUTO_LESSONS, levelCost } from '@jeu/engine/rewards';
 import { createProgress } from './progress.js';
@@ -93,13 +93,24 @@ export function createAccounts(store) {
   const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), tutoShards: progress.cfg().tutoShards });
   // Les nouvelles cartes rapportent de l'XP et peuvent compléter une famille ou un set.
   const add = (a, ids) => { const got = addCards(a, ids, cfg().shardsPerDuplicate, progress.essenceRate()); return { ...got, xp: progress.onCards(a, got.fresh) }; };
+  // Arts retirés du jeu (RETIRED_ARTS) : l'art quitte le compte, ses Prismes arrivent dans la boîte de récompenses.
+  function retireArts(a) {
+    const gone = Object.keys(a.arts || {}).filter(id => RETIRED_ARTS[id]);
+    for (const id of gone) {
+      delete a.arts[id];
+      for (const [card, sel] of Object.entries(a.artSel || {})) if (sel === id) delete a.artSel[card];
+      progress.grant(a, { kind: 'refund', label: `Art retiré du jeu : ${RETIRED_ARTS[id].name}, remboursé`, prisms: RETIRED_ARTS[id].prisms });
+    }
+    return gone.length;
+  }
   const ready = Promise.all(store.all().filter(a => {
-    const dup = convertDuplicates(a, cfg().shardsPerDuplicate), decks = migrateDecks(a), gens = grantStarterGenerals(a), prog = progress.init(a);
+    const dup = convertDuplicates(a, cfg().shardsPerDuplicate), decks = migrateDecks(a), gens = grantStarterGenerals(a), prog = progress.init(a), retired = retireArts(a);
     if (dup) console.log(`Doublons de ${a.login} convertis en Éclats.`);
     if (decks) console.log(`Deck de ${a.login} rangé dans ses decks.`);
     if (gens) console.log(`Généraux du deck de départ ajoutés à la collection de ${a.login}.`);
     if (prog) console.log(`Progression de ${a.login} créée (niveau ${a.level}).`);
-    return dup || decks || gens || prog;
+    if (retired) console.log(`${retired} art(s) retiré(s) remboursé(s) à ${a.login}.`);
+    return dup || decks || gens || prog || retired;
   }).map(a => store.put(a)));
   // Une fois le catalogue appliqué : familles et sets déjà complétés, succès déjà atteints.
   async function syncAll() {
