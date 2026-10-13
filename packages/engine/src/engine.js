@@ -760,7 +760,7 @@ export const DECKS = {
              cards: ['dragonnet_chrome', 'investissement', 'dragon_pdg', 'wyrm_cyber', 'dragonnet', 'gardien_magot', 'thesauriser', 'drake', 'wyverne', 'cavernes', 'rouge', 'ancien', 'dragon_or', 'mercenaire_augmente', 'golem'],
              terrains: ['tour_corpo', 'nid', 'sanctuaire', 'ruines', 'marche_noir'] },
   fantomes:{ set: 'set3', name: 'Fantômes du réseau', fam: 'Mort-vivant', general: 'spectre_ia',
-             cards: ['fantome_numerique', 'sauvegarde', 'zombie_cyber', 'liche_quantique', 'squelette', 'goule', 'fossoyeur', 'zombie', 'spectre', 'necromancien', 'chevalier_mort', 'seigneur_os', 'danse_macabre', 'reanimation', 'mercenaire_augmente'],
+             cards: ['fantome_numerique', 'sauvegarde', 'zombie_cyber', 'liche_quantique', 'squelette', 'goule', 'fossoyeur', 'zombie', 'spectre', 'necromancien', 'garde_securite', 'seigneur_os', 'danse_macabre', 'reanimation', 'mercenaire_augmente'],
              terrains: ['serveur', 'cimetiere', 'crypte', 'ruines', 'duel'] },
   donnees: { set: 'set3', name: 'Soif de données', fam: 'Vampire', general: 'selene',
              cards: ['siphonneuse', 'vampire_donnees', 'morsure_virale', 'comte_reseau', 'chauve_souris', 'novice', 'servante', 'rodeur_nuit', 'buveuse', 'comtesse', 'seigneur_vampire', 'prince_nuit', 'saignee', 'glitcheuse', 'golem'],
