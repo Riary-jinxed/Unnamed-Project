@@ -23,6 +23,9 @@ export const DEFAULT_REWARDS = {
   familyShards: 200, setShards: 1000, setBoosters: 3,
   // Niveaux de carte : essence de la carte gagnée par doublon, puis essence et Éclats pour passer au niveau n (2 à 5).
   essencePerDuplicate: 10,
+  // Essence universelle : un doublon d'une carte déjà au niveau maximum en donne uniPerDuplicate (son essence ne sert plus) ;
+  // uniPerEssence d'essence universelle s'échangent contre 1 essence d'une autre carte (boutique, rayon Essence, ou carte ouverte en grand).
+  uniPerDuplicate: 10, uniPerEssence: 2,
   lvl2Essence: 5, lvl2Shards: 50, lvl3Essence: 10, lvl3Shards: 100, lvl4Essence: 15, lvl4Shards: 200, lvl5Essence: 20, lvl5Shards: 400,
   // Mode classé : Éclats de fin de saison selon le meilleur palier atteint (ranked.js).
   rankShardsBronze: 50, rankShardsArgent: 100, rankShardsOr: 200, rankShardsPlatine: 350, rankShardsDiamant: 500, rankShardsMaitre: 800,
@@ -51,7 +54,7 @@ export const REWARD_LIMITS = {
   shardsPvpWin: [0, 10000], shardsPveWin: [0, 10000], shardsLoss: [0, 10000], gamesPerDay: [0, 100],
   xpNewCard: [0, 10000], missionsPerDay: [0, 6], missionRerolls: [0, 10],
   familyShards: [0, 100000], setShards: [0, 1000000], setBoosters: [0, 20],
-  essencePerDuplicate: [0, 1000],
+  essencePerDuplicate: [0, 1000], uniPerDuplicate: [0, 1000], uniPerEssence: [1, 1000],
   lvl2Essence: [0, 10000], lvl2Shards: [0, 100000], lvl3Essence: [0, 10000], lvl3Shards: [0, 100000],
   lvl4Essence: [0, 10000], lvl4Shards: [0, 100000], lvl5Essence: [0, 10000], lvl5Shards: [0, 100000],
   rankShardsBronze: [0, 100000], rankShardsArgent: [0, 100000], rankShardsOr: [0, 100000], rankShardsPlatine: [0, 100000], rankShardsDiamant: [0, 100000], rankShardsMaitre: [0, 100000],
@@ -155,6 +158,11 @@ export const CARD_LEVELS = [
 export const MAX_CARD_LEVEL = CARD_LEVELS.length - 1;
 // Essence et Éclats pour passer du niveau level − 1 à level.
 export const levelCost = (level, r = DEFAULT_REWARDS) => ({ essence: r[`lvl${level}Essence`], shards: r[`lvl${level}Shards`] });
+// Essence qui manque encore à une carte pour atteindre le niveau maximum (niveau actuel, essence en réserve).
+export const essenceToMax = (level, have, r = DEFAULT_REWARDS) => {
+  let need = 0; for (let n = level + 1; n <= MAX_CARD_LEVEL; n++) need += levelCost(n, r).essence;
+  return Math.max(0, need - have);
+};
 
 // ---- Complétion de famille et de set ----
 // Chaque famille complétée dans chaque set : Éclats, une carte unique qui soutient la famille, un titre et un dos de carte.

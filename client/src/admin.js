@@ -117,6 +117,7 @@ function renderDetail() {
       <div class="field"><label class="eyebrow" for="p-name">Pseudo</label><input id="p-name" maxlength="20" value="${esc(a.name)}"></div>
       <div class="field"><label class="eyebrow" for="p-shards">Éclats</label><input id="p-shards" type="number" min="0" step="1" value="${a.shards}"></div>
       <div class="field"><label class="eyebrow" for="p-prisms">Prismes</label><input id="p-prisms" type="number" min="0" step="1" value="${a.prisms}"><small class="hint">Monnaie des arts alternatifs.</small></div>
+      <div class="field"><label class="eyebrow" for="p-uni">Essence universelle</label><input id="p-uni" type="number" min="0" step="1" value="${a.uniEssence || 0}"><small class="hint">Doublons des cartes au niveau maximum ; se dépense au rayon Essence.</small></div>
       <div class="field"><label class="eyebrow" for="p-level">Niveau</label><input id="p-level" type="number" min="1" step="1" value="${a.level}">
         <small class="hint">${a.xp} XP dans ce niveau. Changer le niveau ne donne pas les récompenses des niveaux sautés.</small></div>
       <div class="field"><label class="eyebrow" for="p-free">Boosters offerts à ouvrir</label><input id="p-free" type="number" min="0" step="1" value="${a.freeBoosters}"></div>
@@ -195,10 +196,10 @@ function artsCatalog() {
   if (!st.arts) return '<p class="wait">Chargement des arts…</p>';
   const rows = st.arts.map(x => `<tr><td><b>${esc(x.name)}</b>${x.exists ? '' : ' <span class="chip off">carte absente</span>'}<br><small class="hint">${esc(x.id)}</small></td><td>${esc(CARDS[x.card]?.name || GENERALS[x.card]?.name || x.card)}</td>
     <td>${esc(x.rarityName)}${x.edition === 'promo' && x.how ? `<br><small class="hint">${esc(x.how)}</small>` : ''}</td>
-    <td class="num">${x.price === null ? '—' : x.price}</td><td class="num">${x.owners}</td></tr>`).join('');
+    <td class="num">${x.price === null ? '—' : x.edition === 'essence' ? `${x.price} essence` : x.price}</td><td class="num">${x.owners}</td></tr>`).join('');
   return `<div class="card-box" style="overflow-x:auto"><h2 style="font-size:20px">Catalogue des arts</h2>
     <p class="hint" style="margin:0">Les arts se déclarent dans <code>packages/engine/src/arts.js</code> et leurs images dans <code>client/src/art/alt/&lt;id&gt;/</code> ; sans image, l'appli montre un art provisoire.</p>
-    <table class="admin"><thead><tr><th>Art</th><th>Carte</th><th>Rareté</th><th>Prix (Prismes)</th><th>Joueurs</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    <table class="admin"><thead><tr><th>Art</th><th>Carte</th><th>Rareté</th><th>Prix (Prismes, ou essence universelle pour l'édition Essence)</th><th>Joueurs</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function renderShopSettings() {
   const s = st.settings, d = st.defaults;
@@ -221,6 +222,17 @@ function renderShopSettings() {
     ${field('dailyCards', 'Nombre de cartes du jour', 'Entre 1 et 10. Le changer renouvelle aussitôt les offres de tous.')}
     <div class="row"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="renew">Renouveler les offres de tous maintenant</button></div>
     <p class="hint" style="margin:0">Renouveler tire de nouvelles cartes du jour et de nouveaux arts du jour pour tous les joueurs ; ils peuvent alors en acheter de nouveau aujourd'hui.</p>
+  </form>
+  <form class="card-box" id="dup-settings">
+    <h2 style="font-size:20px">Doublons du jour et rayon Essence</h2>
+    <p class="hint" style="margin:0">Doublons du jour (onglet Sets de la boutique) : des cartes que le joueur possède et qui peuvent encore monter de niveau, celles de ses decks d'abord, renouvelées à minuit. Un doublon acheté donne l'essence d'un doublon (onglet Récompenses), sans les Éclats d'un doublon tiré.
+      Rayon Essence : les arts de l'édition Essence, toujours en vente, payés en essence universelle (les doublons d'une carte au niveau maximum ; taux d'échange dans l'onglet Récompenses).</p>
+    <div class="grid2">
+      ${field('dupOffers', 'Doublons du jour', 'Entre 0 et 10. 0 les retire de la boutique.')}
+      ${field('dupPrice', 'Prix d\'un doublon du jour', 'En Éclats.')}
+      ${RARITY_IDS.map(r => field(`essArtPrice_${r}`, `Art ${ART_RARITIES[r].name.toLowerCase()} de l'édition Essence`, 'En essence universelle.')).join('')}
+    </div>
+    <div class="row"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="dup-defaults">Revenir aux valeurs par défaut</button></div>
   </form>
   <form class="card-box" id="art-settings">
     <h2 style="font-size:20px">Arts alternatifs</h2>
@@ -264,7 +276,7 @@ app.addEventListener('submit', async e => {
     } catch (err) { say('', err.message); render(); }
     return;
   }
-  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), prisms: Number(v('p-prisms')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')), freeChests: Number(v('p-chests')) }, 'Profil enregistré.'); return; }
+  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), prisms: Number(v('p-prisms')), uniEssence: Number(v('p-uni')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')), freeChests: Number(v('p-chests')) }, 'Profil enregistré.'); return; }
   if (id === 'pass') {
     const password = v('p-pass');
     try {
@@ -274,12 +286,13 @@ app.addEventListener('submit', async e => {
     } catch (err) { say('', err.message); }
     render(); return;
   }
-  if (id === 'settings' || id === 'rotation' || id === 'art-settings') {
-    const keys = id === 'settings' ? ['cardPrice', 'boosterPrice', 'boosterSize', 'shardsPerDuplicate'] : id === 'rotation' ? ['dailyCards'] : ART_KEYS;
+  if (id === 'settings' || id === 'rotation' || id === 'art-settings' || id === 'dup-settings') {
+    const keys = id === 'settings' ? ['cardPrice', 'boosterPrice', 'boosterSize', 'shardsPerDuplicate'] : id === 'rotation' ? ['dailyCards'] : id === 'dup-settings' ? DUP_KEYS : ART_KEYS;
     saveSettings(Object.fromEntries(keys.map(k => [k, Number(v(`s-${k}`))])), 'Réglages enregistrés.');
   }
 });
 const ART_KEYS = ['artOffers', 'chestPrice', ...RARITY_IDS.map(r => `artPrice_${r}`), 'prismShards'];
+const DUP_KEYS = ['dupOffers', 'dupPrice', ...RARITY_IDS.map(r => `essArtPrice_${r}`)];
 async function loadArts() {
   try { st.arts = (await adminCall('GET', '/api/admin/arts')).arts; } catch (e) { say('', e.message); }
   render();
@@ -345,6 +358,7 @@ app.addEventListener('click', e => {
     }
     case 'give-art': { const id = document.getElementById('give-art')?.value; if (id) act('/api/admin/account/art', { art: id, give: true }, `Art « ${esc(ARTS[id].name)} » donné.`); break; }
     case 'give-theme': { const id = document.getElementById('give-theme')?.value; if (id) act('/api/admin/account/theme', { theme: id, give: true }, `Thème « ${esc(SEASON_THEMES[id])} » donné.`); break; }
+    case 'dup-defaults': saveSettings(Object.fromEntries(DUP_KEYS.map(k => [k, st.defaults[k]])), 'Doublons du jour et arts de l\'essence remis par défaut.'); break;
     case 'art-defaults': saveSettings(Object.fromEntries(ART_KEYS.map(k => [k, st.defaults[k]])), 'Prix des arts remis par défaut.'); break;
     case 'renew':
       if (confirm('Tirer de nouvelles cartes du jour pour tous les joueurs ?')) saveSettings({ renew: true }, 'Offres du jour renouvelées pour tous.');

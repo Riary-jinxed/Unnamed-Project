@@ -4,7 +4,7 @@
 // holoOff = { idCarte: true } pour les cartes dont le joueur a coupé le reflet holographique,
 // popOff = { idCarte: true } pour celles dont il a coupé le débordement du personnage.
 import { CARDS, GENERALS } from '@jeu/engine';
-import { ARTS, artExists, isClassic, artPrice, artOffers, chestPool, chestRates, weightedPick, rarityName } from '@jeu/engine/arts';
+import { ARTS, artExists, isClassic, artPrice, artOffers, chestPool, chestRates, weightedPick, rarityName, isEssenceArt, essenceArts, essenceArtPrice } from '@jeu/engine/arts';
 import { today } from '@jeu/engine/collection';
 import { HttpError } from './accounts.js';
 
@@ -35,10 +35,21 @@ export function createArts(store, cfg) {
     if (!art || !artExists(id)) throw new HttpError(400, 'Art inconnu.');
     if (owns(a, id)) throw new HttpError(409, 'Vous avez déjà cet art.');
     if (art.edition === 'promo') throw new HttpError(409, 'Cet art ne se vend pas : il s\'obtient en récompense.');
+    if (isEssenceArt(art)) throw new HttpError(409, 'Cet art se vend au rayon Essence, contre de l\'essence universelle.');
     const d = day(a);
     if (!isClassic(art) || !d.offers.includes(id)) throw new HttpError(400, 'Cet art n\'est plus en vente aujourd\'hui.');
     pay(a, artPrice(art, cfg()));
     d.bought.push(id); give(a, id);
+    return art;
+  }
+  // Rayon Essence : les arts de l'édition Essence, toujours tous en vente, payés en essence universelle (pay fourni par accounts.js).
+  const essenceView = a => essenceArts().map(art => ({ id: art.id, price: essenceArtPrice(art, cfg()), owned: owns(a, art.id) }));
+  function buyEssence(a, { art: id }, pay) {
+    const art = ARTS[id];
+    if (!art || !artExists(id) || !isEssenceArt(art)) throw new HttpError(400, 'Cet art ne se vend pas au rayon Essence.');
+    if (owns(a, id)) throw new HttpError(409, 'Vous avez déjà cet art.');
+    pay(a, essenceArtPrice(art, cfg()));
+    give(a, id);
     return art;
   }
   // Coffre : un art que le joueur n'a pas encore, au hasard selon sa rareté.
@@ -73,7 +84,7 @@ export function createArts(store, cfg) {
   // Catalogue avec le nombre de joueurs qui ont chaque art, pour l'onglet Boutique.
   function adminList() {
     const all = store.all();
-    return Object.values(ARTS).map(art => ({ ...art, exists: artExists(art.id), rarityName: rarityName(art), price: art.edition === 'promo' ? null : artPrice(art, cfg()),
+    return Object.values(ARTS).map(art => ({ ...art, exists: artExists(art.id), rarityName: rarityName(art), price: art.edition === 'promo' ? null : isEssenceArt(art) ? essenceArtPrice(art, cfg()) : artPrice(art, cfg()),
       owners: all.filter(x => owns(x, art.id)).length }));
   }
   // Donner (Promo, geste commercial) ou retirer un art.
@@ -84,5 +95,5 @@ export function createArts(store, cfg) {
     for (const [card, sel] of Object.entries(a.artSel || {})) if (sel === id) delete a.artSel[card];
   }
 
-  return { view, buy, chest, select, holo, pop, adminList, adminGive };
+  return { view, buy, essenceView, buyEssence, chest, select, holo, pop, adminList, adminGive };
 }
