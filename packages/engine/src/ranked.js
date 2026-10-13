@@ -31,11 +31,12 @@ export const tierOf = r => TIERS[rankOf(r).tier];
 
 // Nouveau rang après une partie classée. streak : victoires d'affilée en classé, celle-ci comprise.
 // foeR : rang de l'ami battu (défi classé) ; battre mieux classé que soi rapporte une étoile de plus.
-export function applyResult(r, { result, streak = 0, foeR = null }) {
+// mult : multiplicateur d'un événement « points de classé » (events.js), appliqué aux étoiles gagnées, bonus compris ; une défaite n'en tient pas compte.
+export function applyResult(r, { result, streak = 0, foeR = null, mult = 1 }) {
   const now = rankOf(r);
   if (result === 'win') {
     const bonus = (streak >= STREAK_BONUS && r < STREAK_BONUS_BELOW ? 1 : 0) + (foeR !== null && foeR > r ? 1 : 0);
-    return { r: r + 1 + bonus, bonus };
+    return { r: r + Math.max(1, Math.round((1 + bonus) * mult)), bonus };
   }
   if (result === 'loss') return { r: Math.max(now.floor, r - 1), bonus: 0 };
   return { r, bonus: 0 };

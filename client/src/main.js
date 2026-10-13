@@ -27,6 +27,7 @@ import { setHome } from './lobby.js';
 import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL, FAMILY_REWARDS, SET_REWARDS } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
+import { EVENT_EFFECTS, multLabel } from '@jeu/engine/events';
 import { SEASONS, PASS_TIERS, SEASON_THEMES, seasonOfCard, seasonStarted, seasonStart, currentSeason, releaseMonth } from '@jeu/engine/pass';
 import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName, chestPool, MAX_FAV_ARTS } from '@jeu/engine/arts';
 
@@ -471,7 +472,7 @@ function closeInbox() {
 // ---- Mode classé ----
 const rankHTML = k => `<span class="rank rank-${k.id}">${esc(k.label)}</span>${k.max ? ` <span class="rstars" role="img" aria-label="${k.stars} étoile${k.stars > 1 ? 's' : ''} sur ${k.max}">${'★'.repeat(k.stars)}<span class="off">${'★'.repeat(k.max - k.stars)}</span></span>` : ''}`;
 function rankedLine(k) {
-  const d = k.delta > 0 ? `+${k.delta} étoile${k.delta > 1 ? 's' : ''}${k.bonus ? ' (bonus compris)' : ''}` : k.delta < 0 ? `${k.delta} étoile` : 'rang inchangé';
+  const d = k.delta > 0 ? `+${k.delta} étoile${k.delta > 1 ? 's' : ''}${k.bonus ? ' (bonus compris)' : ''}${k.mult ? ` · <span class="evtag">${multLabel(k.mult)} événement</span>` : ''}` : k.delta < 0 ? `${k.delta} étoile` : 'rang inchangé';
   return `<p style="margin:0">Classé : ${rankHTML(k.after)} · ${d}${k.promoted ? ' · <b>Promotion !</b>' : ''}</p>`;
 }
 async function openRanked() {
@@ -502,7 +503,9 @@ function renderRanked() {
   const last = D?.last?.top.length ? `<div class="card-box"><span class="eyebrow">Podium de ${esc(D.last.seasonName)}</span>
     <ol class="ladder">${D.last.top.map(p => `<li class="${p.login === ui.account.login ? 'me' : ''}"><span class="lpos num">${p.pos}</span>
       ${who({ ...p, title: null })}<span class="lrank">${rankHTML(p.rank)}</span></li>`).join('')}</ol></div>` : '';
+  const evs = (prog().events?.live || []).filter(ev => ev.effect === 'ranked');
   return `${head}
+  ${evs.map(ev => eventCard(ev, `Chaque victoire classée rapporte ${multLabel(ev.mult)} étoiles, bonus de série compris. Une défaite n'en retire toujours qu'une.`)).join('')}
   <div class="card-box">
     <span class="eyebrow">Saison ${esc(R.seasonName)} · encore ${R.daysLeft} jour${R.daysLeft > 1 ? 's' : ''}</span>
     <h2 style="font-size:24px">${rankHTML(R.rank)}</h2>
@@ -612,12 +615,14 @@ function renderPass() {
       <small class="hint">Tous les ${P.bonusChest.every} XP de saison, pour tous : ${P.bonusChest.odds.shards} % de chances d'avoir ${P.bonusChest.shards} Éclats ${ico('shard')}, ${P.bonusChest.odds.prisms} % ${P.bonusChest.prisms} Prismes ${ico('prism')}, ${P.bonusChest.odds.essence} % ${P.bonusChest.essence} essence d'une de vos cartes.</small></div></div></div>`;
 }
 
+// Multiplicateurs d'événement appliqués aux gains d'une partie (XP ×2…).
+const eventTags = ev => Object.entries(ev || {}).map(([k, m]) => ` <span class="evtag">${multLabel(m)} ${esc(EVENT_EFFECTS[k]?.short || k)}</span>`).join('');
 // Fin de partie : XP, Éclats et niveau gagnés.
 function endRewardHTML() {
   const r = ui.mode === 'online' ? ui.view.reward : ui.soloReward;
   if (!r) return `<p class="hint" style="margin:0">${ui.auth ? 'Calcul des récompenses…' : ''}</p>`;
   return `<div class="endreward">${levelBar(r.progress)}
-    <p style="margin:0">${r.rewarded ? (gains(r) || 'Pas de gain pour cette partie.') : `Plus de récompense de partie aujourd'hui ; les missions avancent toujours.${r.passXp ? ` · +${r.passXp} XP de saison` : ''}`}${r.levelUp ? ` · <b>Niveau ${r.progress.level} !</b>` : ''}${r.missions ? ` · ${r.missions} mission${r.missions > 1 ? 's' : ''} accomplie${r.missions > 1 ? 's' : ''}` : ''}</p>${r.ranked ? rankedLine(r.ranked) : ''}</div>`;
+    <p style="margin:0">${r.rewarded ? (gains(r) || 'Pas de gain pour cette partie.') + eventTags(r.events) : `Plus de récompense de partie aujourd'hui ; les missions avancent toujours.${r.passXp ? ` · +${r.passXp} XP de saison` : ''}`}${r.levelUp ? ` · <b>Niveau ${r.progress.level} !</b>` : ''}${r.missions ? ` · ${r.missions} mission${r.missions > 1 ? 's' : ''} accomplie${r.missions > 1 ? 's' : ''}` : ''}</p>${r.ranked ? rankedLine(r.ranked) : ''}</div>`;
 }
 // Ce que l'écran de fin anime sur PixiJS (fx.js, setEnd) : les récompenses de la partie, une fois connues.
 function endReel() {
@@ -1000,12 +1005,14 @@ function renderHome() {
   // et autour des tuiles (passe, missions, calendrier) qui ouvrent chacune leur écran ou leur feuille.
   const hero = g ? heroHTML(d.general, mySel(d.general)) : '';
   const cal = p.calendar;
+  const ev = p.events;
   return `
   <div class="top hometop hud"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button>
     <button class="hud-id" data-act="profile"><b>${esc(a.name)}</b><span class="hud-lv num">Niv. ${p.level}<span class="bar" aria-hidden="true"><span style="width:${pct(p.xp, p.xpNext)}%"></span></span></span></button>
     <span class="wallet">${walletHTML()}</span>${mail.button()}${muteBtn()}</div>
   <div class="setup home lobby">
     ${gift}
+    ${ev ? eventsHTML(ev) : ''}
     <section class="showcase" style="${g ? famVar([g.fam]) : ''}" data-fam="${esc(g?.fam || '')}">
       <div class="sc-art">${hero || `<span class="sc-init" aria-hidden="true">${esc((g?.name || '?')[0])}</span>`}</div>
       ${p.ranked ? `<button class="sc-rank" data-act="ranked" aria-label="Classement">${rankHTML(p.ranked.rank)}<small>${esc(p.ranked.seasonName)}</small></button>` : ''}
@@ -1027,6 +1034,18 @@ function renderHome() {
     </div>
     ${p.ranked ? '<button class="learnline" data-act="learn">Apprendre à jouer : tutoriel et codex des mots-clés</button>' : ''}
   </div>`;
+}
+// ---- Événements temporaires ----
+// Week-end double XP, semaine double points de classé… : réglés depuis /admin, appliqués par le serveur (events.js du moteur).
+const evLeft = ev => (ev.daysLeft > 1 ? `encore ${ev.daysLeft} jours` : 'dernier jour');
+function eventCard(ev, text) {
+  return `<div class="card-box evcard ev-${esc(ev.effect)}"><span class="evmult num">${multLabel(ev.mult)}</span>
+    <div><span class="eyebrow">Événement · ${evLeft(ev)}</span><b>${esc(ev.name)}</b><small>${text}</small></div></div>`;
+}
+function eventsHTML(E) {
+  const live = E.live.map(ev => eventCard(ev, `${multLabel(ev.mult)} sur les ${esc(EVENT_EFFECTS[ev.effect]?.what || '')}, jusqu'au ${esc(frDate(ev.to))} à minuit.${ev.effect === 'ranked' ? ' <button class="evgo" data-act="ranked">Jouer en classé</button>' : ''}`)).join('');
+  const next = E.next ? `<p class="evnext">Bientôt : <b>${esc(E.next.name)}</b>, dès ${esc(frDate(E.next.from))}.</p>` : '';
+  return live + next;
 }
 // Monnaies du joueur, en haut de l'accueil : chacune ouvre le rayon de la boutique où elle se dépense.
 function walletHTML() {

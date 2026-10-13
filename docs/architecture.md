@@ -19,6 +19,7 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `@jeu/engine/catalog` | `catalog.js` | Catalogue modifiable depuis `/admin` (retouches, nouvelles cartes, sets). |
 | `@jeu/engine/rewards` | `rewards.js` | Niveaux, missions, succès, récompenses de complétion, titres, cadres, dos. |
 | `@jeu/engine/arts` | `arts.js` | Arts alternatifs : catalogue, raretés, arts Promo, offres du jour, coffre, prix en Prismes. |
+| `@jeu/engine/events` | `events.js` | Événements temporaires : bonus (XP, points de classé, Éclats, XP de saison), périodes (week-end, dernier week-end, dernière semaine du mois, dates), multiplicateur du jour. |
 | `@jeu/engine/pass` | `pass.js` | Passe de saison : saisons (cartes, cosmétiques, missions, arts Promo), paliers gratuits et premium, missions du jour et de la semaine. |
 
 ## Carte des fichiers

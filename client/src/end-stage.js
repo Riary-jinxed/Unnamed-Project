@@ -9,6 +9,7 @@
 // redessiner la page (render de main.js) ne fait que recaler la même scène au même instant.
 import { Application, Color, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import { play, buzz } from './sfx.js';
+import { multLabel } from '@jeu/engine/events';
 
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const ease = k => 1 - Math.pow(1 - k, 3);
@@ -50,10 +51,12 @@ async function boot() {
 function rowsOf(r) {
   const rows = [];
   if (!r.rewarded) rows.push({ kind: 'note', text: 'Plus de récompense de partie aujourd\'hui ; les missions avancent toujours.' });
-  if (r.xp) rows.push({ kind: 'xp', label: 'Expérience', n: r.xp, fmt: n => `+${n} XP` });
-  if (r.shards) rows.push({ kind: 'shard', label: 'Éclats', n: r.shards, fmt: n => `+${n}` });
+  // Événement en cours (week-end double XP…) : son multiplicateur suit le nom de la ligne.
+  const ev = k => (r.events?.[k] ? ` ${multLabel(r.events[k])}` : '');
+  if (r.xp) rows.push({ kind: 'xp', label: `Expérience${ev('xp')}`, n: r.xp, fmt: n => `+${n} XP` });
+  if (r.shards) rows.push({ kind: 'shard', label: `Éclats${ev('shards')}`, n: r.shards, fmt: n => `+${n}` });
   if (r.prisms) rows.push({ kind: 'prism', label: 'Prismes', n: r.prisms, fmt: n => `+${n}` });
-  if (r.passXp) rows.push({ kind: 'pass', label: 'XP de saison', n: r.passXp, fmt: n => `+${n}` });
+  if (r.passXp) rows.push({ kind: 'pass', label: `XP de saison${ev('passXp')}`, n: r.passXp, fmt: n => `+${n}` });
   if (r.missions) rows.push({ kind: 'mission', label: r.missions > 1 ? 'Missions accomplies' : 'Mission accomplie', n: r.missions, fmt: n => `${n}` });
   if (r.rewarded && !rows.length) rows.push({ kind: 'note', text: 'Pas de gain pour cette partie.' });
   if (r.ranked) rows.push({ kind: 'rank', k: r.ranked });
@@ -155,7 +158,7 @@ function buildRank(r, W) {
   c.addChild(new Graphics().rect(0, 0, W, 1).fill({ color: C.line, alpha: 0.6 }));
   const cap = txt('CLASSÉ', 11, C.muted, { ls: 2 }); cap.position.set(6, 8);
   const lab = txt(before.label, 16, C.ink, { font: DISPLAY }); lab.position.set(6, 22);
-  const d = k.delta > 0 ? `+${k.delta} étoile${k.delta > 1 ? 's' : ''}${k.bonus ? ' (bonus)' : ''}` : k.delta < 0 ? `${k.delta} étoile` : 'Rang inchangé';
+  const d = k.delta > 0 ? `+${k.delta} étoile${k.delta > 1 ? 's' : ''}${k.bonus ? ' (bonus)' : ''}${k.mult ? ` ${multLabel(k.mult)}` : ''}` : k.delta < 0 ? `${k.delta} étoile` : 'Rang inchangé';
   const sub = txt(d, 12, k.delta > 0 ? C.up : k.delta < 0 ? C.down : C.muted); sub.anchor.set(1, 0); sub.position.set(W - 6, 8);
   const stars = new Container(); stars.position.set(W - 6, 34);
   const promo = txt('PROMOTION !', 18, 0xfff0c0, { font: DISPLAY, weight: '900', stroke: 4, ls: 2 }); promo.anchor.set(0.5); promo.position.set(W / 2, 30); promo.alpha = 0;

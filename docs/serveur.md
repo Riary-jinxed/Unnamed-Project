@@ -28,6 +28,7 @@ Documents de la table `reglages` :
 | `recompenses` | onglet Récompenses | Valeurs qui remplacent `DEFAULT_REWARDS` (dont le calendrier : `loginShards`, `loginChests`, `loginPrisms` ; le passe de saison : `pass…`), missions, Éclats, Prismes et coffres des succès, objectifs des missions du passe (`passPool`) et missions de saison (`passMissions`). |
 | `brouillon` | onglets Cartes et Sets | Catalogue en cours de modification. |
 | `catalogue` | « Publier dans le jeu » | Catalogue publié, appliqué au moteur. |
+| `evenements` | onglet Événements | `{ list }` : événements temporaires (`events.js` du moteur). Absent ou vide : `DEFAULT_EVENTS`. |
 | `compteurs` | `activity.js` | Par jour (`AAAA-MM-JJ`, heure de Paris, 400 jours au plus) : boosters du jour, achetés et offerts ouverts, cartes du jour achetées, coffres d'arts ouverts, arts achetés, changes de Prismes en Éclats. Pour l'onglet Stats. |
 
 ## Compte joueur
@@ -74,6 +75,7 @@ Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDu
 | `games.js` | `createGames(store, accounts)` : enregistre les parties (JcJ par le serveur, JcE envoyées par l'appli), calcule les stats de `/admin` et du profil. |
 | `activity.js` | `createActivity(store)` : jours d'activité des joueurs (`seen`, appelé par le routeur), compteurs du jour (`count`, appelé par `accounts.js`), et leur synthèse pour l'onglet Stats (`stats`). |
 | `friends.js` | `createFriends(store, accounts, salons)` : amis et demandes, présence (qui est connecté, qui est en partie), défis entre amis. |
+| `events.js` | `createEvents(store)` : liste des événements temporaires (document `evenements`), multiplicateur du jour (`mult`), ce qu'en voit le joueur (`view` : en cours, prochain dans les 15 jours) et routes `/api/admin/events`. Créé par `progress.js` (`progress.events`), qui multiplie l'XP des parties, des missions et des nouvelles cartes, les Éclats et l'XP de saison des parties, et les étoiles d'une victoire classée. |
 | `mail.js` | `createMail(store, accounts, { notify })` : courrier (messages de `/admin` à tous ou à quelques joueurs, avec récompense facultative, documents `courrier`) et codes cadeaux (document `codes`, 10 codes faux par heure au plus). Comptes : `mail = { read, got, hidden }`, `redeemed`. Routes `/api/mail…`, `/api/redeem`, `/api/admin/mail…`, `/api/admin/codes…`. |
 | `notes-maj.js` | `NOTES_MAJ` : notes de mise à jour, envoyées une seule fois dans le courrier de tous les comptes existants au premier démarrage du serveur qui les contient (`publishNotes`, identifiants retenus dans `courrier.notes`). Pour une nouvelle note : l'ajouter en fin de liste avec un identifiant nouveau. |
 | `cards.js` | `createCatalog(store, accounts)` : brouillon du catalogue, publication (refusée si elle retire une carte qu'un joueur possède), catalogue public. |
@@ -138,6 +140,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `GET/POST /api/admin/settings` | Réglages de la boutique, prix des arts alternatifs compris (`renew: true` renouvelle les offres de tous). |
 | `GET /api/admin/arts`, `POST /api/admin/account/art` | Catalogue des arts avec le nombre de joueurs qui les ont ; donner (`give: true`, pour les Promo) ou retirer un art à un compte. |
 | `POST /api/admin/account/theme` | Donner (`give: true`) ou retirer un thème de saison (`cyber`, `halloween`) à un compte, par exemple pour tester le thème Néon avant le 2 novembre. Retiré, le joueur revient au thème du moment s'il l'avait choisi. |
+| `GET/POST /api/admin/events` | Événements temporaires : liste avec leur état (`live`, `period`), effets et périodes possibles. `POST { list }` remplace la liste (20 au plus), `{ reset: true }` revient aux événements par défaut. |
 | `GET/POST /api/admin/rewards` | Réglages des récompenses (`reset: true` revient aux valeurs par défaut). |
 | `GET /api/admin/stats?mode=&days=` | Stats des parties (`all`, `pvp`, `pve` ; sur N jours, 0 = tout), plus `activity` : comptes, joueurs actifs (aujourd'hui, 7 et 30 jours), compteurs de la période et courbe par jour (joueurs actifs, boosters ouverts). |
 | `GET/PUT /api/admin/catalog`, `POST …/publish`, `POST …/discard` | Brouillon du catalogue, publication, abandon du brouillon. |
@@ -197,7 +200,7 @@ Paliers, divisions, étoiles et saisons sont décrits dans `packages/engine/src/
 
 - **Contre l'IA** (`ranked` sur `/ws`, `index.js`) : le salon a un siège IA (`aiSeat` : nom « IA Or »…, `tries` selon le palier du joueur). Quand le joueur envoie son plan, le serveur calcule celui de l'IA (`aiPlan`) et joue le tour. La force de l'IA est relue à chaque revanche. La partie est enregistrée en `pve` avec `ranked: true`.
 - **Entre amis** : un défi `ranked` ouvre un salon `ranked: 'friend'` ; la partie est enregistrée en `pvp` avec `ranked: true`.
-- **Fin de partie** (`rankedResults`) : `progress.onRanked` met à jour le rang de chaque joueur (le rang de l'ami avant la partie sert au bonus) ; le résultat (`before`, `after`, `delta`, `bonus`, `promoted`) est ajouté à `reward.ranked`, affiché sur l'écran de fin. Les récompenses habituelles (XP, Éclats, missions) s'appliquent comme pour une partie non classée.
+- **Fin de partie** (`rankedResults`) : `progress.onRanked` met à jour le rang de chaque joueur (le rang de l'ami avant la partie sert au bonus) ; le résultat (`before`, `after`, `delta`, `bonus`, `mult` pendant un événement « points de classé », `promoted`) est ajouté à `reward.ranked`, affiché sur l'écran de fin. Les récompenses habituelles (XP, Éclats, missions) s'appliquent comme pour une partie non classée.
 - **Abandon** (`forfeit`) : quitter (`leave`) une partie classée en cours compte comme une défaite, et une victoire pour l'ami resté. Un salon classé qui expire compte comme une défaite pour le seul joueur déconnecté.
 - **Saisons** (`progress.syncSeason`) : au premier passage du joueur dans une nouvelle saison, il reçoit les récompenses de son meilleur palier de la saison précédente (Éclats `rankShards…`, réglables dans l'onglet Récompenses ; titre et cadre du palier et de ceux en dessous), puis celles de sa place s'il a fini dans le top 10 du classement final, puis redescend d'un palier.
 - **Classement** (`progress.ladder`) : les comptes qui ont joué au moins une partie classée cette saison, par rang, puis victoires.
