@@ -478,10 +478,10 @@ export const CARDS = {
   // Néon 2099 (novembre 2026) : le Drone harcèle en se déplaçant, le Netrunner pirate la main adverse, le Mécha largue un Drone.
   drone:       { set: 'saison', name: 'Drone éclaireur', type: 'C', cost: 2, power: 2, kw: [], mobile: true, text: 'Déplaçable. Déplacement : la créature adverse la plus puissante de la zone d\'arrivée perd 1.',
                  onMove: (c, st) => { const s = strongest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (s) buff(st, s, -1); } },
-  netrunner:   { set: 'saison', name: 'Netrunner', type: 'C', cost: 3, power: 2, kw: [], text: 'Révélation : piratage ! La carte la plus chère de la main adverse coûte 1 de plus, puis piochez 1 carte.',
+  netrunner:   { set: 'saison', name: 'Netrunner', type: 'C', cost: 3, power: 2, kw: [], text: 'Révélation : la carte la plus chère de la main adverse coûte 1 de plus, puis piochez 1 carte.',
                  onReveal: (c, st) => { const h = st.p[1 - c.owner].hand.filter(x => costOf(st, x) !== null);
                    if (h.length) { const t = h.reduce((a, b) => (costOf(st, b) > costOf(st, a) ? b : a)); t.discount = (t.discount || 0) + 1;
-                     log(st, `${who(st, 1 - c.owner)} : piratage, une carte de la main coûte 1 de plus.`, 'down'); }
+                     log(st, `${who(st, 1 - c.owner)} : le Netrunner s'infiltre, une carte de la main coûte 1 de plus.`, 'down'); }
                    draw(st, c.owner, 1, true); } },
   mecha:       { set: 'saison', name: 'Mécha de la mégapole', type: 'C', cost: 5, power: 5, kw: [], text: 'Révélation : créez un Drone éclaireur dans la zone où vous êtes le plus en retard.',
                  onReveal: (c, st) => { const z = bestZone(st, c.owner, -1); if (z !== null) summon(st, c.owner, z, 'drone'); } },
