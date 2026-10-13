@@ -496,14 +496,58 @@ body:has(#app.ingame) { margin: 0; }
 /* le bandeau ne cache pas le bas de la page */
 #app:has(.fbanner) { padding-bottom: 120px; }
 
-/* Tutoriel : bulle du guide (à la place de l'encadré d'info, ou en haut par-dessus une carte ouverte) et élément à toucher. */
-.coach { background: var(--surface); border: 2px solid var(--accent); border-radius: var(--r); padding: 8px 10px; display: grid; gap: 6px; font-size: 14px; line-height: 1.35; }
+/* Tutoriel : bulle de Séraphine, la guide (entre votre bandeau et la main, ou en haut par-dessus une carte ouverte), et élément à toucher.
+   Sur PixiJS (body.coached), stage-coach.js assombrit le reste et dessine le liseré : le contour CSS s'efface. */
+.coach { position: relative; display: grid; grid-template-columns: 50px minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; padding: 8px 10px 8px 8px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 88%, #fff 12%), var(--surface)); border: 1.5px solid var(--accent); border-radius: 14px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .5), 0 8px 22px rgb(0 0 0 / .45), 0 0 16px color-mix(in srgb, var(--accent) 22%, transparent); font-size: 14px; line-height: 1.3; }
 .coach p { margin: 0; }
-.coach .eyebrow { color: var(--accent); font-weight: 700; }
-.coach.float { position: fixed; top: 8px; left: 8px; right: 8px; max-width: 720px; margin-inline: auto; z-index: 11; box-shadow: 0 6px 20px rgb(0 0 0 / .25); }
+.coach p strong { color: var(--accent); }
+.coach-face { position: relative; width: 50px; height: 50px; border-radius: 50%; overflow: hidden; align-self: start; background: var(--sunk);
+  border: 2px solid var(--accent); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent); }
+.coach-face .gport-art { position: absolute; inset: 0; }
+.coach-body { min-width: 0; display: grid; gap: 2px; }
+.coach-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.coach-head b { font-family: var(--display); font-size: 13px; letter-spacing: .05em; color: var(--accent); }
+.coach-dots { display: flex; flex-wrap: wrap; gap: 3px; min-width: 0; }
+.coach-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--line); }
+.coach-dots i.past { background: var(--muted); }
+.coach-dots i.now { background: var(--accent); box-shadow: 0 0 5px var(--accent); }
+.coach-skip { margin-left: auto; background: none; border: 0; padding: 2px 4px; color: var(--muted); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.coach-next { align-self: end; }
+.coach.new { animation: coachin .38s cubic-bezier(.2, .8, .2, 1); }
+.coach.new .coach-face { animation: coachface .7s ease-out; }
+@keyframes coachin { from { opacity: 0; transform: translateY(10px) scale(.97); } }
+@keyframes coachface { 0% { box-shadow: 0 0 0 0 var(--accent); } 60% { box-shadow: 0 0 0 8px transparent; } }
+.coach.float { position: fixed; top: 8px; left: 8px; right: 8px; max-width: 720px; margin-inline: auto; z-index: 11; }
+/* Guide dans les menus (« Améliorer une carte ») : en bas de l'écran, au-dessus de la barre d'onglets. */
+.coach.float.bottom { top: auto; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 8; }
 .coach-hl { outline: 3px solid var(--accent); outline-offset: 2px; animation: coachhl 1s ease-in-out infinite alternate; }
 @keyframes coachhl { to { outline-color: transparent; } }
-@media (prefers-reduced-motion: reduce) { .coach-hl { animation: none; } }
+body.coached .coach-hl { outline-color: transparent; animation: none; }
+@media (prefers-reduced-motion: reduce) { .coach-hl, .coach.new, .coach.new .coach-face { animation: none; } }
+/* Initiation : pas de terrain, la case reste vide. */
+.terrain.none { visibility: hidden; }
+/* Apprendre : les leçons, numérotées. */
+.lessons { display: grid; gap: 8px; }
+.lesson { display: flex; align-items: center; gap: 12px; padding: 10px 12px; text-align: left; font: inherit; color: var(--ink); cursor: pointer;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); }
+.lesson:hover, .lesson:focus-visible { border-color: var(--accent); }
+.lesson-n { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: var(--accent-ink); background: var(--accent); }
+.lesson-t { display: grid; gap: 2px; min-width: 0; }
+.lesson-t b { font-family: var(--display); font-size: 16px; }
+.lesson-t small { color: var(--muted); font-size: 13px; }
+.lesson-r { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; color: var(--accent); font-weight: 700; font-size: 14px; }
+.lesson.done { opacity: .8; }
+.lesson.done .lesson-n { background: var(--up); }
+/* Cadeau de Séraphine (premier passage à l'accueil) : un doublon du général joué. */
+.panel.gift { text-align: left; }
+.gift-head { display: flex; align-items: center; gap: 12px; }
+.gift-head h2 { margin: 0; }
+.panel.gift p strong { color: var(--accent); }
+.gift-card { width: 150px; margin: 4px auto; animation: giftin .6s cubic-bezier(.2, .8, .2, 1); }
+@keyframes giftin { from { opacity: 0; transform: translateY(16px) rotate(-4deg) scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .gift-card { animation: none; } }
 
 /* Codex des mots-clés */
 .cxs { display: grid; gap: 8px; }

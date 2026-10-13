@@ -58,6 +58,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `friends`, `friendsIn`, `friendsOut` | Identifiants des amis, des demandes reçues et des demandes envoyées (100 amis au plus). |
 | `seasonPass` | Passe de saison du mois : `{ season, xp, premium, free, prem, day, week, sm, done }` (XP de saison, premium acheté, derniers paliers donnés sur chaque piste, missions du jour et de la semaine, avancement et missions de saison accomplies, `bonus` : coffres de fin de passe ouverts). Repart à zéro chaque saison. |
 | `ranked` | Mode classé : `{ season, r, best, games, wins, streak }` (saison `AAAA-MM`, rang en étoiles, meilleur rang de la saison, parties, victoires et série en classé). |
+| `tuto`, `tutoGift` | Leçons du tutoriel déjà récompensées (identifiants de `TUTO_LESSONS`) ; cadeau d'amélioration reçu (absent : l'appli le propose sur l'accueil, anciens comptes compris). |
 | `activeDays` | Derniers jours (90 au plus) où le joueur a utilisé l'appli connecté, ajoutés à sa première requête du jour. Pour l'onglet Stats ; jamais remis à zéro. |
 
 Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDuplicates`, `migrateDecks`, `grantStarterGenerals`, `progress.init`) ; rien n'est jamais supprimé de la base par ces mises à niveau.
@@ -111,6 +112,8 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/pass/premium` | Achète le premium en Prismes ; les récompenses premium des paliers déjà atteints sont données aussitôt. |
 | `POST /api/calendar/claim` | Récompense du jour du calendrier du mois (409 si déjà prise). Renvoie `got`. |
 | `PUT /api/arts/select` | `{ card, art }` : art affiché pour cette carte (`art: null` : l'illustration d'origine). |
+| `POST /api/tuto` | `{ lesson }` : leçon du tutoriel finie (`TUTO_LESSONS` du moteur). La première fois, donne `tutoShards` Éclats ; quand toutes sont finies, `tutoBoosters` boosters offerts. Renvoie `reward` (`kind: 'tuto'`, `shards`, `boosters`, `all`) et le compte. |
+| `POST /api/tuto/gift` | Cadeau d'amélioration, une seule fois après le deck de départ (`tutoGift === false`) : un doublon du général du deck joué, et de quoi le monter au niveau 2 (Éclats et essence complétés jusqu'au coût). Renvoie `card`, `shards` et le compte. |
 | `POST /api/cards/upgrade` | `{ card }` : monte une carte possédée d'un niveau contre son essence et des Éclats (`progress.upgradeCard`). |
 | `POST /api/games/solo` | Résultat d'une partie contre l'IA (non classée) → récompenses. |
 | `GET /api/ranked` | Mode classé : rang du joueur (`ranked`), classement de la saison (`ladder`), récompenses de fin de saison par palier (`rewards`) et par place au classement final (`places`), podium figé de la saison précédente (`last`, ou `null`). |

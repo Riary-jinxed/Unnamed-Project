@@ -42,6 +42,8 @@ export const DEFAULT_REWARDS = {
   // d'une carte (montants fixes).
   passTierXp: 400, passXpWin: 60, passXpLoss: 30, passBonusXp: 800, passBonusShards: 100, passBonusPrisms: 6, passBonusEssence: 10, passDaily: 2, passWeekly: 4, passXpDaily: 150, passXpWeekly: 500, passPrice: 100,
   passShards: 40, passPrisms: 10, passChests: 1, passPremiumPrisms: 4, passPremiumChests: 1, passCardMonths: 3,
+  // Tutoriel : Éclats pour chaque leçon finie la première fois, boosters offerts quand toutes le sont (TUTO_LESSONS).
+  tutoShards: 25, tutoBoosters: 1,
 };
 export const REWARD_LIMITS = {
   xpBase: [10, 100000], xpStep: [0, 100000], xpCap: [10, 1000000], levelShards: [0, 100000], boosterEvery: [0, 100],
@@ -60,7 +62,14 @@ export const REWARD_LIMITS = {
   passTierXp: [10, 100000], passXpWin: [0, 10000], passXpLoss: [0, 10000], passBonusXp: [10, 100000], passBonusShards: [0, 100000], passBonusPrisms: [0, 10000], passBonusEssence: [0, 10000],
   passDaily: [0, 6], passWeekly: [0, 10], passXpDaily: [0, 100000], passXpWeekly: [0, 100000], passPrice: [0, 100000],
   passShards: [0, 100000], passPrisms: [0, 10000], passChests: [0, 10], passPremiumPrisms: [0, 10000], passPremiumChests: [0, 10], passCardMonths: [0, 60],
+  tutoShards: [0, 10000], tutoBoosters: [0, 20],
 };
+
+// Leçons du tutoriel (client/src/tutorial.js, mêmes identifiants), dans l'ordre d'« Apprendre ». Chacune récompensée une fois.
+export const TUTO_LESSONS = [
+  { id: 'initiation', name: 'Initiation' }, { id: 'effets', name: 'Effets et sorts' }, { id: 'terrains', name: 'Terrains et déplacements' },
+  { id: 'generaux', name: 'Généraux' }, { id: 'complet', name: 'Partie complète' },
+];
 
 // XP pour passer du niveau `level` au suivant.
 export const xpToNext = (level, r = DEFAULT_REWARDS) => Math.min(r.xpCap, r.xpBase + r.xpStep * (level - 1));

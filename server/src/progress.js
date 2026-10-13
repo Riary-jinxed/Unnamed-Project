@@ -543,6 +543,6 @@ export function createProgress(store) {
     passPool: Object.fromEntries(Object.entries(PASS_KINDS).map(([k, x]) => [k, { daily: x.daily, weekly: x.weekly }])),
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
-  return { init, grant, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, upgradeCard, achievementsView, collectionView, saveSettings, settings,
+  return { init, grant, cfg, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, upgradeCard, achievementsView, collectionView, saveSettings, settings,
     seen: a => { a.inbox = []; } };
 }

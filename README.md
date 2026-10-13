@@ -73,7 +73,7 @@ La table `comptes` est créée toute seule au premier démarrage. Sans `DATABASE
 
 ## Jouer
 
-- **Tutoriel et codex** : à la première connexion, l'appli propose un tutoriel, une partie guidée contre l'IA avec un deck prêt à jouer ; il se relance depuis « Apprendre », en bas de l'accueil. Le codex, dans « Apprendre » et dans « Cartes », explique les règles et chaque mot-clé.
+- **Tutoriel et codex** : à la première connexion, le joueur entre directement dans une initiation de 4 tours guidée par Séraphine (écran assombri autour de ce qu'il faut toucher, main qui montre le geste), puis choisit son deck de départ ; un doublon offert de son général lui apprend ensuite à améliorer une carte. Cinq leçons (initiation, effets et sorts, terrains, généraux, partie complète) se relancent depuis « Apprendre », en bas de l'accueil : chacune rapporte des Éclats la première fois, et un booster est offert quand toutes sont finies. Le codex, dans « Apprendre » et dans « Cartes », explique les règles et chaque mot-clé.
 - **Se connecter** avec l'identifiant et le mot de passe donnés par l'administrateur (pas d'inscription).
 - À la première connexion, **choisir son deck de départ** : Grande Horde (Gobelin), Vents sylvestres (Elfe) ou Pacte infernal (Démon). Ses 15 cartes, ses 2 généraux de famille et les 2 généraux neutres forment la collection. Le choix est définitif.
 - **Généraux** : ils se collectionnent comme les cartes et sortent des boosters (quotidien, de set, cartes du jour). Un deck prend un général de sa collection ; ses terrains sont les neutres et ceux des familles dont on possède un général.

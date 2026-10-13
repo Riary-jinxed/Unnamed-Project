@@ -88,6 +88,8 @@ const SOUNDS = {
   rip: () => { noise({ dur: 0.32, freq: 1800, to: 6500, q: 0.7, vol: 0.32 }); noise({ dur: 0.12, freq: 500, type: 'lowpass', vol: 0.3, at: 0.02 }); },
   flip: () => { noise({ dur: 0.07, freq: 2600, to: 1100, q: 1.2, vol: 0.18 }); },
   toss: () => { noise({ dur: 0.16, freq: 700, to: 3200, q: 1, vol: 0.12 }); },
+  // Tutoriel : nouvelle consigne de Séraphine, deux notes douces.
+  coach: () => { tone(1047, { dur: 0.16, type: 'triangle', vol: 0.06 }); tone(1568, { dur: 0.3, type: 'triangle', vol: 0.05, at: 0.09 }); },
   shimmer: () => { [1568, 2093, 2637].forEach((f, i) => tone(f, { dur: 0.3, vol: 0.035, at: i * 0.07 })); },
   fresh: () => { noise({ dur: 0.1, freq: 2600, to: 1100, q: 1.2, vol: 0.18 }); [659, 880, 1319].forEach((f, i) => tone(f, { dur: 0.35, type: 'triangle', vol: 0.12, at: 0.05 + i * 0.06 })); },
   // Coffre d'arts : coup sur le coffre, lueur qui monte d'une rareté, ouverture.

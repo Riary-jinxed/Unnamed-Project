@@ -6,7 +6,7 @@ export const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)')
 
 // Plateau PixiJS (stage.js) : chargé au premier écran, seulement avec WebGL et sans « réduire les animations ».
 // Tant qu'il n'est pas prêt, ou s'il ne peut pas l'être, chaque effet garde sa version en CSS ci-dessous.
-let stage = null, gens = null, scene = null, entering = Promise.resolve(false);
+let stage = null, gens = null, coach = null, coachWant = null, scene = null, entering = Promise.resolve(false);
 const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
 const staged = () => stage?.active() ? stage : null;
 // Appelé à chaque rendu : la table PixiJS en partie, le décor animé (brume, braises, étincelles, chauves-souris à Halloween) dans les menus.
@@ -18,11 +18,20 @@ export function setInGame(app, on) {
   const go = () => {
     if (scene !== want) return;
     // Les généraux (portrait vivant, effet de pouvoir propre à chacun), les effets des cartes et le décor des menus viennent avec le plateau.
-    entering = Promise.all([import('./stage.js'), import('./stage-generals.js'), import('./stage-menu.js'), import('./stage-cards.js')])
-      .then(([m, g, mm, mc]) => m.enter(app, scene).then(ok => { if (!ok) return; stage = m; gens = g; g.start(); mm.start(); mc.start(); if (scene !== want) m.enter(app, scene); }))
+    entering = Promise.all([import('./stage.js'), import('./stage-generals.js'), import('./stage-menu.js'), import('./stage-cards.js'), import('./stage-coach.js')])
+      .then(([m, g, mm, mc, co]) => m.enter(app, scene).then(ok => { if (!ok) return; stage = m; gens = g; coach = co; g.start(); mm.start(); mc.start(); if (scene !== want) m.enter(app, scene); coachGuide(coachWant); }))
       .catch(err => { console.warn('Plateau PixiJS indisponible', err); return false; });
   };
   if (stage || on) go(); else (window.requestIdleCallback || (f => setTimeout(f, 1200)))(go, { timeout: 2500 });
+}
+// Guide du tutoriel (stage-coach.js) : { hl, drag, tap, text } de tutorial.js, ou null. Appelé après chaque rendu.
+// En partie comme dans les menus (guide « Améliorer une carte »). Sans PixiJS, rien : le contour CSS des cibles (.coach-hl)
+// reste seul ; avec, il laisse la place au liseré PixiJS.
+export function coachGuide(c) {
+  coachWant = c;
+  const on = !!(c && stage?.scene() && coach);
+  coach?.set(on ? c : null);
+  document.body.classList.toggle('coached', on);
 }
 // Le plateau de la scène demandée est-il prêt ? Le voile d'entrée en partie (veil.js) l'attend avant de s'effacer.
 export const stageReady = () => entering;
