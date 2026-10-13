@@ -29,12 +29,20 @@
   animation: holosparkle 2.6s ease-in-out infinite alternate; }
 @keyframes holosparkle { from { opacity: .15; } to { opacity: .8; } }
 /* Personnage qui sort du cadre (style.css, .perso-out) : son reflet à lui, posé sur tout le gabarit 960x1424 et découpé à la partie
-   du personnage hors de la fenêtre (--perso, posé par art.js). L'arc-en-ciel est recalé pour prolonger exactement celui de la carte. */
+   du personnage hors de la fenêtre (--perso, posé par art.js). Arc-en-ciel, atténuation au centre (--glare) et éclat sont recalés
+   sur ceux de la carte, pour que la partie qui déborde ait exactement le même reflet que le reste : les dégradés sont placés en
+   largeurs de carte (cqi, .art est un conteneur), la fenêtre commençant à (7.6923cqi, 23.0769cqi) et mesurant 100cqi x 140.3846cqi. */
 .zoomart.pop.holo .perso-foil { inset: auto; left: -7.6923%; top: -16.4384%; width: 115.3846%; height: 121.9178%; z-index: 3; border-radius: 0;
+  --ax: max(var(--tx), -1 * var(--tx)); --ay: max(var(--ty), -1 * var(--ty));
+  --glare: radial-gradient(circle hypot(calc((50 + var(--ax) * 40) * 1cqi), calc((70.1923 + var(--ay) * 56.1538) * 1cqi))
+    at calc(57.6923cqi - var(--tx) * 40cqi) calc(93.2692cqi - var(--ty) * 56.1538cqi), rgb(0 0 0 / .35), #000 75%);
   background-size: 100% 100%, 190.67% 180.45%;
   background-position: 0 0, calc(50% + var(--tx) * 51.62%) calc(44.41% + var(--ty) * 55.05%);
-  -webkit-mask: var(--perso) 0 0 / 100% 100% no-repeat, var(--hors-fenetre) 0 0 / 100% 100% no-repeat;
-  mask: var(--perso) 0 0 / 100% 100% no-repeat, var(--hors-fenetre) 0 0 / 100% 100% no-repeat; mask-composite: intersect; }
+  -webkit-mask: var(--glare), var(--perso) 0 0 / 100% 100% no-repeat, var(--hors-fenetre) 0 0 / 100% 100% no-repeat;
+  mask: var(--glare), var(--perso) 0 0 / 100% 100% no-repeat, var(--hors-fenetre) 0 0 / 100% 100% no-repeat; mask-composite: intersect, intersect; }
+.zoomart.pop.holo .perso-foil::after {
+  background: radial-gradient(circle hypot(calc((50 + var(--ax) * 50) * 1cqi), calc((70.1923 + var(--ay) * 70.1923) * 1cqi))
+    at calc(57.6923cqi + var(--tx) * 50cqi) calc(93.2692cqi + var(--ty) * 70.1923cqi), rgb(255 255 255 / .95), rgb(255 255 255 / .35) 25%, transparent 60%); }
 
 /* Sans capteur ni souris (ordinateur, ou avant le premier mouvement du téléphone) : le reflet ondule lentement tout seul. */
 @property --tilt-x { syntax: "<number>"; inherits: true; initial-value: 0; }

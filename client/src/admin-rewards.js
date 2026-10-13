@@ -21,8 +21,10 @@ const GROUPS = [
     ['setShards', 'Éclats : set complété'], ['setBoosters', 'Boosters offerts : set complété'],
     ['tutoShards', 'Éclats : leçon du tutoriel finie (une fois par leçon)'], ['tutoBoosters', 'Boosters offerts : toutes les leçons finies'],
   ]],
-  ['Niveaux de carte', 'Purement cosmétiques. Chaque doublon donne de l\'essence de la carte (en plus des Éclats par doublon de l\'onglet Boutique) ; essence et Éclats font monter la carte : bronze, argent, or, puis astral avec un effet de mise en jeu.', [
+  ['Niveaux de carte', 'Purement cosmétiques. Chaque doublon donne de l\'essence de la carte (en plus des Éclats par doublon de l\'onglet Boutique) ; essence et Éclats font monter la carte : bronze, argent, or, puis astral avec un effet de mise en jeu. Une fois l\'essence d\'une carte au plafond (de quoi la monter au niveau 5), ses doublons donnent de l\'essence universelle.', [
     ['essencePerDuplicate', 'Essence par doublon'],
+    ['uniPerDuplicate', 'Essence universelle par doublon d\'une carte au plafond', 'Une carte est au plafond quand son essence suffit à la monter jusqu\'au niveau 5, montée ou non : l\'essence de ses doublons au-delà devient de l\'essence universelle (ce nombre pour « Essence par doublon »).'],
+    ['uniPerEssence', 'Essence universelle pour 1 essence d\'une autre carte', 'Taux du rayon Essence de la boutique (au moins 1). Les prix des arts de l\'édition Essence se règlent dans l\'onglet Boutique.'],
     ...[2, 3, 4, 5].flatMap(n => [[`lvl${n}Essence`, `Niveau ${n} (${CARD_LEVELS[n].name}) : essence`], [`lvl${n}Shards`, `Niveau ${n} (${CARD_LEVELS[n].name}) : Éclats`]]),
   ]],
   ['Mode classé', 'Éclats et Prismes (monnaie des arts alternatifs) reçus à la fin de chaque saison (un mois) selon le meilleur palier atteint, puis en plus selon la place au classement final (figé à la fin du mois). Les titres et cadres sont fixes.',

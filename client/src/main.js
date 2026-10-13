@@ -139,11 +139,16 @@ const tutoKey = () => `tuto-${ui.account?.login || ''}`;
 function goTutorial(lesson = 'initiation') {
   store.set(tutoKey(), true); ui.tutoReward = null; ui.tutoSent = false;
   toTable('Séraphine vous attend…', () => {
+    // Depuis la fin d'une leçon (leçon suivante) ou depuis Passer en pleine leçon : on quitte proprement la précédente.
+    if (ui.ctrl) ui.ctrl.leave();
+    ui.view = null; ui.pending = []; ui.sel = null; ui.moveSel = null; ui.genZone = null;
     ui.mode = 'tuto'; ui.sheet = null; ui.lastTurn = 0; ui.error = '';
     ui.ctrl = startTutorial(handlers, { name: ui.account?.name || 'Vous', lesson });
     render();
   });
 }
+// Les leçons s'enchaînent dans l'ordre de LESSONS : la fin d'une leçon propose la suivante, et Passer y mène directement.
+const nextLesson = () => { const ks = Object.keys(LESSONS), i = ks.indexOf(ui.ctrl?.lesson); return i >= 0 ? ks[i + 1] || null : null; };
 // Leçon finie (une fois par partie jouée) : le serveur donne sa récompense la première fois, affichée dans le panneau de fin.
 function lessonDone() {
   if (ui.tutoSent || !ui.auth || !ui.ctrl?.lesson) return;
@@ -229,17 +234,16 @@ function doLogout() {
 function showCards(r, set = 'base') {
   const summary = () => { ui.booster = { ...r, opened: r.cards.length > 1 }; ui.sheet = 'booster'; render(); };
   if (r.cards.length < 2) { play('reveal'); summary(); return; }
-  const dup = `Doublon · +${shardRate()} Éclats${lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}`;
   openPack({ title: r.title, set, setName: esc(SETS.find(x => x.id === set)?.name || ''), back: prog().back,
     cards: r.cards.map((id, i) => ({ html: anyCard(id, myLevel(id), mySel(id)), fresh: !!r.fresh[i], general: !!GENERALS[id],
-      tag: r.fresh[i] ? (GENERALS[id] ? 'Nouveau général !' : 'Nouvelle carte !') : dup })) }, summary);
+      tag: r.fresh[i] ? (GENERALS[id] ? 'Nouveau général !' : 'Nouvelle carte !') : dupTag(id) })) }, summary);
 }
 async function openBoosterNow() {
   const r = await call('POST', '/api/booster');
   if (r) showCards(r, SETS.find(x => x.daily)?.id);
 }
 async function openShop(tab = ui.shopTab || 'sets') {
-  ui.screen = 'shop'; ui.shopTab = tab; ui.error = ''; render();
+  ui.screen = 'shop'; ui.shopTab = tab; ui.error = ''; ui.msg = ''; render();
   const r = await call('GET', '/api/shop');
   if (r) { ui.shop = r.shop; render(); }
 }
@@ -359,7 +363,8 @@ const pct = (n, d) => Math.max(0, Math.min(100, Math.round(100 * n / (d || 1))))
 const levelBar = p => `<div class="lvl"><span class="lvlnum num">Niv. ${p.level}</span><div class="bar" role="progressbar" aria-valuenow="${p.xp}" aria-valuemin="0" aria-valuemax="${p.xpNext}" aria-label="Expérience"><span style="width:${pct(p.xp, p.xpNext)}%"></span></div><small class="hint num">${p.xp}/${p.xpNext} XP</small></div>`;
 const gains = r => [r.xp ? `+${r.xp} XP` : '', r.shards ? `+${r.shards} Éclats` : '', r.prisms ? `+${r.prisms} Prisme${r.prisms > 1 ? 's' : ''}` : '',
   r.chests ? `+${r.chests} coffre${r.chests > 1 ? 's' : ''} d'arts offert${r.chests > 1 ? 's' : ''}` : '', r.boosters ? `+${r.boosters} booster${r.boosters > 1 ? 's' : ''} offert${r.boosters > 1 ? 's' : ''}` : '',
-  r.passXp ? `+${r.passXp} XP de saison` : '', r.essence ? `+${r.essence} essence${r.essenceCard ? ` de ${nameOf(r.essenceCard)}` : ''}` : ''].filter(Boolean).join(' · ');
+  r.passXp ? `+${r.passXp} XP de saison` : '', r.essence ? `+${r.essence} essence${r.essenceCard ? ` de ${nameOf(r.essenceCard)}` : ''}` : '',
+  r.uniEssence ? `+${r.uniEssence} essence universelle` : ''].filter(Boolean).join(' · ');
 const titleLabel = id => prog().cosmetics.titles.find(t => t.id === id)?.label || '';
 function missionsHTML() {
   const p = prog();
@@ -566,6 +571,23 @@ const myLevel = id => ui.account?.cardLevels?.[id] || 1;
 const essenceOf = id => ui.account?.essence?.[id] || 0;
 const lvInfo = () => prog().cardLevels || { essenceRate: 0, max: MAX_CARD_LEVEL, costs: {} };
 const nextCost = id => lvInfo().costs[myLevel(id) + 1] || null;
+// Essence universelle : une carte est au plafond quand son essence suffit à la monter jusqu'au niveau maximum (montée ou non) ;
+// ses doublons donnent alors de l'essence universelle, qui s'échange contre l'essence d'une autre carte.
+const uniOf = () => ui.account?.uniEssence || 0;
+const uniPer = () => lvInfo().uniPerEssence || 2;
+const toMax = id => { let need = 0; for (let n = myLevel(id) + 1; n <= MAX_CARD_LEVEL; n++) need += lvInfo().costs[n]?.essence || 0; return Math.max(0, need - essenceOf(id)); };
+const isCapped = id => toMax(id) === 0;
+// Ce qu'un doublon de cette carte vient de donner (booster, achat), pour son étiquette.
+const dupTag = id => `Doublon · +${shardRate()} Éclats${isCapped(id) ? (lvInfo().uniRate ? ` · +${lvInfo().uniRate} essence universelle` : '') : lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}`;
+// Essence qui manque à une carte pour son prochain niveau (0 : elle a de quoi monter, ou elle est au maximum).
+const missingEssence = id => { const c = nextCost(id); return c ? Math.max(0, c.essence - essenceOf(id)) : 0; };
+async function convertEssence(id, amount) {
+  const r = await call('POST', '/api/essence/convert', { card: id, amount });
+  if (!r) return;
+  if (r.shop) ui.shop = r.shop;
+  ui.msg = `+${r.essence} essence de ${nameOf(id)} contre ${r.price} essence universelle.`;
+  play('reveal'); render();
+}
 // Il manque des Éclats : le bouton reste actif si le change est ouvert, il propose alors une offre de change (lacksShards).
 const canUpgrade = id => { const c = nextCost(id); return !!(ui.account && ui.account.cards[id] && c && essenceOf(id) >= c.essence && (ui.account.shards >= c.shards || prismRate())); };
 // Classe de la bordure d'un niveau (style.css, « .lv-… »), vide au niveau de base.
@@ -585,11 +607,21 @@ function upgradeHTML(id) {
   const ladder = CARD_LEVELS.slice(2).map((x, i) => `<li class="${lvl >= i + 2 ? 'done' : ''}"><span class="lvsw lv lv-${x.look}"></span><span><b>Niv. ${i + 2} · ${x.name}</b> <small class="hint">${esc(x.perk)}</small></span>${lvl >= i + 2 ? '<span class="ok">✓</span>' : ''}</li>`).join('');
   const next = c ? `<div class="row" style="gap:8px"><div class="bar" style="flex:1" role="progressbar" aria-valuenow="${Math.min(ess, c.essence)}" aria-valuemin="0" aria-valuemax="${c.essence}" aria-label="Essence"><span style="width:${pct(ess, c.essence)}%"></span></div><small class="num">${ess}/${c.essence} essence</small></div>
       <button class="btn ${canUpgrade(id) ? 'primary' : ''}" data-act="upgrade" data-id="${id}" ${canUpgrade(id) && !ui.busy ? '' : 'disabled'}>Passer au niveau ${lvl + 1} · ${c.essence} essence + ${c.shards} Éclats</button>
-      ${ess < c.essence ? `<p class="hint">Chaque doublon de cette carte donne ${rate} essence.</p>` : ui.account.shards < c.shards ? `<p class="hint">Il vous manque ${c.shards - ui.account.shards} Éclats.</p>` : ''}`
-    : `<p class="hint">Niveau maximum atteint.${ess ? ` Essence en réserve : ${ess}.` : ''}</p>`;
+      ${ess < c.essence ? `<p class="hint">Chaque doublon de cette carte donne ${rate} essence.</p>${uniHTML(id)}` : ui.account.shards < c.shards ? `<p class="hint">Il vous manque ${c.shards - ui.account.shards} Éclats.</p>` : ''}
+      ${isCapped(id) ? `<p class="hint">Cette carte a déjà toute l'essence qu'il lui faut jusqu'au niveau ${MAX_CARD_LEVEL} : ses prochains doublons donnent ${lvInfo().uniRate} essence universelle ${ico('essence')} chacun.</p>` : ''}`
+    : `<p class="hint">Niveau maximum atteint. Ses doublons donnent maintenant ${lvInfo().uniRate} essence universelle ${ico('essence')} chacun, à échanger contre l'essence d'une autre carte ou un art du rayon Essence.</p>
+      <button class="btn" data-act="shop-essence">Rayon Essence · ${ico('essence')}${fmt(uniOf())}</button>`;
   return `<div class="zacts lvbox"><span class="eyebrow">Niveau de la carte · ${lvl}/${MAX_CARD_LEVEL}</span>
     <p class="hint">Purement cosmétique : la carte joue pareil à tous les niveaux. Votre adversaire voit sa bordure et son effet.</p>
     <ul class="lvladder">${ladder}</ul>${ui.msg ? `<p class="hint" role="status"><b>${esc(ui.msg)}</b></p>` : ''}${next}</div>`;
+}
+
+// Compléter l'essence du prochain niveau avec l'essence universelle (uniPerEssence pour 1), sur la carte ouverte en grand.
+function uniHTML(id) {
+  const miss = missingEssence(id), cost = miss * uniPer(), have = uniOf();
+  if (!miss || !have) return '';
+  return `<button class="btn ${have >= cost ? 'primary' : ''}" data-act="uni-convert" data-id="${id}" data-n="${miss}" ${have >= cost && !ui.busy ? '' : 'disabled'}>Compléter avec l'essence universelle · ${ico('essence')}${cost}</button>
+    <p class="hint">${have >= cost ? `Vous en avez ${fmt(have)} : ${uniPer()} pour 1 essence de cette carte.` : `Il vous en faut ${cost} (vous en avez ${fmt(have)}).`}</p>`;
 }
 
 // ---- Arts alternatifs (cosmétiques) ----
@@ -833,7 +865,7 @@ const coachHTML = (c, float = false) => {
   const dots = c.steps ? `<span class="coach-dots" aria-label="Étape ${c.step} sur ${c.steps}">${Array.from({ length: c.steps }, (_, i) => `<i class="${i + 1 < c.step ? 'past' : i + 1 === c.step ? 'now' : ''}"></i>`).join('')}</span>` : '';
   return `<div class="coach ${float ? 'float' : ''} ${float === 'bottom' ? 'bottom' : ''} ${c.text !== ui.coachShown ? 'new' : ''}" role="status" aria-live="polite">
   <span class="coach-face" aria-hidden="true">${portraitHTML('seraphine')}</span>
-  <div class="coach-body"><div class="coach-head"><b>Séraphine</b>${dots}${c.done ? '' : `<button class="coach-skip" data-act="${ui.screen === 'game' ? 'quit' : 'guide-skip'}">Passer</button>`}</div>
+  <div class="coach-body"><div class="coach-head"><b>Séraphine</b>${dots}${c.done ? '' : ui.screen !== 'game' ? '<button class="coach-skip" data-act="guide-skip">Passer</button>' : nextLesson() ? `<button class="coach-skip" data-act="tuto" data-lesson="${nextLesson()}" title="Passer à la leçon suivante">Passer</button>` : '<button class="coach-skip" data-act="quit">Passer</button>'}</div>
     <p>${coachText(c.text)}</p></div>
   ${c.info ? `<button class="btn primary sm coach-next" data-act="tuto-next">${c.done ? 'Terminer' : 'Suivant'}</button>` : ''}</div>`;
 };
@@ -979,13 +1011,14 @@ function renderCollection() {
 // Boutique : un espace par set ; les sets à venir y ont déjà leur place.
 // Deux onglets : les sets (cartes et boosters, en Éclats) et les arts alternatifs (en Prismes).
 function renderShop() {
-  const sh = ui.shop, a = ui.account, tab = ['arts', 'change'].includes(ui.shopTab) && sh?.arts ? ui.shopTab : 'sets';
+  const sh = ui.shop, a = ui.account, tab = ['arts', 'essence', 'change'].includes(ui.shopTab) && sh?.arts ? ui.shopTab : 'sets';
   const tabBtn = (id, label, badge) => `<button role="tab" data-act="shop-tab" data-tab="${id}" class="${tab === id ? 'on' : ''}" aria-selected="${tab === id}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
-  const top = `<div class="top"><span class="title">Boutique</span><span class="chip num cur" title="Éclats" aria-label="${a.shards} Éclats">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="Prismes" aria-label="${sh.arts.prisms} Prismes">${ico('prism')}${sh.arts.prisms}</span>` : ''}</div>
-    ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}${tabBtn('change', 'Change')}</div>` : ''}`;
+  const top = `<div class="top"><span class="title">Boutique</span><span class="chip num cur" title="Éclats" aria-label="${a.shards} Éclats">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="Prismes" aria-label="${sh.arts.prisms} Prismes">${ico('prism')}${sh.arts.prisms}</span>` : ''}${tab === 'essence' && sh?.essence ? `<span class="chip num cur uni" title="Essence universelle" aria-label="${sh.essence.universal} essence universelle">${ico('essence')}${fmt(sh.essence.universal)}</span>` : ''}</div>
+    ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}${sh.essence ? tabBtn('essence', 'Essence') : ''}${tabBtn('change', 'Change')}</div>` : ''}`;
   if (!sh) return `${top}${errLine()}<p class="wait">Chargement…</p>`;
   if (tab === 'arts') return `${top}${artStall(sh.arts)}${errLine()}${artShopHTML(sh.arts)}`;
   if (tab === 'change') return `${top}${errLine()}${exchangeHTML(sh.arts)}`;
+  if (tab === 'essence') return `${top}${errLine()}${essenceShopHTML(sh.essence)}`;
   const P = sh.prices;
   // Étal : un booster par set ouvert, le plus récent en premier (ordre du serveur) ; le toucher l'achète, ou ouvre un booster offert s'il en reste.
   // Chaque set a son prix de booster (une nouveauté coûte un peu plus) ; « Nouveau » sur le paquet du set le plus récent quand il y en a plusieurs.
@@ -1012,7 +1045,51 @@ function renderShop() {
         ${sh.freeBoosters ? `<button class="btn primary" data-act="free-booster" data-set="${set.id}" ${ui.busy ? 'disabled' : ''}>Ouvrir un booster offert (${sh.freeBoosters})</button>` : ''}</div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
       <p class="hint" style="margin:0">${esc(set.teaser)}</p></section>`; };
-  return `${top}${stall}${errLine()}${sh.sets.map(section).join('')}${mail.codeForm()}`;
+  return `${top}${stall}${errLine()}${dupsHTML(sh)}${sh.sets.map(section).join('')}${mail.codeForm()}`;
+}
+// Doublons du jour : des cartes possédées qui peuvent encore monter, en vitrine ; chacun donne l'essence d'un doublon.
+function dupsHTML(sh) {
+  if (!sh.dups?.length) return '';
+  const price = sh.prices.dupPrice, rate = lvInfo().essenceRate;
+  const vit = vitrineHTML({ title: 'Doublons du jour', sub: 'Pour monter vos cartes', cls: 'dupvit', slots: sh.dups.map(o => {
+    const d = CARDS[o.id], gen = GENERALS[o.id], name = esc(nameOf(o.id)), lvl = myLevel(o.id), c = nextCost(o.id);
+    return { art: artHTML(o.id, nameOf(o.id), lvl, '', mySel(o.id)), zoom: zoomKey(o.id, mySel(o.id) || ''), name, caption: false,
+      sub: c ? `Niv. ${lvl} · <span class="num">${essenceOf(o.id)}/${c.essence}</span> essence` : 'Niveau maximum', cost: gen ? null : d.x ? 'X' : d.cost,
+      style: `${famVar(gen ? [gen.fam] : d.kw)};--glow:var(--fam)`, badge: `+${rate} essence`,
+      state: o.bought ? 'sold' : o.capped ? 'owned' : 'sale', done: o.capped && !o.bought ? 'Essence au complet' : '', act: 'buy-dup', id: o.id, off: !canPay(price) || ui.busy,
+      price: `${ico('shard')}${price}`, label: `Acheter un doublon de ${name} pour ${price} Éclats` }; }) });
+  return `<section class="card-box shopset dupbox">
+    ${vit}
+    ${ui.msg && !ui.sheet && ui.shopTab !== 'essence' ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
+    <p class="hint" style="margin:0">Des cartes de votre collection à qui il manque encore de l'essence, celles de vos decks d'abord. Un doublon acheté donne ${rate} essence de la carte ; renouvelés chaque jour à minuit.</p>
+  </section>`;
+}
+// Rayon Essence : l'essence universelle (doublons des cartes au niveau maximum) contre l'essence d'une autre carte ou un art de l'édition Essence.
+function essenceShopHTML(E) {
+  if (!E) return '';
+  const per = uniPer(), have = E.universal;
+  const vit = vitrineHTML({ title: 'Arts de l\'essence', sub: 'Édition Essence · famille Astrale', timer: false, cls: 'essvit', slots: E.arts.map(o => { const art = ARTS[o.id], name = esc(art.name);
+    return { art: artHTML(art.card, nameOf(art.card), 1, '', art.id), zoom: zoomKey(art.card, art.id), name, cls: `rar-${rarityKey(art)}`, style: '--glow:var(--rar)',
+      sub: esc(nameOf(art.card)), badge: esc(rarityName(art)), state: o.owned ? 'owned' : 'sale',
+      act: 'buy-ess-art', id: o.id, off: have < o.price || ui.busy, price: `${ico('essence')}${o.price}`, label: `Acheter l'art ${name} pour ${o.price} essence universelle` }; }) });
+  return `<section class="card-box shopset essbox">
+    <div><span class="eyebrow">Rayon Essence</span><h2 style="font-size:22px">Essence universelle</h2></div>
+    <div class="unibal">${ico('essence')}<b class="num">${fmt(have)}</b><span class="hint">essence universelle</span></div>
+    <p class="hint" style="margin:0">Quand une carte a toute l'essence qu'il lui faut jusqu'au niveau ${MAX_CARD_LEVEL}, même sans être montée, chacun de ses doublons donne ${lvInfo().uniRate} essence universelle.
+      Pour donner de l'essence à une autre carte (${per} pour 1), ouvrez-la en grand dans la collection. Ici, elle s'échange contre les arts de l'édition Essence, vendus seulement dans ce rayon.</p>
+    ${ui.msg && !ui.sheet ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
+    ${vit}
+    <p class="hint" style="margin:0">Toujours en vente ici, jamais au coffre ni dans les arts du jour. Réunissez-les tous pour compléter la famille d'arts Astrale et gagner son titre.</p>
+  </section>`;
+}
+// Art de l'édition Essence acheté : montré en grand, prêt à être choisi pour sa carte (comme un art du jour).
+async function buyEssenceArt(id) { await buyArt('/api/shop/essence-art', { art: id }); }
+async function buyDup(id) {
+  const r = await call('POST', '/api/shop/dup', { card: id });
+  if (!r) return;
+  ui.shop = r.shop;
+  ui.msg = `+${r.essence} essence de ${nameOf(id)}${r.universal ? ` et ${r.universal} essence universelle` : ''}.${myLevel(id) < MAX_CARD_LEVEL && missingEssence(id) === 0 ? ' Elle peut monter de niveau dans la collection.' : ''}`;
+  play('reveal'); render();
 }
 // Prix d'un booster d'un set (le serveur l'envoie avec chaque set de la boutique).
 const boosterPriceOf = id => ui.shop?.sets.find(x => x.id === id)?.boosterPrice ?? ui.shop?.prices.boosterPrice;
@@ -1434,10 +1511,10 @@ function sheetHTML() {
   }
   if (ui.sheet === 'booster' && ui.booster) {
     const { title, cards, fresh, shards, xp } = ui.booster, n = fresh.filter(Boolean).length;
-    const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats${ui.booster.essence ? ` et ${ui.booster.essence} essence` : ''} gagnés avec les doublons` : '', xp ? `${xp} XP` : ''].filter(Boolean).join(', ');
+    const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats${[ui.booster.essence ? `${ui.booster.essence} essence` : '', ui.booster.universal ? `${ui.booster.universal} essence universelle` : ''].filter(Boolean).map(x => ` et ${x}`).join('')} gagnés avec les doublons` : '', xp ? `${xp} XP` : ''].filter(Boolean).join(', ');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${esc(title)}</h2><button class="btn" data-act="close">Fermer</button></div>
       <p class="hint" style="margin:0">${sum}.</p>
-      <div class="gallery ${ui.booster.opened ? 'opened' : ''}">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">Doublon · +${shardRate()} Éclats${lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}</span>`}${anyCard(id, myLevel(id), mySel(id))}</div>`).join('')}</div></div></div>`;
+      <div class="gallery ${ui.booster.opened ? 'opened' : ''}">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">${dupTag(id)}</span>`}${anyCard(id, myLevel(id), mySel(id))}</div>`).join('')}</div></div></div>`;
   }
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;
@@ -1447,7 +1524,8 @@ function sheetHTML() {
     if (ui.mode === 'tuto') return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p><div class="zs">${zs}</div>
       <p style="margin:0">${esc(ui.ctrl?.endText || '')}</p>${ui.tutoReward ? `<div class="rewards">${rewardItem(ui.tutoReward)}</div>
       ${ui.tutoReward.boosters ? '<p class="hint" style="margin:0">Toutes les leçons sont finies : votre booster offert vous attend sur l\'accueil.</p>' : ''}` : ''}<div class="row">
-      <button class="btn primary" data-act="quit">${ui.account?.starter ? 'Retour à l\'accueil' : 'Choisir mon deck'}</button><button class="btn" data-act="again">Rejouer la leçon</button>
+      ${nextLesson() ? `<button class="btn primary" data-act="tuto" data-lesson="${nextLesson()}">Leçon suivante : ${esc(LESSONS[nextLesson()].title)}</button>` : ''}
+      <button class="btn ${nextLesson() ? '' : 'primary'}" data-act="quit">${ui.account?.starter ? (nextLesson() ? 'Arrêter le tuto' : 'Retour à l\'accueil') : (nextLesson() ? 'Passer : choisir mon deck' : 'Choisir mon deck')}</button><button class="btn" data-act="again">Rejouer la leçon</button>
       ${ui.account?.starter ? '<button class="btn" data-act="codex">Ouvrir le codex</button>' : ''}</div></div></div>`;
     return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p>
       <div class="zs">${zs}</div>${endRewardHTML()}<div class="row">
@@ -1684,7 +1762,7 @@ app.addEventListener('pointerdown', e => {
 });
 function startDrag(e) {
   const r = drag.el.getBoundingClientRect(), g = drag.el.cloneNode(true);
-  g.classList.remove('sel', 'cant', 'msel'); g.classList.add('dragghost');
+  g.classList.remove('sel', 'cant', 'msel', 'coach-hl'); g.classList.add('dragghost');
   Object.assign(g.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
   drag.dx = e.clientX - r.left; drag.dy = e.clientY - r.top; drag.ghost = g; document.body.append(g);
   if (drag.kind === 'hand') { ui.sel = drag.uid; ui.moveSel = null; } else { ui.moveSel = drag.uid; ui.sel = null; }
@@ -1868,6 +1946,10 @@ app.addEventListener('click', e => {
     else if (a === 'shop-tab') { ui.shopTab = ds.tab; ui.msg = ''; ui.error = ''; render(); }
     else if (a === 'shop-arts') { ui.sheet = null; ui.calGot = null; openShop('arts'); }
     else if (a === 'exchange' && !ui.busy) exchange(ds.id);
+    else if (a === 'buy-dup' && !ui.busy) { const go = () => buyDup(ds.id); if (!lacksShards(ui.shop?.prices.dupPrice, 'acheter', go)) go(); }
+    else if (a === 'buy-ess-art' && !ui.busy) buyEssenceArt(ds.id);
+    else if (a === 'uni-convert' && !ui.busy) convertEssence(ds.id, +ds.n);
+    else if (a === 'shop-essence') { ui.sheet = null; ui.zoom = null; ui.msg = ''; openShop('essence'); }
     else if (a === 'shop-change') { ui.need = null; ui.sheet = null; ui.zoom = null; openShop('change'); }
     else if (a === 'chest-info') { ui.sheet = 'chest-info'; render(); }
     else if (a === 'calendar') { ui.sheet = 'calendar'; ui.calGot = null; render(); }

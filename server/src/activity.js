@@ -3,7 +3,7 @@
 import { today } from '@jeu/engine/collection';
 
 const KEEP_DAYS = 90, KEEP_COUNTERS = 400;
-export const COUNTERS = { boosterDaily: 'Booster du jour', boosterBought: 'Booster acheté', boosterFree: 'Booster offert', cardsBought: 'Cartes du jour achetées', chests: 'Coffres d\'arts', artsBought: 'Arts achetés', exchanges: 'Changes Prismes → Éclats' };
+export const COUNTERS = { boosterDaily: 'Booster du jour', boosterBought: 'Booster acheté', boosterFree: 'Booster offert', cardsBought: 'Cartes du jour achetées', chests: 'Coffres d\'arts', artsBought: 'Arts achetés', exchanges: 'Changes Prismes → Éclats', dupsBought: 'Doublons du jour achetés', essenceConverted: 'Échanges d\'essence universelle' };
 const dayOf = (ms = Date.now()) => today(new Date(ms));
 
 export function createActivity(store) {

@@ -3,7 +3,7 @@
 // Les nombres viennent du document « recompenses » (réglé depuis /admin), complété par les valeurs par défaut de rewards.js.
 // Chaque récompense gagnée est aussi rangée dans la boîte « inbox » du compte, que l'appli affiche puis vide.
 import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, ACHIEVEMENTS, familyReward, SET_REWARDS, TITLES, FRAMES, BACKS,
-  xpToNext, familyOf, statValue, missionLabel, MAX_CARD_LEVEL, levelCost, loginCalendar, loginReward, monthDays } from '@jeu/engine/rewards';
+  xpToNext, familyOf, statValue, missionLabel, MAX_CARD_LEVEL, levelCost, essenceToMax, loginCalendar, loginReward, monthDays } from '@jeu/engine/rewards';
 import { SETS, OWNABLE, today, setRevealed, setById } from '@jeu/engine/collection';
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { TIERS, PLACES, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics,
@@ -391,19 +391,19 @@ export function createProgress(store) {
     checkAchievements(a);
   }
   // Coffre de fin de passe : un prix au hasard (BONUS_ODDS), au montant fixe réglé dans /admin.
-  // L'essence va à une carte possédée qui peut encore monter de niveau (à défaut, n'importe quelle carte possédée).
+  // L'essence va à une carte possédée qui n'est pas au plafond d'essence ; si toutes le sont, elle devient de l'essence universelle.
   function openBonus(a, season, c) {
     let roll = Math.random() * 100, kind = 'shards';
     for (const [k, p] of Object.entries(BONUS_ODDS)) { if (roll < p) { kind = k; break; } roll -= p; }
     const label = `${season.name} : coffre de fin de passe`;
     if (kind === 'essence') {
-      const mine = OWNABLE.filter(id => a.cards?.[id]), open = mine.filter(id => (a.cardLevels?.[id] || 1) < MAX_CARD_LEVEL);
-      const card = shuffle(open.length ? open : mine)[0];
+      const mine = OWNABLE.filter(id => a.cards?.[id]), open = mine.filter(id => essenceRoom(a, id) > 0);
+      const card = shuffle(open)[0], n = c.passBonusEssence;
       if (card) {
-        const n = c.passBonusEssence;
-        a.essence = { ...(a.essence || {}), [card]: (a.essence?.[card] || 0) + n };
-        return push(a, { kind: 'pass', label, essence: n, essenceCard: card });
+        const got = giveEssence(a, card, n);
+        return push(a, { kind: 'pass', label, essence: got.essence, essenceCard: card, uniEssence: got.universal });
       }
+      if (mine.length) { a.uniEssence = (a.uniEssence || 0) + n; return push(a, { kind: 'pass', label, uniEssence: n }); }
       kind = 'shards';
     }
     grant(a, { kind: 'pass', label, [kind]: kind === 'shards' ? c.passBonusShards : c.passBonusPrisms });
@@ -465,8 +465,47 @@ export function createProgress(store) {
     a.cardLevels = { ...(a.cardLevels || {}), [card]: lvl + 1 };
     return lvl + 1;
   }
+  // Essence universelle : une carte est au plafond quand son essence en réserve suffit à la monter jusqu'au niveau maximum
+  // (montée ou non). L'essence qu'elle reçoit au-delà ne lui sert plus et devient de l'essence universelle.
+  const essenceRoom = (a, id) => essenceToMax(a.cardLevels?.[id] || 1, a.essence?.[id] || 0, cfg());
+  // Donne n essence d'une carte : ce qui tient sous le plafond va à la carte, le reste en essence universelle
+  // (uniPerDuplicate pour essencePerDuplicate d'essence, soit une pour une par défaut). Renvoie { essence, universal }.
+  function giveEssence(a, id, n) {
+    const c = cfg(), toCard = Math.min(n, essenceRoom(a, id));
+    if (toCard) a.essence = { ...(a.essence || {}), [id]: (a.essence?.[id] || 0) + toCard };
+    const universal = n > toCard && c.essencePerDuplicate ? Math.round((n - toCard) * c.uniPerDuplicate / c.essencePerDuplicate) : 0;
+    if (universal) a.uniEssence = (a.uniEssence || 0) + universal;
+    return { essence: toCard, universal };
+  }
+  // Au démarrage (anciens comptes) : l'essence en réserve au-delà du plafond devient de l'essence universelle, une pour une.
+  // Renvoie l'essence convertie.
+  function settleCapped(a) {
+    let n = 0;
+    for (const [id, e] of Object.entries(a.essence || {})) {
+      const over = e - essenceToMax(a.cardLevels?.[id] || 1, 0, cfg());
+      if (over > 0) { n += over; a.essence[id] = e - over; if (!a.essence[id]) delete a.essence[id]; }
+    }
+    if (n) a.uniEssence = (a.uniEssence || 0) + n;
+    return n;
+  }
+  // Essence universelle échangée contre `amount` essence d'une carte possédée qui peut encore monter, au taux uniPerEssence,
+  // sans dépasser ce qui manque à la carte pour atteindre le niveau maximum.
+  function convertEssence(a, { card, amount }) {
+    if (!OWNABLE.includes(card) || !a.cards?.[card]) throw new HttpError(400, 'Vous ne possédez pas cette carte.');
+    const lvl = a.cardLevels?.[card] || 1, c = cfg();
+    if (lvl >= MAX_CARD_LEVEL) throw new HttpError(409, 'Cette carte est déjà au niveau maximum.');
+    const n = Number(amount), room = essenceToMax(lvl, a.essence?.[card] || 0, c);
+    if (!Number.isInteger(n) || n < 1) throw new HttpError(400, 'Quantité d\'essence invalide.');
+    if (n > room) throw new HttpError(409, `Cette carte n'a plus besoin que de ${room} essence pour atteindre le niveau maximum.`);
+    const price = n * c.uniPerEssence, have = a.uniEssence || 0;
+    if (have < price) throw new HttpError(409, `Il vous faut ${price} essence universelle (vous en avez ${have}).`);
+    a.uniEssence = have - price;
+    a.essence = { ...(a.essence || {}), [card]: (a.essence?.[card] || 0) + n };
+    return { card, essence: n, price };
+  }
   const levelsView = () => { const c = cfg();
-    return { essenceRate: c.essencePerDuplicate, max: MAX_CARD_LEVEL, costs: Object.fromEntries(Array.from({ length: MAX_CARD_LEVEL - 1 }, (_, i) => [i + 2, levelCost(i + 2, c)])) }; };
+    return { essenceRate: c.essencePerDuplicate, uniRate: c.uniPerDuplicate, uniPerEssence: c.uniPerEssence, max: MAX_CARD_LEVEL,
+      costs: Object.fromEntries(Array.from({ length: MAX_CARD_LEVEL - 1 }, (_, i) => [i + 2, levelCost(i + 2, c)])) }; };
 
   // ---- Vues ----
   const levelView = a => ({ level: a.level || 1, xp: a.xp || 0, xpNext: xpToNext(a.level || 1, cfg()) });
@@ -543,6 +582,6 @@ export function createProgress(store) {
     passPool: Object.fromEntries(Object.entries(PASS_KINDS).map(([k, x]) => [k, { daily: x.daily, weekly: x.weekly }])),
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
-  return { init, grant, cfg, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, upgradeCard, achievementsView, collectionView, saveSettings, settings,
+  return { init, grant, cfg, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
     seen: a => { a.inbox = []; } };
 }
