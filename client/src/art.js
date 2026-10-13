@@ -71,6 +71,8 @@ const EMBLEMS = {
   Gobelin: '<g transform="rotate(35 50 50)"><path d="M47 8h6l3 52H44Z"/><path d="M36 60h28v6H36Z"/><path d="M46 66h8v16h-8Z"/><circle cx="50" cy="86" r="5"/></g><g transform="rotate(-35 50 50)"><path d="M47 8h6l3 52H44Z"/><path d="M36 60h28v6H36Z"/><path d="M46 66h8v16h-8Z"/><circle cx="50" cy="86" r="5"/></g>',
   Elfe: '<path fill-rule="evenodd" d="M50 6C22 28 20 64 50 94 80 64 78 28 50 6Zm-1 20h2v62h-2ZM36 52l13 9v3L35 55Zm28 0-13 9v3l14-9ZM39 38l10 8v3L38 41Zm22 0-10 8v3l11-8Z"/>',
   Dragon: '<path fill-rule="evenodd" d="M6 50C22 24 78 24 94 50 78 76 22 76 6 50Zm44-22c-7 8-7 36 0 44 7-8 7-36 0-44Z"/>',
+  Hacker: '<path fill-rule="evenodd" d="M10 18h80v54H10Zm6 6v42h68V24Zm8 10 14 11-14 11-4-5 8-6-8-6Zm22 18h20v6H46ZM36 78h28l4 8H32Z"/>',
+  Cyborg: '<path fill-rule="evenodd" d="M44 6h12l2 10 8 3 8-6 8 8-6 8 3 8 10 2v12l-10 2-3 8 6 8-8 8-8-6-8 3-2 10H44l-2-10-8-3-8 6-8-8 6-8-3-8-10-2V44l10-2 3-8-6-8 8-8 8 6 8-3Zm6 24a20 20 0 1 0 0 40 20 20 0 0 0 0-40Zm0 12a8 8 0 1 1 0 16 8 8 0 0 1 0-16Z"/>',
   neutre: '<path d="M50 6l9 29 30-6-21 21 21 21-30-6-9 29-9-29-30 6 21-21-21-21 30 6Z"/>',
 };
 const famOfId = id => CARDS[id]?.kw?.find(k => EMBLEMS[k]) || GENERALS[id]?.fam || TERRAINS[id]?.fam || null;

@@ -6,6 +6,7 @@
 // à chaque rendu, `check()` regarde `until()` ; une fois vrai, on attend `ready()` (le plateau PixiJS, les polices…)
 // et au moins `min` ms d'affichage, puis le voile s'efface. Il s'efface de toute façon au bout de 12 s.
 import { rich, famStyle } from './common.js';
+import { setById, setRevealed } from '@jeu/engine/collection';
 
 // jeu : règles et conseils de partie ; menu : collection, boutique, progression. Le texte passe par rich() (mots-clés en gras).
 const TIPS = [
@@ -27,6 +28,8 @@ const TIPS = [
   { k: 'jeu', f: 'Dragon', t: 'Dragons : les sceaux que vous ne dépensez pas remplissent votre Trésor, et vos Dragons en profitent.' },
   { k: 'jeu', f: 'Mort-vivant', t: 'Morts-vivants : une carte avec Relève défaussée de votre main entre en jeu gratuitement, avec +1.' },
   { k: 'jeu', f: 'Vampire', t: 'Vampires : le Drain peut viser une carte de la main ou du deck adverse, qui arrivera affaiblie.' },
+  { k: 'jeu', f: 'Hacker', set: 'set3', t: 'Hackers : un Malware pioché vous coûte une pioche. Une créature piratée garde sa puissance mais perd ses effets.' },
+  { k: 'jeu', f: 'Cyborg', set: 'set3', t: 'Cyborgs : gardez des sceaux en préparant votre tour, la Surcharge les dépense à la révélation.' },
   { k: 'menu', t: 'Le booster du jour est offert : revenez chaque jour pour l\'ouvrir.' },
   { k: 'menu', t: 'Chaque doublon tiré d\'un booster rapporte des Éclats et de l\'essence pour faire monter vos cartes de niveau.' },
   { k: 'menu', t: 'Une carte qui monte de niveau change de bordure, du bronze jusqu\'à l\'astral.' },
@@ -59,7 +62,7 @@ const $ = sel => (root || make()).querySelector(sel);
 
 // Une astuce au hasard (jamais deux fois la même d'affilée), dans les familles demandées.
 function nextTip() {
-  const pool = TIPS.map((x, i) => i).filter(i => !kinds || kinds.includes(TIPS[i].k));
+  const pool = TIPS.map((x, i) => i).filter(i => (!kinds || kinds.includes(TIPS[i].k)) && (!TIPS[i].set || setRevealed(setById(TIPS[i].set))));
   let i = pool[Math.floor(Math.random() * pool.length)];
   if (i === lastTip && pool.length > 1) i = pool[(pool.indexOf(i) + 1) % pool.length];
   lastTip = i;

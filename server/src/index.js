@@ -9,7 +9,7 @@ import { gzipSync } from 'node:zlib';
 import { WebSocketServer } from 'ws';
 import { DECKS, newGame, startTurn, runTurn, viewFor, aiPlan, pick, forfeitGame } from '@jeu/engine';
 import { tierOf } from '@jeu/engine/ranked';
-import { deckError } from '@jeu/engine/collection';
+import { deckError, aiDeckKeys } from '@jeu/engine/collection';
 import { openStore } from './store.js';
 import { createAccounts, apiHandler, activeDeck } from './accounts.js';
 import { createGames } from './games.js';
@@ -109,7 +109,7 @@ function lobby(room) {
 // L'IA d'une partie classée prend un deck préconstruit au hasard, et sa force suit le rang actuel du joueur.
 function startMatch(room) {
   if (room.ranked === 'ai') { const acc = accounts.byToken(room.seats[0].auth); if (acc) room.seats[1] = aiSeat(acc); }
-  const decks = room.seats.map(s => { if (s.ai) return pick(Object.keys(DECKS));
+  const decks = room.seats.map(s => { if (s.ai) return pick(aiDeckKeys());
     const acc = accounts.byToken(s.auth), d = acc && deckOf(acc, s.deckId); return d && !deckError(d, acc) ? d : s.deck; });
   room.decks = decks.map(d => (typeof d === 'string' ? DECKS[d].cards : d.cards));
   room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => (typeof d === 'string' ? null : d.general)) });

@@ -1,7 +1,7 @@
 // Moteur de règles : pur, sans DOM ni réseau. Partagé par le serveur (parties en ligne) et l'appli (partie contre l'IA).
 export const TURNS = 7, SLOTS = 4, HAND_MAX = 7, START_HAND = 3;
 export const ZONE_NAMES = ['Gauche', 'Centre', 'Droite'];
-export const FAMILIES = ['Ange', 'Démon', 'Gobelin', 'Elfe', 'Dragon', 'Mort-vivant', 'Vampire'];
+export const FAMILIES = ['Ange', 'Démon', 'Gobelin', 'Elfe', 'Dragon', 'Mort-vivant', 'Vampire', 'Hacker', 'Cyborg'];
 
 const isCreature = c => CARDS[c.id].type === 'C';
 const hasKw = (c, k) => CARDS[c.id].kw.includes(k);
@@ -12,7 +12,7 @@ const half = n => Math.floor(n / 2);
 // grace (fin de tour si tous les sceaux sont dépensés), onDestroyed, onAllyDestroyed, onMove, costFn (réduction de coût),
 // onInspire (pioche hors début de tour), onSpell (sort révélé), onSwitch (changement de camp).
 // Mots-clés : x (coût X), sacrifice (nombre de créatures à sacrifier), mobile (Déplaçable), token (jeton),
-// raise (Relève), egg (Œuf), set (set d'origine, « base » si absent).
+// raise (Relève), egg (Œuf), firewall (Pare-feu : jamais piratée), malware (jeton exécuté à la pioche), set (set d'origine, « base » si absent).
 export const CARDS = {
   // ANGE : Grâce
   cherubin:    { name: 'Chérubin', type: 'C', cost: 1, power: 1, kw: ['Ange'], text: 'Grâce : +1.',
@@ -267,6 +267,142 @@ export const CARDS = {
   chevalier:   { set: 'set2', name: 'Chevalier errant', type: 'C', cost: 3, power: 4, kw: [], text: '' },
   titan:       { set: 'set2', name: 'Titan des plaines', type: 'C', cost: 7, power: 11, kw: [], text: '' },
 
+  // ---- Set 3 : Cité Néon ----
+  // HACKER : Malware (cartes piégées dans le deck adverse) et Piratage (effets coupés)
+  script_kiddie:{ set: 'set3', name: 'Script-kiddie', type: 'C', cost: 1, power: 2, kw: ['Hacker'], text: 'Révélation : Malware 1.',
+                 onReveal: (c, st) => malware(st, c.owner, 1) },
+  brouilleur:  { set: 'set3', name: 'Brouilleur', type: 'C', cost: 1, power: 2, kw: ['Hacker'], text: 'Persistant : les créatures adverses piratées ici ont -1.',
+                 aura: (s, t) => t.owner !== s.owner && t.zone === s.zone && t.hacked ? -1 : 0 },
+  glitcheuse:  { set: 'set3', name: 'Glitcheuse', type: 'C', cost: 2, power: 1, kw: ['Hacker'], text: 'Révélation : Piratage sur la créature adverse la plus puissante ici.',
+                 onReveal: (c, st) => hack(st, strongestFoe(st, c)) },
+  injection:   { set: 'set3', name: 'Injection', type: 'S', cost: 1, power: 0, kw: ['Hacker'], text: 'Malware 2.',
+                 onReveal: (c, st) => malware(st, c.owner, 2) },
+  casseuse:    { set: 'set3', name: 'Casseuse de code', type: 'C', cost: 2, power: 2, kw: ['Hacker'], text: 'Révélation : Malware 1 (Rançongiciel).',
+                 onReveal: (c, st) => malware(st, c.owner, 1, 'rancon') },
+  fixer:       { set: 'set3', name: 'Fixer', type: 'C', cost: 3, power: 3, kw: ['Hacker'], text: 'Révélation : piochez 1 carte, puis Malware 1.',
+                 onReveal: (c, st) => { draw(st, c.owner, 1, true); malware(st, c.owner, 1); } },
+  fantome_reseau:{ set: 'set3', name: 'Hacker fantôme', type: 'C', cost: 3, power: 2, kw: ['Hacker'], text: 'Persistant : +1 par Malware exécuté chez l\'adversaire cette partie.',
+                 self: (c, st) => st.p[1 - c.owner].malwareRun || 0 },
+  coupe_circuit:{ set: 'set3', name: 'Coupe-circuit', type: 'S', cost: 2, power: 0, kw: ['Hacker'], text: 'Piratage du général adverse jusqu\'à la fin du tour suivant, puis Malware 1.',
+                 onReveal: (c, st) => { hackGeneral(st, 1 - c.owner); malware(st, c.owner, 1); } },
+  brise_glace: { set: 'set3', name: 'Brise-glace', type: 'C', cost: 4, power: 4, kw: ['Hacker'], text: 'Révélation : Piratage sur chaque créature adverse ici.',
+                 onReveal: (c, st) => creaturesAt(st, 1 - c.owner, c.zone).forEach(x => hack(st, x)) },
+  ver_polymorphe:{ set: 'set3', name: 'Ver polymorphe', type: 'C', cost: 4, power: 4, kw: ['Hacker'], text: 'Révélation : Malware 2 (Ver).',
+                 onReveal: (c, st) => malware(st, c.owner, 2, 'ver') },
+  ia_rebelle:  { set: 'set3', name: 'IA rebelle', type: 'C', cost: 5, power: 5, kw: ['Hacker'], text: 'Révélation : Malware 3 (un Virus, un Ver et un Rançongiciel).',
+                 onReveal: (c, st) => malware(st, c.owner, 3, 'mix') },
+  seigneur_reseau:{ set: 'set3', name: 'Seigneur du réseau', type: 'C', cost: 6, power: 7, kw: ['Hacker'], text: 'Révélation : Piratage sur la créature adverse la plus puissante de chaque zone, puis Malware 1.',
+                 onReveal: (c, st) => { [0, 1, 2].forEach(z => hack(st, strongest(st, creaturesAt(st, 1 - c.owner, z)))); malware(st, c.owner, 1); } },
+
+  // CYBORG : Surcharge (sceaux gardés pour la révélation) et Implant
+  gamin_augmente:{ set: 'set3', name: 'Gamin augmenté', type: 'C', cost: 1, power: 2, kw: ['Cyborg'], text: 'Surcharge 1 : +2.',
+                 onReveal: (c, st) => { if (overload(st, c, 1)) buff(st, c, 2); } },
+  charcudoc:   { set: 'set3', name: 'Charcudoc', type: 'C', cost: 2, power: 2, kw: ['Cyborg'], text: 'Révélation : Implant 2 sur votre autre créature la plus faible ici.',
+                 onReveal: (c, st) => implant(st, weakest(st, creaturesAt(st, c.owner, c.zone).filter(x => x !== c)), 2) },
+  samourai:    { set: 'set3', name: 'Samouraï des rues', type: 'C', cost: 2, power: 3, kw: ['Cyborg'], text: 'Surcharge 1 : +3.',
+                 onReveal: (c, st) => { if (overload(st, c, 1)) buff(st, c, 3); } },
+  bras_canon:  { set: 'set3', name: 'Bras-canon', type: 'C', cost: 3, power: 4, kw: ['Cyborg'], text: 'Surcharge 1 : la créature adverse la plus puissante ici perd 2.',
+                 onReveal: (c, st) => { const s = strongestFoe(st, c); if (s && overload(st, c, 1)) buff(st, s, -2); } },
+  implant_combat:{ set: 'set3', name: 'Implant de combat', type: 'S', cost: 1, power: 0, kw: ['Cyborg'], text: 'Implant 3 sur votre créature la plus faible ici.',
+                 onReveal: (c, st) => implant(st, weakest(st, creaturesAt(st, c.owner, c.zone)), 3) },
+  surtension:  { set: 'set3', name: 'Surtension', type: 'S', cost: 1, power: 0, kw: ['Cyborg'], text: 'Vos créatures ici gagnent +1. Surcharge 1 : +1 de plus chacune.',
+                 onReveal: (c, st) => { const l = creaturesAt(st, c.owner, c.zone); const n = l.length && overload(st, c, 1) ? 2 : 1; l.forEach(x => buff(st, x, n)); } },
+  chrome:      { set: 'set3', name: 'Solo chromé', type: 'C', cost: 3, power: 4, kw: ['Cyborg'], text: 'Persistant : +1 par Implant de vos créatures ici.',
+                 self: (c, st) => creaturesAt(st, c.owner, c.zone).reduce((s, x) => s + (x.implants || 0), 0) },
+  cyberpsycho: { set: 'set3', name: 'Cyberpsycho', type: 'C', cost: 3, power: 7, kw: ['Cyborg'], text: 'Fin de tour : perd 1.',
+                 onEndTurn: (c, st) => buff(st, c, -1) },
+  pilote_meca: { set: 'set3', name: 'Pilote de méca', type: 'C', cost: 4, power: 6, kw: ['Cyborg'], text: 'Surcharge 1 : Implant 1 sur vos autres créatures ici.',
+                 onReveal: (c, st) => { const l = creaturesAt(st, c.owner, c.zone).filter(x => x !== c); if (l.length && overload(st, c, 1)) l.forEach(x => implant(st, x, 1)); } },
+  colosse_augmente:{ set: 'set3', name: 'Colosse augmenté', type: 'C', cost: 5, power: 6, kw: ['Cyborg'], text: 'Révélation : Implant 1 sur chacune de vos créatures ici, celle-ci comprise.',
+                 onReveal: (c, st) => creaturesAt(st, c.owner, c.zone).forEach(x => implant(st, x, 1)) },
+  androide:    { set: 'set3', name: 'Androïde de combat', type: 'C', cost: 4, power: 5, kw: ['Cyborg'], text: 'Surcharge 2 : Implant 4 sur lui-même.',
+                 onReveal: (c, st) => { if (overload(st, c, 2)) implant(st, c, 4); } },
+  legende_chrome:{ set: 'set3', name: 'Légende chromée', type: 'C', cost: 6, power: 9, kw: ['Cyborg'], text: 'Persistant : vos autres créatures avec Implant ont +1.',
+                 aura: (s, t) => t !== s && t.owner === s.owner && t.implants ? 1 : 0 },
+
+  // ANGE : anges synthétiques (Implant)
+  ange_synthetique:{ set: 'set3', name: 'Ange synthétique', type: 'C', cost: 2, power: 2, kw: ['Ange'], text: 'Grâce : Implant 1 sur une autre de vos créatures ici.',
+                 grace: (c, st) => implant(st, weakest(st, creaturesAt(st, c.owner, c.zone).filter(x => x !== c)), 1) },
+  aureole:     { set: 'set3', name: 'Auréole chromée', type: 'S', cost: 1, power: 0, kw: ['Ange'], text: 'Implant 1 sur chacun de vos Anges ici.',
+                 onReveal: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Ange')).forEach(x => implant(st, x, 1)) },
+  seraphin_donnees:{ set: 'set3', name: 'Séraphin de données', type: 'C', cost: 4, power: 3, kw: ['Ange'], text: 'Révélation : Implant 1 sur vos autres Anges en jeu.',
+                 onReveal: (c, st) => mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Ange')).forEach(x => implant(st, x, 1)) },
+  archange_cyber:{ set: 'set3', name: 'Archange cybernétique', type: 'C', cost: 6, power: 5, kw: ['Ange'], text: 'Persistant : +1 par créature avec Implant que vous avez en jeu.',
+                 self: (c, st) => mine(st, c.owner).filter(x => x.implants).length },
+
+  // DÉMON : daemons du réseau (Malware)
+  daemon_parasite:{ set: 'set3', name: 'Daemon parasite', type: 'C', cost: 1, power: 1, kw: ['Démon'], text: 'Destruction : Malware 1.',
+                 onDestroyed: (c, st) => malware(st, c.owner, 1) },
+  possession:  { set: 'set3', name: 'Possession numérique', type: 'S', cost: 2, power: 0, kw: ['Démon'], text: 'Détruisez votre créature la plus faible ici, puis Malware 1 et piochez 1 carte.',
+                 onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, c.owner, c.zone)); if (w) destroy(st, w, c.owner); malware(st, c.owner, 1); draw(st, c.owner, 1, true); } },
+  daemon_corrupteur:{ set: 'set3', name: 'Daemon corrupteur', type: 'C', cost: 3, power: 3, kw: ['Démon'], text: 'Révélation : Malware 1 (Ver).',
+                 onReveal: (c, st) => malware(st, c.owner, 1, 'ver') },
+  archidaemon: { set: 'set3', name: 'Archidaemon', type: 'C', cost: 5, power: 7, kw: ['Démon'], sacrifice: 1, text: 'Sacrifice. Révélation : Malware 1.',
+                 onReveal: (c, st) => malware(st, c.owner, 1) },
+
+  // GOBELIN : bricoleurs (Surcharge)
+  bricoleur:   { set: 'set3', name: 'Gobelin bricoleur', type: 'C', cost: 1, power: 1, kw: ['Gobelin'], text: 'Surcharge 1 : Horde 2.',
+                 onReveal: (c, st) => { if (overload(st, c, 1)) horde(st, c.owner, c.zone, 2); } },
+  petaradeur:  { set: 'set3', name: 'Pétaradeur', type: 'C', cost: 2, power: 2, kw: ['Gobelin'], text: 'Surcharge 1 : la créature adverse la plus faible ici perd 2.',
+                 onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (w && overload(st, c, 1)) buff(st, w, -2); } },
+  ferrailleur: { set: 'set3', name: 'Ferrailleur', type: 'C', cost: 3, power: 3, kw: ['Gobelin'], text: 'Révélation : Horde 1. Surcharge 2 : Horde 3 à la place.',
+                 onReveal: (c, st) => horde(st, c.owner, c.zone, overload(st, c, 2) ? 3 : 1) },
+  meca_gobelin:{ set: 'set3', name: 'Méca-gobelin', type: 'C', cost: 4, power: 5, kw: ['Gobelin'], text: 'Surcharge 2 : chacune de vos Hordes gagne +3.',
+                 onReveal: (c, st) => { const h = hordes(st, c.owner); if (h.length && overload(st, c, 2)) h.forEach(x => buff(st, x, 3)); } },
+
+  // ELFE : technomanciens (Piratage)
+  technomancienne:{ set: 'set3', name: 'Technomancienne', type: 'C', cost: 2, power: 3, kw: ['Elfe'], text: 'Sortilège : +1, et Piratage sur la créature adverse la plus puissante dans la zone du sort.',
+                 onSpell: (c, st, z) => { buff(st, c, 1); hack(st, strongest(st, creaturesAt(st, 1 - c.owner, z).filter(x => !x.hacked))); } },
+  intrusion:   { set: 'set3', name: 'Sort d\'intrusion', type: 'S', cost: 1, power: 0, kw: ['Elfe'], text: 'Piratage sur la créature adverse la plus puissante ici ; elle perd 2.',
+                 onReveal: (c, st) => { const s = strongestFoe(st, c); if (s) { hack(st, s); buff(st, s, -2); } } },
+  decrypteuse: { set: 'set3', name: 'Elfe décrypteuse', type: 'C', cost: 3, power: 4, kw: ['Elfe'], text: 'Persistant : +3 si une créature adverse ici est piratée.',
+                 self: (c, st) => creaturesAt(st, 1 - c.owner, c.zone).some(x => x.hacked) ? 3 : 0 },
+  oracle_reseau:{ set: 'set3', name: 'Oracle du réseau', type: 'C', cost: 5, power: 6, kw: ['Elfe'], text: 'Révélation : Piratage sur la créature adverse la plus puissante ici. Persistant : les créatures adverses piratées ont -1.',
+                 onReveal: (c, st) => hack(st, strongestFoe(st, c)),
+                 aura: (s, t) => t.owner !== s.owner && t.hacked ? -1 : 0 },
+
+  // DRAGON : dragons corporatistes (Trésor et Implant)
+  dragonnet_chrome:{ set: 'set3', name: 'Dragonnet chromé', type: 'C', cost: 1, power: 1, kw: ['Dragon'], text: 'Fin de tour : si vous gardez au moins 1 sceau, Implant 1 sur lui-même.',
+                 onEndTurn: (c, st) => { if (st.p[c.owner].seals > 0) implant(st, c, 1); else return false; } },
+  investissement:{ set: 'set3', name: 'Investissement', type: 'S', cost: 1, power: 0, kw: ['Dragon'], text: 'Votre Trésor gagne +1. Implant 1 sur votre Dragon le plus faible ici.',
+                 onReveal: (c, st) => { st.p[c.owner].treasure += 1; log(st, `${who(st, c.owner)} : Trésor +1.`, 'up'); implant(st, weakest(st, creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Dragon'))), 1); } },
+  dragon_pdg:  { set: 'set3', name: 'Dragon PDG', type: 'C', cost: 6, power: 6, kw: ['Dragon'], text: 'Coûte 1 de moins par tranche de 3 de votre Trésor. Révélation : Implant 1 sur vos autres Dragons en jeu.',
+                 costFn: (st, p) => -Math.floor(st.p[p].treasure / 3),
+                 onReveal: (c, st) => mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Dragon')).forEach(x => implant(st, x, 1)) },
+  wyrm_cyber:  { set: 'set3', name: 'Wyrm cybernétique', type: 'C', cost: 7, power: 8, kw: ['Dragon'], text: 'Coûte 1 de moins par tranche de 3 de votre Trésor. Persistant : +1 par Implant de vos Dragons.',
+                 costFn: (st, p) => -Math.floor(st.p[p].treasure / 3),
+                 self: (c, st) => mine(st, c.owner).filter(x => hasKw(x, 'Dragon')).reduce((s, x) => s + (x.implants || 0), 0) },
+
+  // MORT-VIVANT : fantômes dans la machine (Relève et Malware)
+  fantome_numerique:{ set: 'set3', name: 'Fantôme numérique', type: 'C', cost: 1, power: 0, kw: ['Mort-vivant'], raise: true, text: 'Relève. Révélation : Malware 1.',
+                 onReveal: (c, st) => malware(st, c.owner, 1) },
+  sauvegarde:  { set: 'set3', name: 'Sauvegarde corrompue', type: 'S', cost: 1, power: 0, kw: ['Mort-vivant'], text: 'Défausse 1, puis Malware 1.',
+                 onReveal: (c, st) => { discardFromHand(st, c.owner, 1); malware(st, c.owner, 1); } },
+  zombie_cyber:{ set: 'set3', name: 'Zombie cybernétique', type: 'C', cost: 4, power: 4, kw: ['Mort-vivant'], raise: true, text: 'Relève.' },
+  liche_quantique:{ set: 'set3', name: 'Liche quantique', type: 'C', cost: 5, power: 4, kw: ['Mort-vivant'], text: 'Persistant : +1 par Malware exécuté chez l\'adversaire cette partie.',
+                 self: (c, st) => st.p[1 - c.owner].malwareRun || 0 },
+
+  // VAMPIRE : vampires de données (Drain et Piratage)
+  siphonneuse: { set: 'set3', name: 'Siphonneuse', type: 'C', cost: 1, power: 1, kw: ['Vampire'], text: 'Révélation : Drain 1 sur la créature adverse la plus faible ici ; Drain 2 si elle est piratée.',
+                 onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (w) drain(st, c, w, w.hacked ? 2 : 1); } },
+  vampire_donnees:{ set: 'set3', name: 'Vampire de données', type: 'C', cost: 2, power: 2, kw: ['Vampire'], text: 'Révélation : Piratage sur la créature adverse la plus puissante ici, puis Drain 1 sur elle.',
+                 onReveal: (c, st) => { const s = strongestFoe(st, c); if (!s) return; hack(st, s); drain(st, c, s, 1); } },
+  morsure_virale:{ set: 'set3', name: 'Morsure virale', type: 'S', cost: 2, power: 0, kw: ['Vampire'], text: 'Drain 2 sur la créature adverse piratée la plus puissante ici (à défaut, la plus puissante ici), au profit de votre Vampire le plus faible ici.',
+                 onReveal: (c, st) => { const foes = creaturesAt(st, 1 - c.owner, c.zone), h = foes.filter(x => x.hacked);
+                   drain(st, weakest(st, creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Vampire'))), strongest(st, h.length ? h : foes), 2); } },
+  comte_reseau:{ set: 'set3', name: 'Comte du réseau', type: 'C', cost: 4, power: 3, kw: ['Vampire'], text: 'Fin de tour : Drain 1 sur chaque créature adverse piratée ici.',
+                 onEndTurn: (c, st) => { const h = creaturesAt(st, 1 - c.owner, c.zone).filter(x => x.hacked); h.forEach(x => drain(st, c, x, 1)); if (!h.length) return false; } },
+
+  // NEUTRES
+  mercenaire_augmente:{ set: 'set3', name: 'Mercenaire augmenté', type: 'C', cost: 2, power: 2, kw: [], text: 'Révélation : Implant 1 sur lui-même.',
+                 onReveal: (c, st) => implant(st, c, 1) },
+  fixeuse:     { set: 'set3', name: 'Fixeuse', type: 'C', cost: 2, power: 1, kw: [], text: 'Révélation : une carte au hasard de votre main coûte 1 de moins.',
+                 onReveal: (c, st) => { const h = st.p[c.owner].hand.filter(x => (costOf(st, x) ?? 0) > 0); if (h.length) { const x = pick(h); x.discount = (x.discount || 0) - 1; log(st, `${who(st, c.owner)} : une carte de la main coûte 1 de moins.`, 'up'); } } },
+  tourelle:    { set: 'set3', name: 'Tourelle automatique', type: 'C', cost: 3, power: 2, kw: [], text: 'Fin de tour : la créature adverse la plus faible ici perd 1.',
+                 onEndTurn: (c, st) => { const w = weakest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (w) buff(st, w, -1); else return false; } },
+  garde_securite:{ set: 'set3', name: 'Garde de sécurité', type: 'C', cost: 3, power: 4, kw: [], firewall: true, text: 'Pare-feu : ne peut pas être piraté.' },
+  unite_securite:{ set: 'set3', name: 'Unité de sécurité', type: 'C', cost: 5, power: 7, kw: [], text: '' },
+
   // ---- Récompenses : jamais dans les boosters (voir rewards.js) ----
   // Une carte par famille complétée dans son set d'origine, et une carte Dieu par set complété.
   voix_aube:   { set: 'recompense', name: 'Voix de l\'Aube', type: 'C', cost: 4, power: 4, kw: ['Ange'], text: 'Révélation : +1 sceau au tour suivant. Grâce : vos autres créatures ici gagnent +1.',
@@ -305,6 +441,31 @@ export const CARDS = {
   dieu_set2:   { set: 'recompense', name: 'Solenne, Déesse de l\'Aube', type: 'C', cost: 6, power: 7, kw: ['Ange'], text: 'Révélation : +2 sceaux au tour suivant. Grâce : vos Anges gagnent +1.',
                  onReveal: (c, st) => { st.p[c.owner].bonusSeals += 2; log(st, `${who(st, c.owner)} : +2 sceaux au tour suivant.`, 'up'); },
                  grace: (c, st) => mine(st, c.owner).filter(x => hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)) },
+  // Familles complétées dans la Cité Néon : une carte par famille, sur la mécanique de son soutien dans ce set.
+  architecte_chaos:{ set: 'recompense', name: 'Architecte du chaos', type: 'C', cost: 4, power: 4, kw: ['Hacker'], text: 'Révélation : Malware 2, puis Piratage sur la créature adverse la plus puissante ici.',
+                 onReveal: (c, st) => { malware(st, c.owner, 2); hack(st, strongestFoe(st, c)); } },
+  chrome_absolu:{ set: 'recompense', name: 'Chrome absolu', type: 'C', cost: 4, power: 4, kw: ['Cyborg'], text: 'Révélation : Implant 1 sur vos autres créatures ici. Surcharge 1 : Implant 2 sur lui-même.',
+                 onReveal: (c, st) => { creaturesAt(st, c.owner, c.zone).filter(x => x !== c).forEach(x => implant(st, x, 1)); if (overload(st, c, 1)) implant(st, c, 2); } },
+  ange_grille: { set: 'recompense', name: 'Ange de la Grille', type: 'C', cost: 4, power: 4, kw: ['Ange'], text: 'Révélation : Implant 1 sur chacune de vos autres créatures ici.',
+                 onReveal: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => x !== c).forEach(x => implant(st, x, 1)) },
+  daemon_racine:{ set: 'recompense', name: 'Daemon racine', type: 'C', cost: 4, power: 7, kw: ['Démon'], sacrifice: 1, text: 'Sacrifice. Révélation : Malware 2.',
+                 onReveal: (c, st) => malware(st, c.owner, 2) },
+  surchauffeur:{ set: 'recompense', name: 'Grand surchauffeur', type: 'C', cost: 4, power: 4, kw: ['Gobelin'], text: 'Révélation : Horde 2. Surcharge 1 : Horde 2 dans chacune de vos autres zones.',
+                 onReveal: (c, st) => { horde(st, c.owner, c.zone, 2); if (overload(st, c, 1)) [0, 1, 2].filter(z => z !== c.zone).forEach(z => horde(st, c.owner, z, 2)); } },
+  archi_techno:{ set: 'recompense', name: 'Archi-technomancienne', type: 'C', cost: 4, power: 4, kw: ['Elfe'], text: 'Sortilège : +1. Révélation : Piratage sur la créature adverse la plus puissante ici.',
+                 onSpell: (c, st) => buff(st, c, 1),
+                 onReveal: (c, st) => hack(st, strongestFoe(st, c)) },
+  dragon_holding:{ set: 'recompense', name: 'Dragon de la holding', type: 'C', cost: 5, power: 7, kw: ['Dragon'], text: 'Coûte 1 de moins par tranche de 3 de votre Trésor. Révélation : Implant 1 sur vos autres Dragons en jeu.',
+                 costFn: (st, p) => -Math.floor(st.p[p].treasure / 3),
+                 onReveal: (c, st) => mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Dragon')).forEach(x => implant(st, x, 1)) },
+  revenant_binaire:{ set: 'recompense', name: 'Revenant binaire', type: 'C', cost: 4, power: 5, kw: ['Mort-vivant'], raise: true, text: 'Relève. Révélation : Malware 1.',
+                 onReveal: (c, st) => malware(st, c.owner, 1) },
+  baronne_donnees:{ set: 'recompense', name: 'Baronne des données', type: 'C', cost: 5, power: 4, kw: ['Vampire'], text: 'Révélation : Piratage sur chaque créature adverse ici, puis Drain 1 sur chacune.',
+                 onReveal: (c, st) => creaturesAt(st, 1 - c.owner, c.zone).forEach(x => { hack(st, x); drain(st, c, x, 1); }) },
+  // Dieu de la Cité Néon : pour les Hackers, le deck le plus faible du set à sa sortie.
+  dieu_set3:   { set: 'recompense', name: 'Nexus, Dieu du Réseau', type: 'C', cost: 6, power: 7, kw: ['Hacker'], text: 'Révélation : Piratage du général adverse jusqu\'à la fin du tour suivant, puis Malware 2. Persistant : +1 par Malware exécuté chez l\'adversaire cette partie.',
+                 onReveal: (c, st) => { hackGeneral(st, 1 - c.owner); malware(st, c.owner, 2); },
+                 self: (c, st) => st.p[1 - c.owner].malwareRun || 0 },
 
   // ---- Saisons : cartes du passe de saison (pass.js), jamais dans un booster pendant leur saison ----
   // Elles rejoignent le Set de base quelques mois après leur saison (réglage passCardMonths). Neutres : elles vont dans tous les decks.
@@ -327,6 +488,14 @@ export const CARDS = {
   magot:       { name: 'Magot de dragon', type: 'C', cost: 0, power: 0, kw: [], token: true, text: 'Jeton. Fin de tour : gagne autant de puissance que vos sceaux non dépensés.',
                  onEndTurn: (c, st) => { const n = st.p[c.owner].seals; if (n > 0) buff(st, c, n); else return false; } },
   festin:      { set: 'set2', name: 'Festin', type: 'C', cost: 0, power: 0, kw: [], token: true, text: 'Jeton. Un seul Festin par zone. En fin de tour, votre Gobelin le plus faible ici le dévore : il gagne sa puissance et le Festin disparaît.' },
+  // Malwares (set 3) : mélangés dans le deck adverse, ils s'exécutent quand on les pioche et disparaissent sans être remplacés.
+  virus:       { set: 'set3', name: 'Virus', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware. Quand vous le piochez, il s\'exécute et disparaît : votre créature la plus puissante en jeu perd 1 (sans créature, vous perdez 1 sceau ce tour).',
+                 malware: (st, p) => virusHit(st, p) },
+  ver:         { set: 'set3', name: 'Ver', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware. Quand vous le piochez, il s\'exécute et disparaît : comme un Virus, puis un Virus est mélangé dans votre deck.',
+                 malware: (st, p) => { virusHit(st, p); plant(st, p, 'virus'); log(st, `Le Ver se copie : un Virus rejoint le deck de ${who(st, p)}.`, 'down'); } },
+  rancon:      { set: 'set3', name: 'Rançongiciel', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware. Quand vous le piochez, il s\'exécute et disparaît : la carte la plus chère de votre main coûte 1 de plus.',
+                 malware: (st, p) => { const c = st.p[p].hand.filter(x => costOf(st, x) !== null).sort((a, b) => costOf(st, b) - costOf(st, a))[0];
+                   if (c) { c.costMod = (c.costMod || 0) + 1; log(st, `${nm(c.id)} coûte 1 de plus.`, 'down'); } } },
 };
 
 // ---- Généraux : rattachés à une famille pour le thème, sans restreindre le deck ----
@@ -410,6 +579,45 @@ export const GENERALS = {
                text: 'Début de partie : +1 sceau aux deux premiers tours.',
                onStart: (p, st) => { st.p[p].bonusSeals++; },
                onStartTurn: (p, st) => { if (st.turn === 1) st.p[p].bonusSeals++; } },
+  // ---- Set 3 ----
+  zero:      { set: 'set3', name: 'Zéro, l\'Intrus', fam: 'Hacker', kind: 'Persistant',
+               text: 'Quand un de vos Malwares s\'exécute chez l\'adversaire, votre zone la plus faible gagne +1.',
+               onMalware: (p, st) => addZone(st, p, weakestZone(st, p), 1) },
+  nyx:       { set: 'set3', name: 'Nyx, Reine du réseau', fam: 'Hacker', kind: 'Activable', needsZone: true,
+               text: 'Activable, une fois par partie : Piratage sur chaque créature adverse de la zone choisie, et du général adverse jusqu\'à la fin du tour suivant.',
+               activate: (p, st, z) => { creaturesAt(st, 1 - p, z).forEach(x => hack(st, x)); hackGeneral(st, 1 - p); } },
+  kaia:      { set: 'set3', name: 'Kaïa Lame-d\'acier', fam: 'Cyborg', kind: 'Persistant',
+               text: 'Quand une de vos Surcharges se déclenche, la créature qui la déclenche gagne +1.',
+               onOverload: (p, st, z, c) => { if (isCreature(c)) buff(st, c, 1); } },
+  vex:       { set: 'set3', name: 'Doc Vex, Charcudoc', fam: 'Cyborg', kind: 'Début de tour',
+               text: 'Début de tour, aux tours pairs : Implant 1 sur votre créature la plus faible en jeu.',
+               onStartTurn: (p, st) => { if (st.turn % 2 === 0) implant(st, weakest(st, mine(st, p)), 1); } },
+  machina:   { set: 'set3', name: 'Machina, Ange de la Grille', fam: 'Ange', kind: 'Fin de tour',
+               text: 'Fin de tour : si vous avez dépensé tous vos sceaux, Implant 1 sur votre Ange le plus faible.',
+               onEndTurn: (p, st) => { if (st.p[p].seals === 0) implant(st, weakest(st, mine(st, p).filter(x => hasKw(x, 'Ange'))), 1); } },
+  mammon:    { set: 'set3', name: 'Mammon, Daemon du réseau', fam: 'Démon', kind: 'Persistant',
+               text: 'Les 2 premières fois qu\'une de vos créatures est détruite, Malware 1.',
+               onAllyDestroyed: (p, st) => { const P = st.p[p]; if ((P.generalUses || 0) >= 2) return; P.generalUses = (P.generalUses || 0) + 1; malware(st, p, 1); } },
+  grizzbolt: { set: 'set3', name: 'Grizzbolt le Survolteur', fam: 'Gobelin', kind: 'Persistant',
+               text: 'Quand une de vos Surcharges se déclenche, Horde 1 dans sa zone.',
+               onOverload: (p, st, z) => horde(st, p, z, 1) },
+  lysandre:  { set: 'set3', name: 'Lysandre, Technomancienne', fam: 'Elfe', kind: 'Persistant',
+               text: 'Quand vous révélez un sort, votre zone où il est joué gagne +1 ; les 3 premières fois, Piratage sur la créature adverse la plus puissante de cette zone.',
+               onSpell: (p, st, z) => { const P = st.p[p]; addZone(st, p, z, 1); if ((P.generalUses || 0) >= 3) return; const s = strongest(st, creaturesAt(st, 1 - p, z).filter(x => !x.hacked));
+                 if (s && hack(st, s)) P.generalUses = (P.generalUses || 0) + 1; } },
+  aurum:     { set: 'set3', name: 'Aurum, PDG d\'Arcadia', fam: 'Dragon', kind: 'Fin de tour',
+               text: 'Fin de tour : si vous gardez au moins 3 sceaux, Implant 1 sur votre Dragon le plus puissant.',
+               onEndTurn: (p, st) => { if (st.p[p].seals >= 3) implant(st, strongest(st, mine(st, p).filter(x => hasKw(x, 'Dragon'))), 1); } },
+  spectre_ia:{ set: 'set3', name: 'Spectre, l\'IA défunte', fam: 'Mort-vivant', kind: 'Persistant',
+               text: 'La première fois qu\'une de vos cartes se relève, Malware 1.',
+               onRaise: (p, st) => { const P = st.p[p]; if (P.generalUses) return; P.generalUses = 1; malware(st, p, 1); } },
+  selene:    { set: 'set3', name: 'Séléné, Vampire des données', fam: 'Vampire', kind: 'Persistant',
+               text: 'Quand vous piratez une créature, Drain 1 sur elle au profit de votre Vampire le plus faible.',
+               onHack: (p, st, c) => drain(st, weakest(st, mine(st, p).filter(x => hasKw(x, 'Vampire'))), c, 1) },
+  courtier:  { set: 'set3', name: 'Le Courtier', fam: null, kind: 'Début de partie',
+               text: 'Début de partie : la carte la plus chère de votre main coûte 1 de moins.',
+               onStart: (p, st) => { const c = st.p[p].hand.filter(x => (costOf(st, x) ?? 0) > 0).sort((a, b) => costOf(st, b) - costOf(st, a))[0];
+                 if (c) { c.discount = (c.discount || 0) - 1; log(st, `${who(st, p)} : ${nm(c.id)} coûte 1 de moins.`, 'up'); } } },
 };
 
 // ---- Terrains ----
@@ -465,6 +673,30 @@ export const TERRAINS = {
                onEndTurn: (p, st, z) => { if (creaturesAt(st, p, z).length >= 3) { st.p[p].bonusSeals++; log(st, `${who(st, p)} : +1 sceau au tour suivant.`, 'up'); } } },
   guet:      { set: 'set2', name: 'Tour de guet', fam: null, text: 'Votre créature la plus puissante ici gagne +2.',
                aura: (p, t, st) => t.owner === p && t === topRaw(creaturesAt(st, p, t.zone)) ? 2 : 0 },
+  // ---- Set 3 ----
+  datacentre:{ set: 'set3', name: 'Datacentre', fam: 'Hacker', text: 'Fin de tour : si vous avez un Hacker ici, Malware 1.',
+               onEndTurn: (p, st, z) => { if (creaturesAt(st, p, z).some(c => hasKw(c, 'Hacker'))) malware(st, p, 1); } },
+  brouillage:{ set: 'set3', name: 'Zone de brouillage', fam: 'Hacker', text: 'Les créatures que l\'adversaire révèle ici sont piratées.',
+               onFoeReveal: (p, st, c) => hack(st, c) },
+  clinique:  { set: 'set3', name: 'Clinique clandestine', fam: 'Cyborg', text: 'Début de tour : Implant 1 sur votre créature la plus faible ici.',
+               onStartTurn: (p, st, z) => implant(st, weakest(st, creaturesAt(st, p, z)), 1) },
+  centrale:  { set: 'set3', name: 'Centrale électrique', fam: 'Cyborg', text: 'Vos Surcharges ici coûtent 1 sceau de moins.' },
+  nuage:     { set: 'set3', name: 'Nuage céleste', fam: 'Ange', text: 'Vos créatures avec Implant ici ont +1.', aura: (p, t) => t.owner === p && t.implants ? 1 : 0 },
+  darknet:   { set: 'set3', name: 'Darknet', fam: 'Démon', text: 'Quand une de vos créatures est détruite ici, Malware 1.',
+               onAllyDestroyed: (p, st, dead, z, tz) => { if (z === tz) malware(st, p, 1); } },
+  decharge:  { set: 'set3', name: 'Décharge', fam: 'Gobelin', text: 'Quand une de vos Surcharges se déclenche ici, la créature adverse la plus faible ici perd 1.' },
+  cables:    { set: 'set3', name: 'Forêt de câbles', fam: 'Elfe', text: 'Quand vous révélez un sort ici, Piratage sur la créature adverse la plus puissante ici.',
+               onSpellHere: (p, st, z) => hack(st, strongest(st, creaturesAt(st, 1 - p, z).filter(x => !x.hacked))) },
+  tour_corpo:{ set: 'set3', name: 'Tour corporatiste', fam: 'Dragon', text: 'Fin de tour : si vous gardez au moins 1 sceau, Implant 1 sur votre Dragon le plus faible ici.',
+               onEndTurn: (p, st, z) => { if (st.p[p].seals > 0) implant(st, weakest(st, creaturesAt(st, p, z).filter(c => hasKw(c, 'Dragon'))), 1); } },
+  serveur:   { set: 'set3', name: 'Serveur fantôme', fam: 'Mort-vivant', text: 'Vos cartes qui se relèvent ici gagnent Implant 1.' },
+  club:      { set: 'set3', name: 'Club Néon rouge', fam: 'Vampire', text: 'Fin de tour : Drain 1 sur la créature adverse piratée la plus puissante ici, au profit de votre Vampire le plus faible ici.',
+               onEndTurn: (p, st, z) => { const v = weakest(st, creaturesAt(st, p, z).filter(c => hasKw(c, 'Vampire'))); const h = creaturesAt(st, 1 - p, z).filter(c => c.hacked);
+                 if (v && h.length) drain(st, v, strongest(st, h), 1); } },
+  parefeu:   { set: 'set3', name: 'Pare-feu', fam: null, text: 'Vos créatures ici ne peuvent pas être piratées.' },
+  marche_noir:{ set: 'set3', name: 'Marché noir', fam: null, text: 'Fin de tour : si vous gardez au moins 1 sceau, une carte au hasard de votre main coûte 1 de moins.',
+               onEndTurn: (p, st) => { if (st.p[p].seals <= 0) return; const h = st.p[p].hand.filter(x => (costOf(st, x) ?? 0) > 0);
+                 if (h.length) { const x = pick(h); x.discount = (x.discount || 0) - 1; log(st, `${who(st, p)} : une carte de la main coûte 1 de moins.`, 'up'); } } },
 };
 
 // ---- Decks préconstruits : la construction est libre, ces listes servent à tester ----
@@ -505,7 +737,34 @@ export const DECKS = {
              terrains: ['foire', 'bergerie', 'sanctuaire', 'ruines', 'duel'] },
   arcanes: { name: 'Arcanes sylvestres', fam: 'Elfe', general: 'elyndra',
              cards: ['apprentie', 'lueur', 'ronces', 'mage_bois', 'chant', 'grand_druide', 'vent', 'sentier', 'eclaireuse', 'feu_follet', 'rodeuse', 'archere', 'cerf', 'sylvain', 'alchimiste'],
-             terrains: ['cercle', 'bois', 'sanctuaire', 'ruines', 'duel'] },
+             terrains: ['cercle', 'bois', 'sanctuaire', 'ruines', 'duel'] },  // Set 3 : les deux nouvelles familles, puis chaque famille existante avec son support. Cachés à l'IA avant la sortie du set (aiDeckKeys).
+  hacker:  { set: 'set3', name: 'Intrusion totale', fam: 'Hacker', general: 'zero',
+             cards: ['script_kiddie', 'brouilleur', 'glitcheuse', 'injection', 'casseuse', 'fixer', 'fantome_reseau', 'coupe_circuit', 'brise_glace', 'ver_polymorphe', 'ia_rebelle', 'seigneur_reseau', 'garde_securite', 'mercenaire', 'golem'],
+             terrains: ['datacentre', 'brouillage', 'sanctuaire', 'ruines', 'duel'] },
+  cyborg:  { set: 'set3', name: 'Chrome et néon', fam: 'Cyborg', general: 'kaia',
+             cards: ['gamin_augmente', 'charcudoc', 'samourai', 'bras_canon', 'implant_combat', 'surtension', 'chrome', 'cyberpsycho', 'pilote_meca', 'colosse_augmente', 'androide', 'legende_chrome', 'mercenaire_augmente', 'chevalier', 'golem'],
+             terrains: ['clinique', 'centrale', 'sanctuaire', 'champ', 'forteresse'] },
+  grille:  { set: 'set3', name: 'Grille céleste', fam: 'Ange', general: 'machina',
+             cards: ['ange_synthetique', 'aureole', 'seraphin_donnees', 'archange_cyber', 'cherubin', 'benediction', 'gardien', 'messagere', 'annonciatrice', 'heraut', 'juge', 'dominion', 'seraphin', 'mercenaire_augmente', 'golem'],
+             terrains: ['nuage', 'prairie', 'sanctuaire', 'champ', 'forteresse'] },
+  daemons: { set: 'set3', name: 'Daemons du réseau', fam: 'Démon', general: 'mammon',
+             cards: ['daemon_parasite', 'possession', 'daemon_corrupteur', 'archidaemon', 'diablotin', 'cultiste', 'pacte', 'bourreau', 'molosse', 'rituel', 'demon_majeur', 'moissonneur', 'bete', 'seigneur', 'archidemon'],
+             terrains: ['darknet', 'charnier', 'bergerie', 'ruines', 'duel'] },
+  bricole: { set: 'set3', name: 'Bricole et surtension', fam: 'Gobelin', general: 'grizzbolt',
+             cards: ['bricoleur', 'petaradeur', 'ferrailleur', 'meca_gobelin', 'eclaireur', 'appel', 'recruteur', 'chaman', 'pyromane', 'proliferation', 'chef', 'porte_etendard', 'grand_chef', 'seigneur_guerre', 'golem'],
+             terrains: ['decharge', 'terrier', 'sanctuaire', 'champ', 'forteresse'] },
+  techno:  { set: 'set3', name: 'Technomancie', fam: 'Elfe', general: 'lysandre',
+             cards: ['technomancienne', 'intrusion', 'decrypteuse', 'oracle_reseau', 'apprentie', 'lueur', 'ronces', 'mage_bois', 'chant', 'grand_druide', 'eclaireuse', 'archere', 'druidesse', 'alchimiste', 'sylvain'],
+             terrains: ['cables', 'cercle', 'sanctuaire', 'ruines', 'duel'] },
+  arcadia: { set: 'set3', name: 'Arcadia Corp', fam: 'Dragon', general: 'aurum',
+             cards: ['dragonnet_chrome', 'investissement', 'dragon_pdg', 'wyrm_cyber', 'dragonnet', 'gardien_magot', 'thesauriser', 'drake', 'wyverne', 'cavernes', 'rouge', 'ancien', 'dragon_or', 'mercenaire_augmente', 'golem'],
+             terrains: ['tour_corpo', 'nid', 'sanctuaire', 'ruines', 'marche_noir'] },
+  fantomes:{ set: 'set3', name: 'Fantômes du réseau', fam: 'Mort-vivant', general: 'spectre_ia',
+             cards: ['fantome_numerique', 'sauvegarde', 'zombie_cyber', 'liche_quantique', 'squelette', 'goule', 'fossoyeur', 'zombie', 'spectre', 'necromancien', 'chevalier_mort', 'seigneur_os', 'danse_macabre', 'reanimation', 'mercenaire_augmente'],
+             terrains: ['serveur', 'cimetiere', 'crypte', 'ruines', 'duel'] },
+  donnees: { set: 'set3', name: 'Soif de données', fam: 'Vampire', general: 'selene',
+             cards: ['siphonneuse', 'vampire_donnees', 'morsure_virale', 'comte_reseau', 'chauve_souris', 'novice', 'servante', 'rodeur_nuit', 'buveuse', 'comtesse', 'seigneur_vampire', 'prince_nuit', 'saignee', 'glitcheuse', 'golem'],
+             terrains: ['club', 'chateau', 'bassin', 'ruines', 'sanctuaire'] },
 };
 
 // ---- Utilitaires ----
@@ -514,7 +773,7 @@ export function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
 // Pouvoir du général : appelle son crochet et compte ses déclenchements (il a écrit au journal : il a agi),
 // pour que l'appli joue son effet à chaque fois (viewFor, genFired).
 function genHook(st, p, hook, ...args) {
-  const f = GENERALS[st.p[p].general][hook]; if (!f) return;
+  const f = GENERALS[st.p[p].general][hook]; if (!f || genHacked(st, p)) return;
   const n = st.log.length; f(p, st, ...args);
   if (st.log.length > n) st.p[p].genFired = (st.p[p].genFired || 0) + 1;
 }
@@ -540,7 +799,7 @@ export function newGame(deck0, deck1, names = ['Joueur 1', 'Joueur 2'], opts = {
       hand: [], discard: [], terrainPlan: pool.slice(0, 3).map((t, i) => ({ t, z: zones[i], turn: i + 1 })),
       terrains: [null, null, null], board: [[], [], []], zoneBonus: [0, 0, 0],
       seals: 0, bonusSeals: 0, treasure: 0, lastUnspent: 0, perfectTurns: 0, lost: 0, moves: [], played: [],
-      stolen: 0, feasts: 0, spells: 0,
+      stolen: 0, feasts: 0, spells: 0, malwareRun: 0, overloads: 0,
     };
   };
   const st = { turn: 0, p: [mk(0, deck0), mk(1, deck1)], log: [], nextUid: 1000, order: 0, leader: 0, over: false, sim: false };
@@ -557,34 +816,41 @@ const feastAt = (st, p, z) => creaturesAt(st, p, z).find(c => c.id === 'festin')
 const eggs = (st, p) => mine(st, p).filter(c => CARDS[c.id].egg && !c.hatched).sort((a, b) => a.order - b.order);
 const movedThisTurn = (st, p) => mine(st, p).filter(c => c.movedTurn === st.turn);
 const margin = (st, p, z) => zonePower(st, p, z) - zonePower(st, 1 - p, z);
+const weakestZone = (st, p) => [0, 1, 2].reduce((a, b) => margin(st, p, b) < margin(st, p, a) ? b : a);
+const strongestFoe = (st, c) => strongest(st, creaturesAt(st, 1 - c.owner, c.zone));
 export const free = (st, p, z) => SLOTS - st.p[p].board[z].length;
+// Effets d'une carte : aucun si elle est piratée (Persistant, auras, Fin de tour, Destruction… ne fonctionnent plus).
+const NOFX = {};
+const fx = c => (c.hacked ? NOFX : CARDS[c.id]);
+// Général piraté : son pouvoir ne fonctionne pas jusqu'à la fin du tour indiqué.
+export const genHacked = (st, p) => (st.p[p].genHacked || 0) >= st.turn;
 
 // Coût actuel d'une carte (null pour un coût X).
 export function costOf(st, c) {
   const d = CARDS[c.id]; if (d.x) return null;
   let v = d.cost + (c.costMod || 0) + (d.costFn ? d.costFn(st, c.owner) : 0);
   if (d.cost >= 1) v = Math.max(1, v);
-  const druid = d.type === 'S' && c.owner >= 0 && mine(st, c.owner).some(x => x.id === 'grand_druide') ? -1 : 0;
+  const druid = d.type === 'S' && c.owner >= 0 && mine(st, c.owner).some(x => x.id === 'grand_druide' && !x.hacked) ? -1 : 0;
   return Math.max(0, v + (c.discount || 0) + druid);
 }
 export function isMobile(st, c) {
   if (!c.revealed || !isCreature(c) || CARDS[c.id].token) return false;
-  if (CARDS[c.id].mobile || c.mobile) return true;
+  if ((CARDS[c.id].mobile || c.mobile) && !c.hacked) return true;
   if (st.p[c.owner].terrains[c.zone] === 'bois') return true;
-  return mine(st, c.owner).some(x => x.id === 'reine');
+  return mine(st, c.owner).some(x => x.id === 'reine' && !x.hacked);
 }
 
 export function power(st, c) {
   const d = CARDS[c.id];
   let v = d.power + c.buff;
-  if (d.self) v += d.self(c, st);
+  if (d.self && !c.hacked) v += d.self(c, st);
   // Auras des créatures révélées des deux joueurs (boucles simples : power() est appelée des milliers de fois par l'IA).
   for (const P of st.p) for (const zone of P.board) for (const s of zone) {
-    if (!s.revealed) continue;
+    if (!s.revealed || s.hacked) continue;
     const sd = CARDS[s.id]; if (sd.aura && sd.type === 'C') v += sd.aura(s, c, st);
   }
   for (let p = 0; p < 2; p++) {
-    const g = GENERALS[st.p[p].general]; if (g.aura) v += g.aura(p, c, st);
+    const g = GENERALS[st.p[p].general]; if (g.aura && !genHacked(st, p)) v += g.aura(p, c, st);
     const t = st.p[p].terrains[c.zone]; if (t && TERRAINS[t].aura) v += TERRAINS[t].aura(p, c, st);
   }
   return v;
@@ -622,11 +888,12 @@ function draw(st, p, n, extra = false) {
   const P = st.p[p], got = [];
   for (let i = 0; i < n; i++) {
     const c = P.deck.shift(); if (!c) { log(st, `${who(st, p)} : deck vide, pas de pioche.`); break; }
+    if (CARDS[c.id].malware) { runMalware(st, p, c); continue; }
     if (P.hand.length >= HAND_MAX) { log(st, `${who(st, p)} : main pleine, ${nm(c.id)} part à la défausse.`); P.hand.push(c); discardCard(st, p, c, true); continue; }
     P.hand.push(c); got.push(c);
     if (!extra) continue;
     genHook(st, p, 'onDraw', c);
-    for (const x of mine(st, p)) { const xd = CARDS[x.id]; if (xd.onInspire && stillThere(st, x)) xd.onInspire(x, st, c); }
+    for (const x of mine(st, p)) { const xd = fx(x); if (xd.onInspire && stillThere(st, x)) xd.onInspire(x, st, c); }
   }
   return got;
 }
@@ -634,7 +901,7 @@ function buff(st, c, n) { c.buff += n; log(st, `${nm(c.id)} ${n >= 0 ? '+' : ''}
 function addZone(st, p, z, n) { st.p[p].zoneBonus[z] += n; log(st, `${who(st, p)} : zone ${ZONE_NAMES[z]} ${n >= 0 ? '+' : ''}${n}.`, n >= 0 ? 'up' : 'down'); }
 // Carte qui revient en main ou en jeu depuis la défausse : elle repart de zéro.
 function fresh(c) {
-  for (const k of ['pending', 'movedTurn', 'playerMoved', 'turnStartZone', 'mobile', 'xPaid', 'hatched', 'enteredTurn', 'discount', 'costMod']) delete c[k];
+  for (const k of ['pending', 'movedTurn', 'playerMoved', 'turnStartZone', 'mobile', 'xPaid', 'hatched', 'enteredTurn', 'discount', 'costMod', 'hacked', 'implants']) delete c[k];
   c.buff = 0; c.revealed = false; c.zone = -1; return c;
 }
 
@@ -663,6 +930,8 @@ function raise(st, p, c) {
   log(st, `${nm(c.id)} se relève.`, 'up');
   c.buff = cim >= 0 ? 2 : 1;
   enter(st, c, z);
+  if (P.terrains[z] === 'serveur' && stillThere(st, c)) implant(st, c, 1);
+  genHook(st, p, 'onRaise', c);
 }
 // Exhumation : la créature la plus puissante de la défausse (coût max éventuel) revient en jeu dans la zone z.
 function exhume(st, p, z, maxCost = Infinity) {
@@ -697,7 +966,7 @@ function feast(st, p, z, x) {
 }
 // Un Gobelin dévore un Festin : il gagne sa puissance (Goinfre : +2 de plus), le Festin disparaît.
 function devour(st, g, f) {
-  const v = Math.max(0, power(st, f)) + (g.id === 'goinfre' ? 2 : 0);
+  const v = Math.max(0, power(st, f)) + (g.id === 'goinfre' && !g.hacked ? 2 : 0);
   removeToken(st, f); st.p[g.owner].feasts++;
   log(st, `${nm(g.id)} dévore le Festin.`, 'up'); buff(st, g, v);
 }
@@ -725,9 +994,64 @@ function swap(st, p, z, choose) {
   P.board[z] = P.board[z].filter(x => x !== give); F.board[z] = F.board[z].filter(x => x !== take);
   give.owner = 1 - p; take.owner = p; F.board[z].push(give); P.board[z].push(take);
   log(st, `${who(st, p)} ${vb(p, 'échange', 'échangez')} ${nm(give.id)} contre ${nm(take.id)} (${ZONE_NAMES[z]}).`, 'reveal');
-  for (const c of [give, take]) { const d = CARDS[c.id]; if (d.onSwitch) d.onSwitch(c, st); }
+  for (const c of [give, take]) { const d = fx(c); if (d.onSwitch) d.onSwitch(c, st); }
   return true;
 }
+// ---- Set 3 : Malware, Piratage, Implant et Surcharge ----
+const MALWARES = ['virus', 'ver', 'rancon'];
+// Un Malware glissé au hasard parmi les 6 premières cartes du deck du joueur p.
+function plant(st, p, id) {
+  const D = st.p[p].deck;
+  D.splice(Math.floor(Math.random() * (Math.min(D.length, 6) + 1)), 0, { uid: st.nextUid++, id, owner: p, zone: -1, buff: 0, revealed: false });
+}
+// Malware N : N Malwares (Virus par défaut, 'mix' pour un de chaque sorte) glissés dans le haut du deck adverse.
+function malware(st, p, n, kind = 'virus') {
+  if (n <= 0) return;
+  for (let i = 0; i < n; i++) plant(st, 1 - p, kind === 'mix' ? MALWARES[i % MALWARES.length] : kind);
+  log(st, `${who(st, p)} ${vb(p, 'injecte', 'injectez')} ${n > 1 ? `${n} Malwares` : 'un Malware'} dans le deck adverse.`, 'down');
+}
+// Un Malware pioché s'exécute et disparaît, sans être remplacé.
+function runMalware(st, p, c) {
+  st.p[p].malwareRun++;
+  log(st, `${who(st, p)} ${vb(p, 'pioche', 'piochez')} un ${nm(c.id)} : il s'exécute.`, 'down');
+  CARDS[c.id].malware(st, p);
+  genHook(st, 1 - p, 'onMalware', c);
+}
+function virusHit(st, p) {
+  const s = strongest(st, mine(st, p)); if (s) { buff(st, s, -1); return; }
+  if (st.p[p].seals > 0) { st.p[p].seals--; log(st, `${who(st, p)} : -1 sceau.`, 'down'); }
+}
+// Piratage : la créature perd ses effets jusqu'à ce qu'elle quitte le jeu (Pare-feu : impossible).
+function hack(st, c) {
+  if (!c || c.hacked || CARDS[c.id].firewall || st.p[c.owner].terrains[c.zone] === 'parefeu') return false;
+  c.hacked = true; log(st, `${nm(c.id)} est piratée : ses effets ne fonctionnent plus.`, 'down');
+  genHook(st, 1 - c.owner, 'onHack', c);
+  return true;
+}
+// Piratage du général : son pouvoir ne fonctionne plus jusqu'à la fin du tour suivant.
+function hackGeneral(st, p) {
+  st.p[p].genHacked = st.turn + 1;
+  log(st, `${GENERALS[st.p[p].general].name} est piraté jusqu'à la fin du tour suivant.`, 'down');
+}
+// Implant N : la créature gagne +N et un Implant (compté par les Cyborgs).
+function implant(st, c, n) {
+  if (!c || n <= 0) return;
+  c.implants = (c.implants || 0) + 1; c.buff += n;
+  log(st, `${nm(c.id)} reçoit un Implant : +${n}.`, 'up');
+}
+// Surcharge N : à la révélation, s'il vous reste assez de sceaux, ils sont dépensés et l'effet Surcharge s'applique.
+function overload(st, c, n) {
+  const P = st.p[c.owner];
+  let cost = n;
+  if (P.terrains[c.zone] === 'centrale') cost = Math.max(0, cost - 1);
+  if (P.seals < cost) return false;
+  P.seals -= cost; P.overloads++;
+  log(st, `${nm(c.id)} : Surcharge (${cost} sceau${cost > 1 ? 'x' : ''}).`, 'reveal');
+  genHook(st, c.owner, 'onOverload', c.zone, c);
+  if (P.terrains[c.zone] === 'decharge') { const w = weakest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (w) buff(st, w, -1); }
+  return true;
+}
+
 function summon(st, p, z, id) {
   if (free(st, p, z) <= 0) return null;
   const c = { uid: st.nextUid++, id, owner: p, zone: z, buff: 0, revealed: true, order: st.order++ };
@@ -760,7 +1084,7 @@ function move(st, c, to, room) {
   if (c.movedTurn !== st.turn) c.turnStartZone = c.zone;
   P.board[c.zone] = P.board[c.zone].filter(x => x !== c); c.zone = to; P.board[to].push(c); c.movedTurn = st.turn;
   log(st, `${nm(c.id)} se déplace vers ${ZONE_NAMES[to]}.`);
-  const d = CARDS[c.id]; if (d.onMove) d.onMove(c, st);
+  const d = fx(c); if (d.onMove) d.onMove(c, st);
   return true;
 }
 // by = joueur dont l'effet détruit la créature ; une destruction par son propre propriétaire est un sacrifice.
@@ -773,8 +1097,8 @@ function destroy(st, c, by) {
   P.lost++;
   const sacrificed = by === c.owner;
   log(st, `${d.name} (${who(st, c.owner)}) ${sacrificed ? 'est sacrifiée' : 'est détruite'}.`, 'down');
-  if (d.onDestroyed) d.onDestroyed(c, st, z, sacrificed);
-  for (const x of ordered(st).filter(x => x.owner === c.owner && x !== c)) { const xd = CARDS[x.id]; if (xd.onAllyDestroyed) xd.onAllyDestroyed(x, st, c, z); }
+  if (d.onDestroyed && !c.hacked) d.onDestroyed(c, st, z, sacrificed);
+  for (const x of ordered(st).filter(x => x.owner === c.owner && x !== c)) { const xd = fx(x); if (xd.onAllyDestroyed) xd.onAllyDestroyed(x, st, c, z); }
   genHook(st, c.owner, 'onAllyDestroyed', c, z);
   P.terrains.forEach((t, tz) => { if (t && TERRAINS[t].onAllyDestroyed) TERRAINS[t].onAllyDestroyed(c.owner, st, c, z, tz); });
   return true;
@@ -798,7 +1122,7 @@ export function startTurn(st) {
     if (TERRAINS[plan.t].onReveal) TERRAINS[plan.t].onReveal(p, st, plan.z);
   }
   st.leader = computeLeader(st);
-  for (const c of ordered(st)) { const d = CARDS[c.id]; if (d.onStartTurn && stillThere(st, c)) d.onStartTurn(c, st); }
+  for (const c of ordered(st)) { const d = fx(c); if (d.onStartTurn && stillThere(st, c)) d.onStartTurn(c, st); }
   for (const p of [st.leader, 1 - st.leader]) {
     st.p[p].terrains.forEach((t, z) => { if (t && TERRAINS[t].onStartTurn) TERRAINS[t].onStartTurn(p, st, z); });
     genHook(st, p, 'onStartTurn');
@@ -832,6 +1156,7 @@ export function doStep(st, s) {
   const P = st.p[s.p];
   if (s.kind === 'general') {
     const g = GENERALS[P.general]; if (P.generalUsed || !g.activate) return null;
+    if (genHacked(st, s.p)) { log(st, `${g.name} est piraté : son pouvoir ne répond pas.`, 'down'); return null; }
     P.generalUsed = true; log(st, `${who(st, s.p)} ${vb(s.p, 'active', 'activez')} ${g.name}${g.needsZone ? ` (${ZONE_NAMES[s.zone]})` : ''}.`, 'reveal'); g.activate(s.p, st, s.zone); return null;
   }
   if (s.kind === 'move') {
@@ -853,10 +1178,11 @@ export function doStep(st, s) {
   if (d.type === 'S') P.spells++;
   if (d.onReveal) d.onReveal(c, st);
   if (stillThere(st, c)) { const t = P.terrains[c.zone]; if (t && TERRAINS[t].onCardReveal) TERRAINS[t].onCardReveal(s.p, st, c, c.zone); }
+  if (stillThere(st, c) && isCreature(c)) { const t = st.p[1 - s.p].terrains[c.zone]; if (t && TERRAINS[t].onFoeReveal) TERRAINS[t].onFoeReveal(1 - s.p, st, c, c.zone); }
   if (d.type === 'S') {
     // Sortilège : créatures, général et terrain réagissent au sort révélé.
     const z = c.zone;
-    for (const x of mine(st, s.p)) { const xd = CARDS[x.id]; if (xd.onSpell && stillThere(st, x)) xd.onSpell(x, st, z, c); }
+    for (const x of mine(st, s.p)) { const xd = fx(x); if (xd.onSpell && stillThere(st, x)) xd.onSpell(x, st, z, c); }
     genHook(st, s.p, 'onSpell', z, c);
     const t = P.terrains[z]; if (t && TERRAINS[t].onSpellHere) TERRAINS[t].onSpellHere(s.p, st, z, c);
     P.board[z] = P.board[z].filter(x => x !== c); P.discard.push(c);
@@ -866,7 +1192,7 @@ export function doStep(st, s) {
 export function endTurn(st) {
   const fired = new Set();
   for (const c of ordered(st)) {
-    const d = CARDS[c.id]; if (!stillThere(st, c)) continue;
+    const d = fx(c); if (!stillThere(st, c)) continue;
     if (d.onEndTurn && d.onEndTurn(c, st) !== false) fired.add(c);
     if (d.grace && st.p[c.owner].seals === 0 && stillThere(st, c)) { d.grace(c, st); fired.add(c); }
   }
@@ -932,6 +1258,9 @@ function evalFor(st, p) {
     // Valeur future des sceaux gardés (Trésor) ou dépensés au sceau près (Grâce).
     if (deckHas(P, 'Dragon') || P.general === 'vaelthar') s += P.treasure * 0.6 * (TURNS - st.turn) / TURNS;
     if (P.general === 'aurelia' || deckHas(P, 'Ange')) s += P.perfectTurns * 0.8;
+    // Malwares en attente dans le deck adverse : chacun coûtera une pioche et un peu de puissance.
+    const mw = st.p[1 - p].deck.reduce((n, c) => n + (CARDS[c.id].malware ? 1 : 0), 0);
+    if (mw) s += mw * 1.2 * (TURNS - st.turn) / TURNS;
   }
   return s;
 }
@@ -944,16 +1273,18 @@ export function aiSearch(st, p, tries) {
   const mobiles = mine(st, p).filter(c => isMobile(st, c));
   for (let i = 0; i < tries; i++) {
     const plan = { cards: [], moves: [], general: null }; let seals = P.seals; const used = [0, 0, 0].map((_, z) => P.board[z].length);
-    if (g.activate && !P.generalUsed && seals >= (g.activateCost || 0) && Math.random() < (st.turn >= 5 ? 0.5 : 0.15)) {
+    if (g.activate && !P.generalUsed && !genHacked(st, p) && seals >= (g.activateCost || 0) && Math.random() < (st.turn >= 5 ? 0.5 : 0.15)) {
       plan.general = g.needsZone ? Math.floor(Math.random() * 3) : 0; seals -= g.activateCost || 0;
     }
     for (const c of mobiles) if (Math.random() < 0.3) {
       const zs = [0, 1, 2].filter(z => z !== c.zone && used[z] < SLOTS); if (!zs.length) continue;
       const z = pick(zs); used[z]++; used[c.zone]--; plan.moves.push({ uid: c.uid, zone: z });
     }
+    // Une partie des plans garde 1 ou 2 sceaux pour la révélation (Surcharge, Trésor).
+    const keep = Math.random() < 0.3 ? 1 + Math.floor(Math.random() * 2) : 0;
     for (const c of shuffle(P.hand)) {
       const d = CARDS[c.id], cost = d.x ? seals : costOf(st, c);
-      if (cost > seals || Math.random() < 0.15 || (d.x && seals === 0)) continue;
+      if (cost > seals - (d.x ? 0 : keep) || Math.random() < 0.15 || (d.x && seals === 0)) continue;
       const zs = [0, 1, 2].filter(z => used[z] < SLOTS); if (!zs.length) break;
       const z = pick(zs); used[z]++; seals -= cost; plan.cards.push({ uid: c.uid, zone: z });
     }
@@ -977,7 +1308,7 @@ export function applyPlan(st, p, plan) {
   const P = st.p[p]; const g = GENERALS[P.general];
   let gz = null;
   const z = plan && plan.general;
-  if (g.activate && !P.generalUsed && [0, 1, 2].includes(z) && P.seals >= (g.activateCost || 0)) { gz = z; P.seals -= g.activateCost || 0; }
+  if (g.activate && !P.generalUsed && !genHacked(st, p) && [0, 1, 2].includes(z) && P.seals >= (g.activateCost || 0)) { gz = z; P.seals -= g.activateCost || 0; }
   P.moves = [];
   const seen = new Set();
   for (const m of (plan && Array.isArray(plan.moves) ? plan.moves : []).slice(0, 12)) {

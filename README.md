@@ -7,7 +7,7 @@ Cette version sert à tester le jeu entre amis : une appli web installable sur t
 
 | Dossier | Rôle |
 | --- | --- |
-| `packages/engine` | Le moteur de règles, le Set de base (5 familles, 60 cartes, 12 généraux, 15 terrains) et le set 2 « Crépuscule » (Mort-vivant et Vampire, support des 5 familles : 57 cartes, 10 généraux, 11 terrains), plus 12 decks préconstruits. `collection.js` : deck de départ, boosters, règles de deck. Il ne dépend de rien. |
+| `packages/engine` | Le moteur de règles, le Set de base (5 familles, 60 cartes, 12 généraux, 15 terrains) et le set 2 « Crépuscule » (Mort-vivant et Vampire, support des 5 familles : 57 cartes, 10 généraux, 11 terrains) et le set 3 « Cité Néon » (Hacker et Cyborg, support de 7 familles : 57 cartes, 12 généraux, 13 terrains, dévoilé le 2 novembre 2026), plus 21 decks préconstruits (9 du set 3, cachés avant sa sortie). `collection.js` : deck de départ, boosters, règles de deck. Il ne dépend de rien. |
 | `server` | Le serveur de parties et des comptes : salons à code, règles appliquées côté serveur, cartes cachées jamais envoyées à l'adversaire, API des comptes. Il sert aussi l'appli compilée. |
 | `client` | L'appli web (PWA) : connexion, collection, deck, booster, salon, plateau, partie contre l'IA. Plus la page `/admin` : comptes et réglages de la boutique. |
 
