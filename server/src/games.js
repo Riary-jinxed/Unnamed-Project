@@ -94,12 +94,12 @@ export function createGames(store, accounts) {
     if (!b || b.disabled) throw new HttpError(404, 'Joueur introuvable.');
     const st = playerStats(b), gen = st.generals[0] || null, L = accounts.progress.ladder().find(x => x.login === b.login);
     // Niveau et art choisi de ses cartes les plus jouées et de son général, comme les voit un adversaire.
-    const badge = accounts.progress.badge(b, { cards: st.cards.map(c => c.id), general: gen?.id }), look = id => ({ level: badge.looks[id] || 1, art: badge.arts[id] || null });
+    const badge = accounts.progress.badge(b, { cards: st.cards.map(c => c.id), general: gen?.id }), look = id => ({ level: badge.looks[id] || 1, border: badge.borders[id] || badge.looks[id] || 1, art: badge.arts[id] || null });
     const has = k => (me[k] || []).includes(b.login);
     return { player: {
       login: b.login, name: b.name, avatar: b.avatar || null, frame: badge.frame, title: badge.title, level: badge.level,
       stats: { all: st.all, pvp: st.pvp, pve: st.pve }, cards: st.cards.map(c => ({ ...c, ...look(c.id) })), general: gen && { ...gen, ...look(gen.id) },
-      favArts: accounts.progress.favArts(b).map(id => ({ id, level: b.cardLevels?.[ARTS[id].card] || 1 })),
+      favArts: accounts.progress.favArts(b).map(id => ({ id, level: b.cardLevels?.[ARTS[id].card] || 1, border: accounts.progress.borderOf(b, ARTS[id].card) })),
       ranked: L ? { pos: L.pos, rank: L.rank } : null,
       friend: b.login === me.login ? 'me' : has('friends') ? 'friend' : has('friendsOut') ? 'out' : has('friendsIn') ? 'in' : null,
     } };

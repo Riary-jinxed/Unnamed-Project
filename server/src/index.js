@@ -44,7 +44,7 @@ accounts.progress.setSeasonHook(id => clans.closeSeason(id));
 // Le profil public d'un joueur montre aussi son clan.
 const playerRoute = games.routes['GET /api/player'];
 games.routes['GET /api/player'] = (...x) => { const r = playerRoute(...x); r.player.clan = clans.badge(r.player.login); return r; };
-const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...clans.routes }, catalog.public);
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...accounts.progress.events.routes, ...clans.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
 // Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.
@@ -95,7 +95,7 @@ const send = (ws, msg) => { if (ws && ws.readyState === 1) ws.send(JSON.stringif
 function shownBadge(b, P) {
   if (!b) return b;
   const ids = new Set([P.general, ...P.played]), only = o => Object.fromEntries(Object.entries(o || {}).filter(([id]) => ids.has(id)));
-  return { ...b, looks: only(b.looks), arts: only(b.arts) };
+  return { ...b, looks: only(b.looks), arts: only(b.arts), borders: only(b.borders) };
 }
 function broadcast(room, flash = null) {
   room.seats.forEach((s, i) => {

@@ -29,6 +29,7 @@ import { setHome } from './lobby.js';
 import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL, FAMILY_REWARDS, SET_REWARDS } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
+import { EVENT_EFFECTS, multLabel } from '@jeu/engine/events';
 import { SEASONS, PASS_TIERS, SEASON_THEMES, seasonOfCard, seasonStarted, seasonStart, currentSeason, releaseMonth } from '@jeu/engine/pass';
 import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName, chestPool, MAX_FAV_ARTS } from '@jeu/engine/arts';
 
@@ -239,7 +240,7 @@ function showCards(r, set = 'base') {
   const summary = () => { ui.booster = { ...r, opened: r.cards.length > 1 }; ui.sheet = 'booster'; render(); };
   if (r.cards.length < 2) { play('reveal'); summary(); return; }
   openPack({ title: r.title, set, setName: esc(SETS.find(x => x.id === set)?.name || ''), back: prog().back,
-    cards: r.cards.map((id, i) => ({ html: anyCard(id, myLevel(id), mySel(id)), fresh: !!r.fresh[i], general: !!GENERALS[id],
+    cards: r.cards.map((id, i) => ({ html: anyCard(id, myLevel(id), mySel(id), myBorder(id)), fresh: !!r.fresh[i], general: !!GENERALS[id],
       tag: r.fresh[i] ? (GENERALS[id] ? 'Nouveau général !' : 'Nouvelle carte !') : dupTag(id) })) }, summary);
 }
 async function openBoosterNow() {
@@ -262,7 +263,7 @@ async function buyArt(path, body) {
   ui.shop = r.shop; ui.msg = '';
   const art = ARTS[r.art], show = () => { ui.gotArt = { id: r.art, chest: !!r.chest }; ui.sheet = 'art'; render(); };
   // Coffre : on le frappe, il s'ouvre (opening.js), puis l'art s'affiche, prêt à être choisi.
-  if (r.chest) { openChest({ rarity: art.rarity, html: artHTML(art.card, nameOf(art.card), 1, '', art.id), chip: rarChip(art), name: esc(art.name), sub: esc(nameOf(art.card)) }, show); return; }
+  if (r.chest) { openChest({ rarity: art.rarity, html: artHTML(art.card, nameOf(art.card), myLevel(art.card), '', art.id), chip: rarChip(art), name: esc(art.name), sub: esc(nameOf(art.card)) }, show); return; }
   play(['epique', 'legendaire'].includes(art.rarity) ? 'astral' : 'reveal'); show();
 }
 // ---- Change de devises : Prismes en Éclats, par offres fixes (exchangeOffers du moteur), jamais l'inverse ----
@@ -369,13 +370,14 @@ const winTiles = st => `<div class="stats">${winTile('Toutes les parties', st.al
 function smallCard(c) {
   const d = CARDS[c.id], g = GENERALS[c.id], name = (d || g).name;
   const p = g ? '<span class="p sm">Général</span>' : d.type === 'C' ? `<span class="p num">${d.power}</span>` : '<span class="p sm">Sort</span>';
-  return `<button class="mc topmc${lvCls(c.level)}" style="${famVar(g ? [g.fam] : d.kw)}" data-zoom="${zoomKey(c.id, c.art || '')}" aria-label="${esc(name)} : voir en grand">
+  return `<button class="mc topmc${lvCls(c.border || c.level)}" style="${famVar(g ? [g.fam] : d.kw)}" data-zoom="${zoomKey(c.id, c.art || '')}" aria-label="${esc(name)} : voir en grand">
     ${artBg(c.id, c.art)}<span class="n">${esc(name)}</span>${p}</button>`;
 }
 const topCard = (c, n) => `<div class="topcard">${smallCard(c)}<small class="hint num">${n}</small></div>`;
 // Art préféré : l'illustration seule (avec le nom de la carte), sans le texte de la carte ; touché, il s'ouvre en grand.
-const artOnly = id => artHTML(ARTS[id].card, nameOf(ARTS[id].card), 1, '', id);
-const favArt = (id, n) => `<div class="topcard"><button class="favart" data-zoom="${zoomKey(ARTS[id].card, id)}" aria-label="${esc(ARTS[id].name)} : voir en grand">${artOnly(id)}</button>
+// lvl : niveau de la carte (le même pour tous ses arts) ; par défaut, celui de votre carte.
+const artOnly = (id, lvl = myLevel(ARTS[id].card)) => artHTML(ARTS[id].card, nameOf(ARTS[id].card), lvl, '', id);
+const favArt = (id, n, lvl) => `<div class="topcard"><button class="favart" data-zoom="${zoomKey(ARTS[id].card, id)}" aria-label="${esc(ARTS[id].name)} : voir en grand">${artOnly(id, lvl)}</button>
   <small class="hint">${n}</small></div>`;
 const plays = n => `${n} partie${n > 1 ? 's' : ''}`;
 function cardStatsHTML(cards, gen) {
@@ -417,7 +419,7 @@ function playerSheet() {
     <div class="row" role="status">${friend}</div>${errLine()}
     <span class="eyebrow">Victoires</span>${winTiles(P.stats)}
     ${cardStatsHTML(P.cards, P.general)}
-    <span class="eyebrow">Arts préférés</span>${favs.length ? `<div class="favgrid">${favs.map(x => favArt(x.id, esc(ARTS[x.id].name))).join('')}</div>`
+    <span class="eyebrow">Arts préférés</span>${favs.length ? `<div class="favgrid">${favs.map(x => favArt(x.id, esc(ARTS[x.id].name), x.level || 1)).join('')}</div>`
       : '<p class="hint" style="margin:0">Pas encore d\'arts préférés.</p>'}
   </div></div>`;
 }
@@ -447,7 +449,7 @@ function rewardItem(r) {
     art ? `Art Promo « ${esc(art.name)} »` : '', r.theme ? `Thème de l'interface « ${esc(SEASON_THEMES[r.theme] || r.theme)} » (Profil, Personnalisation)` : ''].filter(Boolean).join(' · ');
   return `<div class="reward"><div><b>${esc(r.label)}</b>${gains(r) ? `<div class="num">${gains(r)}</div>` : ''}${extra ? `<div class="hint">${extra}</div>` : ''}</div>
     ${r.card ? `<button class="ccard" data-zoom="${zoomKey(r.card)}">${anyCard(r.card)}</button>` : ''}
-    ${art ? `<button class="ccard" data-zoom="${zoomKey(art.card, art.id)}">${anyCard(art.card, 1, art.id)}</button>` : ''}</div>`;
+    ${art ? `<button class="ccard" data-zoom="${zoomKey(art.card, art.id)}">${anyCard(art.card, myLevel(art.card), art.id, myBorder(art.card))}</button>` : ''}</div>`;
 }
 // Icônes des monnaies (style.css, .ico-…) : Éclat, Prisme, coffre d'arts.
 const ico = kind => `<span class="ico ico-${kind}" aria-hidden="true"></span>`;
@@ -476,7 +478,7 @@ function closeInbox() {
 // ---- Mode classé ----
 const rankHTML = k => `<span class="rank rank-${k.id}">${esc(k.label)}</span>${k.max ? ` <span class="rstars" role="img" aria-label="${k.stars} étoile${k.stars > 1 ? 's' : ''} sur ${k.max}">${'★'.repeat(k.stars)}<span class="off">${'★'.repeat(k.max - k.stars)}</span></span>` : ''}`;
 function rankedLine(k) {
-  const d = k.delta > 0 ? `+${k.delta} étoile${k.delta > 1 ? 's' : ''}${k.bonus ? ' (bonus compris)' : ''}` : k.delta < 0 ? `${k.delta} étoile` : 'rang inchangé';
+  const d = k.delta > 0 ? `+${k.delta} étoile${k.delta > 1 ? 's' : ''}${k.bonus ? ' (bonus compris)' : ''}${k.mult ? ` · <span class="evtag">${multLabel(k.mult)} événement</span>` : ''}` : k.delta < 0 ? `${k.delta} étoile` : 'rang inchangé';
   return `<p style="margin:0">Classé : ${rankHTML(k.after)} · ${d}${k.promoted ? ' · <b>Promotion !</b>' : ''}</p>`;
 }
 async function openRanked() {
@@ -507,7 +509,9 @@ function renderRanked() {
   const last = D?.last?.top.length ? `<div class="card-box"><span class="eyebrow">Podium de ${esc(D.last.seasonName)}</span>
     <ol class="ladder">${D.last.top.map(p => `<li class="${p.login === ui.account.login ? 'me' : ''}"><span class="lpos num">${p.pos}</span>
       ${who({ ...p, title: null })}<span class="lrank">${rankHTML(p.rank)}</span></li>`).join('')}</ol></div>` : '';
+  const evs = (prog().events?.live || []).filter(ev => ev.effect === 'ranked');
   return `${head}
+  ${evs.map(ev => eventCard(ev, `Chaque victoire classée rapporte ${multLabel(ev.mult)} étoiles, bonus de série compris. Une défaite n'en retire toujours qu'une.`)).join('')}
   <div class="card-box">
     <span class="eyebrow">Saison ${esc(R.seasonName)} · encore ${R.daysLeft} jour${R.daysLeft > 1 ? 's' : ''}</span>
     <h2 style="font-size:24px">${rankHTML(R.rank)}</h2>
@@ -617,12 +621,14 @@ function renderPass() {
       <small class="hint">Tous les ${P.bonusChest.every} XP de saison, pour tous : ${P.bonusChest.odds.shards} % de chances d'avoir ${P.bonusChest.shards} Éclats ${ico('shard')}, ${P.bonusChest.odds.prisms} % ${P.bonusChest.prisms} Prismes ${ico('prism')}, ${P.bonusChest.odds.essence} % ${P.bonusChest.essence} essence d'une de vos cartes.</small></div></div></div>`;
 }
 
+// Multiplicateurs d'événement appliqués aux gains d'une partie (XP ×2…).
+const eventTags = ev => Object.entries(ev || {}).map(([k, m]) => ` <span class="evtag">${multLabel(m)} ${esc(EVENT_EFFECTS[k]?.short || k)}</span>`).join('');
 // Fin de partie : XP, Éclats et niveau gagnés.
 function endRewardHTML() {
   const r = ui.mode === 'online' ? ui.view.reward : ui.soloReward;
   if (!r) return `<p class="hint" style="margin:0">${ui.auth ? 'Calcul des récompenses…' : ''}</p>`;
   return `<div class="endreward">${levelBar(r.progress)}
-    <p style="margin:0">${r.rewarded ? (gains(r) || 'Pas de gain pour cette partie.') : `Plus de récompense de partie aujourd'hui ; les missions avancent toujours.${r.passXp ? ` · +${r.passXp} XP de saison` : ''}`}${r.levelUp ? ` · <b>Niveau ${r.progress.level} !</b>` : ''}${r.missions ? ` · ${r.missions} mission${r.missions > 1 ? 's' : ''} accomplie${r.missions > 1 ? 's' : ''}` : ''}</p>${r.ranked ? rankedLine(r.ranked) : ''}</div>`;
+    <p style="margin:0">${r.rewarded ? (gains(r) || 'Pas de gain pour cette partie.') + eventTags(r.events) : `Plus de récompense de partie aujourd'hui ; les missions avancent toujours.${r.passXp ? ` · +${r.passXp} XP de saison` : ''}`}${r.levelUp ? ` · <b>Niveau ${r.progress.level} !</b>` : ''}${r.missions ? ` · ${r.missions} mission${r.missions > 1 ? 's' : ''} accomplie${r.missions > 1 ? 's' : ''}` : ''}</p>${r.ranked ? rankedLine(r.ranked) : ''}</div>`;
 }
 // Ce que l'écran de fin anime sur PixiJS (fx.js, setEnd) : les récompenses de la partie, une fois connues.
 function endReel() {
@@ -636,6 +642,9 @@ async function equip(body, okMsg) { if (await call('PUT', '/api/cosmetics', body
 // ---- Niveaux de carte (cosmétiques) ----
 // Chaque doublon donne de l'essence de la carte ; essence et Éclats la font monter de niveau : bordure, puis effet de mise en jeu.
 const myLevel = id => ui.account?.cardLevels?.[id] || 1;
+// Bordure montrée : celle choisie parmi les niveaux atteints (compte : lvLook), sinon celle du niveau.
+// Le niveau est celui de la carte, quel que soit l'art choisi ; la bordure ne change ni le reflet ni le débordement.
+const myBorder = id => { const lvl = myLevel(id), b = ui.account?.lvLook?.[id]; return b >= 1 && b < lvl ? b : lvl; };
 const essenceOf = id => ui.account?.essence?.[id] || 0;
 const lvInfo = () => prog().cardLevels || { essenceRate: 0, max: MAX_CARD_LEVEL, costs: {} };
 const nextCost = id => lvInfo().costs[myLevel(id) + 1] || null;
@@ -667,6 +676,22 @@ async function upgrade(id) {
   ui.msg = `${nameOf(id)} passe au niveau ${r.level} : ${CARD_LEVELS[r.level].perk.toLowerCase()}.`;
   ui.fx = { list: [['.zoomcard', 'lv-up']], burst: hasFx(r.level) ? ['.zoomcard'] : [] };
   play(hasFx(r.level) ? 'astral' : 'levelup'); render();
+}
+async function chooseBorder(id, level) {
+  if (!await call('PUT', '/api/cards/border', { card: id, level })) return;
+  ui.msg = `${nameOf(id)} : ${level > 1 ? `bordure ${CARD_LEVELS[level].name.toLowerCase()}` : 'aspect d\'origine, sans bordure'}.`;
+  ui.fx = { list: [['.zoomcard', 'lv-up']] }; play('pick'); render();
+}
+// Menu « Bordure » de la carte ouverte en grand depuis la collection : une des bordures des niveaux atteints, à montrer à la place de la dernière.
+function borderHTML(id) {
+  const lvl = myLevel(id), cur = myBorder(id);
+  if (!owned(id) || lvl < 2) return '';
+  const opt = n => { const x = CARD_LEVELS[n], on = cur === n;
+    return `<button class="artopt bdopt ${on ? 'on' : ''}" data-act="border-pick" data-card="${id}" data-lv="${n}" aria-pressed="${on}" ${ui.busy ? 'disabled' : ''}>
+      <span class="lvsw${lvCls(n)}"></span><span><b>${n > 1 ? x.name : 'Aucune'}</b><small class="hint">${n === lvl ? 'Actuelle' : `Niv. ${n}`}</small></span></button>`; };
+  return `<div class="zacts artbox bdbox"><span class="eyebrow">Bordure · ${lvl} sur ${MAX_CARD_LEVEL} obtenues</span>
+    <div class="bdopts" role="group" aria-label="Bordure">${Array.from({ length: lvl }, (_, i) => opt(i + 1)).join('')}</div>
+    <p class="hint">Votre adversaire voit la bordure choisie. Le niveau, le reflet et le personnage hors du cadre restent ceux de la carte, quel que soit l'art.</p></div>`;
 }
 // Bloc « Niveau de la carte » de la carte ouverte en grand depuis la collection.
 function upgradeHTML(id) {
@@ -783,7 +808,7 @@ function miniCard(c, opts = {}) {
   const cls = c.revealed ? (pw > d.power ? 'up' : pw < d.power ? 'down' : '') : '';
   const mv = opts.mine && ui.view.phase === 'plan' && moveOf(c.uid);
   const mobile = opts.mine && c.mobile && canPlay();
-  const seat = opts.mine || opts.pending ? ui.view.seat : 1 - ui.view.seat, lv = lvCls(levelIn(seat, c.id));
+  const seat = opts.mine || opts.pending ? ui.view.seat : 1 - ui.view.seat, lv = lvCls(borderIn(seat, c.id));
   return `<div class="mc${lv} ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.drag === c.uid ? 'dragging' : ''}" style="${famVar(d.kw)}"
     data-card="${c.uid}" data-id="${c.id}" ${opts.pending ? 'data-pending="1"' : ''} ${mobile ? 'data-mobile="1"' : ''} title="${esc(d.name)}">
     ${artBg(c.id, artIn(seat, c.id))}${mv ? `<span class="mv" title="Déplacée depuis ${ZONE_NAMES[boardZone(c.uid)]}" aria-label="Déplacée depuis ${ZONE_NAMES[boardZone(c.uid)]}">⇄</span>` : mobile ? '<span class="mv" aria-label="Déplaçable">⇄</span>' : ''}
@@ -810,6 +835,8 @@ function terrainChip(side, z, isMe) {
 const badgeOf = seat => ui.view.badges?.[seat] || (seat === ui.view.seat && ui.account ? prog().badge : null);
 // Niveau d'une carte en partie : le sien vient du compte ; celui de l'adversaire, du serveur, une fois la carte révélée.
 const levelIn = (seat, id) => (seat === ui.view.seat ? myLevel(id) : badgeOf(seat)?.looks?.[id] || 1);
+// Bordure montrée par un joueur sur une carte : celle qu'il a choisie, sinon celle de son niveau.
+const borderIn = (seat, id) => (seat === ui.view.seat ? myBorder(id) : badgeOf(seat)?.borders?.[id] || levelIn(seat, id));
 // Art alternatif d'une carte en partie : le sien vient du compte ; celui de l'adversaire, du serveur, une fois la carte révélée.
 const artIn = (seat, id) => (seat === ui.view.seat ? mySel(id) : badgeOf(seat)?.arts?.[id] || null);
 // Image de profil : envoyée une fois par le serveur en ligne ; contre l'IA, la sienne seulement.
@@ -826,7 +853,7 @@ function genSlot(side, isMe, canGen) {
   const [short, epithet] = g.name.split(/,\s*/);
   const pic = portraitHTML(side.general, artIn(seat, side.general)) || `<span class="gport-init" aria-hidden="true">${esc(short[0])}</span>`;
   // --gt : le portrait respire sans à-coup d'un rendu à l'autre (ses animations CSS reprennent là où elles en étaient).
-  return `<button class="gencard${lvCls(levelIn(seat, side.general))} ${state}" style="${famVar([g.fam])}; --gt: -${Math.round(performance.now())}ms" data-general="${side.general}" data-gfam="${g.fam || ''}" data-side="${isMe ? 'me' : 'foe'}"
+  return `<button class="gencard${lvCls(borderIn(seat, side.general))} ${state}" style="${famVar([g.fam])}; --gt: -${Math.round(performance.now())}ms" data-general="${side.general}" data-gfam="${g.fam || ''}" data-side="${isMe ? 'me' : 'foe'}"
     aria-label="Général : ${esc(g.name)}, ${esc(note)}" title="${esc(g.text)}">
     <span class="gport">${pic}</span>
     <span class="gtx"><span class="gk">Général</span><span class="gn ${epithet ? '' : 'two'}">${esc(short)}</span>${epithet ? `<span class="ge">${esc(epithet)}</span>` : ''}
@@ -887,7 +914,7 @@ function renderGame() {
   const hand = (planning ? handLeft() : m.hand).map(c => { const d = CARDS[c.id];
     const cant = d.x ? seals <= 0 : c.cost > seals;
     const pcls = c.power > d.power ? 'up' : c.power < d.power ? 'down' : '';
-    return `<button class="hc${lvCls(myLevel(c.id))} ${ui.sel === c.uid ? 'sel' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${cant ? 'cant' : ''}" style="${famVar(d.kw)}" data-hand="${c.uid}" data-id="${c.id}">${artBg(c.id, mySel(c.id))}
+    return `<button class="hc${lvCls(myBorder(c.id))} ${ui.sel === c.uid ? 'sel' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${cant ? 'cant' : ''}" style="${famVar(d.kw)}" data-hand="${c.uid}" data-id="${c.id}">${artBg(c.id, mySel(c.id))}
       <span class="top2"><span class="seal">${costLabel(d, c.cost)}</span>${d.type === 'C' ? `<span class="p num ${pcls}">${c.power}</span>` : '<span class="t">Sort</span>'}</span>
       <span class="n">${esc(d.name)}</span>${d.text ? `<span class="x">${rich(d.text)}</span>` : `<span class="k">${kwLine(d)}</span>`}</button>`; }).join('');
   const canGen = play && g.activate && !m.generalUsed && m.seals >= (g.activateCost || 0);
@@ -949,7 +976,8 @@ const costKey = id => GENERALS[id] ? -1 : CARDS[id].cost;
 const famRank = id => { const i = FAMILIES.indexOf(famOfCard(id)); return i < 0 ? FAMILIES.length : i; };
 const byFamCost = (a, b) => famRank(a) - famRank(b) || costKey(a) - costKey(b) || nameOf(a).localeCompare(nameOf(b));
 // Carte ou général, tel qu'il sort d'un booster ou s'affiche dans la collection.
-const anyCard = (id, lvl = 1, art = null) => GENERALS[id] ? genCard(id, lvl, art) : fullCard(id, lvl, art);
+// border : niveau de la bordure montrée (myBorder), par défaut celle du niveau.
+const anyCard = (id, lvl = 1, art = null, border = lvl) => GENERALS[id] ? genCard(id, lvl, art, border) : fullCard(id, lvl, art, border);
 // art : montrer cet art alternatif en grand (aperçu en boutique).
 const zoomKey = (id, art = '') => `${GENERALS[id] ? 'general' : 'card'}:${id}${art ? `:${art}` : ''}`;
 function renderLoading() {
@@ -1014,6 +1042,7 @@ function renderHome() {
     ${gift}
     <section class="showcase" style="${g ? famVar([g.fam]) : ''}" data-fam="${esc(g?.fam || '')}">
       <div class="sc-art">${hero || `<span class="sc-init" aria-hidden="true">${esc((g?.name || '?')[0])}</span>`}</div>
+      ${eventChips(p.events?.live || [])}
       ${p.ranked ? `<button class="sc-rank" data-act="ranked" aria-label="Classement">${rankHTML(p.ranked.rank)}<small>${esc(p.ranked.seasonName)}</small></button>` : ''}
       <button class="sc-deck" data-act="decks"><span class="eyebrow">Deck joué</span><b>${esc(d ? d.name : 'Aucun deck')}</b>${g ? `<small>${esc(g.name)}</small>` : ''}<span class="sc-change">Changer</span></button>
     </section>
@@ -1034,6 +1063,38 @@ function renderHome() {
     </div>
     ${p.ranked ? '<button class="learnline" data-act="learn">Apprendre à jouer : tutoriel et codex des mots-clés</button>' : ''}
   </div>`;
+}
+// ---- Événements temporaires ----
+// Week-end double XP, semaine double points de classé… : réglés depuis /admin, appliqués par le serveur (events.js du moteur).
+function eventCard(ev, text) {
+  return `<div class="card-box evcard ev-${esc(ev.effect)}"><span class="evmult num">${multLabel(ev.mult)}</span>
+    <div><span class="eyebrow">Événement · ${evRemaining(ev)}</span><b>${esc(ev.name)}</b><small>${text}</small></div></div>`;
+}
+// Médailles « ×2 XP », « ×2 PC » en haut à gauche de la vitrine de l'accueil (rubans, bord dentelé, centre bombé) ;
+// chacune ouvre la feuille de son événement. Les couleurs viennent de la classe de l'effet (style.css : --m-hi, --m-mid, --m-lo, --m-rib).
+const MEDAL = `<svg class="medal-svg" viewBox="0 0 60 76" aria-hidden="true">
+  <path class="rib" d="M14 0h12l8 30-9 4z"/><path class="rib alt" d="M46 0H34l-8 30 9 4z"/>
+  <polygon class="rim" points="30.0,23.0 34.4,25.9 39.6,24.9 42.5,29.3 47.7,30.3 48.7,35.5 53.1,38.4 52.1,43.6 55.0,48.0 52.1,52.4 53.1,57.6 48.7,60.5 47.7,65.7 42.5,66.7 39.6,71.1 34.4,70.1 30.0,73.0 25.6,70.1 20.4,71.1 17.5,66.7 12.3,65.7 11.3,60.5 6.9,57.6 7.9,52.4 5.0,48.0 7.9,43.6 6.9,38.4 11.3,35.5 12.3,30.3 17.5,29.3 20.4,24.9 25.6,25.9"/>
+  <circle class="face" cx="30" cy="48" r="19"/><circle class="ring" cx="30" cy="48" r="16.5"/>
+  <ellipse class="shine" cx="23" cy="40" rx="8" ry="4.5" transform="rotate(-30 23 40)"/></svg>`;
+const eventChips = evs => (evs.length ? `<div class="sc-events">${evs.map(ev => `<button class="medal ev-${esc(ev.effect)}" data-act="event" data-ev="${esc(ev.id)}"
+  aria-label="Événement ${esc(ev.name)} : ${multLabel(ev.mult)} ${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}">${MEDAL}<span class="medal-txt"><b>${multLabel(ev.mult)}</b><small>${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}</small></span></button>`).join('')}</div>` : '');
+// Temps qui reste avant la fin (minuit, heure de Paris) : en jours, puis en heures le dernier jour.
+function evRemaining(ev) {
+  if (ev.daysLeft > 1) return `encore ${ev.daysLeft} jours`;
+  const h = Math.max(0, Math.ceil((Date.parse(ev.ends) - Date.now()) / 3600000));
+  return h > 1 ? `encore ${h} heures` : 'dernière heure';
+}
+function eventSheet(ev) {
+  const what = EVENT_EFFECTS[ev.effect];
+  return `<div class="sheet" data-act="close"><div class="panel" data-stop="1" role="dialog" aria-label="${esc(ev.name)}">
+    <div class="ph"><h2>${esc(ev.name)}</h2><button class="btn" data-act="close">Fermer</button></div>
+    <div class="evcard ev-${esc(ev.effect)}"><span class="evmult num">${multLabel(ev.mult)}</span>
+      <div><span class="eyebrow">Événement · ${evRemaining(ev)}</span><b>${multLabel(ev.mult)} sur les ${esc(what?.what || '')}</b>
+      <small>${esc(ev.period[0].toUpperCase() + ev.period.slice(1))}, jusqu'à minuit (heure de Paris).</small></div></div>
+    ${ev.effect === 'ranked' ? `<p class="hint" style="margin:0">Chaque victoire classée rapporte ${multLabel(ev.mult)} étoiles, bonus de série compris. Une défaite n'en retire toujours qu'une.</p>
+      <div class="row"><button class="btn primary" data-act="ranked">Jouer en classé</button></div>` : ''}
+  </div></div>`;
 }
 // Monnaies du joueur, en haut de l'accueil : chacune ouvre le rayon de la boutique où elle se dépense.
 function walletHTML() {
@@ -1069,7 +1130,7 @@ function renderCollection() {
   const shown = OWNABLE.filter(id => !hiddenCard(id) && (!ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam)).sort(byFamCost);
   const tile = id => { const n = owned(id), lvl = myLevel(id), up = canUpgrade(id);
     return `<button class="ccard ${n ? '' : 'locked'} ${n && (lvl > 1 || up) ? 'tagged' : ''}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? `, niveau ${lvl}${up ? ', peut monter de niveau' : ''}` : ', pas encore obtenue'}">
-      ${anyCard(id, n ? lvl : 1, n ? mySel(id) : null)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
+      ${anyCard(id, n ? lvl : 1, n ? mySel(id) : null, n ? myBorder(id) : 1)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
       ${n && (lvl > 1 || up) ? `<span class="lvtag num ${up ? 'up' : ''}">${lvl > 1 ? `Niv. ${lvl}` : ''}${up ? `${lvl > 1 ? ' · ' : ''}↑ Améliorer` : ''}</span>` : ''}</button>`; };
   return `<div class="top"><span class="title">Ma collection</span><button class="btn" data-act="edit">Modifier le deck</button></div>
   <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.filter(id => !hiddenCard(id)).length}, généraux compris. Touchez une carte pour la voir en grand et la faire monter de niveau avec l'essence de ses doublons.</p>
@@ -1101,7 +1162,8 @@ function renderShop() {
   const stall = stallHTML(open.map((set, i) => { const price = set.boosterPrice ?? P.boosterPrice, fresh = i === 0 && open.length > 1;
     return sh.freeBoosters
       ? { kind: 'pack', act: 'free-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, free: sh.freeBoosters, fresh, tag: 'Ouvrir', off: ui.busy, label: `Ouvrir un booster ${esc(set.name)} offert` }
-      : { kind: 'pack', act: 'buy-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, fresh, tag: `${ico('shard')}${price}`, off: !canPay(price) || ui.busy, label: `Acheter un booster ${esc(set.name)} pour ${price} Éclats` }; }));
+      : { kind: 'pack', act: 'buy-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, fresh, tag: `${ico('shard')}${price}`, off: !canPay(price) || ui.busy, label: `Acheter un booster ${esc(set.name)} pour ${price} Éclats` }; }),
+    { info: 'booster-info', infoLabel: 'Ce que contiennent les boosters' });
   // Sélection du jour en vitrine (shop.js) : illustration, coût, « Nouvelle » si le joueur ne l'a pas, prix ou « Vendue ».
   const offers = set => vitrineHTML({ title: 'Sélection du jour', sub: 'Cartes à l\'unité', slots: set.offers.map(o => {
     const d = CARDS[o.id], gen = GENERALS[o.id], name = esc(nameOf(o.id));
@@ -1114,8 +1176,8 @@ function renderShop() {
       <div><span class="eyebrow">${fresh ? '<span class="newset">Nouveau set</span> · ' : ''}${set.size} cartes</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
       ${offers(set)}
       <p class="hint" style="margin:0">${set.offers.length > 1 ? `${set.offers.length} cartes choisies` : 'Une carte choisie'} pour vous, en priorité parmi celles qui vous manquent, renouvelées chaque jour à minuit.</p>
-      <div class="gal-h">Booster du set</div>
-      <div class="row"><p class="hint" style="margin:0;flex:1">${P.boosterSize} cartes au hasard parmi les ${set.size} du set, toutes avec la même chance. Chaque doublon rapporte ${shardRate()} Éclats et ${lvInfo().essenceRate} essence de la carte.</p>
+      <div class="row boosterrow"><span class="gal-h">Booster du set</span>
+        <button class="stall-info infobtn" data-act="booster-info" aria-haspopup="dialog" aria-label="Ce que contient un booster ${esc(set.name)}">i</button>
         <button class="btn primary" data-act="buy-booster" data-set="${set.id}" ${!canPay(price) || ui.busy ? 'disabled' : ''}>Acheter · ${price} Éclats</button>
         ${sh.freeBoosters ? `<button class="btn primary" data-act="free-booster" data-set="${set.id}" ${ui.busy ? 'disabled' : ''}>Ouvrir un booster offert (${sh.freeBoosters})</button>` : ''}</div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">Bientôt disponible</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
@@ -1144,7 +1206,7 @@ function essenceShopHTML(E) {
   if (!E) return '';
   const per = uniPer(), have = E.universal;
   const vit = vitrineHTML({ title: 'Arts de l\'essence', sub: 'Édition Essence · famille Astrale', timer: false, cls: 'essvit', slots: E.arts.map(o => { const art = ARTS[o.id], name = esc(art.name);
-    return { art: artHTML(art.card, nameOf(art.card), 1, '', art.id), zoom: zoomKey(art.card, art.id), name, cls: `rar-${rarityKey(art)}`, style: '--glow:var(--rar)',
+    return { art: artHTML(art.card, nameOf(art.card), myLevel(art.card), '', art.id), zoom: zoomKey(art.card, art.id), name, cls: `rar-${rarityKey(art)}`, style: '--glow:var(--rar)',
       sub: esc(nameOf(art.card)), badge: esc(rarityName(art)), state: o.owned ? 'owned' : 'sale',
       act: 'buy-ess-art', id: o.id, off: have < o.price || ui.busy, price: `${ico('essence')}${o.price}`, label: `Acheter l'art ${name} pour ${o.price} essence universelle` }; }) });
   return `<section class="card-box shopset essbox">
@@ -1178,6 +1240,18 @@ function artStall(A) {
     : { kind: 'chest', act: 'chest', tag: C.left ? `${ico('prism')}${C.price}` : 'Vide', off: !C.left || A.prisms < C.price || ui.busy, label: C.left ? `Ouvrir un coffre d'arts pour ${C.price} Prismes` : 'Coffre vide pour vous' }],
     { title: 'Coffre d\'arts', info: 'chest-info' });
 }
+// Ce que contiennent les boosters, en fenêtre quand on touche le « i » de l'étal des sets (ou d'un set) : le texte tenait mal à côté du bouton d'achat.
+function boosterInfo(sh) {
+  if (!sh) return '';
+  const P = sh.prices, open = sh.sets.filter(x => x.open);
+  const sets = open.map(set => `<li><b>${esc(set.name)}</b><span class="hint num">${set.size} cartes · ${ico('shard')}${set.boosterPrice ?? P.boosterPrice}</span></li>`).join('');
+  return `<div class="sheet" data-act="close"><div class="panel infobox" id="booster-info" role="dialog" aria-label="Boosters" data-stop="1">
+    <div class="ph"><h2>Boosters</h2><button class="btn closex" data-act="close" aria-label="Fermer">×</button></div>
+    <p style="margin:0">Un booster donne ${P.boosterSize} cartes au hasard parmi celles de son set, toutes avec la même chance, généraux compris.</p>
+    <ul class="boosterlist">${sets}</ul>
+    <p style="margin:0">Chaque doublon rapporte ${shardRate()} Éclats ${ico('shard')} et ${lvInfo().essenceRate} essence de la carte, pour la faire monter de niveau.</p>
+    ${sh.freeBoosters ? `<p class="hint" style="margin:0">Vous avez ${sh.freeBoosters} booster${sh.freeBoosters > 1 ? 's' : ''} offert${sh.freeBoosters > 1 ? 's' : ''} : touchez un paquet pour l'ouvrir.</p>` : ''}</div></div>`;
+}
 // Ce que contient le coffre, en fenêtre quand on touche le « i » de l'étal : chances selon la rareté, coffres offerts en attente.
 // Se ferme par la croix, Échap ou un clic à côté.
 function chestInfo(A) {
@@ -1193,7 +1267,7 @@ function chestInfo(A) {
 function artShopHTML(A) {
   if (!A) return '';
   const vit = vitrineHTML({ title: 'Arts du jour', sub: 'Arts à l\'unité', slots: A.offers.map(o => { const art = ARTS[o.id], name = esc(art.name);
-    return { art: artHTML(art.card, nameOf(art.card), 1, '', art.id), zoom: zoomKey(art.card, art.id), name, cls: `rar-${rarityKey(art)}`, style: '--glow:var(--rar)',
+    return { art: artHTML(art.card, nameOf(art.card), myLevel(art.card), '', art.id), zoom: zoomKey(art.card, art.id), name, cls: `rar-${rarityKey(art)}`, style: '--glow:var(--rar)',
       sub: `${esc(nameOf(art.card))}${art.theme ? ` · ${esc(themeOf(art))}` : ''}`, badge: esc(rarityName(art)), state: o.owned ? 'owned' : 'sale',
       act: 'buy-art', id: o.id, off: A.prisms < o.price || ui.busy, price: `${ico('prism')}${o.price}`, label: `Acheter l'art ${name} pour ${o.price} Prismes` }; }) });
   return `<section class="card-box shopset artshop">
@@ -1359,8 +1433,8 @@ function renderProfile() {
   const RES = { wins: 'Victoire', losses: 'Défaite', draws: 'Match nul' };
   const stats = !st ? '<p class="wait">Chargement…</p>' : `
     ${winTiles(st)}
-    <div class="gal-h">Cartes</div>${cardStatsHTML((st.cards || []).map(c => ({ ...c, level: myLevel(c.id), art: mySel(c.id) })),
-      st.generals[0] && { ...st.generals[0], level: myLevel(st.generals[0].id), art: mySel(st.generals[0].id) })}
+    <div class="gal-h">Cartes</div>${cardStatsHTML((st.cards || []).map(c => ({ ...c, level: myLevel(c.id), border: myBorder(c.id), art: mySel(c.id) })),
+      st.generals[0] && { ...st.generals[0], level: myLevel(st.generals[0].id), border: myBorder(st.generals[0].id), art: mySel(st.generals[0].id) })}
     ${st.generals.length ? `<div class="gal-h">Par général</div><div class="statlist">${st.generals.map(g => `<div class="row"><span style="flex:1">${esc(g.name)}</span><span class="num hint">${g.games} partie${g.games > 1 ? 's' : ''}</span><b class="num">${g.rate} %</b></div>`).join('')}</div>` : ''}
     ${st.recent.length ? `<div class="gal-h">Dernières parties</div><div class="statlist">${st.recent.map(r => `<div class="row"><b class="res ${r.result}">${RES[r.result]}</b><span style="flex:1">contre ${esc(r.foe)} <small class="hint">· ${esc(r.deck || '')}</small></span><small class="hint num">${new Date(r.at).toLocaleDateString('fr-FR')}</small></div>`).join('')}</div>`
       : '<p class="hint" style="margin:0">Aucune partie jouée pour l\'instant.</p>'}`;
@@ -1440,17 +1514,17 @@ function renderLobby() {
     <button class="btn" data-act="quit">Annuler</button>
   </div>`;
 }
-function fullCard(id, lvl = 1, art = null) { const d = CARDS[id];
-  return `<div class="fc${lvCls(lvl)}" style="${famVar(d.kw)}">${artHTML(id, d.name, lvl, '', art)}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
+function fullCard(id, lvl = 1, art = null, border = lvl) { const d = CARDS[id];
+  return `<div class="fc${lvCls(border)}" style="${famVar(d.kw)}">${artHTML(id, d.name, lvl, '', art)}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
     <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
-const genCard = (k, lvl = 1, art = null) => { const g = GENERALS[k]; return `<div class="fc${lvCls(lvl)}" style="${famVar([g.fam])}">${artHTML(k, g.name, lvl, '', art)}<b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
+const genCard = (k, lvl = 1, art = null, border = lvl) => { const g = GENERALS[k]; return `<div class="fc${lvCls(border)}" style="${famVar([g.fam])}">${artHTML(k, g.name, lvl, '', art)}<b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
 const terrainCard = k => { const t = TERRAINS[k]; return `<div class="fc" style="${famVar([t.fam])}">${terrainHTML(k, t.name)}<b>${t.name}</b><span class="k">Terrain</span><span class="x">${rich(t.text)}</span></div>`; };
 // Carte affichée en grand, avec les actions possibles sur elle pendant la planification.
 const artLine = art => (ARTS[art] ? ` · art ${esc(ARTS[art].name)} (${esc(rarityName(ARTS[art]))})` : '');
 function zoomBtns(acts) { return acts.length ? `<div class="zacts">${acts.join('')}</div>` : ''; }
 function zoomHTML() {
   const zm = ui.zoom, play = ui.view && canPlay();
-  let body = '', style = '', lvl = 1, art = null;
+  let body = '', style = '', lvl = 1, art = null, border = null;
   if (zm.kind === 'card') {
     const d = CARDS[zm.id];
     const inHand = ui.view && me().hand.find(c => c.uid === zm.uid);
@@ -1460,7 +1534,7 @@ function zoomHTML() {
     const pw = inHand ? inHand.power : onBoard && onBoard.revealed ? onBoard.power : d.power;
     const pcls = pw > d.power ? 'up' : pw < d.power ? 'down' : '';
     const seat = onBoard ? (onBoard.side === 'me' ? ui.view.seat : 1 - ui.view.seat) : null;
-    lvl = seat !== null ? levelIn(seat, zm.id) : myLevel(zm.id);
+    lvl = seat !== null ? levelIn(seat, zm.id) : myLevel(zm.id); border = seat !== null ? borderIn(seat, zm.id) : myBorder(zm.id);
     art = zm.art || (seat !== null ? artIn(seat, zm.id) : mySel(zm.id));
     const acts = [];
     if (play && inHand && !pend) {
@@ -1478,7 +1552,7 @@ function zoomHTML() {
     body = `
       <div class="zh"><span class="seal" title="Coût">${cost}</span><h2>${esc(d.name)}</h2>${d.type === 'C' ? `<span class="zp num ${pcls}" title="Puissance">${pw}</span>` : ''}</div>
       <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · puissance de base ${d.power}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span>
-      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? fxHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
+      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? fxHTML(zm.id) + borderHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
   } else if (zm.kind === 'general') {
     const g = GENERALS[zm.id]; style = famVar([g.fam]);
     const acts = [];
@@ -1491,15 +1565,15 @@ function zoomHTML() {
     }
     const deck = ui.view && (zm.mine ? me() : zm.side === 'foe' ? ui.view.foe : null)?.deckName;
     const seat = ui.view && zm.side ? (zm.mine ? ui.view.seat : 1 - ui.view.seat) : null;
-    lvl = seat !== null ? levelIn(seat, zm.id) : myLevel(zm.id);
+    lvl = seat !== null ? levelIn(seat, zm.id) : myLevel(zm.id); border = seat !== null ? borderIn(seat, zm.id) : myBorder(zm.id);
     art = zm.art || (seat !== null ? artIn(seat, zm.id) : mySel(zm.id));
-    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? fxHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
+    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? fxHTML(zm.id) + borderHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
   } else {
     const t = TERRAINS[zm.id]; style = famVar([t.fam]);
     body = `<div class="zh"><h2>${t.name}</h2></div><span class="k">Terrain${t.fam ? ` · ${t.fam}` : ''}</span><p class="x">${rich(t.text)}</p>`;
   }
   const pic = zm.kind === 'terrain' ? terrainHTML(zm.id, TERRAINS[zm.id].name, 'zoomart') : artHTML(zm.id, nameOf(zm.id), lvl, 'zoomart', art);
-  return `<div class="sheet zoom" data-act="close"><div class="zoomwrap" data-stop="1" style="${style}">${pic}<div class="panel zoomcard${lvCls(lvl)}" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
+  return `<div class="sheet zoom" data-act="close"><div class="zoomwrap" data-stop="1" style="${style}">${pic}<div class="panel zoomcard${lvCls(border ?? lvl)}" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
     <button class="btn" data-act="close">Fermer</button></div></div></div>`;
 }
 function openZoom(zoom) { ui.zoom = zoom; ui.sheet = 'zoom'; ui.zoomBack = null; ui.fx = { list: [['.zoomcard', 'zoom-in']] }; }
@@ -1557,7 +1631,7 @@ function sheetHTML() {
     return `<div class="sheet"><div class="panel gift" role="dialog" aria-label="Cadeau de Séraphine">
       <div class="gift-head"><span class="coach-face" aria-hidden="true">${portraitHTML('seraphine')}</span><h2>Un cadeau pour bien commencer</h2></div>
       <p style="margin:0">Je vous offre un <strong>doublon</strong> de votre général${g ? `, ${esc(nameOf(g).split(',')[0])}` : ''}, et les Éclats pour l'améliorer. Les doublons font monter vos cartes de niveau : je vais vous montrer comment.</p>
-      ${g ? `<div class="gift-card">${anyCard(g, myLevel(g), mySel(g))}</div>` : ''}${errLine()}
+      ${g ? `<div class="gift-card">${anyCard(g, myLevel(g), mySel(g), myBorder(g))}</div>` : ''}${errLine()}
       <div class="row"><button class="btn primary" data-act="gift-take" ${ui.busy ? 'disabled' : ''}>Recevoir et l'améliorer</button></div></div></div>`;
   }
   if (ui.sheet === 'learn') {
@@ -1570,6 +1644,7 @@ function sheetHTML() {
       <div class="row"><button class="btn" data-act="codex">Codex des mots-clés</button><button class="btn" data-act="set">Toutes les cartes</button></div></div></div>`;
   }
   if (ui.sheet === 'chest-info' && ui.screen === 'shop') return chestInfo(ui.shop?.arts);
+  if (ui.sheet === 'booster-info' && ui.screen === 'shop') return boosterInfo(ui.shop);
   if (ui.sheet === 'need' && ui.need) {
     // Il manque des Éclats : l'offre de change fixe qui suffit (ou la plus grosse), sans choix du montant.
     const { need, offer: o, verb } = ui.need, have = ui.account.prisms || 0, short = o.prisms - have, step = EXCHANGE_TIERS.findIndex(t => t.id === o.id);
@@ -1594,12 +1669,13 @@ function sheetHTML() {
       <div class="row"><button class="btn primary" data-act="close">Super !</button></div></div></div>`;
   }
   if (ui.sheet === 'calendar' && prog().calendar) return calendarHTML(prog().calendar);
+  if (ui.sheet === 'event') { const ev = prog().events?.live.find(x => x.id === ui.evSel); if (ev) return eventSheet(ev); }
   if (ui.sheet === 'mail-got') return mail.gotSheet();
   if (ui.sheet === 'art' && ui.gotArt) {
     const art = ARTS[ui.gotArt.id], on = mySel(art.card) === art.id;
     return `<div class="sheet" data-act="close"><div class="panel gotart" data-stop="1"><div class="ph"><h2>${ui.gotArt.chest ? 'Coffre d\'arts' : 'Nouvel art'}</h2><button class="btn" data-act="close">Fermer</button></div>
       <div class="row" style="gap:8px">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}</small></div>
-      <div class="bcard gotcard">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</div>
+      <div class="bcard gotcard">${artHTML(art.card, nameOf(art.card), myLevel(art.card), '', art.id)}</div>
       ${ui.msg ? `<p class="hint" role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
       <div class="row"><button class="btn ${on ? '' : 'primary'}" data-act="art-pick" data-card="${art.card}" data-art="${art.id}" ${on || ui.busy ? 'disabled' : ''}>${on ? 'Art utilisé ✓' : 'Utiliser cet art'}</button>
         <button class="btn" data-act="close">Plus tard</button></div>
@@ -1729,7 +1805,7 @@ const turnBanner = view => (view.turn === view.turns ? ['Dernier tour', `Tour ${
 // `after` : effets posés par-dessus la table une fois le rendu fait (ils ont besoin de la place des éléments).
 function viewEffects(prev, view) {
   const list = [], sounds = [], burst = [], after = [];
-  const fxOf = c => c && c.id && hasFx(levelIn(c.side === 'me' ? view.seat : 1 - view.seat, c.id));
+  const fxOf = c => c && c.id && hasFx(borderIn(c.side === 'me' ? view.seat : 1 - view.seat, c.id));
   const at = sel => app.querySelector(sel);
   let flip = null;
   if (!prev || view.turn < prev.turn || (prev.phase === 'over' && view.phase !== 'over')) {
@@ -2022,7 +2098,7 @@ app.addEventListener('click', e => {
     else if (a === 'quit') {
       if (ui.screen === 'game' && ui.view?.ranked && ui.view.phase !== 'over' && !confirm('Quitter une partie classée en cours compte comme une défaite. Quitter quand même ?')) return;
       quit(); }
-    else if (a === 'ranked') openRanked();
+    else if (a === 'ranked') { ui.sheet = null; openRanked(); }
     else if (a === 'pass') openPass();
     else if (a === 'pass-buy' && !ui.busy) buyPass();
     else if (a === 'ranked-play') goRanked();
@@ -2048,10 +2124,13 @@ app.addEventListener('click', e => {
     else if (a === 'shop-essence') { ui.sheet = null; ui.zoom = null; ui.msg = ''; openShop('essence'); }
     else if (a === 'shop-change') { ui.need = null; ui.sheet = null; ui.zoom = null; openShop('change'); }
     else if (a === 'chest-info') { ui.sheet = 'chest-info'; render(); }
+    else if (a === 'booster-info') { ui.sheet = 'booster-info'; render(); }
     else if (a === 'calendar') { ui.sheet = 'calendar'; ui.calGot = null; render(); }
+    else if (a === 'event') { ui.sheet = 'event'; ui.evSel = t.dataset.ev; render(); }
     else if (a === 'claim-day' && !ui.busy) claimDay();
     else if (a === 'art-pick' && !ui.busy) selectArt(ds.card, ds.art);
     else if (a === 'holo-toggle' && !ui.busy) toggleHolo(ds.card);
+    else if (a === 'border-pick' && !ui.busy) chooseBorder(ds.card, +ds.lv);
     else if (a === 'pop-toggle' && !ui.busy) togglePop(ds.card);
     else if (a === 'reroll' && !ui.busy) call('POST', '/api/missions/reroll', { index: +ds.i });
     else if (a === 'edit') { editDeck(ui.account.active, ui.screen === 'collection' ? 'collection' : 'home'); render(); }

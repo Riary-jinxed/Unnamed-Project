@@ -55,6 +55,8 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   prismShards: cfg.prismShards,
   // Niveaux de carte (cosmétiques) : essence de chaque carte et niveau atteint (1 si absent), essence universelle.
   essence: a.essence || {}, cardLevels: a.cardLevels || {}, uniEssence: a.uniEssence || 0,
+  // Bordure choisie parmi celles des niveaux atteints, quand ce n'est pas celle du niveau (progress.js, chooseBorder).
+  lvLook: a.lvLook || {},
   // Prismes (monnaie rare des arts alternatifs), arts possédés et art choisi pour chaque carte.
   prisms: a.prisms || 0, arts: a.arts || {}, artSel: a.artSel || {},
   // Cartes dont le reflet holographique est coupé.
@@ -66,7 +68,7 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   // Clan (clans.js) : identifiant du clan, Écus (monnaie du clan).
   clan: a.clan || null, clanCoins: a.clanCoins || 0 });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift', 'uniEssence', 'dupShop', 'clanCoins', 'clanDon'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift', 'uniEssence', 'dupShop', 'lvLook', 'clanCoins', 'clanDon'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte
 // (giveEssence : au-delà du plafond, de quoi monter la carte jusqu'au niveau maximum, de l'essence universelle).
@@ -433,6 +435,7 @@ export function createAccounts(store) {
     return { card, shards: cost.shards, account: me(a) };
   }
   async function upgradeCard(a, body) { const level = await progress.upgradeCard(a, body || {}); progress.check(a); await store.put(a); return { level, account: me(a) }; }
+  async function borderCard(a, body) { progress.chooseBorder(a, body || {}); await store.put(a); return { account: me(a) }; }
 
   // Administration : créer un compte, ou changer le mot de passe d'un compte existant.
   async function adminUpsert({ login, password, name, create }) {
@@ -539,7 +542,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, upgradeCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -586,6 +589,7 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/rewards/seen': a => accounts.seen(a),
     'PUT /api/cosmetics': (a, body) => accounts.equip(a, body),
     'POST /api/cards/upgrade': (a, body) => accounts.upgradeCard(a, body),
+    'PUT /api/cards/border': (a, body) => accounts.borderCard(a, body),
     'GET /api/admin/accounts': () => ({ accounts: accounts.adminList() }),
     'POST /api/admin/accounts': (_, body) => accounts.adminUpsert(body),
     'GET /api/admin/account': (_, __, ___, url) => accounts.adminGet(url.searchParams.get('login')),
