@@ -139,11 +139,16 @@ const tutoKey = () => `tuto-${ui.account?.login || ''}`;
 function goTutorial(lesson = 'initiation') {
   store.set(tutoKey(), true); ui.tutoReward = null; ui.tutoSent = false;
   toTable('Séraphine vous attend…', () => {
+    // Depuis la fin d'une leçon (leçon suivante) ou depuis Passer en pleine leçon : on quitte proprement la précédente.
+    if (ui.ctrl) ui.ctrl.leave();
+    ui.view = null; ui.pending = []; ui.sel = null; ui.moveSel = null; ui.genZone = null;
     ui.mode = 'tuto'; ui.sheet = null; ui.lastTurn = 0; ui.error = '';
     ui.ctrl = startTutorial(handlers, { name: ui.account?.name || 'Vous', lesson });
     render();
   });
 }
+// Les leçons s'enchaînent dans l'ordre de LESSONS : la fin d'une leçon propose la suivante, et Passer y mène directement.
+const nextLesson = () => { const ks = Object.keys(LESSONS), i = ks.indexOf(ui.ctrl?.lesson); return i >= 0 ? ks[i + 1] || null : null; };
 // Leçon finie (une fois par partie jouée) : le serveur donne sa récompense la première fois, affichée dans le panneau de fin.
 function lessonDone() {
   if (ui.tutoSent || !ui.auth || !ui.ctrl?.lesson) return;
@@ -860,7 +865,7 @@ const coachHTML = (c, float = false) => {
   const dots = c.steps ? `<span class="coach-dots" aria-label="Étape ${c.step} sur ${c.steps}">${Array.from({ length: c.steps }, (_, i) => `<i class="${i + 1 < c.step ? 'past' : i + 1 === c.step ? 'now' : ''}"></i>`).join('')}</span>` : '';
   return `<div class="coach ${float ? 'float' : ''} ${float === 'bottom' ? 'bottom' : ''} ${c.text !== ui.coachShown ? 'new' : ''}" role="status" aria-live="polite">
   <span class="coach-face" aria-hidden="true">${portraitHTML('seraphine')}</span>
-  <div class="coach-body"><div class="coach-head"><b>Séraphine</b>${dots}${c.done ? '' : `<button class="coach-skip" data-act="${ui.screen === 'game' ? 'quit' : 'guide-skip'}">Passer</button>`}</div>
+  <div class="coach-body"><div class="coach-head"><b>Séraphine</b>${dots}${c.done ? '' : ui.screen !== 'game' ? '<button class="coach-skip" data-act="guide-skip">Passer</button>' : nextLesson() ? `<button class="coach-skip" data-act="tuto" data-lesson="${nextLesson()}" title="Passer à la leçon suivante">Passer</button>` : '<button class="coach-skip" data-act="quit">Passer</button>'}</div>
     <p>${coachText(c.text)}</p></div>
   ${c.info ? `<button class="btn primary sm coach-next" data-act="tuto-next">${c.done ? 'Terminer' : 'Suivant'}</button>` : ''}</div>`;
 };
@@ -1519,7 +1524,8 @@ function sheetHTML() {
     if (ui.mode === 'tuto') return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p><div class="zs">${zs}</div>
       <p style="margin:0">${esc(ui.ctrl?.endText || '')}</p>${ui.tutoReward ? `<div class="rewards">${rewardItem(ui.tutoReward)}</div>
       ${ui.tutoReward.boosters ? '<p class="hint" style="margin:0">Toutes les leçons sont finies : votre booster offert vous attend sur l\'accueil.</p>' : ''}` : ''}<div class="row">
-      <button class="btn primary" data-act="quit">${ui.account?.starter ? 'Retour à l\'accueil' : 'Choisir mon deck'}</button><button class="btn" data-act="again">Rejouer la leçon</button>
+      ${nextLesson() ? `<button class="btn primary" data-act="tuto" data-lesson="${nextLesson()}">Leçon suivante : ${esc(LESSONS[nextLesson()].title)}</button>` : ''}
+      <button class="btn ${nextLesson() ? '' : 'primary'}" data-act="quit">${ui.account?.starter ? (nextLesson() ? 'Arrêter le tuto' : 'Retour à l\'accueil') : (nextLesson() ? 'Passer : choisir mon deck' : 'Choisir mon deck')}</button><button class="btn" data-act="again">Rejouer la leçon</button>
       ${ui.account?.starter ? '<button class="btn" data-act="codex">Ouvrir le codex</button>' : ''}</div></div></div>`;
     return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p>
       <div class="zs">${zs}</div>${endRewardHTML()}<div class="row">
@@ -1756,7 +1762,7 @@ app.addEventListener('pointerdown', e => {
 });
 function startDrag(e) {
   const r = drag.el.getBoundingClientRect(), g = drag.el.cloneNode(true);
-  g.classList.remove('sel', 'cant', 'msel'); g.classList.add('dragghost');
+  g.classList.remove('sel', 'cant', 'msel', 'coach-hl'); g.classList.add('dragghost');
   Object.assign(g.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
   drag.dx = e.clientX - r.left; drag.dy = e.clientY - r.top; drag.ghost = g; document.body.append(g);
   if (drag.kind === 'hand') { ui.sel = drag.uid; ui.moveSel = null; } else { ui.moveSel = drag.uid; ui.sel = null; }
