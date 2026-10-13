@@ -72,7 +72,7 @@ export const donationCoins = (res, amount) => { const d = DONATIONS[res]; return
 export const CLAN_ROLES = { maitre: 'Maître', adjoint: 'Adjoint', souschef: 'Sous-chef', membre: 'Membre' };
 export const ROLE_RANK = { maitre: 3, adjoint: 2, souschef: 1, membre: 0 };
 export const CLAN_ROLE_MAX = { adjoint: 2, souschef: 4 };
-export const CLAN_INACTIVE_DAYS = 7;
+export const CLAN_INACTIVE_DAYS = 30;
 // Ce que chaque rôle peut faire : accepter les demandes, exclure (seulement plus bas que soi), nommer (sous-chefs et membres ;
 // les adjoints, seul le Maître), régler le clan, dépenser le trésor.
 export const CLAN_RIGHTS = {
