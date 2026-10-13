@@ -9,30 +9,28 @@ let root = null, veil = null, rims = null, hand = null, ghost = null, ring = nul
 const PAD = 6, DIM = 0x05030a;
 
 // Main qui pointe de l'index, dessinée une fois dans un canevas 2D (gant blanc cerné de sombre). Le bout du doigt est l'ancre.
-// L'index tendu est sur le bord gauche de la main, les trois autres doigts repliés à sa droite et le pouce replié devant,
-// comme le curseur « main » des ordinateurs : jamais un doigt dressé au milieu du poing. Elle penche un peu (TILT).
+// Un seul contour, comme le curseur « main » des ordinateurs : l'index tendu, les trois autres doigts repliés à sa droite
+// et le pouce collé sur le côté gauche. Elle penche un peu (TILT).
 const TILT = -0.35;
 function handTexture() {
   const s = 2, c = document.createElement('canvas'); c.width = 64 * s; c.height = 84 * s;
-  const g = c.getContext('2d'); g.scale(s, s); g.lineJoin = 'round';
-  const parts = [
-    p => p.roundRect(14, 2, 14, 46, 7),     // index
-    p => p.roundRect(14, 30, 42, 38, 13),   // paume
-    p => p.roundRect(27, 26, 12, 22, 6),    // majeur replié
-    p => p.roundRect(38, 29, 11, 20, 5.5),  // annulaire replié
-    p => p.roundRect(48, 33, 10, 18, 5),    // auriculaire replié
-    p => p.roundRect(18, 62, 34, 14, 4),    // poignet
-  ];
-  const thumb = p => p.roundRect(10, 44, 30, 13, 6.5); // pouce replié devant la paume
+  const g = c.getContext('2d'); g.scale(s, s); g.lineJoin = 'round'; g.lineCap = 'round';
+  const hand = p => {
+    p.moveTo(14, 42); p.lineTo(14, 9); p.arc(20, 9, 6, Math.PI, 0); p.lineTo(26, 31);
+    p.arc(31, 31, 5, Math.PI, 0); p.arc(40.5, 33, 4.5, Math.PI, 0); p.arc(49.5, 36, 4.5, Math.PI, 0);
+    p.lineTo(54, 56); p.quadraticCurveTo(54, 66, 45, 66); p.lineTo(25, 66); p.quadraticCurveTo(15, 66, 13, 57);
+    p.lineTo(6, 47); p.quadraticCurveTo(2, 41, 7, 39); p.quadraticCurveTo(10, 38, 14, 42); p.closePath();
+  };
+  const cuff = p => p.roundRect(20, 63, 31, 15, 4);
   g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 6; g.shadowOffsetY = 3;
   g.fillStyle = '#1a1208'; g.strokeStyle = '#1a1208'; g.lineWidth = 6;
-  for (const f of [...parts, thumb]) { g.beginPath(); f(g); g.stroke(); g.fill(); }
+  for (const f of [hand, cuff]) { g.beginPath(); f(g); g.stroke(); g.fill(); }
   g.shadowColor = 'transparent'; g.fillStyle = '#fbf3e2';
-  for (const f of parts) { g.beginPath(); f(g); g.fill(); }
-  g.strokeStyle = 'rgba(120,90,50,.6)'; g.lineWidth = 1.4;
-  for (const x of [38, 48]) { g.beginPath(); g.moveTo(x, 31); g.lineTo(x, 45); g.stroke(); }
-  g.beginPath(); thumb(g); g.fill(); g.stroke();
-  g.beginPath(); g.moveTo(20, 69); g.lineTo(50, 69); g.stroke();
+  for (const f of [hand, cuff]) { g.beginPath(); f(g); g.fill(); }
+  g.strokeStyle = 'rgba(120,90,50,.65)'; g.lineWidth = 1.4;
+  for (const [x, y] of [[26, 33], [36, 35], [45, 38]]) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 8); g.stroke(); }
+  g.beginPath(); g.moveTo(14, 44); g.quadraticCurveTo(17, 50, 22, 50); g.stroke(); // pli du pouce
+  g.beginPath(); g.moveTo(23, 65); g.lineTo(48, 65); g.stroke();
   return Texture.from(c);
 }
 
@@ -41,7 +39,7 @@ function build() {
   root = new Container(); root.keep = true; root.label = 'coach'; root.alpha = 0;
   veil = new Graphics(); rims = new Graphics(); rims.blendMode = 'add';
   ghost = new Graphics(); ring = new Graphics(); ring.blendMode = 'add';
-  hand = new Sprite(handTexture()); hand.anchor.set(21 / 64, 3 / 84); hand.scale.set(0.5);
+  hand = new Sprite(handTexture()); hand.anchor.set(20 / 64, 3 / 84); hand.scale.set(0.5);
   root.addChild(veil, rims, ghost, ring, hand);
   over.ticker.add(tick);
 }
