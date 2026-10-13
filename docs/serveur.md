@@ -44,7 +44,8 @@ Un compte est un objet JSON (colonne `data`) :
 | `starter` | Deck de départ choisi (`null` avant le premier choix). |
 | `cards` | Collection : `{ id: 1 }` (un exemplaire ; les doublons deviennent des Éclats). |
 | `shards` | Éclats. |
-| `essence`, `cardLevels` | Essence de chaque carte (gagnée avec ses doublons) et niveau cosmétique atteint (`{ id: 2..5 }`, 1 si absent). |
+| `essence`, `cardLevels` | Essence de chaque carte (gagnée avec ses doublons) et niveau cosmétique atteint (`{ id: 2..5 }`, 1 si absent), le même pour tous les arts de la carte. |
+| `lvLook` | Bordure choisie, quand ce n'est pas celle du niveau (`{ id: 1..niveau − 1 }`). L'adversaire la voit (`badge.borders`) ; le reflet et le débordement restent ceux du niveau. |
 | `uniEssence` | Essence universelle : l'essence des doublons au-delà du plafond d'une carte (de quoi la monter jusqu'au niveau maximum). |
 | `dupShop` | Doublons du jour : `{ date, rotation, n, offers, bought }`. |
 | `decks`, `active` | Jusqu'à 5 decks `{ id, name, general, terrains, cards }` ; identifiant du deck joué. |
@@ -120,6 +121,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/tuto` | `{ lesson }` : leçon du tutoriel finie (`TUTO_LESSONS` du moteur). La première fois, donne `tutoShards` Éclats ; quand toutes sont finies, `tutoBoosters` boosters offerts. Renvoie `reward` (`kind: 'tuto'`, `shards`, `boosters`, `all`) et le compte. |
 | `POST /api/tuto/gift` | Cadeau d'amélioration, une seule fois après le deck de départ (`tutoGift === false`) : un doublon du général du deck joué, et de quoi le monter au niveau 2 (Éclats et essence complétés jusqu'au coût). Renvoie `card`, `shards` et le compte. |
 | `POST /api/cards/upgrade` | `{ card }` : monte une carte possédée d'un niveau contre son essence et des Éclats (`progress.upgradeCard`). |
+| `PUT /api/cards/border` | `{ card, level }` : bordure montrée sur la carte, parmi celles des niveaux atteints (`progress.chooseBorder`, compte : `lvLook`) ; son niveau actuel la fait suivre son niveau. |
 | `POST /api/essence/convert` | `{ card, amount }` : `amount` essence d'une carte possédée qui peut encore monter, contre `amount × uniPerEssence` essence universelle, sans dépasser ce qui lui manque pour le niveau maximum (`progress.convertEssence`). Renvoie `essence`, `price`, la boutique et le compte. |
 | `POST /api/shop/dup` | `{ card }` : achète un doublon du jour (`dupPrice` Éclats) ; il donne `essencePerDuplicate` essence de la carte (au-delà du plafond, de l'essence universelle), sans Éclats. |
 | `POST /api/shop/essence-art` | `{ art }` : achète un art de l'édition Essence avec l'essence universelle (`essArtPrice_<rareté>`). Renvoie `art`, la boutique et le compte. |

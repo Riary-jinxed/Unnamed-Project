@@ -481,6 +481,19 @@ export function createProgress(store) {
     a.cardLevels = { ...(a.cardLevels || {}), [card]: lvl + 1 };
     return lvl + 1;
   }
+  // Bordure montrée sur une carte : celle d'un niveau qu'elle a atteint (compte : lvLook). Sans choix, ou en choisissant
+  // son niveau actuel, la carte suit son niveau (et prend la bordure suivante quand elle monte). Le niveau reste celui de la carte,
+  // quel que soit l'art choisi : seule la bordure change, pas le reflet ni le débordement.
+  function chooseBorder(a, { card, level }) {
+    if (!OWNABLE.includes(card) || !a.cards?.[card]) throw new HttpError(400, 'Vous ne possédez pas cette carte.');
+    const lvl = a.cardLevels?.[card] || 1, n = Number(level);
+    if (!Number.isInteger(n) || n < 1 || n > lvl) throw new HttpError(409, 'Cette carte n\'a pas encore cette bordure.');
+    const looks = { ...(a.lvLook || {}) };
+    if (n === lvl) delete looks[card]; else looks[card] = n;
+    a.lvLook = looks;
+  }
+  // Niveau de la bordure montrée (lvLook, borné au niveau atteint).
+  const borderOf = (a, id) => { const lvl = a.cardLevels?.[id] || 1, b = a.lvLook?.[id]; return b >= 1 && b < lvl ? b : lvl; };
   // Essence universelle : une carte est au plafond quand son essence en réserve suffit à la monter jusqu'au niveau maximum
   // (montée ou non). L'essence qu'elle reçoit au-delà ne lui sert plus et devient de l'essence universelle.
   const essenceRoom = (a, id) => essenceToMax(a.cardLevels?.[id] || 1, a.essence?.[id] || 0, cfg());
@@ -528,9 +541,11 @@ export function createProgress(store) {
   // Ce qu'un adversaire voit du joueur pendant une partie. looks : niveau des cartes du deck joué et de son général (niveau 2 et plus) ;
   // le serveur n'envoie à l'adversaire que ceux des cartes déjà révélées (index.js).
   // arts : art alternatif choisi pour ces mêmes cartes, filtré de la même façon.
+  // borders : bordure choisie quand elle n'est pas celle du niveau (chooseBorder), filtrée de la même façon.
   const badge = (a, deck = null) => ({ title: a.title ? TITLES[a.title] || null : null, frame: a.frame || null, back: a.back || 'classique', level: a.level || 1,
     looks: deck ? Object.fromEntries([...deck.cards, deck.general].filter(id => id && (a.cardLevels?.[id] || 1) > 1).map(id => [id, a.cardLevels[id]])) : {},
-    arts: deck ? shownArts(a, [...deck.cards, deck.general]) : {} });
+    arts: deck ? shownArts(a, [...deck.cards, deck.general]) : {},
+    borders: deck ? Object.fromEntries([...deck.cards, deck.general].filter(id => id && borderOf(a, id) !== (a.cardLevels?.[id] || 1)).map(id => [id, borderOf(a, id)])) : {} });
   function view(a) {
     if (!a.level) return { ...levelView(a), freeBoosters: 0, missions: [], rerollsLeft: 0, inbox: [], badge: badge(a), cosmetics: { titles: [], frames: [], backs: [], themes: [] }, cardLevels: levelsView(), pass: null };
     const ms = missions(a), c = cfg();
@@ -598,6 +613,6 @@ export function createProgress(store) {
     passPool: Object.fromEntries(Object.entries(PASS_KINDS).map(([k, x]) => [k, { daily: x.daily, weekly: x.weekly }])),
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
-  return { init, grant, cfg, events, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
+  return { init, grant, cfg, events, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
     seen: a => { a.inbox = []; } };
 }
