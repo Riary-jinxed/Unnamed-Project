@@ -374,6 +374,30 @@ const METAL = {
   nuit: { base: 0x2a3a7a, hi: 0x6a7ad0, lo: 0x141c44 }, violet: { base: 0x6a3a9a, hi: 0xb08ae0, lo: 0x3a1a5a },
   maitre: { base: 0x9a4ad0, hi: 0xf08ad8, lo: 0x4a1a7a }, neon: { base: 0x0b1530, hi: 0x19c8e6, lo: 0x050a18 },
 };
+// Tube néon : contour d'encre, couleur, puis cœur clair ; path(k) trace le chemin sur le Graphics k et le renvoie.
+function neon(g, path, color, w = 3) {
+  add(g, glow(() => path(new Graphics()).stroke({ width: w + 6, color: 0xffffff, cap: 'round', join: 'round' }), color, 6, 0.8));
+  for (const [ww, c, a] of [[w + 4, INK, 1], [w, color, 1], [w * 0.4, 0xffffff, 0.8]]) path(add(g, new Graphics())).stroke({ width: ww, color: c, alpha: a, cap: 'round', join: 'round' });
+}
+// Bougie qui coule, flamme et halo, posée sur (x, y).
+function candle(g, x, y, h) {
+  add(g, glow(() => new Graphics().circle(x, y - h - 10, 9).fill(0xffffff), 0xffb02a, 8, 0.9));
+  const k = add(g, new Graphics());
+  k.moveTo(x - 6, y).lineTo(x - 6, y - h).quadraticCurveTo(x, y - h - 3, x + 6, y - h).lineTo(x + 6, y - h + 9).quadraticCurveTo(x + 8, y - h + 14, x + 6, y - h + 15).lineTo(x + 6, y).closePath().fill(0xf0e6d0).stroke(ink(2.5));
+  k.moveTo(x, y - h - 1).lineTo(x, y - h - 5).stroke(ink(2));
+  k.moveTo(x, y - h - 21).quadraticCurveTo(x + 7, y - h - 10, x, y - h - 5).quadraticCurveTo(x - 7, y - h - 10, x, y - h - 21).closePath().fill(0xffb02a).stroke(ink(1.5));
+  k.moveTo(x, y - h - 15).quadraticCurveTo(x + 3, y - h - 9, x, y - h - 7).quadraticCurveTo(x - 3, y - h - 9, x, y - h - 15).closePath().fill(0xfff3a0);
+}
+// Chapeau de sorcière : bord, cône à pointe recourbée, ruban et boucle d'or ; (x, y) est le milieu du bord.
+function witchHat(g, x, y, rot = 0) {
+  const k = new Graphics();
+  k.ellipse(0, 0, 50, 11).fill(0x2a1640).stroke(ink(3.5));
+  k.moveTo(-30, -2).quadraticCurveTo(-18, -34, -6, -52).quadraticCurveTo(10, -66, 30, -60).quadraticCurveTo(14, -56, 8, -44).quadraticCurveTo(20, -20, 30, -2).closePath().fill(0x3a1d5a).stroke(ink(3.5));
+  k.moveTo(-26, -6).quadraticCurveTo(-18, -26, -8, -42).stroke({ width: 4, color: 0x6a3a9a, cap: 'round' });
+  k.moveTo(-28, -4).quadraticCurveTo(0, -12, 28, -4).lineTo(26, -14).quadraticCurveTo(0, -22, -25, -14).closePath().fill(0x7cff6a).stroke(ink(2.5));
+  k.rect(-7, -18, 14, 13).fill(0xffd45a).stroke(ink(2.5)); k.rect(-3, -14, 6, 5).fill(0x3a1d5a);
+  k.position.set(x, y); k.rotation = rot; g.addChild(k);
+}
 const FAM_GEMS = [0xe2b93e, 0xd0443a, 0x4f8c3a, 0x2a8a7e, 0xe07a2a];
 const FRAMES = {
   bronze: g => { ring(g, METAL.bronze); beads(g, 4, (RH + RB) / 2, 0x7a4218, 4.5, Math.PI / 4); },
@@ -423,18 +447,35 @@ const FRAMES = {
     r.circle(C, C, RB).stroke(ink(4.5)).circle(C, C, RH).stroke(ink(4.5));
     for (const s of [-1, 1]) { const p = new Container(); p.position.set(C + s * 70, C + 92); p.scale.set(0.42); p.addChild(R(EMBLEMS.citrouille())); g.addChild(p); }
     bat(g, C, C - RB - 4, 1.4); },
-  halloween_p: g => { add(g, glow(() => new Graphics().circle(C, C, RB).stroke({ width: 12, color: 0xffffff }), 0xa060ff, 12, 0.8));
-    ring(g, METAL.violet); beads(g, 8, (RH + RB) / 2, 0xe8741c, 3.5, TAU / 16);
-    for (const [d, h] of [[-1.1, 26], [-0.75, 36], [-0.42, 28], [0.42, 28], [0.75, 36], [1.1, 26]]) {
-      const a = -Math.PI / 2 + d, [x, y] = pt(C, C, RB - 2, a), k = new Graphics();
-      k.rect(-6, -h, 12, h).fill(0xf0e6d0).stroke(ink(2.5)); k.moveTo(0, -h).lineTo(0, -h - 5).stroke(ink(2));
-      k.moveTo(0, -h - 20).quadraticCurveTo(7, -h - 9, 0, -h - 5).quadraticCurveTo(-7, -h - 9, 0, -h - 20).closePath().fill(0xffb02a).stroke(ink(1.5));
-      k.position.set(x, y); k.rotation = a + Math.PI / 2; g.addChild(k); }
-    g.circle(C, C - RB - 6, 22).fill(0xffe9a8).stroke(ink(3)); g.circle(C + 9, C - RB - 12, 19).fill(0x3a1a5a); },
-  cyber: g => { add(g, glow(() => new Graphics().circle(C, C, RB).stroke({ width: 8, color: 0xffffff }), 0x19c8e6, 10, 0.9));
-    const r = add(g, new Graphics()); for (let i = 0; i < 16; i++) { const a = i * TAU / 16, [x0, y0] = pt(C, C, RB, a), [x1, y1] = pt(C, C, RB + (i % 2 ? 10 : 20), a); r.moveTo(x0, y0).lineTo(x1, y1); }
-    r.stroke({ width: 3, color: 0x19c8e6 }); for (let i = 0; i < 16; i += 2) { const [x, y] = pt(C, C, RB + 22, i * TAU / 16); r.circle(x, y, 3.5).fill(i % 4 ? 0xd42bb8 : 0x7cffff); }
-    ring(g, METAL.neon); g.circle(C, C, RB - 3).stroke({ width: 2.5, color: 0x19c8e6 }).circle(C, C, RH + 3).stroke({ width: 2.5, color: 0xd42bb8 }); },
+  // Sabbat : chapeau de sorcière penché sur l'anneau, croissant de lune derrière, runes vertes gravées, bougies qui coulent.
+  halloween_p: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2).stroke({ width: 12, color: 0xffffff }), 0x7cff6a, 12, 0.55));
+    g.circle(C + 58, C - RB - 16, 19).fill(0xfff3cf).circle(C + 66, C - RB - 22, 16).cut(); g.circle(C + 58, C - RB - 16, 19).stroke(ink(2.5));
+    ring(g, METAL.violet);
+    // Runes : traits verts lumineux gravés sur l'anneau, entre les bougies et le chapeau.
+    const m = (RH + RB) / 2, GLYPHS = [[[0, -6, 0, 6], [0, -2, 5, -6], [0, 2, -5, -2]], [[0, -6, 0, 6], [0, -1, -5, -6], [0, -1, 5, -6]], [[-4, -6, -4, 6], [-4, -5, 4, 0], [4, 0, -4, 5]]];
+    const runes = () => { const k = new Graphics();
+      [0.88, 1.1, 1.32, 1.68, 1.9, 2.12].forEach((t, i) => { const a = Math.PI * t, [x, y] = pt(C, C, m, a), c = Math.cos(a + Math.PI / 2), sn = Math.sin(a + Math.PI / 2);
+        for (const [x0, y0, x1, y1] of GLYPHS[i % 3]) k.moveTo(x + x0 * c - y0 * sn, y + x0 * sn + y0 * c).lineTo(x + x1 * c - y1 * sn, y + x1 * sn + y1 * c); });
+      return k.stroke({ width: 2.4, color: 0xffffff, cap: 'round', join: 'round' }); };
+    add(g, glow(runes, 0x7cff6a, 4, 1)); add(g, Object.assign(runes(), { tint: 0xc8ffb0 }));
+    for (const sd of [-1, 1]) for (const [dx, h] of [[0, 40], [sd * 15, 28]]) candle(g, C + sd * 78 + dx, C + 100, h);
+    witchHat(g, C - 4, C - RB + 10, -0.14); },
+  // Néon : plaques de métal sombre séparées par des fentes, tube néon le long de l'anneau, crochets de viseur aux diagonales.
+  cyber: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 6).stroke({ width: 16, color: 0xffffff }), 0x19c8e6, 14, 0.85));
+    for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2, r = RB + 17, w = 0.36, col = i % 2 ? 0xd42bb8 : 0x19c8e6;
+      neon(g, k => k.moveTo(...pt(C, C, r - 11, a - w)).lineTo(...pt(C, C, r, a - w)).arc(C, C, r, a - w, a + w).lineTo(...pt(C, C, r - 11, a + w)), col, 5); }
+    const plates = add(g, new Graphics()), m = (RH + RB) / 2, w = RB - RH;
+    for (let i = 0; i < 4; i++) { const a = -Math.PI / 2 + i * Math.PI / 2; arc(plates, C, C, m, a + 0.09, a + Math.PI / 2 - 0.09).stroke({ width: w, color: 0x18284e }); }
+    for (let i = 0; i < 4; i++) { const a = -Math.PI / 2 + i * Math.PI / 2;
+      arc(plates, C, C, RB - 3, a + 0.09, a + Math.PI / 2 - 0.09).stroke({ width: 4, color: 0x2a3e6a });
+      plates.moveTo(...pt(C, C, RH, a + 0.09)).lineTo(...pt(C, C, RB, a + 0.09)).moveTo(...pt(C, C, RH, a - 0.09)).lineTo(...pt(C, C, RB, a - 0.09)); }
+    plates.stroke(ink(3)); plates.circle(C, C, RB).stroke(ink(4.5)).circle(C, C, RH).stroke(ink(4.5));
+    neon(g, k => arc(k, C, C, m, Math.PI * 0.62, Math.PI * 1.38), 0x19c8e6, 4); neon(g, k => arc(k, C, C, m, -Math.PI * 0.38, Math.PI * 0.38), 0xd42bb8, 4);
+    // Diodes dans les fentes, et puce au sommet.
+    for (let i = 0; i < 4; i++) { const [x, y] = pt(C, C, m, -Math.PI / 2 + i * Math.PI / 2); g.roundRect(x - 6, y - 6, 12, 12, 3).fill(0x0b1530).stroke(ink(2.5)).circle(x, y, 3).fill(i % 2 ? 0xff7ae0 : 0x7cffff); }
+    g.roundRect(C - 20, C - RB - 20, 40, 22, 4).fill(0x0e1a36).stroke(ink(3));
+    for (let i = 0; i < 4; i++) g.rect(C - 15 + i * 8, C - RB - 24, 3, 5).fill(0x8ea2c8).stroke(ink(1));
+    g.circle(C, C - RB - 9, 5).fill(0x7cffff).stroke(ink(2)); },
   cyber_p: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2).stroke({ width: 14, color: 0xffffff }), 0xd42bb8, 14, 0.9));
     const holo = grad([[0, 0x19c8e6], [0.33, 0x7cffb2], [0.66, 0xd42bb8], [1, 0xfff05a]], 'linear', [0, 0, 1, 1]);
     g.circle(C, C, RB).fill(holo).circle(C, C, RH).cut();
