@@ -29,7 +29,7 @@ export const PASS_KINDS = {
 export const passMissionLabel = m => PASS_KINDS[m.kind]?.label(m.target, m.fam) || m.kind;
 
 // ---- Saisons ----
-// id : mois de la saison (« AAAA-MM »). cards : 2 ou 3 cartes uniques (set « saison » dans engine.js).
+// id : mois de la saison (« AAAA-MM »). cards : 2 ou 3 cartes uniques, données aux paliers 10, 30 puis 22 de la piste gratuite (set « saison » dans engine.js).
 // fams : familles des missions « Jouer des cartes … » de la saison. promo : arts Promo (arts.js) donnés au palier « tier »
 // de la piste gratuite. missions : id unique, sorte, objectif, XP de saison (objectif et XP réglables).
 // Cosmétiques : [id, nom] ; leur style est dans client/src/style.css (.frame-<id>, .mc.back.back-<id>).
@@ -47,18 +47,17 @@ export const SEASONS = [
       M('h_play', 'play', 60, 2000), M('h_win', 'win', 30, 2000), M('h_demon', 'fam', 100, 1500, { fam: 'Démon' }), M('h_sweep', 'sweep', 10, 1500),
       M('h_ranked', 'ranked', 15, 1500), M('h_missions', 'missions', 40, 2000), M('h_cards', 'season', 10, 1500), M('h_login', 'login', 20, 1500),
     ] },
-  // Préparée : il reste à dessiner les arts Promo et à relire les cartes avant novembre.
   { id: '2026-11', name: 'Néon 2099', theme: 'cyber',
-    blurb: 'La ville ne dort jamais : drones, netrunners et néons envahissent le champ de bataille pour une saison futuriste.',
+    blurb: 'La ville ne dort jamais : drones, netrunners et méchas envahissent le champ de bataille sous les néons. Trois cartes uniques, des cosmétiques chromés et deux arts Promo à gagner ce mois-ci.',
     fams: ['Elfe', 'Dragon'],
-    cards: ['drone', 'netrunner'],
+    cards: ['drone', 'netrunner', 'mecha'],
     title: 'Fantôme du réseau', titlePremium: 'Légende chromée',
     frame: ['cyber', 'Cadre néon'], framePremium: ['cyber_p', 'Cadre holographique'],
     back: ['cyber', 'Dos du circuit'], backPremium: ['cyber_p', 'Dos de la mégapole'],
     promo: [{ art: 'lirael_neon', tier: 18 }, { art: 'vaelthar_chrome', tier: 38 }],
     missions: [
       M('c_play', 'play', 60, 2000), M('c_win', 'win', 30, 2000), M('c_elfe', 'fam', 100, 1500, { fam: 'Elfe' }), M('c_spells', 'spells', 80, 1500),
-      M('c_ranked', 'ranked', 15, 1500), M('c_missions', 'missions', 40, 2000), M('c_cards', 'season', 10, 1500), M('c_login', 'login', 20, 1500),
+      M('c_ranked', 'ranked', 15, 1500), M('c_missions', 'missions', 40, 2000), M('c_cards', 'season', 15, 1500), M('c_login', 'login', 20, 1500),
     ] },
 ];
 export const seasonById = id => SEASONS.find(x => x.id === id) || null;

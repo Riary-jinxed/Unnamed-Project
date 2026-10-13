@@ -58,3 +58,19 @@ export const seasonShardsKey = t => `rankShards${TIERS[t].id[0].toUpperCase()}${
 export const seasonPrismsKey = t => `rankPrisms${TIERS[t].id[0].toUpperCase()}${TIERS[t].id.slice(1)}`;
 // Titres et cadres de fin de saison, du palier atteint et de ceux en dessous.
 export const seasonCosmetics = t => TIERS.slice(0, t + 1).filter(x => x.title || x.frame).map(x => ({ title: x.title ? `rang:${x.id}` : null, frame: x.frame || null }));
+
+// ---- Classement final ----
+// Le classement de la saison est figé à la fin du mois (doc « classement », server/src/progress.js). Les mieux placés reçoivent,
+// en plus des récompenses de leur palier, celles de leur place, avec les titres des places en dessous. Seuls comptent les joueurs
+// qui ont joué au moins « rankPlaceGames » parties classées dans la saison.
+export const PLACES = [
+  { id: 'top1', max: 1, name: '1re place', title: 'Champion de l\'arène' },
+  { id: 'top3', max: 3, name: 'Podium', title: 'Gloire du podium' },
+  { id: 'top10', max: 10, name: 'Top 10', title: 'Élite de l\'arène' },
+];
+export const placeOf = pos => PLACES.findIndex(p => pos && pos <= p.max);
+// Réglages « rankPlaceShards… » et « rankPlacePrisms… » du document « recompenses » (rewards.js).
+export const placeShardsKey = i => `rankPlaceShards${PLACES[i].id[0].toUpperCase()}${PLACES[i].id.slice(1)}`;
+export const placePrismsKey = i => `rankPlacePrisms${PLACES[i].id[0].toUpperCase()}${PLACES[i].id.slice(1)}`;
+// Titres de la place atteinte et de celles en dessous.
+export const placeTitles = i => (i < 0 ? [] : PLACES.slice(i).map(p => `rang:${p.id}`));

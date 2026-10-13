@@ -6,9 +6,10 @@ import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, ACHIEVEMENTS, familyReward, S
   xpToNext, familyOf, statValue, missionLabel, MAX_CARD_LEVEL, levelCost, loginCalendar, loginReward, monthDays } from '@jeu/engine/rewards';
 import { SETS, OWNABLE, today } from '@jeu/engine/collection';
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
-import { TIERS, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics } from '@jeu/engine/ranked';
+import { TIERS, PLACES, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics,
+  placeOf, placeShardsKey, placePrismsKey, placeTitles } from '@jeu/engine/ranked';
 import { ARTS, artExists, THEME_IDS } from '@jeu/engine/arts';
-import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seasonById, passTrack, refundTier, tierOf as passTierOf, weekOf, passMissionLabel, releasedCards } from '@jeu/engine/pass';
+import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seasonById, passTrack, refundTier, tierOf as passTierOf, weekOf, passMissionLabel, releasedCards, addMonths } from '@jeu/engine/pass';
 import { HttpError } from './accounts.js';
 
 const INBOX_MAX = 40;
@@ -216,12 +217,14 @@ export function createProgress(store) {
 
   // ---- Mode classé ----
   // Compte : ranked = { season, r (étoiles, voir ranked.js), best (meilleur rang de la saison), games, wins, streak }.
-  // La saison change au premier passage après la fin du mois : récompenses du meilleur palier atteint, puis on redescend d'un palier.
+  // La saison change au premier passage après la fin du mois : récompenses du meilleur palier atteint et de la place au classement
+  // final, puis on redescend d'un palier.
   function syncSeason(a) {
     const season = seasonId(), R = a.ranked;
     if (R && R.season === season) return;
     if (!a.level) init(a);
     if (R && R.games) {
+      closeSeason(R.season);
       const best = rankOf(R.best), t = TIERS[best.tier], c = cfg();
       // Titres et cadres des paliers en dessous, débloqués sans bruit ; celui du palier atteint est annoncé avec les Éclats.
       for (const x of seasonCosmetics(best.tier)) {
@@ -230,10 +233,29 @@ export function createProgress(store) {
       }
       grant(a, { kind: 'season', label: `Saison ${seasonName(R.season)} terminée : ${best.label}`, shards: c[seasonShardsKey(best.tier)] || 0, prisms: c[seasonPrismsKey(best.tier)] || 0,
         title: t.title ? `rang:${t.id}` : undefined, frame: t.frame });
+      // Place au classement final : ses Éclats et Prismes, son titre (annoncé) et ceux des places en dessous (sans bruit).
+      const pos = finalLadder(R.season)?.top.find(x => x.login === a.login)?.pos, i = placeOf(pos);
+      if (i >= 0) {
+        for (const id of placeTitles(i).slice(1)) if (!a.cosmetics.titles.includes(id)) a.cosmetics.titles.push(id);
+        grant(a, { kind: 'season', label: `Saison ${seasonName(R.season)} : ${pos === 1 ? '1re' : `${pos}e`} place du classement final`,
+          shards: c[placeShardsKey(i)] || 0, prisms: c[placePrismsKey(i)] || 0, title: `rang:${PLACES[i].id}` });
+      }
     }
     const r = R ? seasonReset(R.r) : 0;
     a.ranked = { season, r, best: r, games: 0, wins: 0, streak: 0 };
     store.put(a).catch(e => console.error('Saison non enregistrée :', e));
+  }
+  // Classement final : figé une fois la saison finie, avant que le premier compte ne passe à la suivante (document « classement »,
+  // { [saison]: { closed, top } }). Seule la saison précédente peut être figée : pour une plus ancienne, trop de comptes ont déjà changé.
+  // top : les places qui ont une récompense (PLACES), parmi les joueurs qui ont joué au moins rankPlaceGames parties classées.
+  const finalLadder = id => (store.doc('classement') || {})[id] || null;
+  function closeSeason(id = addMonths(seasonId(), -1)) {
+    if (id !== addMonths(seasonId(), -1) || finalLadder(id)) return;
+    const min = cfg().rankPlaceGames, max = PLACES[PLACES.length - 1].max;
+    const top = ladder(id).filter(x => x.games >= min).slice(0, max).map((x, i) => ({ ...x, pos: i + 1 }));
+    store.putDoc('classement', { ...(store.doc('classement') || {}), [id]: { closed: new Date().toISOString(), top } })
+      .catch(e => console.error('Classement final non enregistré :', e));
+    if (top.length) console.log(`Classement final de ${seasonName(id)} figé : ${top.map(x => `${x.pos}. ${x.login}`).join(', ')}.`);
   }
   const ranked = a => { syncSeason(a); return a.ranked; };
   // Partie classée terminée. foeR : rang de l'ami affronté avant la partie (null contre l'IA).
@@ -254,9 +276,8 @@ export function createProgress(store) {
     return { season: R.season, seasonName: seasonName(R.season), daysLeft: seasonDaysLeft(), rank: rankOf(R.r), best: rankOf(R.best),
       games: R.games, wins: R.wins, streak: R.streak, ai: TIERS[rankOf(R.r).tier].name };
   }
-  // Classement de la saison : les joueurs qui y ont joué au moins une partie classée.
-  function ladder() {
-    const season = seasonId();
+  // Classement d'une saison (la saison en cours par défaut) : les joueurs qui y ont joué au moins une partie classée.
+  function ladder(season = seasonId()) {
     return store.all().filter(x => !x.disabled && x.ranked?.season === season && x.ranked.games)
       .sort((x, y) => y.ranked.r - x.ranked.r || y.ranked.wins - x.ranked.wins || x.ranked.games - y.ranked.games)
       .map((x, i) => ({ pos: i + 1, login: x.login, name: x.name, level: x.level || 1, title: x.title ? TITLES[x.title] || null : null, frame: x.frame || null,
@@ -265,6 +286,13 @@ export function createProgress(store) {
   // Récompenses de fin de saison de chaque palier, pour l'écran classé.
   const seasonRewards = () => { const c = cfg();
     return TIERS.map((t, i) => ({ id: t.id, name: t.name, ai: t.ai, shards: c[seasonShardsKey(i)] || 0, prisms: c[seasonPrismsKey(i)] || 0, title: t.title || null, frame: t.frame ? FRAMES[t.frame] : null })); };
+  // Récompenses des places au classement final, et le podium figé de la saison précédente, pour l'écran classé.
+  const placeRewards = () => { const c = cfg();
+    return { games: c.rankPlaceGames, list: PLACES.map((p, i) => ({ id: p.id, name: p.name, max: p.max, shards: c[placeShardsKey(i)] || 0, prisms: c[placePrismsKey(i)] || 0, title: p.title })) }; };
+  function lastSeason() {
+    const id = addMonths(seasonId(), -1), f = finalLadder(id);
+    return f ? { season: id, seasonName: seasonName(id), top: f.top.slice(0, 3) } : null;
+  }
 
   // ---- Calendrier de connexion du mois ----
   // Compte : calendar = { month: « AAAA-MM », days: [jours récupérés] }. Remis à zéro chaque mois ; un jour manqué est perdu.
@@ -508,6 +536,6 @@ export function createProgress(store) {
     passPool: Object.fromEntries(Object.entries(PASS_KINDS).map(([k, x]) => [k, { daily: x.daily, weekly: x.weekly }])),
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
-  return { init, grant, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, essenceRate, upgradeCard, achievementsView, collectionView, saveSettings, settings,
+  return { init, grant, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, upgradeCard, achievementsView, collectionView, saveSettings, settings,
     seen: a => { a.inbox = []; } };
 }

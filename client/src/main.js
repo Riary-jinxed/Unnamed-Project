@@ -395,7 +395,15 @@ function renderRanked() {
   const rewards = !D ? '' : `<div class="card-box"><span class="eyebrow">Récompenses de fin de saison</span>
     <p class="hint" style="margin:0">Selon le meilleur palier atteint pendant la saison. Les titres et cadres des paliers en dessous sont aussi débloqués.</p>
     <ul class="tiers">${D.rewards.map(t => `<li class="${R.best.id === t.id ? 'on' : ''}"><span class="rank rank-${t.id}">${esc(t.name)}</span>
-      <span>${[t.shards ? `${t.shards} Éclats` : '', t.prisms ? `${t.prisms} Prismes` : '', t.title ? `titre « ${esc(t.title)} »` : '', t.frame ? esc(t.frame) : ''].filter(Boolean).join(' · ') || '–'}</span></li>`).join('')}</ul></div>`;
+      <span>${[t.shards ? `${t.shards} Éclats` : '', t.prisms ? `${t.prisms} Prismes` : '', t.title ? `titre « ${esc(t.title)} »` : '', t.frame ? esc(t.frame) : ''].filter(Boolean).join(' · ') || '–'}</span></li>`).join('')}</ul>
+    ${D.places ? `<span class="eyebrow">En plus, selon la place au classement final</span>
+    <p class="hint" style="margin:0">Le classement est figé à la fin du mois. Il faut avoir joué au moins ${D.places.games} partie${D.places.games > 1 ? 's' : ''} classée${D.places.games > 1 ? 's' : ''} dans la saison.</p>
+    <ul class="tiers">${D.places.list.map(p => `<li><b>${esc(p.name)}</b>
+      <span>${[p.shards ? `${p.shards} Éclats` : '', p.prisms ? `${p.prisms} Prismes` : '', `titre « ${esc(p.title)} »`].filter(Boolean).join(' · ')}</span></li>`).join('')}</ul>` : ''}</div>`;
+  // Podium figé de la saison précédente.
+  const last = D?.last?.top.length ? `<div class="card-box"><span class="eyebrow">Podium de ${esc(D.last.seasonName)}</span>
+    <ol class="ladder">${D.last.top.map(p => `<li class="${p.login === ui.account.login ? 'me' : ''}"><span class="lpos num">${p.pos}</span>
+      <span class="fname"><b>${esc(p.name)}</b></span><span class="lrank">${rankHTML(p.rank)}</span></li>`).join('')}</ol></div>` : '';
   return `${head}
   <div class="card-box">
     <span class="eyebrow">Saison ${esc(R.seasonName)} · encore ${R.daysLeft} jour${R.daysLeft > 1 ? 's' : ''}</span>
@@ -405,10 +413,11 @@ function renderRanked() {
     <p class="hint" style="margin:0">Une victoire donne une étoile, une défaite en retire une, sans jamais redescendre sous le début de votre palier.
       ${STREAK_BONUS} victoires d'affilée ou plus donnent une étoile de plus, jusqu'au Diamant. L'IA devient plus forte à chaque palier.
       En défi classé, battre un ami mieux classé que vous donne une étoile de plus. Quitter une partie classée en cours compte comme une défaite.
-      À la fin du mois, vous recevez les récompenses de votre meilleur palier, puis vous redescendez d'un palier.</p>
+      À la fin du mois, vous recevez les récompenses de votre meilleur palier (et de votre place si vous finissez dans le top 10), puis vous redescendez d'un palier.</p>
   </div>
   <div class="card-box"><span class="eyebrow">Classement de la saison</span>${ladder}</div>
-  ${rewards}`;
+  ${rewards}
+  ${last}`;
 }
 
 // ---- Passe de saison ----

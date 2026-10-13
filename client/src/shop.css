@@ -63,6 +63,8 @@
     repeating-linear-gradient(90deg, rgb(0 0 0 / .32) 0, rgb(255 255 255 / .05) 14px, rgb(0 0 0 / .32) 28px), linear-gradient(#5a1624, #2a0810); }
 body[data-season="halloween"] .vit-velvet { background: radial-gradient(80% 60% at 50% 0%, rgb(200 150 255 / .16), transparent 70%),
     repeating-linear-gradient(90deg, rgb(0 0 0 / .32) 0, rgb(255 255 255 / .05) 14px, rgb(0 0 0 / .32) 28px), linear-gradient(#3a1658, #160826); }
+body[data-season="cyber"] .vit-velvet { background: radial-gradient(80% 60% at 50% 0%, rgb(255 138 232 / .16), transparent 70%),
+    repeating-linear-gradient(90deg, rgb(0 0 0 / .32) 0, rgb(25 200 230 / .06) 14px, rgb(0 0 0 / .32) 28px), linear-gradient(#14285a, #050a1c); }
 .vitrine.px > .vit-velvet { display: none; }
 .vitrine > :not(canvas, .vit-velvet) { position: relative; z-index: 1; }
 .vit-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

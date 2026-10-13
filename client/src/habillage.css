@@ -157,3 +157,25 @@ body[data-season="halloween"] .tabbar button.on svg { filter: drop-shadow(0 0 6p
 body[data-season="halloween"]:has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, #2e1f30, #120c16 70%), #120c16; }
 body.staged[data-season="halloween"]:has(#app.ingame) { background: #120c16; }
 body[data-season="halloween"] .showcase::after { background: linear-gradient(rgb(50 15 90 / .38), rgb(50 15 90 / .12) 35%, transparent 45%, rgb(0 0 0 / .85)); }
+
+/* Saison Néon 2099 : nuit bleu nuit, néons cyan et magenta, quadrillage discret de mégapole.
+   L'or reste celui du jeu ; seules les lueurs passent au cyan et au magenta. */
+body[data-season="cyber"] { background:
+  radial-gradient(ellipse at 50% -10%, rgb(25 200 230 / .2), transparent 60%),
+  radial-gradient(ellipse at 50% 120%, rgb(212 43 184 / .22), transparent 60%),
+  linear-gradient(rgb(25 200 230 / .035) 1px, transparent 1px) 0 0 / 32px 32px,
+  linear-gradient(90deg, rgb(25 200 230 / .035) 1px, transparent 1px) 0 0 / 32px 32px,
+  #070b1a;
+  background-attachment: fixed; }
+body[data-season="cyber"] .showcase { box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6), 0 0 26px -6px rgb(25 200 230 / .7), inset 0 0 0 2px rgb(255 90 216 / .18); }
+body[data-season="cyber"] .showcase::before { border-color: rgb(25 200 230 / .45); }
+body[data-season="cyber"] .playbtn { animation-name: playglow-cy; }
+@keyframes playglow-cy { 0%, 100% { box-shadow: inset 0 2px 0 #fff8dc, inset 0 -4px 0 rgb(90 50 10 / .55), 0 0 0 1px #000, 0 0 28px -4px rgb(25 200 230 / .7); }
+  50% { box-shadow: inset 0 2px 0 #fff8dc, inset 0 -4px 0 rgb(90 50 10 / .55), 0 0 0 1px #000, 0 0 42px 0 rgb(255 74 216 / .7); } }
+body[data-season="cyber"] .tile.todo { border-color: #19c8e6; box-shadow: 0 0 0 1px #000, 0 0 16px -4px #19c8e6, inset 0 0 20px -8px rgb(255 74 216 / .4); }
+body[data-season="cyber"] .tabbar button.on { background: radial-gradient(ellipse at 50% 30%, rgb(25 200 230 / .3), transparent 70%); text-shadow: 0 0 10px rgb(25 200 230 / .6); }
+body[data-season="cyber"] .tabbar.slid::before { background: radial-gradient(ellipse at 50% 30%, rgb(25 200 230 / .3), transparent 70%); box-shadow: inset 0 2px 0 rgb(25 200 230); }
+body[data-season="cyber"] .tabbar button.on svg { filter: drop-shadow(0 0 6px rgb(25 200 230 / .85)); }
+body[data-season="cyber"]:has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, #18203e, #070b1a 70%), #070b1a; }
+body.staged[data-season="cyber"]:has(#app.ingame) { background: #070b1a; }
+body[data-season="cyber"] .showcase::after { background: linear-gradient(rgb(10 40 90 / .38), rgb(10 40 90 / .12) 35%, transparent 45%, rgb(0 0 0 / .85)); }

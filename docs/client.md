@@ -29,7 +29,7 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 | `decks`, `deck` | `renderDecks`, `renderDeck` | Liste des decks ; création en trois étapes (général, terrains, cartes). |
 | `profile` | `renderProfile` | Image, pseudo et niveau en haut, puis quatre onglets (`ui.profileTab`, `PROFILE_TABS`) : Profil (pseudo, stats), Collection (sets, familles), Personnalisation (titre, cadre, dos), Succès. `openProfile(tab)` ouvre sur un onglet. |
 | `friends` | `friends.screen` (`friends.js`) | Ajouter un ami, demandes reçues et envoyées, amis avec leur statut, défier (normal ou classé), retirer. |
-| `ranked` | `renderRanked` | Mode classé : rang et saison, partie classée contre l'IA, classement de la saison (`GET /api/ranked`), récompenses de fin de saison, règles. |
+| `ranked` | `renderRanked` | Mode classé : rang et saison, partie classée contre l'IA, classement de la saison (`GET /api/ranked`), récompenses de fin de saison par palier et par place au classement final, podium de la saison précédente, règles. |
 | `lobby`, `game` | `renderLobby`, `renderGame` | Attente de l'adversaire (code à donner, ou ami qui choisit son deck) ; plateau. |
 
 ### Plateau (`renderGame`)
@@ -103,7 +103,7 @@ Sélections du jour (cartes d'un set, arts) : une vitrine tendue de velours (`vi
 
 Dans les menus aussi, `setInGame` charge le plateau PixiJS (une fois la page au repos, pour ne pas retarder l'ouverture) : `stage.enter(app, 'menu')` cache les planches et les halos des zones et garde la brume, les braises et la lampe derrière les menus, à 30 images par seconde. `stage-menu.js` ajoute par-dessus des étincelles qui montent du bouton Jouer et, de temps en temps, du booster du jour ou d'une tuile « à faire ». Rien ne s'affiche quand une feuille est ouverte.
 
-Saison : `render()` écrit le thème du passe du mois (`SEASONS`, par exemple `halloween`) dans `<body data-season>`, ou celui donné par `?saison=…` dans l'adresse (`?saison=base` pour le thème de base). `season.js` en tire les couleurs des décors (`palette()` : braises, foyer, étincelles, brume), lues à chaque image par `stage.js`, `stage-menu.js` et `lobby-stage.js`. À Halloween : fond violet, lueurs citrouille et violettes (`habillage.css`), feux follets violets et verts parmi les braises, foyer de la vitrine en chaudron violet, et des chauves-souris (`batCanvases`) qui passent derrière le général et, plus rarement, traversent l'écran par volées.
+Saison : `render()` écrit le thème du passe du mois (`SEASONS`, par exemple `halloween`) dans `<body data-season>`, ou celui donné par `?saison=…` dans l'adresse (`?saison=base` pour le thème de base). `season.js` en tire les couleurs des décors (`palette()` : braises, foyer, étincelles, brume), lues à chaque image par `stage.js`, `stage-menu.js` et `lobby-stage.js`. À Halloween : fond violet, lueurs citrouille et violettes (`habillage.css`), feux follets violets et verts parmi les braises, foyer de la vitrine en chaudron violet, et des chauves-souris (`batCanvases`) qui passent derrière le général et, plus rarement, traversent l'écran par volées. En Néon 2099 (`cyber`) : fond bleu nuit quadrillé, lueurs cyan et magenta, étincelles cyan et magenta, vitrine et étal de la boutique aux couleurs néon (`shopColors()` de `season.js`).
 
 ## Amis (`friends.js`)
 

@@ -1,7 +1,7 @@
 // Récompenses du compte : niveau, missions quotidiennes, succès, complétion de famille et de set, titres, cadres et dos de carte.
 // Partagé par le serveur (qui fait foi) et l'appli (qui affiche). Les nombres se règlent depuis /admin (document « recompenses »).
 import { CARDS, GENERALS, FAMILIES } from './engine.js';
-import { TIERS } from './ranked.js';
+import { TIERS, PLACES } from './ranked.js';
 import { SEASON_TITLES, SEASON_FRAMES, SEASON_BACKS } from './pass.js';
 import { ARTS, ART_THEMES } from './arts.js';
 
@@ -28,6 +28,10 @@ export const DEFAULT_REWARDS = {
   rankShardsBronze: 50, rankShardsArgent: 100, rankShardsOr: 200, rankShardsPlatine: 350, rankShardsDiamant: 500, rankShardsMaitre: 800,
   // Prismes (monnaie rare des arts alternatifs, arts.js) de fin de saison selon le meilleur palier atteint.
   rankPrismsBronze: 0, rankPrismsArgent: 5, rankPrismsOr: 10, rankPrismsPlatine: 20, rankPrismsDiamant: 30, rankPrismsMaitre: 50,
+  // Classement final de la saison (PLACES de ranked.js) : Éclats et Prismes en plus pour le top 10, le podium et la 1re place,
+  // réservés aux joueurs qui ont joué au moins rankPlaceGames parties classées dans la saison.
+  rankPlaceShardsTop10: 300, rankPlaceShardsTop3: 600, rankPlaceShardsTop1: 1000,
+  rankPlacePrismsTop10: 20, rankPlacePrismsTop3: 40, rankPlacePrismsTop1: 80, rankPlaceGames: 10,
   // Calendrier de connexion du mois (loginReward) : Éclats en semaine, coffres d'arts le dimanche, Prismes les 2e et 4e dimanches.
   loginShards: 15, loginChests: 1, loginPrisms: 5,
   // Passe de saison (pass.js) : XP de saison par palier, missions du jour et de la semaine (nombre et XP), prix du premium en Prismes,
@@ -50,6 +54,8 @@ export const REWARD_LIMITS = {
   lvl4Essence: [0, 10000], lvl4Shards: [0, 100000], lvl5Essence: [0, 10000], lvl5Shards: [0, 100000],
   rankShardsBronze: [0, 100000], rankShardsArgent: [0, 100000], rankShardsOr: [0, 100000], rankShardsPlatine: [0, 100000], rankShardsDiamant: [0, 100000], rankShardsMaitre: [0, 100000],
   rankPrismsBronze: [0, 10000], rankPrismsArgent: [0, 10000], rankPrismsOr: [0, 10000], rankPrismsPlatine: [0, 10000], rankPrismsDiamant: [0, 10000], rankPrismsMaitre: [0, 10000],
+  rankPlaceShardsTop10: [0, 100000], rankPlaceShardsTop3: [0, 100000], rankPlaceShardsTop1: [0, 100000],
+  rankPlacePrismsTop10: [0, 10000], rankPlacePrismsTop3: [0, 10000], rankPlacePrismsTop1: [0, 10000], rankPlaceGames: [0, 1000],
   loginShards: [0, 10000], loginChests: [0, 10], loginPrisms: [0, 10000],
   passTierXp: [10, 100000], passXpWin: [0, 10000], passXpLoss: [0, 10000], passBonusXp: [10, 100000], passBonusShards: [0, 100000], passBonusPrisms: [0, 10000], passBonusEssence: [0, 10000],
   passDaily: [0, 6], passWeekly: [0, 10], passXpDaily: [0, 100000], passXpWeekly: [0, 100000], passPrice: [0, 100000],
@@ -240,6 +246,7 @@ export const TITLES = Object.fromEntries([
   ...FAMILY_REWARDS.map(r => [`fam:${r.set}:${r.fam}`, r.title]),
   ...Object.entries(SET_REWARDS).map(([set, r]) => [`set:${set}`, r.title]),
   ...TIERS.filter(t => t.title).map(t => [`rang:${t.id}`, t.title]),
+  ...PLACES.map(p => [`rang:${p.id}`, p.title]),
   ...SEASON_TITLES,
 ]);
 
