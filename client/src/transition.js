@@ -6,7 +6,7 @@
 // Ordre des onglets de la barre du bas : aller vers la droite fait glisser l'écran vers la gauche, et inversement.
 export const TABS = ['home', 'collection', 'decks', 'shop', 'friends'];
 // Écrans hors barre ouverts depuis un autre : on y entre en avançant, on en revient en reculant.
-const DEPTH = { login: 0, starter: 1, home: 1, collection: 1, decks: 1, shop: 1, friends: 1, profile: 2, ranked: 2, pass: 2, mail: 2, clan: 2, deck: 2 };
+const DEPTH = { login: 0, starter: 1, home: 1, collection: 1, decks: 1, shop: 1, friends: 1, profile: 2, ranked: 2, pass: 2, mail: 2, clan: 1, deck: 2 };
 
 // Sens du glissement : 1 vers l'avant (le nouvel écran vient de la droite), -1 en arrière.
 export function screenDir(from, to) {

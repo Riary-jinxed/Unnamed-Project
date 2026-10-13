@@ -9,7 +9,7 @@ import { ARTS, artExists } from '@jeu/engine/arts';
 import { TITLES, FRAMES, BACKS } from '@jeu/engine/rewards';
 import { rankOf, seasonId, seasonName } from '@jeu/engine/ranked';
 import { CLAN_PRICE, CLAN_NAME_MAX, CLAN_TAG_RE, CLAN_DESC_MAX, MAX_REQUESTS, MAX_CLAN_REQUESTS, CLAN_LEVELS, clanLevelOf, clanLevelView, maxMembers,
-  CLAN_ICONS, CLAN_COLORS, CLAN_MISSION_KINDS, CLAN_DAILY, CLAN_WEEKLY, CLAN_MISSION_REWARDS, clanMissionLabel, clanTarget, clanDay, clanWeek,
+  CLAN_ICONS, CLAN_COLORS, CLAN_MISSION_KINDS, CLAN_DAILY, CLAN_WEEKLY, CLAN_MISSION_REWARDS, clanMissionLabel, clanTarget, clanShare, clanDay, clanWeek, DON_DAY_COINS,
   DONATIONS, donationCoins, CLAN_SHOP, clanItem, CLAN_LADDER_SIZE, CLAN_PLACES, clanPlaceOf } from '@jeu/engine/clans';
 import { HttpError } from './accounts.js';
 
@@ -48,19 +48,25 @@ export function createClans(store, accounts) {
   const lead = a => { const c = mine(a); if (c.leader !== a.login) throw new HttpError(403, 'Seul le chef du clan peut faire cela.'); return c; };
 
   // ---- Missions de clan ----
-  // Tirées au premier passage du jour (ou de la semaine) ; l'objectif suit la taille du clan à ce moment-là.
+  // Tirées au premier passage du jour (ou de la semaine). L'objectif d'une mission pas encore accomplie suit la taille du clan.
   function draw(c, scope, n) {
     const kinds = shuffle(Object.keys(CLAN_MISSION_KINDS).filter(k => CLAN_MISSION_KINDS[k][scope])).slice(0, n);
-    return kinds.map(kind => ({ kind, target: Math.min(clanTarget(kind, scope, c.members.length), CLAN_MISSION_KINDS[kind][scope] * maxMembers(level(c))), n: 0, done: false, by: {} }));
+    return kinds.map(kind => ({ kind, target: clanTarget(kind, scope, c.members.length), n: 0, done: false, by: {} }));
   }
   function missions(c) {
     const day = clanDay(), week = clanWeek();
     let changed = false;
     if (c.day?.id !== day) { c.day = { id: day, list: draw(c, 'daily', CLAN_DAILY) }; changed = true; }
     if (c.week?.id !== week) { c.week = { id: week, list: draw(c, 'weekly', CLAN_WEEKLY), dons: {}, points: {} }; changed = true; }
+    for (const [scope, list] of [['daily', c.day.list], ['weekly', c.week.list]]) for (const m of list) {
+      const t = clanTarget(m.kind, scope, c.members.length);
+      if (!m.done && m.target !== t) { m.target = t; changed = true; }
+    }
     if (changed) save();
     return c;
   }
+  // Part qu'un membre peut encore faire d'une mission : à plusieurs, personne ne la finit seul.
+  const shareOf = (c, m) => clanShare(m.target, c.members.length);
   // Une mission accomplie : XP du clan (et peut-être un niveau), Écus pour chaque membre qui y a contribué.
   function complete(c, m, scope, current) {
     const r = CLAN_MISSION_REWARDS[scope], before = level(c);
@@ -88,8 +94,8 @@ export function createClans(store, accounts) {
     missions(c);
     let changed = false;
     for (const [scope, list] of [['daily', c.day.list], ['weekly', c.week.list]]) for (const m of list) {
-      const n = counts[m.kind] || 0;
-      if (!n || m.done) continue;
+      const n = Math.min(counts[m.kind] || 0, shareOf(c, m) - (m.by[a.login] || 0));
+      if (n <= 0 || m.done) continue;
       m.n = Math.min(m.target, m.n + n); m.by[a.login] = (m.by[a.login] || 0) + n; changed = true;
       if (m.n >= m.target) complete(c, m, scope, a);
     }
@@ -150,7 +156,7 @@ export function createClans(store, accounts) {
   function clanView(a, c) {
     missions(c);
     const pos = ladder().find(x => x.id === c.id);
-    const ms = list => list.map(m => ({ ...missionView(m), mine: m.by[a.login] || 0 }));
+    const ms = list => list.map(m => ({ ...missionView(m), mine: m.by[a.login] || 0, share: shareOf(c, m) }));
     return { ...short(c), desc: c.desc || '', open: !!c.open, leader: c.leader, me: a.login, created: c.created,
       progress: clanLevelView(c.xp || 0), maxLevel: CLAN_LEVELS.length,
       members: c.members.map(l => member(c, l)).sort((x, y) => (y.leader - x.leader) || y.week - x.week || x.name.localeCompare(y.name, 'fr')),
@@ -161,15 +167,18 @@ export function createClans(store, accounts) {
   // Ce qu'il faut à l'écran du clan : le clan (ou null), les Écus, les dons du jour et le magasin.
   function donView(a) {
     const d = a.clanDon?.date === clanDay() ? a.clanDon : {};
-    return Object.entries(DONATIONS).map(([res, x]) => ({ res, name: x.name, rate: x.rate, coins: x.coins || 1, cap: x.cap, given: d[res] || 0, have: a[res] || 0 }));
+    const coinsLeft = Math.max(0, DON_DAY_COINS - (d.coins || 0));
+    return Object.entries(DONATIONS).map(([res, x]) => ({ res, name: x.name, rate: x.rate, coins: x.coins || 1, cap: x.cap, given: d[res] || 0, have: a[res] || 0,
+      left: Math.min(x.cap - (d[res] || 0), Math.floor(coinsLeft / (x.coins || 1)) * x.rate) }));
   }
+  const donDay = a => { const d = a.clanDon?.date === clanDay() ? a.clanDon : {}; return { max: DON_DAY_COINS, got: d.coins || 0 }; };
   function shopView(a, c) {
     const lv = c ? level(c) : 0;
     return CLAN_SHOP.filter(x => x.kind !== 'art' || artExists(x.id.slice(4))).map(x => ({ ...x, owned: owns(a, x), locked: lv < x.level }));
   }
   function view(a) {
     const c = clanOf(a);
-    return { clan: c ? clanView(a, c) : null, coins: a.clanCoins || 0, price: CLAN_PRICE, donations: donView(a), shop: shopView(a, c),
+    return { clan: c ? clanView(a, c) : null, coins: a.clanCoins || 0, price: CLAN_PRICE, donations: donView(a), donDay: donDay(a), shop: shopView(a, c),
       requested: (a.clanReq || []).map(id => clans[id]).filter(x => x && x.requests.includes(a.login)).map(short),
       icons: CLAN_ICONS, colors: CLAN_COLORS, levels: CLAN_LEVELS, places: CLAN_PLACES };
   }
@@ -324,14 +333,16 @@ export function createClans(store, accounts) {
     const n = Number(amount);
     if (!Number.isInteger(n) || n < d.rate) throw new HttpError(400, `Donnez au moins ${d.rate} ${d.name}.`);
     const day = clanDay(); if (a.clanDon?.date !== day) a.clanDon = { date: day };
-    const left = d.cap - (a.clanDon[res] || 0), give = Math.min(n - (n % d.rate), left - (left % d.rate));
+    const per = d.coins || 1, coinsLeft = DON_DAY_COINS - (a.clanDon.coins || 0);
+    if (coinsLeft < per) throw new HttpError(409, `Vous avez atteint la limite de dons du jour (${DON_DAY_COINS} Écus). Revenez demain !`);
+    const left = Math.min(d.cap - (a.clanDon[res] || 0), Math.floor(coinsLeft / per) * d.rate), give = Math.min(n - (n % d.rate), left - (left % d.rate));
     if (give <= 0) throw new HttpError(409, `Vous avez déjà donné ${d.cap} ${d.name} aujourd'hui.`);
     if ((a[res] || 0) < give) throw new HttpError(409, `Il vous faut ${give} ${d.name} (vous en avez ${a[res] || 0}).`);
     const coins = donationCoins(res, give);
-    a[res] -= give; a.clanDon[res] = (a.clanDon[res] || 0) + give; a.clanCoins = (a.clanCoins || 0) + coins;
+    a[res] -= give; a.clanDon[res] = (a.clanDon[res] || 0) + give; a.clanDon.coins = (a.clanDon.coins || 0) + coins; a.clanCoins = (a.clanCoins || 0) + coins;
     missions(c);
     c.week.dons[a.login] = (c.week.dons[a.login] || 0) + coins;
-    log(c, `${a.name} donne ${give} ${d.name} (${plural(coins, 'Écu')}).`);
+    log(c, `${a.name} donne ${give} ${give > 1 ? d.name : d.name.replace(/s$/, '')} (${plural(coins, 'Écu')}).`);
     advance(c, a, { dons: coins });
     await Promise.all([save(), store.put(a)]);
     return done(a, `Merci ! +${plural(coins, 'Écu')}.`);

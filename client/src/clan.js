@@ -33,6 +33,9 @@ const bannerHTML = b => (b ? `<span class="cbanner cb-${esc(b.id)}">${esc(b.name
 const plural = (n, w) => `${n} ${w}${n > 1 ? 's' : ''}`;
 const pct = (n, d) => Math.max(0, Math.min(100, Math.round(100 * n / (d || 1))));
 const ROLE = { leader: 'Chef du clan' };
+// Onglets de l'écran Social (barre du bas) : les amis et le clan.
+export const socialTabs = cur => `<div class="seg socialtabs" role="tablist" aria-label="Social">${[['friends', 'Amis'], ['clan', 'Clan']].map(([id, label]) =>
+  `<button role="tab" data-act="${id}" class="${cur === id ? 'on' : ''}" aria-selected="${cur === id}">${label}</button>`).join('')}</div>`;
 const TABS = [['clan', 'Clan'], ['membres', 'Membres'], ['dons', 'Dons'], ['magasin', 'Magasin'], ['classement', 'Classement']];
 
 // app : ce que main.js prête à l'écran (état ui, render, call, avatarHTML, errLine, ico, openPlayer, play).
@@ -83,9 +86,9 @@ export function createClan(app) {
   const busy = () => (ui.busy ? 'disabled' : '');
   const coins = n => `<span class="num">${app.ico('ecu')}${n}</span>`;
 
-  function head(title, back = 'home') {
-    return `<div class="top"><span class="title">${title}</span><span class="wallet"><span class="chip num cur ecu" title="Écus">${app.ico('ecu')}${C.data?.coins ?? 0}</span></span>
-      <button class="btn" data-act="${back}">Retour</button></div>`;
+  function head(title) {
+    return `<div class="top"><span class="title">${title}</span><span class="wallet"><span class="chip num cur ecu" title="Écus">${app.ico('ecu')}${C.data?.coins ?? 0}</span></span></div>
+      ${socialTabs('clan')}`;
   }
 
   // Sans clan : en créer un, ou en rejoindre un.
@@ -143,9 +146,9 @@ export function createClan(app) {
   }
   function missionsHTML(c) {
     const R = c.missions.rewards;
-    const m = x => `<li class="${x.done ? 'done' : ''}"><div class="mtext"><b>${esc(x.label)}</b><small class="hint num">${x.done ? 'Accomplie ✓' : `${x.n}/${x.target}`}${x.mine ? ` · votre part : ${x.mine}` : ''}</small></div>
+    const m = x => `<li class="${x.done ? 'done' : ''}"><div class="mtext"><b>${esc(x.label)}</b><small class="hint num">${x.done ? 'Accomplie ✓' : `${x.n}/${x.target}`}${x.done ? '' : ` · votre part : ${x.mine}/${x.share}`}</small></div>
       <div class="bar" aria-hidden="true"><span style="width:${pct(x.n, x.target)}%"></span></div></li>`;
-    return `${block('Missions du jour', `<p class="hint" style="margin:0">Chaque partie de chaque membre compte. Une mission accomplie donne ${R.daily.xp} XP au clan et ${coins(R.daily.coins)} Écus à chacun de ceux qui y ont participé. Renouvelées à minuit.</p>
+    return `${block('Missions du jour', `<p class="hint" style="margin:0">Chaque partie de chaque membre compte, et l'objectif grandit avec le clan. Chacun peut en faire au plus sa part : il faut jouer à plusieurs. Une mission accomplie donne ${R.daily.xp} XP au clan et ${coins(R.daily.coins)} Écus à chacun de ceux qui y ont participé. Renouvelées à minuit.</p>
         <ul class="cmissions">${c.missions.day.map(m).join('')}</ul>`)}
       ${block('Missions de la semaine', `<p class="hint" style="margin:0">${R.weekly.xp} XP de clan et ${coins(R.weekly.coins)} Écus pour chaque participant. Renouvelées le lundi.</p>
         <ul class="cmissions">${c.missions.week.map(m).join('')}</ul>`)}
@@ -187,13 +190,15 @@ export function createClan(app) {
   function donsHTML() {
     const D = C.data;
     const row = d => {
-      const left = d.cap - d.given, steps = [...new Set([d.rate * (d.res === 'shards' ? 10 : d.res === 'prisms' ? 1 : 4), left - (left % d.rate)])].filter(n => n >= d.rate && n <= left);
+      const left = d.left, steps = [...new Set([d.rate * (d.res === 'shards' ? 10 : d.res === 'prisms' ? 1 : 4), left - (left % d.rate)])].filter(n => n >= d.rate && n <= left);
       const name = d.res === 'shards' ? `${app.ico('shard')} Éclats` : d.res === 'prisms' ? `${app.ico('prism')} Prismes` : 'Essence universelle';
       return `<div class="cdon"><div><b>${name}</b><small class="hint num">${d.rate} pour ${d.coins} Écu${d.coins > 1 ? 's' : ''} · aujourd'hui ${d.given}/${d.cap} · vous en avez ${d.have}</small>
         <div class="bar" aria-hidden="true"><span style="width:${pct(d.given, d.cap)}%"></span></div></div>
-        <div class="row fbtns">${left >= d.rate ? steps.map(n => `<button class="btn sm ${n === steps[steps.length - 1] ? 'primary' : ''}" data-act="clan-donate" data-res="${d.res}" data-amount="${n}" ${ui.busy || d.have < n ? 'disabled' : ''}>Donner ${n} · +${Math.floor(n / d.rate) * d.coins} ${app.ico('ecu')}</button>`).join('') : '<small class="hint">Limite du jour atteinte</small>'}</div></div>`;
+        <div class="row fbtns">${left >= d.rate ? steps.map(n => `<button class="btn sm ${n === steps[steps.length - 1] ? 'primary' : ''}" data-act="clan-donate" data-res="${d.res}" data-amount="${n}" ${ui.busy || d.have < n ? 'disabled' : ''}>Donner ${n} · +${Math.floor(n / d.rate) * d.coins} ${app.ico('ecu')}</button>`).join('') : `<small class="hint">${d.given >= d.cap ? 'Limite du jour atteinte' : 'Limite d\'Écus du jour atteinte'}</small>`}</div></div>`;
     };
-    return block(`Dons · vous avez ${coins(D.coins)} Écus`, `<p class="hint" style="margin:0">Donnez des ressources au clan : vous recevez des Écus à dépenser au magasin du clan, et vos dons font avancer la mission de dons de la semaine. Limites renouvelées à minuit.</p>
+    const day = D.donDay;
+    return block(`Dons · vous avez ${coins(D.coins)} Écus`, `<p class="hint" style="margin:0">Donnez des ressources au clan : vous recevez des Écus à dépenser au magasin du clan, et vos dons font avancer la mission de dons de la semaine. Au plus ${day.max} Écus de dons par jour, toutes ressources confondues ; limites renouvelées à minuit.</p>
+      <div class="cdonday"><b class="num">Aujourd'hui : ${day.got}/${day.max} ${app.ico('ecu')}</b><div class="bar" aria-hidden="true"><span style="width:${pct(day.got, day.max)}%"></span></div></div>
       ${D.donations.map(row).join('')}`);
   }
 
@@ -288,6 +293,11 @@ export function createClan(app) {
 
   return {
     screen, click, input, submit,
+    // Onglet Clan de la boutique : le magasin du clan (chargé au besoin).
+    shopTab() {
+      if (!C.data) { load(); return '<p class="wait">Chargement…</p>'; }
+      return me() ? `${app.errLine()}${note()}${shopHTML()}` : '<p class="hint">Rejoignez un clan pour ouvrir son magasin.</p>';
+    },
     // Demandes d'adhésion en attente (pour le chef), pour la tuile de l'accueil.
     pending: () => (me()?.leader === me()?.me ? me()?.requests.length || 0 : 0),
     // Tuile de l'accueil : le clan, ou l'invitation à en rejoindre un.

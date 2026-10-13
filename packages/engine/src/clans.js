@@ -33,31 +33,36 @@ export const CLAN_ICONS = { epee: 'Épée', couronne: 'Couronne', bouclier: 'Bou
 export const CLAN_COLORS = { pourpre: '#7a2a8c', azur: '#2a5fa8', sinople: '#2f7a3a', gueules: '#b0282a', sable: '#2a2622', or: '#c8931e', orange: '#d0662a', ciel: '#2a8a9e' };
 
 // ---- Missions de clan ----
-// Elles avancent avec les parties de tous les membres. L'objectif suit la taille du clan au moment du tirage
-// (per × membres, entre 3 et le maximum du niveau), pour qu'un petit clan puisse finir les siennes.
+// Elles avancent avec les parties de tous les membres. L'objectif suit la taille du clan à chaque instant (per × membres,
+// au moins CLAN_MIN_MEMBERS) : un clan qui grandit voit ses missions grandir avec lui. Pour que tout le clan participe,
+// un membre ne peut pas faire plus de CLAN_SHARE fois sa part (objectif ÷ membres) : à 10, il faut au moins 4 joueurs.
 // Chaque mission accomplie donne son XP au clan et ses Écus à chaque membre qui y a contribué.
 export const CLAN_MISSION_KINDS = {
-  games: { label: n => `Jouer ${n} parties`, daily: 2, weekly: 10 },
-  wins: { label: n => `Gagner ${n} parties`, daily: 1, weekly: 5 },
-  cards: { label: n => `Jouer ${n} cartes`, daily: 10, weekly: 50 },
-  spells: { label: n => `Jouer ${n} sorts`, daily: 3, weekly: 15 },
-  creatures: { label: n => `Jouer ${n} créatures`, daily: 6, weekly: 30 },
-  ranked: { label: n => `Jouer ${n} parties classées`, weekly: 4 },
-  dons: { label: n => `Gagner ${n} Écus en dons`, weekly: 20 },
+  games: { label: n => `Jouer ${n} parties`, daily: 3, weekly: 15 },
+  wins: { label: n => `Gagner ${n} parties`, daily: 2, weekly: 8 },
+  cards: { label: n => `Jouer ${n} cartes`, daily: 15, weekly: 75 },
+  spells: { label: n => `Jouer ${n} sorts`, daily: 4, weekly: 20 },
+  creatures: { label: n => `Jouer ${n} créatures`, daily: 8, weekly: 40 },
+  ranked: { label: n => `Jouer ${n} parties classées`, weekly: 6 },
+  dons: { label: n => `Gagner ${n} Écus en dons`, weekly: 25 },
 };
-export const CLAN_DAILY = 3, CLAN_WEEKLY = 3;
+export const CLAN_DAILY = 3, CLAN_WEEKLY = 3, CLAN_MIN_MEMBERS = 5, CLAN_SHARE = 2.5;
 export const CLAN_MISSION_REWARDS = { daily: { xp: 25, coins: 10 }, weekly: { xp: 100, coins: 40 } };
+export const clanTarget = (kind, scope, members) => CLAN_MISSION_KINDS[kind][scope] * Math.max(CLAN_MIN_MEMBERS, members);
+// Part qu'un membre peut faire au plus d'une mission d'objectif target dans un clan de members membres.
+export const clanShare = (target, members) => Math.min(target, Math.ceil(CLAN_SHARE * target / Math.max(1, members)));
 export const clanMissionLabel = m => CLAN_MISSION_KINDS[m.kind]?.label(m.target) || m.kind;
-export const clanTarget = (kind, scope, members) => CLAN_MISSION_KINDS[kind][scope] * Math.max(3, members);
 export const clanDay = (d = new Date()) => today(d);
 export const clanWeek = (d = new Date()) => weekOf(today(d));
 
 // ---- Dons ----
-// Ressources données au clan contre des Écus : rate unités pour 1 Écu, au plus cap unités par jour.
+// Ressources données au clan contre des Écus : rate unités pour 1 Écu (ou coins Écus), au plus cap unités par jour,
+// et au plus DON_DAY_COINS Écus de dons par jour, toutes ressources confondues.
+export const DON_DAY_COINS = 30;
 export const DONATIONS = {
-  shards: { name: 'Éclats', rate: 10, cap: 500 },
-  prisms: { name: 'Prismes', rate: 1, coins: 3, cap: 10 },
-  uniEssence: { name: 'essence universelle', rate: 5, cap: 100 },
+  shards: { name: 'Éclats', rate: 10, cap: 300 },
+  prisms: { name: 'Prismes', rate: 1, coins: 3, cap: 5 },
+  uniEssence: { name: 'essence universelle', rate: 5, cap: 50 },
 };
 // Écus gagnés pour amount unités d'une ressource.
 export const donationCoins = (res, amount) => { const d = DONATIONS[res]; return d ? Math.floor(amount / d.rate) * (d.coins || 1) : 0; };
