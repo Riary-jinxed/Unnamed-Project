@@ -1,9 +1,12 @@
 // Historique des parties et statistiques pour /admin.
 // JcJ : enregistré par le serveur en fin de partie. JcE : la partie tourne dans l'appli, qui envoie son résultat.
 import { CARDS, GENERALS, DECKS } from '@jeu/engine';
+import { ARTS } from '@jeu/engine/arts';
 import { HttpError, activeDeck } from './accounts.js';
 
 const MAX_CARDS = 40;
+// Cartes les plus jouées montrées sur un profil ; places du classement qui montrent l'image de profil.
+const TOP_CARDS = 5, LADDER_AVATARS = 10;
 // Une main de joueur telle qu'enregistrée : qui, avec quel deck, et les cartes jouées (révélées) pendant la partie.
 const sideOf = (P, login, deckCards) => ({ login: login || null, name: P.name, general: P.general, deck: P.deckName, cards: deckCards.slice(), played: P.played.slice() });
 
@@ -66,19 +69,40 @@ export function createGames(store, accounts) {
     };
   }
 
-  // Statistiques d'un joueur pour sa page de profil : bilan en ligne et contre l'IA, par général, dernières parties.
+  // Statistiques d'un joueur pour sa page de profil : bilan en ligne et contre l'IA, par général, cartes les plus jouées
+  // (TOP_CARDS, jetons à part), dernières parties.
   function playerStats(a) {
     const rec = () => ({ games: 0, wins: 0, losses: 0, draws: 0 });
-    const out = { pvp: rec(), pve: rec(), all: rec() }, gens = {}, recent = [];
+    const out = { pvp: rec(), pve: rec(), all: rec() }, gens = {}, cards = {}, recent = [];
     for (const g of store.games()) {
       const i = g.players.findIndex(P => P.login === a.login); if (i < 0) continue;
       const k = g.winner === i ? 'wins' : g.winner < 0 ? 'draws' : 'losses', P = g.players[i], foe = g.players[1 - i];
       for (const r of [out[g.mode], out.all, P.general && (gens[P.general] ||= { id: P.general, name: GENERALS[P.general]?.name || P.general, ...rec() })]) if (r) { r.games++; r[k]++; }
+      for (const id of P.played) if (CARDS[id] && !CARDS[id].token) cards[id] = (cards[id] || 0) + 1;
       recent.push({ at: g.at, mode: g.mode, result: k, deck: P.deck, foe: g.mode === 'pve' ? 'IA' : (accounts.nameOf(foe.login) || foe.name) });
     }
     const rate = r => ({ ...r, rate: r.games ? Math.round(100 * (r.wins + r.draws / 2) / r.games) : null });
     return { pvp: rate(out.pvp), pve: rate(out.pve), all: rate(out.all),
-      generals: Object.values(gens).map(rate).sort((x, y) => y.games - x.games), recent: recent.slice(-10).reverse() };
+      generals: Object.values(gens).map(rate).sort((x, y) => y.games - x.games), recent: recent.slice(-10).reverse(),
+      cards: Object.entries(cards).sort((x, y) => y[1] - x[1] || CARDS[x[0]].name.localeCompare(CARDS[y[0]].name, 'fr')).slice(0, TOP_CARDS).map(([id, plays]) => ({ id, plays })) };
+  }
+  // Profil public d'un joueur (pop-up depuis le classement) : image, cadre, titre, niveau, victoires, cartes et général
+  // les plus joués, arts préférés et rang de la saison. Jamais ses dernières parties. friend : où en est le lien avec vous
+  // (« me », « friend », « out » : demande envoyée, « in » : il vous a demandé, null).
+  function publicProfile(me, login) {
+    const b = store.get(String(login || '').trim().toLowerCase());
+    if (!b || b.disabled) throw new HttpError(404, 'Joueur introuvable.');
+    const st = playerStats(b), gen = st.generals[0] || null, L = accounts.progress.ladder().find(x => x.login === b.login);
+    // Niveau et art choisi de ses cartes les plus jouées et de son général, comme les voit un adversaire.
+    const badge = accounts.progress.badge(b, { cards: st.cards.map(c => c.id), general: gen?.id }), look = id => ({ level: badge.looks[id] || 1, art: badge.arts[id] || null });
+    const has = k => (me[k] || []).includes(b.login);
+    return { player: {
+      login: b.login, name: b.name, avatar: b.avatar || null, frame: badge.frame, title: badge.title, level: badge.level,
+      stats: { all: st.all, pvp: st.pvp, pve: st.pve }, cards: st.cards.map(c => ({ ...c, ...look(c.id) })), general: gen && { ...gen, ...look(gen.id) },
+      favArts: accounts.progress.favArts(b).map(id => ({ id, level: b.cardLevels?.[ARTS[id].card] || 1 })),
+      ranked: L ? { pos: L.pos, rank: L.rank } : null,
+      friend: b.login === me.login ? 'me' : has('friends') ? 'friend' : has('friendsOut') ? 'out' : has('friendsIn') ? 'in' : null,
+    } };
   }
 
   return {
@@ -86,8 +110,10 @@ export function createGames(store, accounts) {
     routes: {
       'GET /api/profile': a => ({ stats: playerStats(a), achievements: accounts.progress.achievementsView(a), collection: accounts.progress.collectionView(a) }),
       'POST /api/games/solo': (a, body) => recordSolo(a, body),
-      // Mode classé : rang du joueur, classement de la saison, récompenses de fin de saison par palier.
-      'GET /api/ranked': a => ({ ranked: accounts.progress.rankedView(a), ladder: accounts.progress.ladder(), rewards: accounts.progress.seasonRewards(),
+      'GET /api/player': (a, _, __, url) => publicProfile(a, url.searchParams.get('login')),
+      // Mode classé : le top 10 du classement porte l'image de profil de chaque joueur.
+      'GET /api/ranked': a => ({ ranked: accounts.progress.rankedView(a), rewards: accounts.progress.seasonRewards(),
+        ladder: accounts.progress.ladder().map(p => (p.pos <= LADDER_AVATARS ? { ...p, avatar: store.get(p.login)?.avatar || null } : p)),
         places: accounts.progress.placeRewards(), last: accounts.progress.lastSeason() }),
       'GET /api/admin/stats': (_, __, ___, url) => {
         const days = +url.searchParams.get('days') || 0;

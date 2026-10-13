@@ -903,3 +903,24 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .tile.todo .tile-foot { color: var(--accent); font-weight: 700; }
 .lobby .card-box.booster { padding: 8px 10px 8px 14px; gap: 8px; }
 .lobby .card-box.booster h2 { font-size: 17px; }
+
+/* Classement : un joueur s'ouvre en pop-up (profil public) ; le top 10 montre son image et son cadre. */
+.ladder .lwho { display: flex; align-items: center; gap: 10px; min-width: 0; border: 0; background: none; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ladder .lwho:hover b, .ladder .lwho:focus-visible b { text-decoration: underline; }
+.ladder li.top { padding-block: 10px; }
+.avatar.lav { width: 34px; height: 34px; border-width: 2px; }
+.avatar.lav.initials { font-size: 16px; }
+.frame.lav { padding: 3px; margin: 2px; }
+/* Profil public et Mon profil : cartes les plus jouées, général le plus joué, arts préférés. */
+.topcards { display: grid; gap: 12px; }
+.topgen, .topfive { display: grid; gap: 6px; }
+.topgen .topcard { width: min(150px, 46%); }
+.topgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.topcard { display: grid; gap: 4px; justify-items: center; text-align: center; align-content: start; }
+.topcard .ccard { width: 100%; }
+.favgrid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.favopt { position: relative; display: grid; gap: 4px; justify-items: center; align-content: start; text-align: center; font-size: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 6px; color: inherit; }
+.favopt > :first-child { width: 100%; pointer-events: none; }
+.favopt.on { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.favopt:disabled:not(.on) { opacity: .45; }
+.favopt .favn { position: absolute; top: 2px; left: 2px; z-index: 3; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 13px; }

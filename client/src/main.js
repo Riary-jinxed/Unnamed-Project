@@ -28,7 +28,7 @@ import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL, FAMILY_REWARDS, SET_REWARDS } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { SEASONS, PASS_TIERS, SEASON_THEMES, seasonOfCard, seasonStarted, seasonStart, currentSeason, releaseMonth } from '@jeu/engine/pass';
-import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName, chestPool } from '@jeu/engine/arts';
+import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName, chestPool, MAX_FAV_ARTS } from '@jeu/engine/arts';
 
 const famVar = kw => famStyle(kw[0]);
 const kwLine = d => (d.token ? 'Jeton · ' : '') + (d.kw.join(' · ') || 'Neutre');
@@ -46,7 +46,7 @@ const ui = {
   booster: null, shop: null, edit: null, deckStep: 0, renaming: null, profile: null, nameDraft: '', colFam: '', joinCode: (params.get('code') || '').toUpperCase(),
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
-  drag: null, fx: null, zoom: null, soloReward: null, avatars: null, friendFoe: null, rankedAi: false, rankedData: null,
+  drag: null, fx: null, zoom: null, soloReward: null, avatars: null, player: null, friendFoe: null, rankedAi: false, rankedData: null,
   codexQuery: '', zoomBack: null, coach: null, coachShown: null, gotArt: null, offline: false,
 };
 const app = document.getElementById('app');
@@ -356,6 +356,55 @@ const initials = name => (String(name || '?').trim().match(/\S/g) || ['?'])[0].t
 const avatarBare = (a, cls = '') => (a.avatar ? `<img class="avatar ${cls}" src="${esc(a.avatar)}" alt="">` : `<span class="avatar initials ${cls}" aria-hidden="true">${esc(initials(a.name))}</span>`);
 // Le cadre choisi entoure l'image de profil.
 const avatarHTML = (a, cls = '', frame = a.progress?.frame) => (frame ? `<span class="frame frame-${frame} ${cls}">${avatarBare(a, cls)}</span>` : avatarBare(a, cls));
+// Bilan de victoires d'un mode (Mon profil et profil public).
+const winTile = (label, r) => `<div class="stat"><span class="eyebrow">${label}</span><b class="num">${r.rate === null ? '–' : `${r.rate} %`}</b>
+  <small class="hint num">${r.games} partie${r.games > 1 ? 's' : ''} · ${r.wins} V · ${r.losses} D${r.draws ? ` · ${r.draws} N` : ''}</small></div>`;
+const winTiles = st => `<div class="stats">${winTile('Toutes les parties', st.all)}${winTile('En ligne', st.pvp)}${winTile('Contre l\'IA', st.pve)}</div>`;
+// Général et cartes les plus joués : { id, games | plays, level, art }. Chaque carte s'ouvre en grand.
+const topCard = (c, n) => `<div class="topcard"><button class="ccard" data-zoom="${zoomKey(c.id, c.art || '')}">${anyCard(c.id, c.level, c.art)}</button>
+  <small class="hint num">${n}</small></div>`;
+const plays = n => `${n} partie${n > 1 ? 's' : ''}`;
+function cardStatsHTML(cards, gen) {
+  if (!cards.length && !gen) return '<p class="hint" style="margin:0">Aucune carte jouée pour l\'instant.</p>';
+  return `<div class="topcards">${gen ? `<div class="topgen"><span class="eyebrow">Général le plus joué</span>${topCard(gen, `${plays(gen.games)}${gen.rate !== null ? ` · ${gen.rate} % de victoires` : ''}`)}</div>` : ''}
+    ${cards.length ? `<div class="topfive"><span class="eyebrow">${cards.length > 1 ? `Les ${cards.length} cartes les plus jouées` : 'Carte la plus jouée'}</span>
+      <div class="topgrid">${cards.map(c => topCard(c, plays(c.plays))).join('')}</div></div>` : ''}</div>`;
+}
+
+// ---- Profil public d'un joueur (pop-up, depuis le classement) ----
+async function openPlayer(login) {
+  ui.sheet = 'player'; ui.player = { login, data: null }; ui.error = ''; render();
+  try { const r = await api('GET', `/api/player?login=${encodeURIComponent(login)}`, undefined, ui.auth); if (ui.player?.login === login) ui.player.data = r.player; }
+  catch (e) { ui.error = e.message; }
+  render();
+}
+// Demande d'ami (ou acceptation de la sienne) depuis le profil public.
+async function playerFriend(accept) {
+  const P = ui.player?.data; if (!P) return;
+  const r = await call('POST', accept ? '/api/friends/accept' : '/api/friends/add', accept ? { login: P.login } : { name: P.login });
+  if (r && ui.player?.data === P) { P.friend = accept || P.friend === 'in' ? 'friend' : 'out'; render(); }
+}
+function playerSheet() {
+  const P = ui.player.data, close = '<button class="btn" data-act="close">Fermer</button>';
+  if (!P) return `<div class="sheet" data-act="close"><div class="panel" data-stop="1" role="dialog" aria-label="Profil du joueur"><div class="ph"><h2>Profil</h2>${close}</div>
+    ${ui.error ? errLine() : '<p class="wait">Chargement…</p>'}</div></div>`;
+  const friend = { me: '<span class="hint">C\'est votre profil.</span>', friend: '<span class="hint">✓ Vous êtes amis.</span>', out: '<span class="hint">Demande d\'ami envoyée.</span>',
+    in: `<button class="btn primary" data-act="player-accept" ${ui.busy ? 'disabled' : ''}>Accepter sa demande d'ami</button>` }[P.friend]
+    || `<button class="btn primary" data-act="player-add" ${ui.busy ? 'disabled' : ''}>Envoyer une demande d'ami</button>`;
+  const favs = P.favArts.filter(x => ARTS[x.id]);
+  return `<div class="sheet" data-act="close"><div class="panel pprofile" data-stop="1" role="dialog" aria-label="Profil de ${esc(P.name)}">
+    <div class="ph"><h2>Profil</h2>${close}</div>
+    <div class="card-box profile">${avatarHTML(P, 'big', P.frame)}
+      <div style="display:grid;gap:6px"><div><b style="font-size:20px">${esc(P.name)}</b>${P.title ? `<div class="ptitle">${esc(P.title)}</div>` : ''}</div>
+        <span class="hint">Niveau <span class="num">${P.level}</span></span>
+        ${P.ranked ? `<span>${rankHTML(P.ranked.rank)} <small class="hint num">· ${P.ranked.pos}${P.ranked.pos === 1 ? 'er' : 'e'} du classement</small></span>` : ''}</div></div>
+    <div class="row" role="status">${friend}</div>${errLine()}
+    <span class="eyebrow">Victoires</span>${winTiles(P.stats)}
+    ${cardStatsHTML(P.cards, P.general)}
+    <span class="eyebrow">Arts préférés</span>${favs.length ? `<div class="topgrid favgrid">${favs.map(x => topCard({ id: ARTS[x.id].card, level: x.level, art: x.id }, esc(ARTS[x.id].name))).join('')}</div>`
+      : '<p class="hint" style="margin:0">Pas encore d\'arts préférés.</p>'}
+  </div></div>`;
+}
 
 // ---- Progression : niveau, missions, récompenses, personnalisation ----
 const prog = () => ui.account?.progress || { level: 1, xp: 0, xpNext: 1, missions: [], inbox: [], cosmetics: { titles: [], frames: [], backs: [] }, freeBoosters: 0 };
@@ -423,8 +472,11 @@ function renderRanked() {
   const D = ui.rankedData, R = D ? D.ranked : prog().ranked;
   const head = `<div class="top"><span class="title">Mode classé</span><button class="btn" data-act="home">Retour</button></div>${errLine()}`;
   if (!R) return `${head}<p class="wait">Chargement…</p>`;
-  const ladder = !D ? '<p class="wait">Chargement…</p>' : D.ladder.length ? `<ol class="ladder">${D.ladder.map(p => `<li class="${p.login === ui.account.login ? 'me' : ''}">
-      <span class="lpos num">${p.pos}</span><span class="fname"><b>${esc(p.name)}</b>${p.title ? ` <small class="ptitle">${esc(p.title)}</small>` : ''}</span>
+  // Un joueur du classement s'ouvre en pop-up (profil public) ; le top 10 montre son image et son cadre.
+  const who = p => `<button class="lwho" data-act="player" data-login="${esc(p.login)}" aria-label="Profil de ${esc(p.name)}">${'avatar' in p ? avatarHTML(p, 'lav', p.frame) : ''}
+      <span class="fname"><b>${esc(p.name)}</b>${p.title ? ` <small class="ptitle">${esc(p.title)}</small>` : ''}</span></button>`;
+  const ladder = !D ? '<p class="wait">Chargement…</p>' : D.ladder.length ? `<ol class="ladder">${D.ladder.map(p => `<li class="${p.login === ui.account.login ? 'me' : ''} ${'avatar' in p ? 'top' : ''}">
+      <span class="lpos num">${p.pos}</span>${who(p)}
       <span class="lrank">${rankHTML(p.rank)}</span><small class="hint num">${p.wins} V · ${p.games - p.wins} D/N</small></li>`).join('')}</ol>`
     : '<p class="hint" style="margin:0">Personne n\'a encore joué en classé cette saison. Soyez le premier !</p>';
   const rewards = !D ? '' : `<div class="card-box"><span class="eyebrow">Récompenses de fin de saison</span>
@@ -438,7 +490,7 @@ function renderRanked() {
   // Podium figé de la saison précédente.
   const last = D?.last?.top.length ? `<div class="card-box"><span class="eyebrow">Podium de ${esc(D.last.seasonName)}</span>
     <ol class="ladder">${D.last.top.map(p => `<li class="${p.login === ui.account.login ? 'me' : ''}"><span class="lpos num">${p.pos}</span>
-      <span class="fname"><b>${esc(p.name)}</b></span><span class="lrank">${rankHTML(p.rank)}</span></li>`).join('')}</ol></div>` : '';
+      ${who({ ...p, title: null })}<span class="lrank">${rankHTML(p.rank)}</span></li>`).join('')}</ol></div>` : '';
   return `${head}
   <div class="card-box">
     <span class="eyebrow">Saison ${esc(R.seasonName)} · encore ${R.daysLeft} jour${R.daysLeft > 1 ? 's' : ''}</span>
@@ -1237,7 +1289,24 @@ function customizeHTML() {
     <div class="gal-h">Dos de carte</div><p class="hint" style="margin:0">Votre adversaire le voit sur vos cartes cachées.</p>
     <div class="picks">${Object.entries(BACKS).filter(([id]) => !futureCosmetic(id) || c.backs.some(b => b.id === id)).map(([id, label]) => { const ok = c.backs.some(b => b.id === id);
       return `<button class="pickc ${p.back === id ? 'on' : ''} ${ok ? '' : 'locked'}" ${ok ? `data-back="${id}"` : 'disabled'}><span class="mc back back-${id}"></span><small>${esc(label)}</small></button>`; }).join('')}</div>
+    ${favArtsHTML()}
   </div>`;
+}
+// Arts préférés : jusqu'à MAX_FAV_ARTS arts possédés, montrés dans cet ordre sur le profil public.
+const favArts = () => prog().favArts || [];
+function favArtsHTML() {
+  const mine = Object.keys(ui.account.arts || {}).filter(artExists).map(id => ARTS[id]).sort((x, y) => byFamCost(x.card, y.card) || x.name.localeCompare(y.name)), fav = favArts();
+  return `<div class="gal-h">Arts préférés · <span class="num">${fav.length}/${MAX_FAV_ARTS}</span></div>
+    <p class="hint" style="margin:0">${mine.length ? `Choisissez jusqu'à ${MAX_FAV_ARTS} de vos arts alternatifs : les joueurs les voient sur votre profil. Touchez un art choisi pour le retirer.`
+      : 'Vos arts alternatifs (boutique, coffres, récompenses) apparaîtront ici : choisissez-en jusqu\'à 3 à montrer sur votre profil.'}</p>
+    ${mine.length ? `<div class="topgrid favpick">${mine.map(art => { const i = fav.indexOf(art.id), full = i < 0 && fav.length >= MAX_FAV_ARTS;
+      return `<button class="favopt ${i >= 0 ? 'on' : ''}" data-act="fav-art" data-id="${art.id}" aria-pressed="${i >= 0}" ${ui.busy || full ? 'disabled' : ''}>
+        ${anyCard(art.card, myLevel(art.card), art.id)}${i >= 0 ? `<span class="favn num" aria-label="Choix ${i + 1}">${i + 1}</span>` : ''}<small>${esc(art.name)}</small></button>`; }).join('')}</div>` : ''}`;
+}
+function toggleFavArt(id) {
+  const fav = favArts().slice(), i = fav.indexOf(id);
+  if (i >= 0) fav.splice(i, 1); else if (fav.length < MAX_FAV_ARTS) fav.push(id); else return;
+  equip({ favArts: fav }, i >= 0 ? 'Art retiré de vos préférés.' : 'Art ajouté à vos préférés.');
 }
 // Familles de chaque set : avancement et récompense (carte unique, titre, dos) ; set complet : carte Dieu.
 function familiesHTML() {
@@ -1264,11 +1333,11 @@ function renderProfile() {
       <span class="num">${n === s.cards.length ? 'Complété · ' : ''}${n}/${s.cards.length}</span></div>
       <div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(s.name)}"><span style="width:${pct}%"></span></div></div>`; }).join('');
   const complete = SETS.filter(s => s.cards.length && setRevealed(s) && s.cards.every(owned)).length;
-  const tile = (label, r) => `<div class="stat"><span class="eyebrow">${label}</span><b class="num">${r.rate === null ? '–' : `${r.rate} %`}</b>
-    <small class="hint num">${r.games} partie${r.games > 1 ? 's' : ''} · ${r.wins} V · ${r.losses} D${r.draws ? ` · ${r.draws} N` : ''}</small></div>`;
   const RES = { wins: 'Victoire', losses: 'Défaite', draws: 'Match nul' };
   const stats = !st ? '<p class="wait">Chargement…</p>' : `
-    <div class="stats">${tile('Toutes les parties', st.all)}${tile('En ligne', st.pvp)}${tile('Contre l\'IA', st.pve)}</div>
+    ${winTiles(st)}
+    <div class="gal-h">Cartes</div>${cardStatsHTML((st.cards || []).map(c => ({ ...c, level: myLevel(c.id), art: mySel(c.id) })),
+      st.generals[0] && { ...st.generals[0], level: myLevel(st.generals[0].id), art: mySel(st.generals[0].id) })}
     ${st.generals.length ? `<div class="gal-h">Par général</div><div class="statlist">${st.generals.map(g => `<div class="row"><span style="flex:1">${esc(g.name)}</span><span class="num hint">${g.games} partie${g.games > 1 ? 's' : ''}</span><b class="num">${g.rate} %</b></div>`).join('')}</div>` : ''}
     ${st.recent.length ? `<div class="gal-h">Dernières parties</div><div class="statlist">${st.recent.map(r => `<div class="row"><b class="res ${r.result}">${RES[r.result]}</b><span style="flex:1">contre ${esc(r.foe)} <small class="hint">· ${esc(r.deck || '')}</small></span><small class="hint num">${new Date(r.at).toLocaleDateString('fr-FR')}</small></div>`).join('')}</div>`
       : '<p class="hint" style="margin:0">Aucune partie jouée pour l\'instant.</p>'}`;
@@ -1304,7 +1373,8 @@ function renderProfile() {
       ${levelBar(p)}
       <div class="row"><label class="btn" for="avatar-file">${a.avatar ? 'Changer l\'image' : 'Ajouter une image'}</label>
         <input id="avatar-file" type="file" accept="image/*" hidden>
-        ${a.avatar ? `<button class="btn" data-act="avatar-remove" ${ui.busy ? 'disabled' : ''}>Retirer l'image</button>` : ''}</div>
+        ${a.avatar ? `<button class="btn" data-act="avatar-remove" ${ui.busy ? 'disabled' : ''}>Retirer l'image</button>` : ''}
+        <button class="btn" data-act="player" data-login="${esc(a.login)}">Voir mon profil public</button></div>
     </div>
   </div>
   <div class="seg proftabs" role="tablist" aria-label="Rubriques du profil">${PROFILE_TABS.map(tabBtn).join('')}</div>
@@ -1415,11 +1485,14 @@ function closeSheet() {
   if (ui.sheet === 'need') { leaveNeed(); ui.error = ''; render(); return; }
   if (ui.sheet === 'inbox') closeInbox();
   if (ui.sheet === 'mail-got') mail.closeGot();
-  ui.sheet = ui.sheet === 'zoom' && ui.zoomBack ? ui.zoomBack : null; ui.zoom = null; ui.zoomBack = null; ui.renaming = null; ui.gotArt = null; ui.calGot = null; ui.msg = ''; render();
+  ui.sheet = ui.sheet === 'zoom' && ui.zoomBack ? ui.zoomBack : null; ui.zoom = null; ui.zoomBack = null; ui.renaming = null; ui.gotArt = null; ui.calGot = null; ui.msg = '';
+  if (ui.sheet !== 'player') ui.player = null;
+  render();
 }
 function sheetHTML() {
   if (ui.sheet === 'zoom' && ui.zoom) return zoomHTML();
   if (ui.sheet === 'friend-deck') return friends.deckSheet();
+  if (ui.sheet === 'player' && ui.player) return playerSheet();
   if (ui.sheet === 'log' && ui.view) {
     const names = ui.view.names;
     const lines = ui.view.log.map(l => `<div class="${l.kind}">${esc(renderLog(l.msg, ui.view.seat, names))}</div>`).join('');
@@ -1967,6 +2040,9 @@ app.addEventListener('click', e => {
     else if (a === 'step-next' && stepOpen(ui.edit, ui.deckStep + 1)) { ui.deckStep++; ui.msg = ''; render(); scrollTo(0, 0); }
     else if (a === 'step-prev') { ui.deckStep = Math.max(0, ui.deckStep - 1); ui.msg = ''; render(); scrollTo(0, 0); }
     else if (a === 'profile') openProfile(ds.tab);
+    else if (a === 'player') openPlayer(ds.login);
+    else if ((a === 'player-add' || a === 'player-accept') && !ui.busy) playerFriend(a === 'player-accept');
+    else if (a === 'fav-art' && !ui.busy) toggleFavArt(ds.id);
     else if (a === 'profile-tab') { ui.profileTab = ds.tab; ui.msg = ''; ui.error = ''; render(); }
     else if (a === 'avatar-remove' && !ui.busy) call('PUT', '/api/profile', { avatar: null });
     else if (a === 'save-deck' && !ui.busy) saveDeck();
@@ -1978,7 +2054,7 @@ app.addEventListener('click', e => {
   if (ds.theme !== undefined && !ui.busy) { equip({ theme: ds.theme || null }, 'Thème changé.'); return; }
   if (ds.back && !ui.busy) { equip({ back: ds.back }, 'Dos de carte changé.'); return; }
   if (ds.fam !== undefined) { ui.colFam = ds.fam; render(); return; }
-  if (ds.zoom) { const [kind, id, art] = ds.zoom.split(':'); const back = ui.sheet === 'codex' ? 'codex' : null; openZoom({ kind, id, art: art || null }); ui.zoomBack = back; ui.msg = ''; render(); return; }
+  if (ds.zoom) { const [kind, id, art] = ds.zoom.split(':'); const back = ui.sheet === 'codex' || ui.sheet === 'player' ? ui.sheet : null; openZoom({ kind, id, art: art || null }); ui.zoomBack = back; ui.msg = ''; render(); return; }
   if (ds.pick) { togglePick(ds.pick); return; }
   if (ds.tpick) { toggleTerrain(ds.tpick); return; }
   if (ds.gpick) { ui.edit.general = ds.gpick; ui.msg = '';

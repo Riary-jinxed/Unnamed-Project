@@ -29,7 +29,7 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 | `decks`, `deck` | `renderDecks`, `renderDeck` | Liste des decks ; création en trois étapes (général, terrains, cartes). |
 | `profile` | `renderProfile` | Image, pseudo et niveau en haut, puis quatre onglets (`ui.profileTab`, `PROFILE_TABS`) : Profil (pseudo, stats), Collection (sets, familles), Personnalisation (thème de l'interface, titre, cadre, dos), Succès. `openProfile(tab)` ouvre sur un onglet. |
 | `friends` | `friends.screen` (`friends.js`) | Ajouter un ami, demandes reçues et envoyées, amis avec leur statut, défier (normal ou classé), retirer. |
-| `ranked` | `renderRanked` | Mode classé : rang et saison, partie classée contre l'IA, classement de la saison (`GET /api/ranked`), récompenses de fin de saison par palier et par place au classement final, podium de la saison précédente, règles. |
+| `ranked` | `renderRanked` | Mode classé : rang et saison, partie classée contre l'IA, classement de la saison (`GET /api/ranked` ; top 10 avec image et cadre, un joueur touché ouvre son profil public en pop-up, `playerSheet`), récompenses de fin de saison par palier et par place au classement final, podium de la saison précédente, règles. |
 | `lobby`, `game` | `renderLobby`, `renderGame` | Attente de l'adversaire (code à donner, ou ami qui choisit son deck) ; plateau. |
 
 ### Plateau (`renderGame`)
