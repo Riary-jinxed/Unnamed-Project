@@ -214,10 +214,10 @@ export const rewardSourceOf = id => {
 };
 
 // ---- Paliers des familles d'arts ----
-// Une famille d'arts (arts.js) grandit quand un nouveau set apporte des arts sur ses cartes. Son premier palier ne compte que les arts
-// du premier set où elle apparaît (le compléter reste acquis quand elle grandit) ; chaque set qui l'agrandit ajoute un palier qui demande
-// tous ses arts jusqu'à ce set et débloque un cadre de la famille (cosmetics-art.js le dessine, ou un rendu provisoire à ses couleurs).
-// Les arts d'une carte de récompense comptent avec le set qui la donne.
+// Une famille d'arts (arts.js) grandit quand un nouveau set apporte des arts sur ses cartes : chaque set qui l'agrandit ajoute un palier.
+// Un palier demande un nombre d'arts de la famille, d'où qu'ils viennent : le premier, autant d'arts qu'en avait la famille à sa création
+// (le titre de la famille, acquis pour de bon) ; le dernier, tous ses arts. Chaque palier au-delà du premier débloque un cadre de la famille
+// (cosmetics-art.js le dessine, ou un rendu provisoire à ses couleurs). Les arts d'une carte de récompense comptent avec le set qui la donne.
 const SET_ORDER = DEFAULT_SETS.map(s => s.id);
 const artSetIndex = a => Math.max(0, SET_ORDER.indexOf(rewardSourceOf(a.card)?.set || setOf(a.card)));
 export function themeTiers(t) {
@@ -272,14 +272,14 @@ export const ACHIEVEMENTS = [
   A('art10', 'Arts alternatifs', 'Posséder 10 arts alternatifs', 'arts', 10, 300, { prisms: 10 }),
   A('art20', 'Arts alternatifs', 'Posséder 20 arts alternatifs', 'arts', 20, 600, { chests: 1, title: 'Mécène' }),
   A('artLeg', 'Arts alternatifs', 'Obtenir un art légendaire', 'legendArts', 1, 200, { prisms: 10, title: 'Œil d\'or' }),
-  // Familles d'arts (arts.js) : posséder tous les arts d'une famille, palier par palier (themeTiers). Le premier donne le titre de la famille,
-  // les suivants un cadre. stat « artTiers.<succès> » : arts possédés parmi ceux du palier (ART_TIER_ARTS).
-  ...Object.entries(ART_THEMES).flatMap(([t, x]) => themeTiers(t).map((tier, i) => {
-    const first = tier.set !== SET_ORDER[0] ? { set: tier.set } : {};
-    return i ? A(`theme_${t}_${tier.set}`, 'Arts alternatifs', `Compléter la famille d'arts ${x.name} avec ses arts du set ${tier.setName}`, `artTiers.theme_${t}_${tier.set}`,
-      tier.arts.length, 400, { prisms: 15, frame: artFrameId(t, tier.set), set: tier.set })
-      : A(`theme_${t}`, 'Arts alternatifs', `Compléter la famille d'arts ${x.name}`, `artTiers.theme_${t}`, tier.arts.length, 300, { prisms: 10, title: x.title, ...first });
-  })),
+  // Familles d'arts (arts.js) : palier par palier (themeTiers), un nombre d'arts de la famille quelle que soit leur provenance ;
+  // le dernier palier demande toute la famille. Le premier donne le titre de la famille, les suivants un cadre.
+  ...Object.entries(ART_THEMES).flatMap(([t, x]) => { const tiers = themeTiers(t);
+    return tiers.map((tier, i) => {
+      const n = tier.arts.length, label = i === tiers.length - 1 ? `Compléter la famille d'arts ${x.name}` : `Réunir ${n} arts de la famille ${x.name}`;
+      return i ? A(`theme_${t}_${tier.set}`, 'Arts alternatifs', label, `artThemes.${t}`, n, 400, { prisms: 15, frame: artFrameId(t, tier.set), set: tier.set })
+        : A(`theme_${t}`, 'Arts alternatifs', label, `artThemes.${t}`, n, 300, { prisms: 10, title: x.title, ...(tier.set !== SET_ORDER[0] ? { set: tier.set } : {}) });
+    }); }),
   A('chest10', 'Arts alternatifs', 'Ouvrir 10 coffres d\'arts', 'chests', 10, 200, { prisms: 10 }),
   A('up1', 'Niveaux de carte', 'Monter une carte au niveau 2', 'upgraded', 1, 50, { prisms: 1 }),
   A('up10', 'Niveaux de carte', 'Monter 10 cartes au niveau 2 ou plus', 'upgraded', 10, 200, { prisms: 5 }),
@@ -318,8 +318,7 @@ export const ACHIEVEMENTS = [
   A('fav3', 'Profil', `Choisir ${MAX_FAV_ARTS} arts préférés pour son profil public`, 'favArts', MAX_FAV_ARTS, 100, { prisms: 3, title: 'Galeriste' }),
   A('border1', 'Profil', 'Choisir la bordure d\'une carte', 'bordersChosen', 1, 50, { prisms: 2 }),
 ];
-// Arts de chaque palier de famille d'arts, par succès.
-export const ART_TIER_ARTS = Object.fromEntries(Object.keys(ART_THEMES).flatMap(t => themeTiers(t).map((tier, i) => [i ? `theme_${t}_${tier.set}` : `theme_${t}`, tier.arts])));
+
 export const statValue = (stats, stat) => stat.split('.').reduce((o, k) => (o ? o[k] : 0), stats) || 0;
 
 // Tous les titres : ceux des succès, des familles et des sets.

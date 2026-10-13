@@ -3,7 +3,7 @@
 // Les nombres viennent du document « recompenses » (réglé depuis /admin), complété par les valeurs par défaut de rewards.js.
 // Chaque récompense gagnée est aussi rangée dans la boîte « inbox » du compte, que l'appli affiche puis vide.
 import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, ACHIEVEMENTS, familyReward, SET_REWARDS, TITLES, FRAMES, BACKS,
-  xpToNext, familyOf, statValue, missionLabel, ART_TIER_ARTS, MAX_CARD_LEVEL, levelCost, essenceToMax, loginCalendar, loginReward, monthDays } from '@jeu/engine/rewards';
+  xpToNext, familyOf, statValue, missionLabel, MAX_CARD_LEVEL, levelCost, essenceToMax, loginCalendar, loginReward, monthDays } from '@jeu/engine/rewards';
 import { SETS, OWNABLE, today, setRevealed, setById } from '@jeu/engine/collection';
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { TIERS, PLACES, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics,
@@ -103,7 +103,6 @@ export function createProgress(store) {
     const families = Object.keys(a.completed || {}).filter(k => k.includes(':')).length;
     const arts = Object.keys(a.arts || {}).filter(artExists), levels = Object.values(a.cardLevels || {});
     return { ...a.stats, level: a.level, cards: owned, families, arts: arts.length, artThemes: Object.fromEntries(THEME_IDS.map(t => [t, arts.filter(id => ARTS[id].theme === t).length])), legendArts: arts.filter(id => ARTS[id].rarity === 'legendaire').length,
-      artTiers: Object.fromEntries(Object.entries(ART_TIER_ARTS).map(([k, ids]) => [k, ids.filter(id => a.arts?.[id] && artExists(id)).length])),
       essenceArts: arts.filter(id => isEssenceArt(ARTS[id])).length, favArts: favArts(a).length, bordersChosen: Object.keys(a.lvLook || {}).length,
       upgraded: levels.filter(l => l >= 2).length, maxCards: levels.filter(l => l >= MAX_CARD_LEVEL).length, friends: (a.friends || []).length,
       bestTier: Math.max(a.stats?.bestTier || 0, a.ranked?.games ? rankOf(a.ranked.best).tier : 0),
