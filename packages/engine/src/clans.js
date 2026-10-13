@@ -56,13 +56,11 @@ export const clanDay = (d = new Date()) => today(d);
 export const clanWeek = (d = new Date()) => weekOf(today(d));
 
 // ---- Dons ----
-// Ressources données au clan contre des Écus : rate unités pour 1 Écu (ou coins Écus), au plus cap unités par jour,
-// et au plus DON_DAY_COINS Écus de dons par jour, toutes ressources confondues.
-export const DON_DAY_COINS = 30;
+// Ressources données au clan contre des Écus : rate unités pour 1 Écu (ou coins Écus), au plus cap unités par jour.
 export const DONATIONS = {
-  shards: { name: 'Éclats', rate: 10, cap: 300 },
-  prisms: { name: 'Prismes', rate: 1, coins: 3, cap: 5 },
-  uniEssence: { name: 'essence universelle', rate: 5, cap: 50 },
+  shards: { name: 'Éclats', rate: 10, cap: 500 },
+  prisms: { name: 'Prismes', rate: 1, coins: 3, cap: 10 },
+  uniEssence: { name: 'essence universelle', rate: 5, cap: 100 },
 };
 // Écus gagnés pour amount unités d'une ressource.
 export const donationCoins = (res, amount) => { const d = DONATIONS[res]; return d ? Math.floor(amount / d.rate) * (d.coins || 1) : 0; };

@@ -194,11 +194,9 @@ export function createClan(app) {
       const name = d.res === 'shards' ? `${app.ico('shard')} Éclats` : d.res === 'prisms' ? `${app.ico('prism')} Prismes` : 'Essence universelle';
       return `<div class="cdon"><div><b>${name}</b><small class="hint num">${d.rate} pour ${d.coins} Écu${d.coins > 1 ? 's' : ''} · aujourd'hui ${d.given}/${d.cap} · vous en avez ${d.have}</small>
         <div class="bar" aria-hidden="true"><span style="width:${pct(d.given, d.cap)}%"></span></div></div>
-        <div class="row fbtns">${left >= d.rate ? steps.map(n => `<button class="btn sm ${n === steps[steps.length - 1] ? 'primary' : ''}" data-act="clan-donate" data-res="${d.res}" data-amount="${n}" ${ui.busy || d.have < n ? 'disabled' : ''}>Donner ${n} · +${Math.floor(n / d.rate) * d.coins} ${app.ico('ecu')}</button>`).join('') : `<small class="hint">${d.given >= d.cap ? 'Limite du jour atteinte' : 'Limite d\'Écus du jour atteinte'}</small>`}</div></div>`;
+        <div class="row fbtns">${left >= d.rate ? steps.map(n => `<button class="btn sm ${n === steps[steps.length - 1] ? 'primary' : ''}" data-act="clan-donate" data-res="${d.res}" data-amount="${n}" ${ui.busy || d.have < n ? 'disabled' : ''}>Donner ${n} · +${Math.floor(n / d.rate) * d.coins} ${app.ico('ecu')}</button>`).join('') : '<small class="hint">Limite du jour atteinte</small>'}</div></div>`;
     };
-    const day = D.donDay;
-    return block(`Dons · vous avez ${coins(D.coins)} Écus`, `<p class="hint" style="margin:0">Donnez des ressources au clan : vous recevez des Écus à dépenser au magasin du clan, et vos dons font avancer la mission de dons de la semaine. Au plus ${day.max} Écus de dons par jour, toutes ressources confondues ; limites renouvelées à minuit.</p>
-      <div class="cdonday"><b class="num">Aujourd'hui : ${day.got}/${day.max} ${app.ico('ecu')}</b><div class="bar" aria-hidden="true"><span style="width:${pct(day.got, day.max)}%"></span></div></div>
+    return block(`Dons · vous avez ${coins(D.coins)} Écus`, `<p class="hint" style="margin:0">Donnez des ressources au clan : vous recevez des Écus à dépenser au magasin du clan, et vos dons font avancer la mission de dons de la semaine. Limites renouvelées à minuit.</p>
       ${D.donations.map(row).join('')}`);
   }
 

@@ -82,4 +82,3 @@
 .socialtabs { align-self: start; }
 .socialtabs button { padding: 8px 22px; font-weight: 600; }
 .shoptabs button.locked { opacity: .5; filter: grayscale(1); background: repeating-linear-gradient(-45deg, var(--surface) 0 6px, var(--sunk) 6px 12px); }
-.cdonday { display: grid; gap: 4px; }
