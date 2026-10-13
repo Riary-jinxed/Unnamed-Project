@@ -4,7 +4,7 @@
 // rendu CSS, et tout reste en CSS sans WebGL.
 // Pour ne pas ralentir le démarrage : PixiJS arrive après le premier rendu, et les images sont gardées dans le cache du
 // navigateur, si bien que les visites suivantes les posent tout de suite sans rien redessiner. Changer un dessin : augmenter VERSION.
-const VERSION = 4, CACHE = 'cosmetiques', DPR = () => Math.min(2, Math.max(1, devicePixelRatio || 1));
+const VERSION = 5, CACHE = 'cosmetiques', DPR = () => Math.min(2, Math.max(1, devicePixelRatio || 1));
 const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
 const key = (kind, id) => `/__cosmetiques/v${VERSION}/x${DPR()}/${kind}/${id}.png`;
 

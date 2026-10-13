@@ -94,6 +94,16 @@ const ICONS = {
     glint(g, 32, 12, 7); glint(g, 18, 18, 4, 0xfff0a0); glint(g, 47, 20, 5, 0xfff0a0);
     return group(glow(() => new Graphics().rect(10, 26, 44, 8).fill(0xffffff), 0xffd060, 8, 0.9), beam, g); },
 };
+// Écu de clan : pièce d'or frappée d'un écu héraldique, la monnaie du magasin de clan.
+ICONS.ecu = () => { const g = new Graphics();
+  g.circle(32, 34, 25).fill(0x9a6a1c); g.circle(32, 32, 25).fill(grad([[0, 0xfff0a0], [0.5, 0xe3b552], [1, 0xa8741e]], 'linear', [0, 0, 1, 1]));
+  g.circle(32, 32, 19).stroke({ width: 2, color: 0x9a6a1c });
+  g.moveTo(22, 21).lineTo(42, 21).lineTo(42, 32).quadraticCurveTo(42, 42, 32, 46).quadraticCurveTo(22, 42, 22, 32).closePath().fill(0xb0282a);
+  g.moveTo(32, 21).lineTo(42, 21).lineTo(42, 32).quadraticCurveTo(42, 42, 32, 46).closePath().fill(0x2a5fa8);
+  g.moveTo(22, 21).lineTo(42, 21).lineTo(42, 32).quadraticCurveTo(42, 42, 32, 46).quadraticCurveTo(22, 42, 22, 32).closePath().stroke({ width: 2, color: 0x5a3a08 });
+  star(g, 32, 31, 6, 5, 0.45).fill(0xfff0a0);
+  glint(g, 50, 12, 6); glint(g, 13, 46, 4, 0xfff0a0);
+  return group(glow(() => new Graphics().circle(32, 32, 26).fill(0xffffff), 0xffc040, 8, 0.6), g); };
 export function drawIcon(kind) {
   const f = ICONS[kind]; if (!f) return null;
   const c = new Container(); c.addChild(f()); return c;
@@ -226,6 +236,22 @@ function leaf(k, light, dark) {
   return g.stroke(ink(1.8));
 }
 
+// Clan : étendard fendu sur sa hampe, et tour de forteresse crénelée.
+EMBLEMS.etendard = () => { const g = new Graphics();
+  g.rect(-30, -62, 7, 124).fill(0x8a5a2a).stroke(ink(3)); g.circle(-26.5, -64, 7).fill(0xe3b552).stroke(ink(3));
+  g.moveTo(-23, -54).bezierCurveTo(0, -62, 22, -46, 46, -54).lineTo(40, -16).lineTo(48, 22).bezierCurveTo(24, 30, 4, 14, -23, 22).closePath().fill(0xb0282a).stroke(ink(3.5));
+  g.moveTo(-23, -54).bezierCurveTo(0, -62, 22, -46, 46, -54).lineTo(40, -16).lineTo(-23, -16).closePath().fill(0x2a5fa8).stroke(ink(3));
+  star(g, 10, -18, 15, 5, 0.45).fill(0xf5d27a).stroke(ink(2.5));
+  return g; };
+EMBLEMS.tour = () => { const g = new Graphics();
+  g.poly([-34, 60, -30, -30, 30, -30, 34, 60]).fill(0x8a8a90).stroke(ink(3.5));
+  for (let i = 0; i < 4; i++) g.rect(-36 + i * 20, -48, 12, 20).fill(0x9a9aa0).stroke(ink(3));
+  g.rect(-38, -32, 76, 8).fill(0x6a6a72).stroke(ink(3));
+  for (const [x, y] of [[-16, -10], [8, 14], [-10, 34], [14, -12]]) g.rect(x, y, 14, 7).fill({ color: 0x5a5a62, alpha: 0.7 });
+  g.moveTo(-12, 60).lineTo(-12, 32).quadraticCurveTo(0, 18, 12, 32).lineTo(12, 60).closePath().fill(0x2a1a10).stroke(ink(3));
+  g.rect(-3, -76, 4, 30).fill(0x6a4a2a).stroke(ink(2)); g.poly([1, -76, 30, -68, 1, -58]).fill(0xb0282a).stroke(ink(2.5));
+  return g; };
+
 // ---- Dos de carte (240 × 336) ----
 // bg : dégradé du fond (haut, bas) ; ray : rayons ; rim : filet ; med : fond du médaillon ; pattern : motif sous la trame ; night : voile du Crépuscule.
 const FAMILY_BACKS = {
@@ -246,6 +272,10 @@ for (const f of ['ange', 'demon', 'gobelin', 'elfe', 'dragon']) FAMILY_BACKS[`${
 FAMILY_BACKS.hacker = { bg: [0x0f2a3a, 0x04090f], ray: 0x16405a, rim: 0x3ad7ff, med: 0x061218, emblem: 'terminal', pattern: 'circuit', glow: 0x3ad7ff };
 FAMILY_BACKS.cyborg = { bg: [0x3a1238, 0x0c040e], ray: 0x5a1f56, rim: 0xff4fbf, med: 0x18081a, emblem: 'engrenage', pattern: 'circuit', glow: 0xff4fbf };
 for (const f of ['ange', 'demon', 'gobelin', 'elfe', 'dragon', 'mortvivant', 'vampire']) FAMILY_BACKS[`${f}_set3`] = { ...FAMILY_BACKS[f], bg: [0x12244a, 0x060c1c], ray: 0x1a3060, rim: 0x19c8e6, med: 0x081022, pattern: 'circuit', glow: 0xd42bb8 };
+
+// Clan : l'étendard sur fond de gueules et d'azur, la forteresse sous un ciel de pierre.
+FAMILY_BACKS.clan_etendard = { bg: [0x8a2024, 0x1a2a5a], ray: 0xc0403a, rim: 0xf5d27a, med: 0x1a1a3a, emblem: 'etendard' };
+FAMILY_BACKS.clan_forteresse = { bg: [0x5a6070, 0x16181e], ray: 0x7a8090, rim: 0xe3b552, med: 0x22242c, emblem: 'tour', glow: 0xf5d27a };
 
 function panelShape(g, inset, r) { return g.roundRect(inset, inset, BACK_W - inset * 2, BACK_H - inset * 2, r); }
 function backFrame(c, t, inner) {
@@ -529,6 +559,34 @@ const FRAMES = {
       g.poly([bx, by, ...l, tx, ty]).fill(0xffffff).poly([bx, by, ...r, tx, ty]).fill(c).poly([bx, by, ...l, tx, ty, ...r]).stroke(ink(2.5)); }
     [[C + 84, C - 82, 7], [C - 90, C - 70, 6], [C + 92, C + 74, 6], [C - 70, C + 94, 7]].forEach(([x, y, r]) => sparkle(g, x, y, r)); },
 };
+// Cadres du magasin de clan. Blason : anneau de fer, écu de gueules et d'azur au sommet, deux épées croisées en bas.
+// Héraut : anneau d'or, deux bannières qui pendent de chaque côté et une trompette de héraut au sommet.
+FRAMES.clan_blason = g => {
+  for (const s of [-1, 1]) { const k = new Graphics();
+    k.rect(-4, -70, 8, 96).fill(0xd8dde4).stroke(ink(2.5)); k.rect(-14, 22, 28, 7).fill(0xe3b552).stroke(ink(2.5)); k.rect(-3.5, 29, 7, 18).fill(0x6a3a1a).stroke(ink(2)); k.circle(0, 50, 5).fill(0xe3b552).stroke(ink(2));
+    k.position.set(C + s * 30, C + RB + 10); k.rotation = s * 2.4; g.addChild(k); }
+  ring(g, METAL.fer); beads(g, 8, (RH + RB) / 2, 0xc8ced6, 3.5, Math.PI / 8);
+  const sh = new Graphics(), w = 30;
+  sh.moveTo(-w, -34).lineTo(w, -34).lineTo(w, 0).quadraticCurveTo(w, 28, 0, 40).quadraticCurveTo(-w, 28, -w, 0).closePath().fill(0xb0282a).stroke(ink(3.5));
+  sh.moveTo(0, -34).lineTo(w, -34).lineTo(w, 0).quadraticCurveTo(w, 28, 0, 40).closePath().fill(0x2a5fa8);
+  sh.moveTo(-w, -34).lineTo(w, -34).lineTo(w, 0).quadraticCurveTo(w, 28, 0, 40).quadraticCurveTo(-w, 28, -w, 0).closePath().stroke(ink(3.5));
+  sh.moveTo(-w + 5, -29).lineTo(w - 5, -29).stroke({ width: 3, color: 0xf5d27a });
+  star(sh, 0, 0, 13, 5, 0.45).fill(0xf5d27a).stroke(ink(2.5));
+  sh.position.set(C, C - RB + 2); g.addChild(sh); };
+FRAMES.clan_heraut = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2).stroke({ width: 12, color: 0xffffff }), 0xffd45a, 10, 0.7));
+  for (const s of [-1, 1]) { const b = new Graphics(), x = C + s * (RB + 8), top = C - 66;
+    b.rect(x - 22, top - 6, 44, 6).fill(0x8a5a2a).stroke(ink(2.5));
+    b.moveTo(x - 18, top).lineTo(x + 18, top).lineTo(x + 18, top + 104).lineTo(x, top + 88).lineTo(x - 18, top + 104).closePath().fill(s < 0 ? 0xb0282a : 0x2a5fa8).stroke(ink(3));
+    b.moveTo(x - 12, top + 6).lineTo(x - 12, top + 86).stroke({ width: 2.5, color: 0xf5d27a });
+    b.moveTo(x + 12, top + 6).lineTo(x + 12, top + 86).stroke({ width: 2.5, color: 0xf5d27a });
+    star(b, x, top + 40, 10, 5, 0.45).fill(0xf5d27a).stroke(ink(2)); g.addChild(b); }
+  ring(g, METAL.or); beads(g, 12, (RH + RB) / 2, 0xb0282a, 3);
+  const t = new Graphics(), y = C - RB - 6;
+  t.moveTo(C - 44, y + 4).lineTo(C + 20, y - 2).lineTo(C + 20, y + 6).lineTo(C - 44, y + 10).closePath().fill(0xe3b552).stroke(ink(2.5));
+  t.moveTo(C + 18, y + 2).lineTo(C + 46, y - 14).lineTo(C + 46, y + 22).closePath().fill(0xffd45a).stroke(ink(3));
+  t.moveTo(C - 30, y + 10).lineTo(C - 22, y + 30).lineTo(C + 4, y + 30).lineTo(C + 8, y + 8).closePath().fill(0xb0282a).stroke(ink(2.5));
+  star(t, C - 9, y + 20, 6, 5, 0.45).fill(0xf5d27a);
+  g.addChild(t); };
 export function drawFrame(id) {
   const f = FRAMES[id]; if (!f) return null;
   const c = new Container(), g = layers(); f(g); c.addChild(g.root);

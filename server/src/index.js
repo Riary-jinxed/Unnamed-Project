@@ -16,6 +16,7 @@ import { createGames } from './games.js';
 import { createCatalog } from './cards.js';
 import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
+import { createClans } from './clans.js';
 import { NOTES_MAJ } from './notes-maj.js';
 
 const PORT = +process.env.PORT || 8787;
@@ -36,7 +37,14 @@ const friends = createFriends(store, accounts, { playing, inviteRoom, abortInvit
 // Courrier : un joueur connecté voit aussitôt arriver un nouveau message (par sa connexion de présence).
 const mail = createMail(store, accounts, { notify: logins => logins.forEach(l => friends.notify(l, { t: 'mail' })) });
 await mail.publishNotes(NOTES_MAJ);
-const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes }, catalog.public);
+// Clans : les parties font avancer les missions du clan ; la fin du mois fige aussi le classement des clans.
+const clans = createClans(store, accounts);
+accounts.setGameHook((a, info) => clans.onGame(a, info));
+accounts.progress.setSeasonHook(id => clans.closeSeason(id));
+// Le profil public d'un joueur montre aussi son clan.
+const playerRoute = games.routes['GET /api/player'];
+games.routes['GET /api/player'] = (...x) => { const r = playerRoute(...x); r.player.clan = clans.badge(r.player.login); return r; };
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...clans.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
 // Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.

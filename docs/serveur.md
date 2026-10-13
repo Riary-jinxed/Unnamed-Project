@@ -76,6 +76,7 @@ Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDu
 | `friends.js` | `createFriends(store, accounts, salons)` : amis et demandes, présence (qui est connecté, qui est en partie), défis entre amis. |
 | `mail.js` | `createMail(store, accounts, { notify })` : courrier (messages de `/admin` à tous ou à quelques joueurs, avec récompense facultative, documents `courrier`) et codes cadeaux (document `codes`, 10 codes faux par heure au plus). Comptes : `mail = { read, got, hidden }`, `redeemed`. Routes `/api/mail…`, `/api/redeem`, `/api/admin/mail…`, `/api/admin/codes…`. |
 | `notes-maj.js` | `NOTES_MAJ` : notes de mise à jour, envoyées une seule fois dans le courrier de tous les comptes existants au premier démarrage du serveur qui les contient (`publishNotes`, identifiants retenus dans `courrier.notes`). Pour une nouvelle note : l'ajouter en fin de liste avec un identifiant nouveau. |
+| `clans.js` | `createClans(store, accounts)` : clans (document `clans`), missions de clan avancées à chaque fin de partie (`accounts.setGameHook`), dons contre des Écus, magasin du clan, classement des clans figé à la fin du mois en même temps que le classement classé (`progress.setSeasonHook`, document `classement-clans`) avec ses récompenses et bannières. Comptes : `clan`, `clanCoins`, `clanReq`, `clanDon`. Routes `/api/clan…`, `/api/clans`, `/api/clans/ladder`, `/api/admin/clans…`. |
 | `cards.js` | `createCatalog(store, accounts)` : brouillon du catalogue, publication (refusée si elle retire une carte qu'un joueur possède), catalogue public. |
 | `index.js` | Assemble le tout, sert les fichiers, gère les salons et les WebSockets. |
 
@@ -126,6 +127,11 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `GET /api/friends` | Amis (avec statut `online`, `game` ou `off`, niveau, titre, cadre, empreinte de l'image), demandes reçues et envoyées, défi en cours. |
 | `GET /api/friends/avatars` | Images de profil des amis et des demandes (l'appli ne les redemande que si leur empreinte change). |
 | `POST /api/friends/add` | Demande d'ami (`{ name }` : identifiant, ou pseudo s'il n'est porté que par un joueur). Si l'autre avait déjà demandé, vous devenez amis. |
+| `GET /api/clan` | Écran du clan : le clan du joueur (`clan`, ou `null`), ses Écus, ses dons du jour et le magasin. `GET /api/clan/avatars` : images des membres. |
+| `GET /api/clans?q=`, `GET /api/clans/ladder` | Clans à rejoindre (recherche par nom ou étiquette) ; classement des clans du mois, récompenses et podium du mois précédent. |
+| `POST /api/clan/create`, `/join`, `/cancel`, `/leave` | Créer un clan (50 Prismes), le rejoindre (ou demander si sur demande), annuler sa demande, le quitter. |
+| `POST /api/clan/accept`, `/refuse`, `/kick`, `/promote`, `/edit` | Chef du clan : demandes, exclusion, passer la main, blason, description et accès. |
+| `POST /api/clan/donate`, `/buy` | `{ res, amount }` : don contre des Écus ; `{ item }` : achat au magasin du clan. |
 | `POST /api/friends/accept`, `/remove` | Accepte une demande ; refuse une demande, annule la sienne ou retire un ami (`{ login }`, des deux côtés). |
 
 **Administration** (en-tête `X-Admin-Key: <ADMIN_KEY>`, comparé en temps constant ; sans `ADMIN_KEY` sur le serveur, tout `/api/admin/` répond 503) :

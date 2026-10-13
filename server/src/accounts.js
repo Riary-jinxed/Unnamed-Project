@@ -62,9 +62,11 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   // Cartes dont le débordement du personnage est coupé.
   popOff: a.popOff || {},
   // Leçons du tutoriel déjà finies (récompensées).
-  tuto: a.tuto || [], tutoGift: !!a.tutoGift });
+  tuto: a.tuto || [], tutoGift: !!a.tutoGift,
+  // Clan (clans.js) : identifiant du clan, Écus (monnaie du clan).
+  clan: a.clan || null, clanCoins: a.clanCoins || 0 });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift', 'uniEssence', 'dupShop'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift', 'uniEssence', 'dupShop', 'clanCoins', 'clanDon'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte
 // (giveEssence : au-delà du plafond, de quoi monter la carte jusqu'au niveau maximum, de l'essence universelle).
@@ -396,7 +398,9 @@ export function createAccounts(store) {
   }
 
   // Progression : partie terminée, missions, boîte de récompenses, titre, cadre et dos de carte.
-  async function recordGame(a, info) { const reward = progress.onGame(a, info); await store.put(a); return reward; }
+  // Fin de partie : progression du compte, puis missions de son clan (clans.js, branché par setGameHook).
+  let gameHook = () => {};
+  async function recordGame(a, info) { const reward = progress.onGame(a, info); gameHook(a, info); await store.put(a); return reward; }
   async function reroll(a, body) { await progress.reroll(a, body); await store.put(a); return { account: me(a) }; }
   async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
   async function equip(a, body) { await progress.equip(a, body || {}); await store.put(a); return { account: me(a) }; }
@@ -535,7 +539,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, upgradeCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, upgradeCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),

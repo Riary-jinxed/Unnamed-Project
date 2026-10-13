@@ -4,6 +4,7 @@ import { CARDS, GENERALS, FAMILIES } from './engine.js';
 import { TIERS, PLACES } from './ranked.js';
 import { SEASON_TITLES, SEASON_FRAMES, SEASON_BACKS } from './pass.js';
 import { ARTS, ART_THEMES } from './arts.js';
+import { CLAN_TITLES, CLAN_FRAMES, CLAN_BACKS } from './clans.js';
 
 // ---- Réglages chiffrés ----
 // Les valeurs par défaut sont justifiées dans la proposition d'économie (recompenses/economie.md).
@@ -131,6 +132,8 @@ export const FRAMES = {
   platine: 'Cadre de platine', diamant: 'Cadre de diamant', maitre: 'Cadre du grand maître',
   // Cadres des passes de saison (pass.js).
   ...Object.fromEntries(SEASON_FRAMES),
+  // Cadres du magasin de clan (clans.js).
+  ...Object.fromEntries(CLAN_FRAMES),
 };
 const FAM_KEY = { 'Ange': 'ange', 'Démon': 'demon', 'Gobelin': 'gobelin', 'Elfe': 'elfe', 'Dragon': 'dragon', 'Mort-vivant': 'mortvivant', 'Vampire': 'vampire', 'Hacker': 'hacker', 'Cyborg': 'cyborg' };
 export const famKey = fam => FAM_KEY[fam] || 'neutre';
@@ -141,7 +144,7 @@ export const BACKS = { classique: 'Dos classique', ange: 'Dos céleste', demon: 
   dragon_set2: 'Dos des couvées',
   hacker: 'Dos du réseau', cyborg: 'Dos chromé', ange_set3: 'Dos de la Grille', demon_set3: 'Dos des daemons', gobelin_set3: 'Dos survolté',
   elfe_set3: 'Dos technomancien', dragon_set3: 'Dos corporatiste', mortvivant_set3: 'Dos fantôme', vampire_set3: 'Dos néon rouge',
-  ...Object.fromEntries(SEASON_BACKS) };
+  ...Object.fromEntries(SEASON_BACKS), ...Object.fromEntries(CLAN_BACKS) };
 
 // ---- Niveaux de carte ----
 // Purement cosmétiques : la carte joue pareil à tous les niveaux. Chaque doublon donne de l'essence propre à la carte (ou au général) ;
@@ -279,6 +282,7 @@ export const TITLES = Object.fromEntries([
   ...TIERS.filter(t => t.title).map(t => [`rang:${t.id}`, t.title]),
   ...PLACES.map(p => [`rang:${p.id}`, p.title]),
   ...SEASON_TITLES,
+  ...CLAN_TITLES,
 ]);
 
 // ---- Calendrier de connexion du mois ----

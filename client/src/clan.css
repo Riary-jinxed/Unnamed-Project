@@ -1,0 +1,81 @@
+/* Clans (clan.js) : blasons, en-tête du clan, missions, membres, dons, magasin et classement des clans. */
+.crest { display: inline-block; width: 36px; height: 41px; flex: none; color: #170d08; filter: drop-shadow(2px 3px 0 rgb(0 0 0 / .45)); line-height: 0; }
+.crest svg { width: 100%; height: 100%; overflow: visible; }
+.crest.big { width: 72px; height: 83px; }
+.crest.sm { width: 20px; height: 23px; filter: drop-shadow(1px 1px 0 rgb(0 0 0 / .45)); vertical-align: -5px; }
+/* Liseré de la meilleure bannière gagnée au classement des clans. */
+.crest.cb-or { filter: drop-shadow(0 0 5px #ffd45a) drop-shadow(2px 3px 0 rgb(0 0 0 / .45)); }
+.crest.cb-argent { filter: drop-shadow(0 0 5px #dfe4ea) drop-shadow(2px 3px 0 rgb(0 0 0 / .45)); }
+.crest.cb-bronze { filter: drop-shadow(0 0 4px #d08b50) drop-shadow(2px 3px 0 rgb(0 0 0 / .45)); }
+.ctag { color: var(--muted); font-weight: 700; font-size: .85em; letter-spacing: .04em; }
+.cbanner { display: inline-flex; align-items: center; gap: 4px; padding: 1px 10px 1px 8px; font-size: 11.5px; font-weight: 700; color: #2a1a06;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 50%, 100% 100%, 0 100%); background: linear-gradient(135deg, #e0a36b, #b8763e); }
+.cbanner.cb-or { background: linear-gradient(135deg, #ffe08a, #d9a42a); }
+.cbanner.cb-argent { background: linear-gradient(135deg, #f4f6f9, #b4bcc6); }
+.cbanners { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.cheader { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 14px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--crest) 38%, var(--surface)), var(--surface) 70%); }
+.cheader h2 { font-size: 22px; margin: 2px 0; }
+.cinfo { display: grid; gap: 6px; min-width: 0; }
+.ctabs { align-self: start; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.ctabs button { padding: 8px 14px; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.chip.ecu { cursor: default; }
+
+.chero { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.chero h2 { font-size: 20px; margin: 2px 0 4px; }
+.cform .row input { flex: 1; }
+.cpreview { display: flex; align-items: center; gap: 12px; }
+.cpreview > div { display: grid; gap: 2px; }
+.cpicks { display: flex; flex-wrap: wrap; gap: 6px; }
+.cpick { border: 1px solid var(--line); background: var(--sunk); border-radius: var(--r); padding: 6px 8px; line-height: 0; }
+.cpick.on, .cswatch.on { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cswatch { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #170d08; background: var(--sw); }
+.ctoggle { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.crow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding-block: 6px; border-top: 1px solid var(--line); }
+.crow:first-child { border-top: 0; }
+.cname { display: grid; gap: 2px; min-width: 0; justify-items: start; }
+.cname small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+#clan-search .row { flex-wrap: nowrap; }
+#clan-search input { flex: 1; min-width: 0; }
+
+.cmissions { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.cmissions li { display: grid; gap: 5px; }
+.cmissions .mtext { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.cmissions li.done b { color: var(--up); }
+.cmissions li.done .bar span { background: var(--up); }
+.clog { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13.5px; line-height: 1.35; }
+
+.cmember { grid-template-columns: minmax(0, 1fr) auto; }
+.cmember .fwho { background: none; border: 0; padding: 0; color: inherit; text-align: left; }
+.cstat { display: grid; justify-items: end; gap: 2px; text-align: right; }
+.crole { color: var(--accent); font-weight: 700; }
+.avatar.cav, .frame .avatar.cav { width: 40px; height: 40px; }
+
+.cdon { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.cdon > div:first-child { display: grid; gap: 4px; }
+.cdon .fbtns { justify-content: flex-start; flex-wrap: wrap; }
+
+.cshop { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.citem { display: grid; justify-items: center; align-content: start; gap: 6px; text-align: center; padding: 10px 8px; border: 1px solid var(--line); border-radius: var(--r); background: var(--sunk); }
+.citem b { font-size: 13.5px; line-height: 1.25; }
+.citem.locked { opacity: .55; }
+.citem.owned { border-color: var(--up); }
+.citem .ok { color: var(--up); font-weight: 700; font-size: 13px; }
+.citem-art { width: 110px; }
+.citem-art .art { width: 100%; aspect-ratio: 5 / 7; }
+.citem .mc.back { width: 72px; height: 100px; cursor: default; }
+.citem .frame { margin-block: 14px; }
+.ctitle { display: grid; place-items: center; min-height: 100px; font-family: var(--display); font-size: 17px; color: var(--accent); padding-inline: 4px; }
+
+.cladder li, .ladder li .cname { align-items: center; }
+.ladder .cname { display: flex; gap: 8px; }
+.ladder .cname > span { display: grid; min-width: 0; }
+.cscore { color: var(--accent); }
+.ctile .ctile-name { display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pclan { display: flex; align-items: center; gap: 6px; }
+@media (max-width: 480px) {
+  .chero { grid-template-columns: 1fr; }
+  .cheader { grid-template-columns: 1fr; justify-items: start; }
+  .cshop { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
