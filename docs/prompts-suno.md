@@ -44,7 +44,7 @@ instrumental dark halloween battle ambience for a card game, witches' sabbath, l
 
 ## 5. Novembre : Néon 2099 (`menu-cyber`, `partie-cyber`)
 
-À préparer avant la saison de novembre (drones, netrunners, néons), même principe.
+Saison de novembre (drones, netrunners, méchas, néons), même principe. Fichiers à déposer avant le 1er novembre.
 
 Menus :
 

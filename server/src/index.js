@@ -314,6 +314,8 @@ setInterval(() => {
 const away = s => s && !s.ai && !(s.ws && s.ws.readyState === 1);
 setInterval(() => {
   catalog.refresh();
+  // Fin du mois : le classement de la saison finie est figé tout de suite, sans attendre qu'un joueur revienne.
+  accounts.progress.closeSeason();
   const now = Date.now();
   for (const [code, r] of rooms) {
     if (now - r.lastActive <= ROOM_TTL_MS) continue;

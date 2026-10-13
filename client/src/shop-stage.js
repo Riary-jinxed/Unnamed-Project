@@ -13,11 +13,10 @@
 // boutique ou quand son décor sort de l'écran. Les toiles sont gardées d'un rendu à l'autre et reposées dans les nouveaux
 // éléments (main.js reconstruit la page à chaque rendu).
 import { Application, Color, Container, Graphics, Sprite, Texture } from 'pixi.js';
-import { season, palette } from './season.js';
+import { season, palette, shopColors } from './season.js';
 
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a);
 const toNum = c => { try { return new Color(c).toNumber(); } catch { return 0xf0c454; } };
-const spooky = () => season() === 'halloween';
 let tex = null;
 const scenes = [];
 
@@ -91,7 +90,7 @@ function paintStall(W, H) {
 
 // Vitrine : velours plissé (bandes ombrées), tringle dorée en haut, vignette.
 function paintVelvet(W, H) {
-  const r = Math.min(devicePixelRatio || 1, 1.5), [hi, lo] = spooky() ? ['#4a1c70', '#14061f'] : ['#6a1a2a', '#1e060c'];
+  const r = Math.min(devicePixelRatio || 1, 1.5), [hi, lo] = shopColors().velvet;
   return canvasTex(Math.round(W * r), Math.round(H * r), g => {
     g.scale(r, r);
     let grd = g.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, hi); grd.addColorStop(1, lo);
@@ -129,7 +128,7 @@ function lantern() {
 
 // ---- Une toile ----
 function makeScene(kind) {
-  const sc = { kind, app: new Application(), host: null, lay: null, objs: [], parts: [], seen: true, nextStar: 0, frame: 0, spooky: null };
+  const sc = { kind, app: new Application(), host: null, lay: null, objs: [], parts: [], seen: true, nextStar: 0, frame: 0, theme: null };
   sc.ready = sc.app.init({ backgroundAlpha: 0, width: 300, height: 200, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 1.5), preference: 'webgl' }).then(() => {
     const { app } = sc; textures();
     app.canvas.setAttribute('aria-hidden', 'true'); app.ticker.maxFPS = 45;
@@ -195,8 +194,8 @@ function measure(sc) {
 function fit(sc) {
   if (!sc.host) return;
   const W = sc.host.clientWidth, H = sc.host.clientHeight; if (!W || !H) return;
-  if (!sc.lay || sc.lay.W !== W || sc.lay.H !== H || sc.spooky !== spooky()) {
-    sc.app.renderer.resize(W, H); sc.lay = { W, H }; sc.spooky = spooky();
+  if (!sc.lay || sc.lay.W !== W || sc.lay.H !== H || sc.theme !== season()) {
+    sc.app.renderer.resize(W, H); sc.lay = { W, H }; sc.theme = season();
     sc.bg.texture?.destroy(true); sc.bg.texture = sc.kind === 'stall' ? paintStall(W, H) : paintVelvet(W, H); sc.bg.width = W; sc.bg.height = H;
   }
   if (sc.kind === 'stall') {
@@ -208,7 +207,7 @@ function fit(sc) {
 
 // Auvent de l'étal : bandes alternées, bord festonné qui ondule comme une toile au vent.
 function drawAwning(sc, now) {
-  const { W } = sc.lay, cols = spooky() ? [0x4b1f6b, 0xd8701e] : [0x8e1f1f, 0xe9d6a8], a = sc.awning;
+  const { W } = sc.lay, cols = shopColors().awning, a = sc.awning;
   const band = 26, depth = 30, wave = k => Math.sin(now / 700 + k * 0.9) * 2.2 + Math.sin(now / 1300 + k * 0.4) * 1.2;
   a.clear(); a.rect(0, 0, W, 6).fill(0x2a1406);
   for (let k = 0, x = 0; x < W; k++, x += band) {
@@ -227,12 +226,12 @@ function tick(sc, t) {
   const flick = 0.82 + 0.1 * Math.sin(now / 90) * Math.sin(now / 230) + 0.08 * Math.sin(now / 610);
   if (stall) {
     drawAwning(sc, now);
-    sc.warm.alpha = 0.18 * flick; sc.warm.tint = spooky() ? 0xb070ff : 0xffb050;
+    sc.warm.alpha = 0.18 * flick; sc.warm.tint = shopColors().warm;
     for (const l of sc.lanterns.children) {
       l.rotation = Math.sin(now / 1100 + l.seed) * 0.09;
-      l.halo.alpha = 0.5 * flick; l.halo.tint = palette().hearth; l.flame.alpha = flick; l.flame.tint = spooky() ? 0xd8b0ff : 0xfff0c0;
+      l.halo.alpha = 0.5 * flick; l.halo.tint = palette().hearth; l.flame.alpha = flick; l.flame.tint = shopColors().flame;
     }
-  } else { sc.warm.alpha = 0.22; sc.warm.tint = spooky() ? 0xc8a0ff : 0xffd8a0; }
+  } else { sc.warm.alpha = 0.22; sc.warm.tint = shopColors().glow; }
   for (const o of sc.objs) {
     if (o.x == null) continue;
     const pulse = 0.5 + 0.5 * Math.sin(now / 900 + o.seed);

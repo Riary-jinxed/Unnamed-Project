@@ -5,6 +5,7 @@ import { gzipSync } from 'node:zlib';
 import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers, exchangeOffers, setBoosterPrice, shopOrder } from '@jeu/engine/collection';
 import { pick, CARDS, GENERALS } from '@jeu/engine';
 import { ART_RARITIES, RARITY_IDS } from '@jeu/engine/arts';
+import { SEASON_THEMES } from '@jeu/engine/pass';
 import { createProgress } from './progress.js';
 import { createArts } from './arts.js';
 import { createActivity } from './activity.js';
@@ -54,7 +55,7 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   // Cartes dont le débordement du personnage est coupé.
   popOff: a.popOff || {} });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte.
 function addCards(a, ids, rate, essenceRate) {
@@ -354,7 +355,7 @@ export function createAccounts(store) {
   // inDecks : cartes présentes dans au moins un deck du joueur (elles ne peuvent pas être retirées de sa collection).
   const adminDetail = a => ({ ...adminView(a), owned: Object.keys(a.cards).filter(id => a.cards[id]), deck: activeDeck(a), decks: (a.decks || []).length,
     inDecks: [...new Set((a.decks || []).flatMap(d => [...d.cards, d.general].filter(Boolean)))],
-    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? deckError(activeDeck(a), a) : null, arts: a.arts || {} });
+    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? deckError(activeDeck(a), a) : null, arts: a.arts || {}, themes: a.cosmetics?.themes || [] });
   const target = login => { const a = store.get(cleanLogin(login)); if (!a) throw new HttpError(404, 'Compte introuvable.'); return a; };
   const closeSessions = a => { for (const t of a.tokens || []) sessions.delete(t); a.tokens = []; };
   const done = async a => { await store.put(a); return { account: adminDetail(a) }; };
@@ -407,6 +408,16 @@ export function createAccounts(store) {
   async function adminShopReset({ login }) { const a = target(login); a.shop = {}; delete a.artShop; return done(a); }
   // Donner (Promo) ou retirer un art alternatif.
   async function adminArt({ login, art, give }) { const a = target(login); arts.adminGive(a, { art, give }); progress.check(a); return done(a); }
+  // Donne ou retire un thème de saison (tests, geste commercial). Retiré, le joueur revient au thème du moment s'il l'avait choisi.
+  async function adminTheme({ login, theme, give }) {
+    const a = target(login);
+    if (!SEASON_THEMES[theme]) throw new HttpError(400, 'Thème inconnu.');
+    progress.init(a);
+    const list = (a.cosmetics.themes ||= []);
+    if (give && !list.includes(theme)) list.push(theme);
+    if (!give) { a.cosmetics.themes = list.filter(t => t !== theme); if (a.uiTheme === theme) a.uiTheme = null; }
+    return done(a);
+  }
   async function adminLogout({ login }) { const a = target(login); closeSessions(a); return done(a); }
   async function adminDelete({ login }) {
     const a = target(login); closeSessions(a);
@@ -428,7 +439,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, passView, buyPass, buyArt, openChest, convertPrisms, claimDay, selectArt, holoArt, popArt, adminArt, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, passView, buyPass, buyArt, openChest, convertPrisms, claimDay, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -482,6 +493,7 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/admin/account/logout': (_, body) => accounts.adminLogout(body),
     'POST /api/admin/account/delete': (_, body) => accounts.adminDelete(body),
     'POST /api/admin/account/art': (_, body) => accounts.adminArt(body),
+    'POST /api/admin/account/theme': (_, body) => accounts.adminTheme(body),
     'GET /api/admin/arts': () => accounts.adminArts(),
     'GET /api/admin/settings': () => accounts.settings(),
     'POST /api/admin/settings': (_, body) => accounts.adminSettings(body),

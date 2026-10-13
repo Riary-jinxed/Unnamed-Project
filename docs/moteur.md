@@ -142,6 +142,7 @@ Le rang d'un joueur tient en un nombre d'étoiles `r` : 3 étoiles par division,
 - `applyResult(r, { result, streak, foeR })` : victoire +1 étoile, plus 1 pour une série de 3 victoires ou plus (jusqu'au Diamant) et plus 1 pour avoir battu un ami mieux classé ; défaite −1, jamais sous le début du palier ; nul sans effet.
 - Chaque palier règle la force de l'IA (`ai` : essais d'`aiPlan`) et ses récompenses de fin de saison (`title`, `frame` ; Éclats dans les réglages `rankShards…` de `rewards.js`, voir `seasonShardsKey`).
 - Saisons : une par mois, heure de Paris (`seasonId`, `seasonName`, `seasonDaysLeft`) ; `seasonReset(r)` fait redescendre d'un palier au début de la suivante.
+- Classement final : `PLACES` (1re place, podium, top 10) donne en plus des Éclats et Prismes (réglages `rankPlaceShards…` et `rankPlacePrisms…`, voir `placeShardsKey`, `placePrismsKey`) et un titre (`rang:top1`, `rang:top3`, `rang:top10`, avec ceux des places en dessous : `placeTitles`), aux joueurs qui ont joué au moins `rankPlaceGames` parties classées dans la saison.
 
 ## Outils
 

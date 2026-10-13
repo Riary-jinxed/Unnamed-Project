@@ -1,8 +1,10 @@
 // Appli web : connexion, collection et deck, accueil, salon en ligne, partie (en ligne ou contre l'IA).
 import './style.css';
 import './habillage.css';
+import './cyber.css';
+import './halloween.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
-import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, allowedGenerals, allowedTerrains, starterGenerals, deckError, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder } from '@jeu/engine/collection';
+import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, allowedGenerals, allowedTerrains, starterGenerals, deckError, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder, today } from '@jeu/engine/collection';
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
@@ -25,7 +27,7 @@ import { setHome } from './lobby.js';
 import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
-import { SEASONS, PASS_TIERS, seasonOfCard, seasonStarted, releaseMonth } from '@jeu/engine/pass';
+import { SEASONS, PASS_TIERS, SEASON_THEMES, seasonOfCard, seasonStarted, seasonStart, currentSeason, releaseMonth } from '@jeu/engine/pass';
 import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName, chestPool } from '@jeu/engine/arts';
 
 const famVar = kw => famStyle(kw[0]);
@@ -344,7 +346,7 @@ function missionsHTML() {
 function rewardItem(r) {
   const art = r.art && ARTS[r.art];
   const extra = [r.title ? `Titre « ${esc(titleLabel(r.title) || r.title)} »` : '', r.frame ? esc(FRAMES[r.frame] || r.frame) : '', r.back ? esc(BACKS[r.back] || r.back) : '',
-    art ? `Art Promo « ${esc(art.name)} »` : ''].filter(Boolean).join(' · ');
+    art ? `Art Promo « ${esc(art.name)} »` : '', r.theme ? `Thème de l'interface « ${esc(SEASON_THEMES[r.theme] || r.theme)} » (Profil, Personnalisation)` : ''].filter(Boolean).join(' · ');
   return `<div class="reward"><div><b>${esc(r.label)}</b>${gains(r) ? `<div class="num">${gains(r)}</div>` : ''}${extra ? `<div class="hint">${extra}</div>` : ''}</div>
     ${r.card ? `<button class="ccard" data-zoom="${zoomKey(r.card)}">${anyCard(r.card)}</button>` : ''}
     ${art ? `<button class="ccard" data-zoom="${zoomKey(art.card, art.id)}">${anyCard(art.card, 1, art.id)}</button>` : ''}</div>`;
@@ -395,7 +397,15 @@ function renderRanked() {
   const rewards = !D ? '' : `<div class="card-box"><span class="eyebrow">Récompenses de fin de saison</span>
     <p class="hint" style="margin:0">Selon le meilleur palier atteint pendant la saison. Les titres et cadres des paliers en dessous sont aussi débloqués.</p>
     <ul class="tiers">${D.rewards.map(t => `<li class="${R.best.id === t.id ? 'on' : ''}"><span class="rank rank-${t.id}">${esc(t.name)}</span>
-      <span>${[t.shards ? `${t.shards} Éclats` : '', t.prisms ? `${t.prisms} Prismes` : '', t.title ? `titre « ${esc(t.title)} »` : '', t.frame ? esc(t.frame) : ''].filter(Boolean).join(' · ') || '–'}</span></li>`).join('')}</ul></div>`;
+      <span>${[t.shards ? `${t.shards} Éclats` : '', t.prisms ? `${t.prisms} Prismes` : '', t.title ? `titre « ${esc(t.title)} »` : '', t.frame ? esc(t.frame) : ''].filter(Boolean).join(' · ') || '–'}</span></li>`).join('')}</ul>
+    ${D.places ? `<span class="eyebrow">En plus, selon la place au classement final</span>
+    <p class="hint" style="margin:0">Le classement est figé à la fin du mois. Il faut avoir joué au moins ${D.places.games} partie${D.places.games > 1 ? 's' : ''} classée${D.places.games > 1 ? 's' : ''} dans la saison.</p>
+    <ul class="tiers">${D.places.list.map(p => `<li><b>${esc(p.name)}</b>
+      <span>${[p.shards ? `${p.shards} Éclats` : '', p.prisms ? `${p.prisms} Prismes` : '', `titre « ${esc(p.title)} »`].filter(Boolean).join(' · ')}</span></li>`).join('')}</ul>` : ''}</div>`;
+  // Podium figé de la saison précédente.
+  const last = D?.last?.top.length ? `<div class="card-box"><span class="eyebrow">Podium de ${esc(D.last.seasonName)}</span>
+    <ol class="ladder">${D.last.top.map(p => `<li class="${p.login === ui.account.login ? 'me' : ''}"><span class="lpos num">${p.pos}</span>
+      <span class="fname"><b>${esc(p.name)}</b></span><span class="lrank">${rankHTML(p.rank)}</span></li>`).join('')}</ol></div>` : '';
   return `${head}
   <div class="card-box">
     <span class="eyebrow">Saison ${esc(R.seasonName)} · encore ${R.daysLeft} jour${R.daysLeft > 1 ? 's' : ''}</span>
@@ -405,10 +415,11 @@ function renderRanked() {
     <p class="hint" style="margin:0">Une victoire donne une étoile, une défaite en retire une, sans jamais redescendre sous le début de votre palier.
       ${STREAK_BONUS} victoires d'affilée ou plus donnent une étoile de plus, jusqu'au Diamant. L'IA devient plus forte à chaque palier.
       En défi classé, battre un ami mieux classé que vous donne une étoile de plus. Quitter une partie classée en cours compte comme une défaite.
-      À la fin du mois, vous recevez les récompenses de votre meilleur palier, puis vous redescendez d'un palier.</p>
+      À la fin du mois, vous recevez les récompenses de votre meilleur palier (et de votre place si vous finissez dans le top 10), puis vous redescendez d'un palier.</p>
   </div>
   <div class="card-box"><span class="eyebrow">Classement de la saison</span>${ladder}</div>
-  ${rewards}`;
+  ${rewards}
+  ${last}`;
 }
 
 // ---- Passe de saison ----
@@ -424,10 +435,15 @@ async function buyPass() {
   const r = await call('POST', '/api/pass/premium');
   if (r) { ui.passData = r.pass; ui.msg = 'Passe premium activé : les récompenses premium des paliers déjà atteints vous attendent à l\'accueil.'; render(); }
 }
+// Pas de passe aujourd'hui : celui du mois se dévoile bientôt (début décalé, voir start dans pass.js), ou il n'y en a pas ce mois-ci.
+function nextPassLine() {
+  const x = SEASONS.find(s => s.id === seasonId() && !seasonStarted(s.id, today()));
+  return x ? `Le passe « ${esc(x.name)} » se dévoile le ${esc(frDate(seasonStart(x)))}. Revenez vite !` : 'Pas de passe de saison ce mois-ci. Revenez le mois prochain !';
+}
 // Cosmétiques et cartes des saisons pas encore commencées : cachés tant qu'on ne les a pas.
-const futureSeasons = () => SEASONS.filter(x => !seasonStarted(x.id, seasonId()));
+const futureSeasons = () => SEASONS.filter(x => !seasonStarted(x.id, today()));
 const futureCosmetic = id => futureSeasons().some(x => [x.frame[0], x.framePremium[0], x.back[0], x.backPremium[0]].includes(id));
-const hiddenCard = id => { const x = seasonOfCard(id); return !!x && !seasonStarted(x.id, seasonId()) && !owned(id); };
+const hiddenCard = id => { const x = seasonOfCard(id); return !!x && !seasonStarted(x.id, today()) && !owned(id); };
 // Une récompense de palier, en court (un palier peut en avoir plusieurs, comme un coffre et un cadre).
 function passGift(r) {
   const parts = [
@@ -436,6 +452,7 @@ function passGift(r) {
     r.title ? `<span class="pgift">Titre « ${esc(TITLES[r.title] || r.title)} »</span>` : '',
     r.frame ? `<span class="pgift"><span class="frame frame-${r.frame} swatch"></span>${esc(FRAMES[r.frame] || r.frame)}</span>` : '',
     r.back ? `<span class="pgift"><span class="mc back back-${r.back}"></span>${esc(BACKS[r.back] || r.back)}</span>` : '',
+    r.theme ? `<span class="pgift"><span class="theme-swatch theme-${r.theme}"></span>Thème « ${esc(SEASON_THEMES[r.theme] || r.theme)} »</span>` : '',
     r.shards ? `<span class="pgift">${ico('shard')}<span class="num">${r.shards}</span></span>` : '',
     r.prisms ? `<span class="pgift">${ico('prism')}<span class="num">${r.prisms}</span></span>` : '',
     r.chests ? `<span class="pgift">${ico('chest')}<span>${r.chests > 1 ? `${r.chests} coffres` : 'Coffre'} d'arts</span></span>` : '',
@@ -451,7 +468,7 @@ const frDate = d => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { wee
 function renderPass() {
   const P = ui.passData, a = ui.account;
   const head = `<div class="top"><span class="title">Passe de saison</span><span class="chip num cur prism" title="Prismes" aria-label="${a.prisms} Prismes">${ico('prism')}${a.prisms}</span><button class="btn" data-act="home">Retour</button></div>${errLine()}`;
-  if (!P) return `${head}${ui.error ? '' : prog().pass === null ? '<p class="hint">Pas de passe de saison ce mois-ci. Revenez le mois prochain !</p>' : '<p class="wait">Chargement…</p>'}`;
+  if (!P) return `${head}${ui.error ? '' : prog().pass === null ? `<p class="hint">${nextPassLine()}</p>` : '<p class="wait">Chargement…</p>'}`;
   const doneSeason = P.seasonal.filter(m => m.done).length;
   const cardTier = id => P.track.find(t => t.free.card === id)?.tier;
   const premium = P.premium ? '<p style="margin:0"><b>Premium actif ✓</b> <span class="hint">Les récompenses premium tombent à chaque palier.</span></p>'
@@ -1074,10 +1091,21 @@ function renderDeck() {
 }
 
 // Profil : image, pseudo, sets complétés et statistiques de victoire.
-// Personnalisation : titre, cadre de profil et dos de carte débloqués.
+// Personnalisation : thème de l'interface, titre, cadre de profil et dos de carte débloqués.
+function themePicks(p) {
+  const own = id => p.cosmetics.themes?.some(t => t.id === id), cur = currentSeason(today());
+  const pick = (val, label, swatch, on, ok = true, hint = '') => `<button class="pickc ${on ? 'on' : ''} ${ok ? '' : 'locked'}" ${ok ? `data-theme="${val}"` : 'disabled'} title="${esc(hint)}">
+    <span class="theme-swatch theme-${swatch}"></span><small>${esc(label)}</small></button>`;
+  const themes = Object.entries(SEASON_THEMES).filter(([id]) => own(id) || !futureSeasons().some(x => x.theme === id));
+  return `<div class="gal-h">Thème de l'interface</div>
+    <p class="hint" style="margin:0">Chaque passe de saison débloque son thème au palier 12 de la piste gratuite. Changez-en quand vous voulez.</p>
+    <div class="picks">${pick('', `Saison en cours${cur ? ` (${cur.name})` : ''}`, cur?.theme || 'base', !p.theme)}${pick('base', 'Classique', 'base', p.theme === 'base')}
+      ${themes.map(([id, name]) => pick(id, name, id, p.theme === id, own(id), own(id) ? '' : 'À débloquer avec le passe de cette saison')).join('')}</div>`;
+}
 function customizeHTML() {
   const a = ui.account, p = prog(), c = p.cosmetics;
-  return `<div class="card-box"><div><span class="eyebrow">Personnalisation</span><h2 style="font-size:22px">Titre, cadre et dos de carte</h2></div>
+  return `<div class="card-box"><div><span class="eyebrow">Personnalisation</span><h2 style="font-size:22px">Thème, titre, cadre et dos de carte</h2></div>
+    ${themePicks(p)}
     <div class="field"><label class="eyebrow" for="title-pick">Titre affiché sous votre pseudo</label>
       <select id="title-pick" ${c.titles.length ? '' : 'disabled'}><option value="">Aucun titre</option>${c.titles.map(t => `<option value="${esc(t.id)}" ${p.title === t.id ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
       ${c.titles.length ? '' : '<small class="hint">Les succès et les familles complétées donnent des titres.</small>'}</div>
@@ -1390,8 +1418,9 @@ function render() {
   ui.coach = ui.screen === 'game' && ui.mode === 'tuto' && ui.ctrl ? ui.ctrl.coach(ui) : null;
   const body = screens[ui.screen]() + (ui.screen in TABBED ? tabbar(TABBED[ui.screen]) : '');
   app.classList.toggle('ingame', ui.screen === 'game');
-  // Thème de saison (décors PixiJS, habillage.css) : celui du passe du mois, ou ?saison=… dans l'adresse pour en essayer un (« base » : aucun).
-  document.body.dataset.season = SEASON_OVERRIDE ?? (SEASONS.find(x => x.id === seasonId())?.theme || '');
+  // Thème de l'interface (décors PixiJS, habillage.css) : ?saison=… dans l'adresse pour en essayer un (« base » : aucun), sinon celui
+  // choisi dans la personnalisation, sinon celui de la saison en cours.
+  document.body.dataset.season = SEASON_OVERRIDE ?? uiTheme();
   setInGame(app, ui.screen === 'game');
   setMusic(musicFor());
   // Transitions (transition.js, habillage.css) : seulement quand l'écran ou la feuille change, pas à chaque rafraîchissement.
@@ -1419,9 +1448,16 @@ function render() {
   veil.check();
 }
 
-// Musique de l'écran : la partie ou les menus, dans la version de la saison en cours si elle existe (music.js).
+// Thème choisi (null : celui de la saison en cours ; « base » : thème de base ; sinon un thème débloqué).
+function uiTheme() {
+  const p = ui.account ? prog() : null, pick = p?.theme;
+  if (pick === 'base') return '';
+  if (pick && p.cosmetics.themes?.some(t => t.id === pick)) return pick;
+  return currentSeason(today())?.theme || '';
+}
+// Musique de l'écran : la partie ou les menus, dans la version du thème affiché si elle existe (music.js).
 function musicFor() {
-  const scene = ui.screen === 'game' ? 'partie' : 'menu', theme = prog().pass?.theme;
+  const scene = ui.screen === 'game' ? 'partie' : 'menu', theme = document.body.dataset.season;
   return theme ? [`${scene}-${theme}`, scene] : [scene];
 }
 
@@ -1715,7 +1751,7 @@ app.addEventListener('submit', e => {
 });
 // Les missions repliées ou dépliées le restent d'un affichage à l'autre.
 app.addEventListener('click', e => {
-  const t = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-frame],[data-back],[data-stop]');
+  const t = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-frame],[data-back],[data-theme],[data-stop]');
   if (!t) return;
   const ds = t.dataset;
   if (ds.stop && !e.target.closest('[data-act]')) return;
@@ -1799,6 +1835,7 @@ app.addEventListener('click', e => {
   }
   if (ds.starter) { ui.starterPick = ds.starter; render(); return; }
   if (ds.frame !== undefined && !ui.busy) { equip({ frame: ds.frame || null }, 'Cadre changé.'); return; }
+  if (ds.theme !== undefined && !ui.busy) { equip({ theme: ds.theme || null }, 'Thème changé.'); return; }
   if (ds.back && !ui.busy) { equip({ back: ds.back }, 'Dos de carte changé.'); return; }
   if (ds.fam !== undefined) { ui.colFam = ds.fam; render(); return; }
   if (ds.zoom) { const [kind, id, art] = ds.zoom.split(':'); const back = ui.sheet === 'codex' ? 'codex' : null; openZoom({ kind, id, art: art || null }); ui.zoomBack = back; ui.msg = ''; render(); return; }

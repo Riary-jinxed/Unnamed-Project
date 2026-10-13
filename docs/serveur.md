@@ -53,7 +53,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `calendar` | `{ month, days }` : jours du mois dont la récompense de connexion est prise (remis à zéro chaque mois). |
 | `freeChests` | Coffres d'arts offerts à ouvrir (succès rares, dimanches du calendrier). |
 | `achievements`, `completed` | Succès obtenus ; familles (`set:famille`) et sets complétés, avec leur date. |
-| `cosmetics`, `title`, `frame`, `back` | Titres, cadres et dos débloqués ; ceux qui sont portés. |
+| `cosmetics`, `title`, `frame`, `back`, `uiTheme` | Titres, cadres, dos et thèmes de l'interface débloqués (`cosmetics.themes`, un par passe de saison, au palier `THEME_TIER`) ; ceux qui sont portés. `uiTheme` : `null` suit la saison en cours, `base` garde le thème de base, sinon un thème débloqué. |
 | `inbox` | Récompenses gagnées à montrer au joueur (40 au plus), vidée quand il les a vues. |
 | `friends`, `friendsIn`, `friendsOut` | Identifiants des amis, des demandes reçues et des demandes envoyées (100 amis au plus). |
 | `seasonPass` | Passe de saison du mois : `{ season, xp, premium, free, prem, day, week, sm, done }` (XP de saison, premium acheté, derniers paliers donnés sur chaque piste, missions du jour et de la semaine, avancement et missions de saison accomplies, `bonus` : coffres de fin de passe ouverts). Repart à zéro chaque saison. |
@@ -104,7 +104,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `GET /api/mail` | Courrier du joueur (`mail` : messages visibles, lus, récompense récupérée). `account.mail` compte les messages non lus ou à récupérer. |
 | `POST /api/mail/read`, `/claim`, `/claim-all`, `/hide` | Marque lu, récupère une récompense (ou toutes), supprime un message déjà récupéré. |
 | `POST /api/redeem` | Utilise un code cadeau `{ code }`, une fois par compte. |
-| `PUT /api/cosmetics` | Change le titre, le cadre ou le dos de carte porté. |
+| `PUT /api/cosmetics` | Change le titre, le cadre, le dos de carte porté ou le thème de l'interface (`theme`). |
 | `POST /api/shop/art`, `/api/shop/chest` | Arts alternatifs (`arts.js`) : payés en Prismes. `{ art }` achète un art du jour ; le coffre donne un art classique pas encore possédé, au hasard selon sa rareté (`{ free: true }` : avec un coffre offert). Renvoie `art` et la boutique à jour. |
 | `POST /api/shop/convert` | `{ offer }` : change des Prismes en Éclats par une offre fixe (`exchangeOffers` du moteur, bâties sur le taux `prismShards` ; 0 : fermé). Jamais l'inverse ni au détail. |
 | `GET /api/pass` | Passe de saison du mois (`pass`, `null` sans saison) : paliers gratuits et premium, missions du jour, de la semaine et de la saison, arts Promo (palier de la piste gratuite), prix du premium et palier où il est remboursé. |
@@ -113,7 +113,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `PUT /api/arts/select` | `{ card, art }` : art affiché pour cette carte (`art: null` : l'illustration d'origine). |
 | `POST /api/cards/upgrade` | `{ card }` : monte une carte possédée d'un niveau contre son essence et des Éclats (`progress.upgradeCard`). |
 | `POST /api/games/solo` | Résultat d'une partie contre l'IA (non classée) → récompenses. |
-| `GET /api/ranked` | Mode classé : rang du joueur (`ranked`), classement de la saison (`ladder`), récompenses de fin de saison par palier (`rewards`). |
+| `GET /api/ranked` | Mode classé : rang du joueur (`ranked`), classement de la saison (`ladder`), récompenses de fin de saison par palier (`rewards`) et par place au classement final (`places`), podium figé de la saison précédente (`last`, ou `null`). |
 | `GET /api/friends` | Amis (avec statut `online`, `game` ou `off`, niveau, titre, cadre, empreinte de l'image), demandes reçues et envoyées, défi en cours. |
 | `GET /api/friends/avatars` | Images de profil des amis et des demandes (l'appli ne les redemande que si leur empreinte change). |
 | `POST /api/friends/add` | Demande d'ami (`{ name }` : identifiant, ou pseudo s'il n'est porté que par un joueur). Si l'autre avait déjà demandé, vous devenez amis. |
@@ -128,6 +128,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/admin/account/update`, `/cards`, `/starter`, `/reset`, `/booster`, `/shop`, `/logout`, `/delete` | Modifier un compte (pseudo, Éclats, Prismes, niveau, boosters offerts, désactivation), sa collection, son deck de départ ; le remettre à zéro ; rendre le booster du jour ; renouveler ses offres ; fermer ses sessions ; le supprimer. |
 | `GET/POST /api/admin/settings` | Réglages de la boutique, prix des arts alternatifs compris (`renew: true` renouvelle les offres de tous). |
 | `GET /api/admin/arts`, `POST /api/admin/account/art` | Catalogue des arts avec le nombre de joueurs qui les ont ; donner (`give: true`, pour les Promo) ou retirer un art à un compte. |
+| `POST /api/admin/account/theme` | Donner (`give: true`) ou retirer un thème de saison (`cyber`, `halloween`) à un compte, par exemple pour tester le thème Néon avant le 2 novembre. Retiré, le joueur revient au thème du moment s'il l'avait choisi. |
 | `GET/POST /api/admin/rewards` | Réglages des récompenses (`reset: true` revient aux valeurs par défaut). |
 | `GET /api/admin/stats?mode=&days=` | Stats des parties (`all`, `pvp`, `pve` ; sur N jours, 0 = tout), plus `activity` : comptes, joueurs actifs (aujourd'hui, 7 et 30 jours), compteurs de la période et courbe par jour (joueurs actifs, boosters ouverts). |
 | `GET/PUT /api/admin/catalog`, `POST …/publish`, `POST …/discard` | Brouillon du catalogue, publication, abandon du brouillon. |
@@ -187,8 +188,9 @@ Paliers, divisions, étoiles et saisons sont décrits dans `packages/engine/src/
 - **Entre amis** : un défi `ranked` ouvre un salon `ranked: 'friend'` ; la partie est enregistrée en `pvp` avec `ranked: true`.
 - **Fin de partie** (`rankedResults`) : `progress.onRanked` met à jour le rang de chaque joueur (le rang de l'ami avant la partie sert au bonus) ; le résultat (`before`, `after`, `delta`, `bonus`, `promoted`) est ajouté à `reward.ranked`, affiché sur l'écran de fin. Les récompenses habituelles (XP, Éclats, missions) s'appliquent comme pour une partie non classée.
 - **Abandon** (`forfeit`) : quitter (`leave`) une partie classée en cours compte comme une défaite, et une victoire pour l'ami resté. Un salon classé qui expire compte comme une défaite pour le seul joueur déconnecté.
-- **Saisons** (`progress.syncSeason`) : au premier passage du joueur dans une nouvelle saison, il reçoit les récompenses de son meilleur palier de la saison précédente (Éclats `rankShards…`, réglables dans l'onglet Récompenses ; titre et cadre du palier et de ceux en dessous), puis redescend d'un palier.
+- **Saisons** (`progress.syncSeason`) : au premier passage du joueur dans une nouvelle saison, il reçoit les récompenses de son meilleur palier de la saison précédente (Éclats `rankShards…`, réglables dans l'onglet Récompenses ; titre et cadre du palier et de ceux en dessous), puis celles de sa place s'il a fini dans le top 10 du classement final, puis redescend d'un palier.
 - **Classement** (`progress.ladder`) : les comptes qui ont joué au moins une partie classée cette saison, par rang, puis victoires.
+- **Classement final** (`progress.closeSeason`) : à la fin du mois, le classement de la saison finie est figé dans le document de réglages `classement` (`{ [saison]: { closed, top } }`, les 10 premiers parmi ceux qui ont joué au moins `rankPlaceGames` parties classées), par la tâche de chaque minute de `index.js` ou, au plus tard, avant que le premier compte ne passe à la nouvelle saison. `syncSeason` y lit la place du joueur et ajoute ses récompenses (`PLACES` de `ranked.js`). Seule la saison précédente peut être figée.
 
 ## Sécurité
 
