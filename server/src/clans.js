@@ -2,7 +2,8 @@
 // dons de ressources contre des Écus (monnaie du clan), magasin du clan, niveaux 1 à 5 et classement mensuel des clans.
 // Les clans sont rangés dans le document de réglages « clans » ({ [id]: clan }) ; le classement figé de chaque mois dans
 // « classement-clans » ({ [saison]: { closed, top } }). Compte : clan (identifiant), clanCoins (Écus), clanReq (demandes en attente),
-// clanDon (dons du jour : { date, shards, prisms, uniEssence }).
+// clanDon (dons du jour : { date, shards, prisms, uniEssence }). Clan : leader (le Maître), roles ({ login: 'adjoint' | 'souschef' }),
+// bank (trésor : ressources données), boosts ({ projet: date de fin }), chest (semaine du dernier coffre du clan).
 import { createHash, randomBytes } from 'node:crypto';
 import { CARDS, shuffle } from '@jeu/engine';
 import { ARTS, artExists } from '@jeu/engine/arts';
@@ -10,7 +11,7 @@ import { TITLES, FRAMES, BACKS } from '@jeu/engine/rewards';
 import { rankOf, seasonId, seasonName } from '@jeu/engine/ranked';
 import { CLAN_PRICE, CLAN_NAME_MAX, CLAN_TAG_RE, CLAN_DESC_MAX, MAX_REQUESTS, MAX_CLAN_REQUESTS, CLAN_LEVELS, clanLevelOf, clanLevelView, maxMembers,
   CLAN_ICONS, CLAN_COLORS, CLAN_MISSION_KINDS, CLAN_DAILY, CLAN_WEEKLY, CLAN_MISSION_REWARDS, clanMissionLabel, clanTarget, clanShare, clanDay, clanWeek,
-  DONATIONS, donationCoins, CLAN_SHOP, clanItem, CLAN_LADDER_SIZE, CLAN_PLACES, clanPlaceOf } from '@jeu/engine/clans';
+  DONATIONS, donationCoins, CLAN_ROLES, ROLE_RANK, CLAN_ROLE_MAX, CLAN_INACTIVE_DAYS, canDo, CLAN_PROJECTS, projectCost, CLAN_SHOP, clanItem, CLAN_LADDER_SIZE, CLAN_PLACES, clanPlaceOf } from '@jeu/engine/clans';
 import { HttpError } from './accounts.js';
 
 const LOG_MAX = 30;
@@ -34,7 +35,8 @@ export function createClans(store, accounts) {
     c.members = c.members.filter(l => store.get(l));
     c.requests = (c.requests || []).filter(l => store.get(l));
     if (!c.members.length) { delete clans[c.id]; return null; }
-    if (!c.members.includes(c.leader)) c.leader = c.members[0];
+    for (const l of Object.keys(c.roles || {})) if (!c.members.includes(l) || l === c.leader) delete c.roles[l];
+    if (!c.members.includes(c.leader)) { c.leader = successor(c); delete c.roles?.[c.leader]; }
     if (c.members.length !== before) save();
     return c;
   }
@@ -45,7 +47,28 @@ export function createClans(store, accounts) {
     return null;
   }
   const mine = a => { const c = clanOf(a); if (!c) throw new HttpError(409, 'Vous n\'êtes dans aucun clan.'); return c; };
-  const lead = a => { const c = mine(a); if (c.leader !== a.login) throw new HttpError(403, 'Seul le chef du clan peut faire cela.'); return c; };
+  // Rôles : le Maître est c.leader ; les adjoints et sous-chefs sont dans c.roles ; les autres sont membres.
+  const roleOf = (c, login) => (c.leader === login ? 'maitre' : c.roles?.[login] || 'membre');
+  const RIGHT_MSG = { requests: 'Seuls le Maître, les adjoints et les sous-chefs peuvent faire cela.', kick: 'Seuls le Maître, les adjoints et les sous-chefs peuvent exclure.',
+    roles: 'Seuls le Maître et les adjoints peuvent nommer.', edit: 'Seuls le Maître et les adjoints peuvent régler le clan.', treasury: 'Seuls le Maître et les adjoints peuvent dépenser le trésor.' };
+  const need = (a, right) => { const c = mine(a); if (!canDo(roleOf(c, a.login), right)) throw new HttpError(403, RIGHT_MSG[right]); return c; };
+  // Qui prend la tête du clan quand le Maître part : l'adjoint le plus ancien, sinon le sous-chef le plus ancien, sinon le membre le plus ancien.
+  function successor(c) {
+    const rest = c.members.filter(l => l !== c.leader);
+    return rest.sort((x, y) => ROLE_RANK[roleOf(c, y)] - ROLE_RANK[roleOf(c, x)] || (c.joined?.[x] || '').localeCompare(c.joined?.[y] || ''))[0] || c.members[0];
+  }
+  // Jours depuis la dernière venue d'un joueur (activity.js : activeDays).
+  const daysAway = login => {
+    const d = store.get(login)?.activeDays?.at(-1); if (!d) return 0;
+    return Math.max(0, Math.floor((Date.parse(clanDay()) - Date.parse(d)) / 86_400_000));
+  };
+  // Prendre la tête d'un clan dont le Maître ne vient plus : un adjoint, ou un sous-chef s'il n'y a pas d'adjoint.
+  const canClaim = (c, login) => {
+    if (c.leader === login || daysAway(c.leader) < CLAN_INACTIVE_DAYS) return false;
+    const r = roleOf(c, login);
+    return r === 'adjoint' || (r === 'souschef' && !c.members.some(l => roleOf(c, l) === 'adjoint'));
+  };
+  const boostOn = (c, id) => !!c.boosts?.[id] && c.boosts[id] > now();
 
   // ---- Missions de clan ----
   // Tirées au premier passage du jour (ou de la semaine). L'objectif d'une mission pas encore accomplie suit la taille du clan.
@@ -69,7 +92,8 @@ export function createClans(store, accounts) {
   const shareOf = (c, m) => clanShare(m.target, c.members.length);
   // Une mission accomplie : XP du clan (et peut-être un niveau), Écus pour chaque membre qui y a contribué.
   function complete(c, m, scope, current) {
-    const r = CLAN_MISSION_REWARDS[scope], before = level(c);
+    const R = CLAN_MISSION_REWARDS[scope], before = level(c);
+    const r = { xp: Math.round(R.xp * (boostOn(c, 'etendard') ? CLAN_PROJECTS.etendard.xp : 1)), coins: Math.round(R.coins * (boostOn(c, 'festin') ? CLAN_PROJECTS.festin.coins : 1)) };
     m.done = true; c.xp = (c.xp || 0) + r.xp;
     log(c, `Mission ${scope === 'daily' ? 'du jour' : 'de la semaine'} accomplie : ${clanMissionLabel(m)} (+${r.xp} XP de clan)`);
     const label = `Mission de clan accomplie : ${clanMissionLabel(m)}`;
@@ -149,7 +173,8 @@ export function createClans(store, accounts) {
   // ---- Vues ----
   function member(c, login) {
     const b = store.get(login), badge = progress.badge(b), R = b.ranked?.season === seasonId() && b.ranked.games ? rankOf(b.ranked.r) : null;
-    return { login, name: b.name, level: badge.level, title: badge.title, frame: badge.frame, avatar: avatarKey(b), leader: c.leader === login,
+    return { login, name: b.name, level: badge.level, title: badge.title, frame: badge.frame, avatar: avatarKey(b), leader: c.leader === login, role: roleOf(c, login),
+      away: daysAway(login),
       joined: c.joined?.[login] || c.created, rank: R, week: c.week?.points?.[login] || 0, dons: c.week?.dons?.[login] || 0 };
   }
   const missionView = m => ({ kind: m.kind, label: clanMissionLabel(m), n: m.n, target: m.target, done: m.done, mine: 0 });
@@ -159,10 +184,18 @@ export function createClans(store, accounts) {
     const ms = list => list.map(m => ({ ...missionView(m), mine: m.by[a.login] || 0, share: shareOf(c, m) }));
     return { ...short(c), desc: c.desc || '', open: !!c.open, leader: c.leader, me: a.login, created: c.created,
       progress: clanLevelView(c.xp || 0), maxLevel: CLAN_LEVELS.length,
-      members: c.members.map(l => member(c, l)).sort((x, y) => (y.leader - x.leader) || y.week - x.week || x.name.localeCompare(y.name, 'fr')),
-      requests: c.leader === a.login ? c.requests.map(l => { const b = store.get(l); return { login: l, name: b.name, level: b.level || 1, avatar: avatarKey(b) }; }) : [],
+      members: c.members.map(l => member(c, l)).sort((x, y) => ROLE_RANK[y.role] - ROLE_RANK[x.role] || y.week - x.week || x.name.localeCompare(y.name, 'fr')),
+      role: roleOf(c, a.login), claim: canClaim(c, a.login), roles: CLAN_ROLES, roleMax: CLAN_ROLE_MAX, inactiveDays: CLAN_INACTIVE_DAYS,
+      treasury: treasuryView(c),
+      requests: canDo(roleOf(c, a.login), 'requests') ? c.requests.map(l => { const b = store.get(l); return { login: l, name: b.name, level: b.level || 1, avatar: avatarKey(b) }; }) : [],
       missions: { day: ms(c.day.list), week: ms(c.week.list), rewards: CLAN_MISSION_REWARDS },
       banners: c.banners || [], log: c.log || [], score: scoreOf(c), pos: pos ? pos.pos : null };
+  }
+  // Trésor : ressources données au clan, et projets qu'il peut financer.
+  function treasuryView(c) {
+    const week = clanWeek();
+    return { bank: { shards: 0, prisms: 0, uniEssence: 0, ...c.bank }, projects: Object.entries(CLAN_PROJECTS).map(([id, p]) => ({ id, name: p.name, desc: p.desc,
+      cost: projectCost(id, c.members.length), until: id === 'coffre' ? null : (boostOn(c, id) ? c.boosts[id] : null), done: id === 'coffre' && c.chest === week })) };
   }
   // Ce qu'il faut à l'écran du clan : le clan (ou null), les Écus, les dons du jour et le magasin.
   function donView(a) {
@@ -192,7 +225,7 @@ export function createClans(store, accounts) {
   // Images de profil des membres et des demandes (l'appli les demande quand leur empreinte change).
   function avatars(a) {
     const c = mine(a), out = {};
-    for (const l of [...c.members, ...(c.leader === a.login ? c.requests : [])]) { const b = store.get(l); if (b?.avatar) out[l] = b.avatar; }
+    for (const l of [...c.members, ...(canDo(roleOf(c, a.login), 'requests') ? c.requests : [])]) { const b = store.get(l); if (b?.avatar) out[l] = b.avatar; }
     return { avatars: out };
   }
   const done = (a, msg) => ({ ...view(a), account: accounts.me(a), ...(msg ? { msg } : {}) });
@@ -251,7 +284,7 @@ export function createClans(store, accounts) {
       if (a.clanReq.length >= MAX_REQUESTS) throw new HttpError(409, `${MAX_REQUESTS} demandes en attente au plus : annulez-en une.`);
       if (c.requests.length >= MAX_CLAN_REQUESTS) throw new HttpError(409, `${c.name} a déjà trop de demandes en attente.`);
       c.requests.push(a.login); a.clanReq.push(c.id);
-      msg = `Demande envoyée à ${c.name}. Le chef du clan doit l'accepter.`;
+      msg = `Demande envoyée à ${c.name}. Le Maître, un adjoint ou un sous-chef doit l'accepter.`;
     }
     await Promise.all([save(), store.put(a)]);
     return done(a, msg);
@@ -267,12 +300,13 @@ export function createClans(store, accounts) {
   function removeMember(c, b, text) {
     c.members = c.members.filter(l => l !== b.login);
     if (c.joined) delete c.joined[b.login];
+    if (c.roles) delete c.roles[b.login];
     b.clan = null;
     if (!c.members.length) { delete clans[c.id]; return; }
     log(c, text);
     if (c.leader === b.login) {
-      c.leader = c.members.slice().sort((x, y) => (c.joined?.[x] || '').localeCompare(c.joined?.[y] || ''))[0];
-      log(c, `${nameOf(c.leader)} devient chef du clan.`);
+      c.leader = successor(c); delete c.roles?.[c.leader];
+      log(c, `${nameOf(c.leader)} devient Maître du clan.`);
     }
   }
   async function leave(a) {
@@ -287,7 +321,7 @@ export function createClans(store, accounts) {
     return b;
   };
   async function accept(a, { login }) {
-    const c = lead(a), b = target(c, login, 'requests');
+    const c = need(a, 'requests'), b = target(c, login, 'requests');
     if (clanOf(b)) { c.requests = c.requests.filter(l => l !== b.login); await save(); throw new HttpError(409, `${b.name} a déjà rejoint un autre clan.`); }
     if (isFull(c)) throw new HttpError(409, 'Le clan est complet : montez de niveau pour accueillir plus de membres.');
     enter(c, b);
@@ -296,28 +330,83 @@ export function createClans(store, accounts) {
     return done(a, `${b.name} a rejoint le clan.`);
   }
   async function refuse(a, { login }) {
-    const c = lead(a), b = target(c, login, 'requests');
+    const c = need(a, 'requests'), b = target(c, login, 'requests');
     c.requests = c.requests.filter(l => l !== b.login); b.clanReq = (b.clanReq || []).filter(x => x !== c.id);
     await Promise.all([save(), store.put(b)]);
     return done(a);
   }
   async function kick(a, { login }) {
-    const c = lead(a), b = target(c, login);
+    const c = need(a, 'kick'), b = target(c, login);
     if (b.login === a.login) throw new HttpError(400, 'Pour partir, quittez le clan.');
+    if (ROLE_RANK[roleOf(c, b.login)] >= ROLE_RANK[roleOf(c, a.login)]) throw new HttpError(403, `Vous ne pouvez exclure que des joueurs de rang inférieur au vôtre.`);
     removeMember(c, b, `${b.name} est exclu du clan.`);
     progress.grant(b, { kind: 'clan', label: `Vous ne faites plus partie du clan ${c.name}` });
     await Promise.all([save(), store.put(b)]);
     return done(a, `${b.name} ne fait plus partie du clan.`);
   }
+  // Confier le clan (Maître seulement) : l'ancien Maître devient adjoint.
   async function promote(a, { login }) {
-    const c = lead(a), b = target(c, login);
-    if (b.login === a.login) throw new HttpError(400, 'Vous êtes déjà chef du clan.');
-    c.leader = b.login; log(c, `${a.name} confie la tête du clan à ${b.name}.`);
+    const c = mine(a);
+    if (c.leader !== a.login) throw new HttpError(403, 'Seul le Maître peut confier le clan.');
+    const b = target(c, login);
+    if (b.login === a.login) throw new HttpError(400, 'Vous êtes déjà Maître du clan.');
+    delete (c.roles ||= {})[b.login]; c.leader = b.login; c.roles[a.login] = 'adjoint';
+    log(c, `${a.name} confie le clan à ${b.name}, nouveau Maître.`);
     await save();
-    return done(a, `${b.name} est maintenant chef du clan.`);
+    return done(a, `${b.name} est maintenant Maître du clan.`);
+  }
+  // Nommer un membre adjoint, sous-chef ou simple membre. Le Maître nomme tout le monde ; un adjoint, les sous-chefs et les membres.
+  async function setRole(a, { login, role }) {
+    const c = need(a, 'roles'), b = target(c, login), mineR = ROLE_RANK[roleOf(c, a.login)];
+    if (!['adjoint', 'souschef', 'membre'].includes(role)) throw new HttpError(400, 'Rôle inconnu.');
+    if (b.login === a.login) throw new HttpError(400, 'Vous ne pouvez pas changer votre propre rôle.');
+    const was = roleOf(c, b.login);
+    if (ROLE_RANK[was] >= mineR || ROLE_RANK[role] >= mineR) throw new HttpError(403, 'Seul le Maître peut nommer ou retirer un adjoint.');
+    if (was === role) return done(a);
+    const max = CLAN_ROLE_MAX[role];
+    if (max && c.members.filter(l => roleOf(c, l) === role).length >= max) throw new HttpError(409, `${max} ${CLAN_ROLES[role].toLowerCase()}s au plus.`);
+    c.roles ||= {};
+    if (role === 'membre') delete c.roles[b.login]; else c.roles[b.login] = role;
+    log(c, role === 'membre' ? `${b.name} redevient membre.` : `${a.name} nomme ${b.name} ${CLAN_ROLES[role].toLowerCase()}.`);
+    progress.grant(b, { kind: 'clan', label: role === 'membre' ? `Vous redevenez membre du clan ${c.name}` : `Vous êtes nommé ${CLAN_ROLES[role].toLowerCase()} du clan ${c.name}` });
+    await Promise.all([save(), store.put(b)]);
+    return done(a, `${b.name} : ${CLAN_ROLES[role]}.`);
+  }
+  // Prendre la tête du clan quand le Maître ne vient plus depuis CLAN_INACTIVE_DAYS jours : il devient adjoint.
+  async function claim(a) {
+    const c = mine(a);
+    if (!canClaim(c, a.login)) throw new HttpError(403, `Un adjoint peut prendre la tête du clan si le Maître n'est pas venu depuis ${CLAN_INACTIVE_DAYS} jours.`);
+    const old = c.leader;
+    c.roles ||= {}; delete c.roles[a.login]; c.leader = a.login; c.roles[old] = 'adjoint';
+    log(c, `${a.name} prend la tête du clan : ${nameOf(old)}, absent depuis ${daysAway(old)} jours, devient adjoint.`);
+    const b = store.get(old);
+    if (b) { progress.grant(b, { kind: 'clan', label: `${a.name} a pris la tête du clan ${c.name} pendant votre absence` }); put(b); }
+    await save();
+    return done(a, `Vous êtes maintenant Maître de ${c.name}.`);
+  }
+  // Financer un projet avec le trésor du clan.
+  async function fund(a, { id }) {
+    const c = need(a, 'treasury'), p = CLAN_PROJECTS[id];
+    if (!p) throw new HttpError(400, 'Projet inconnu.');
+    if (id === 'coffre' ? c.chest === clanWeek() : boostOn(c, id)) throw new HttpError(409, id === 'coffre' ? 'Le coffre du clan a déjà été ouvert cette semaine.' : `${p.name} est déjà en cours.`);
+    const cost = projectCost(id, c.members.length), bank = c.bank ||= {};
+    const miss = Object.entries(cost).filter(([r, n]) => (bank[r] || 0) < n);
+    if (miss.length) throw new HttpError(409, `Le trésor manque de ${miss.map(([r, n]) => `${n - (bank[r] || 0)} ${DONATIONS[r].name}`).join(' et ')}.`);
+    for (const [r, n] of Object.entries(cost)) bank[r] -= n;
+    if (id === 'coffre') {
+      c.chest = clanWeek();
+      for (const login of c.members) {
+        const b = login === a.login ? a : store.get(login); if (!b?.level) continue;
+        progress.grant(b, { kind: 'clan', label: `Coffre du clan ${c.name}`, boosters: p.boosters });
+        await store.put(b);
+      }
+    } else (c.boosts ||= {})[id] = new Date(Date.now() + p.days * 86_400_000).toISOString();
+    log(c, `${a.name} finance ${p.name.toLowerCase()} avec le trésor du clan.`);
+    await save();
+    return done(a, `${p.name} : c'est parti !`);
   }
   async function edit(a, body) {
-    const c = lead(a);
+    const c = need(a, 'edit');
     settings(c, body || {});
     await save();
     return done(a, 'Clan mis à jour.');
@@ -335,7 +424,7 @@ export function createClans(store, accounts) {
     if (give <= 0) throw new HttpError(409, `Vous avez déjà donné ${d.cap} ${d.name} aujourd'hui.`);
     if ((a[res] || 0) < give) throw new HttpError(409, `Il vous faut ${give} ${d.name} (vous en avez ${a[res] || 0}).`);
     const coins = donationCoins(res, give);
-    a[res] -= give; a.clanDon[res] = (a.clanDon[res] || 0) + give; a.clanCoins = (a.clanCoins || 0) + coins;
+    a[res] -= give; a.clanDon[res] = (a.clanDon[res] || 0) + give; (c.bank ||= {})[res] = (c.bank[res] || 0) + give; a.clanCoins = (a.clanCoins || 0) + coins;
     missions(c);
     c.week.dons[a.login] = (c.week.dons[a.login] || 0) + coins;
     log(c, `${a.name} donne ${give} ${give > 1 ? d.name : d.name.replace(/s$/, '')} (${plural(coins, 'Écu')}).`);
@@ -369,7 +458,7 @@ export function createClans(store, accounts) {
   }
 
   // Ce que montre le profil public d'un joueur.
-  const badge = login => { const b = store.get(login), c = b && clanOf(b); return c ? short(c) : null; };
+  const badge = login => { const b = store.get(login), c = b && clanOf(b); return c ? { ...short(c), role: CLAN_ROLES[roleOf(c, login)] } : null; };
 
   return {
     onGame, closeSeason, badge, clanOf,
@@ -388,6 +477,9 @@ export function createClans(store, accounts) {
       'POST /api/clan/refuse': (a, body) => refuse(a, body || {}),
       'POST /api/clan/kick': (a, body) => kick(a, body || {}),
       'POST /api/clan/promote': (a, body) => promote(a, body || {}),
+      'POST /api/clan/role': (a, body) => setRole(a, body || {}),
+      'POST /api/clan/claim': a => claim(a),
+      'POST /api/clan/fund': (a, body) => fund(a, body || {}),
       'POST /api/clan/edit': (a, body) => edit(a, body || {}),
       'POST /api/clan/donate': (a, body) => donate(a, body || {}),
       'POST /api/clan/buy': (a, body) => buy(a, body || {}),

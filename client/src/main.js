@@ -412,7 +412,7 @@ function playerSheet() {
     <div class="card-box profile">${avatarHTML(P, 'big', P.frame)}
       <div style="display:grid;gap:6px"><div><b style="font-size:20px">${esc(P.name)}</b>${P.title ? `<div class="ptitle">${esc(P.title)}</div>` : ''}</div>
         <span class="hint">Niveau <span class="num">${P.level}</span></span>
-        ${P.clan ? `<span class="pclan">${crestHTML(P.clan, 'sm')}<b>${esc(P.clan.name)}</b> <span class="ctag">[${esc(P.clan.tag)}]</span></span>` : ''}
+        ${P.clan ? `<span class="pclan">${crestHTML(P.clan, 'sm')}<b>${esc(P.clan.name)}</b> <span class="ctag">[${esc(P.clan.tag)}]</span>${P.clan.role ? ` <small class="hint">· ${esc(P.clan.role)}</small>` : ''}</span>` : ''}
         ${P.ranked ? `<span>${rankHTML(P.ranked.rank)} <small class="hint num">· ${P.ranked.pos}${P.ranked.pos === 1 ? 'er' : 'e'} du classement</small></span>` : ''}</div></div>
     <div class="row" role="status">${friend}</div>${errLine()}
     <span class="eyebrow">Victoires</span>${winTiles(P.stats)}

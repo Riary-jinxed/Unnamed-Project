@@ -6,7 +6,7 @@ import { esc } from './common.js';
 import { artHTML } from './art.js';
 import { CARDS, GENERALS } from '@jeu/engine';
 import { ARTS, rarityName } from '@jeu/engine/arts';
-import { CLAN_ICONS, CLAN_COLORS, CLAN_PRICE, CLAN_NAME_MAX, CLAN_DESC_MAX, CLAN_LEVELS, clanLevelOf } from '@jeu/engine/clans';
+import { CLAN_ICONS, CLAN_COLORS, CLAN_PRICE, CLAN_NAME_MAX, CLAN_DESC_MAX, CLAN_LEVELS, clanLevelOf, CLAN_ROLES, ROLE_RANK, canDo } from '@jeu/engine/clans';
 import { seasonName } from '@jeu/engine/ranked';
 
 // Symboles du blason (viewBox 24 × 24), posés en clair sur l'écu de la couleur du clan.
@@ -32,7 +32,8 @@ const tagHTML = c => `<span class="ctag">[${esc(c.tag)}]</span>`;
 const bannerHTML = b => (b ? `<span class="cbanner cb-${esc(b.id)}">${esc(b.name)} · ${esc(seasonName(b.season))}</span>` : '');
 const plural = (n, w) => `${n} ${w}${n > 1 ? 's' : ''}`;
 const pct = (n, d) => Math.max(0, Math.min(100, Math.round(100 * n / (d || 1))));
-const ROLE = { leader: 'Chef du clan' };
+const ROLE_ICON = { maitre: '♛', adjoint: '⚜', souschef: '✦', membre: '' };
+const roleHTML = r => (r === 'membre' ? '' : `<span class="crole r-${r}">${ROLE_ICON[r]} ${CLAN_ROLES[r]}</span> · `);
 // Onglets de l'écran Social (barre du bas) : les amis et le clan.
 export const socialTabs = cur => `<div class="seg socialtabs" role="tablist" aria-label="Social">${[['friends', 'Amis'], ['clan', 'Clan']].map(([id, label]) =>
   `<button role="tab" data-act="${id}" class="${cur === id ? 'on' : ''}" aria-selected="${cur === id}">${label}</button>`).join('')}</div>`;
@@ -158,19 +159,31 @@ export function createClan(app) {
   const shopUnlocks = lv => { const n = C.data.shop.filter(x => x.level === lv).length; return n ? ` · ${n} objet${n > 1 ? 's' : ''} au magasin` : ''; };
 
   function membersHTML(c) {
-    const lead = c.leader === c.me;
+    const myRank = ROLE_RANK[c.role], lead = canDo(c.role, 'edit');
     const who = p => `<button class="fwho" data-act="player" data-login="${esc(p.login)}" aria-label="Profil de ${esc(p.name)}">${avatar(p)}<span class="fname"><b>${esc(p.name)}</b>
-      <small class="hint">${p.leader ? `<span class="crole">♛ ${ROLE.leader}</span> · ` : ''}niv. ${p.level}${p.title ? ` · <span class="ptitle">${esc(p.title)}</span>` : ''}</small></span></button>`;
+      <small class="hint">${roleHTML(p.role)}niv. ${p.level}${p.title ? ` · <span class="ptitle">${esc(p.title)}</span>` : ''}${p.away >= 3 ? ` · absent depuis ${p.away} j` : ''}</small></span></button>`;
+    // Gestion d'un membre de rang plus bas que soi : rôle (Maître et adjoints), confier le clan (Maître), exclure.
     const acts = p => {
-      if (!lead || p.login === c.me) return '';
-      if (C.confirm?.login === p.login) return `<div class="row fbtns"><button class="btn sm primary" data-act="clan-${C.confirm.what}" data-login="${esc(p.login)}" ${busy()}>${C.confirm.what === 'kick' ? 'Confirmer l\'exclusion' : 'Confirmer : nouveau chef'}</button>
+      if (p.login === c.me || ROLE_RANK[p.role] >= myRank || !canDo(c.role, 'kick')) return '';
+      if (C.confirm?.login === p.login) return `<div class="row fbtns"><button class="btn sm primary" data-act="clan-${C.confirm.what}" data-login="${esc(p.login)}" ${busy()}>${C.confirm.what === 'kick' ? 'Confirmer l\'exclusion' : 'Confirmer : nouveau Maître'}</button>
         <button class="btn sm" data-act="clan-no">Annuler</button></div>`;
-      return `<div class="row fbtns"><button class="btn sm" data-act="clan-ask" data-what="promote" data-login="${esc(p.login)}">Nommer chef</button>
-        <button class="btn sm" data-act="clan-ask" data-what="kick" data-login="${esc(p.login)}">Exclure</button></div>`;
+      if (C.manage !== p.login) return `<div class="row fbtns"><button class="btn sm" data-act="clan-manage" data-login="${esc(p.login)}">Gérer</button></div>`;
+      const roles = canDo(c.role, 'roles') ? ['adjoint', 'souschef', 'membre'].filter(r => r !== p.role && ROLE_RANK[r] < myRank)
+        .map(r => `<button class="btn sm" data-act="clan-role" data-role="${r}" data-login="${esc(p.login)}" ${busy()}>${r === 'membre' ? 'Rétrograder membre' : `Nommer ${CLAN_ROLES[r].toLowerCase()}`}</button>`).join('') : '';
+      return `<div class="row fbtns">${roles}${c.role === 'maitre' ? `<button class="btn sm" data-act="clan-ask" data-what="promote" data-login="${esc(p.login)}">Confier le clan</button>` : ''}
+        <button class="btn sm" data-act="clan-ask" data-what="kick" data-login="${esc(p.login)}">Exclure</button><button class="btn sm" data-act="clan-manage">Fermer</button></div>`;
     };
+    const leader = c.members.find(p => p.role === 'maitre');
+    const claim = c.claim ? block('Le Maître est absent', `<p style="margin:0">${esc(leader?.name || 'Le Maître')} n'est pas venu depuis ${leader?.away} jours. En tant que ${CLAN_ROLES[c.role].toLowerCase()}, vous pouvez prendre la tête du clan ; il deviendra adjoint.</p>
+      <div class="row"><button class="btn primary" data-act="clan-claim" ${busy()}>Prendre la tête du clan</button></div>`) : '';
+    const rolesHelp = block('Rôles', `<ul class="tiers croles">
+      <li><b>${ROLE_ICON.maitre} Maître</b><span>Fondateur du clan : tous les droits, nomme les adjoints, peut confier le clan.</span></li>
+      <li><b>${ROLE_ICON.adjoint} Adjoint</b><span>Mêmes droits que le Maître, sauf nommer des adjoints. Prend la tête du clan si le Maître n'est pas venu depuis ${c.inactiveDays} jours. ${c.roleMax.adjoint} au plus.</span></li>
+      <li><b>${ROLE_ICON.souschef} Sous-chef</b><span>Accepte les demandes d'adhésion et exclut les membres. ${c.roleMax.souschef} au plus.</span></li>
+      <li><b>Membre</b><span>Joue les missions, donne et achète au magasin.</span></li></ul>`);
     const row = p => `<div class="frow cmember">${who(p)}<small class="cstat num">${p.rank ? `<span class="rank rank-${esc(p.rank.id)}">${esc(p.rank.label)}</span>` : '<span class="hint">Pas classé</span>'}
       <span class="hint">${plural(p.week, 'partie')} · ${p.dons} Écus donnés cette semaine</span></small>${acts(p)}</div>`;
-    const reqs = lead && c.requests.length ? block(`Demandes d'adhésion (${c.requests.length})`, `<div class="flist">${c.requests.map(p => `<div class="frow"><span class="fwho">${avatar(p)}<span class="fname"><b>${esc(p.name)}</b><small class="hint">niv. ${p.level}</small></span></span>
+    const reqs = canDo(c.role, 'requests') && c.requests.length ? block(`Demandes d'adhésion (${c.requests.length})`, `<div class="flist">${c.requests.map(p => `<div class="frow"><span class="fwho">${avatar(p)}<span class="fname"><b>${esc(p.name)}</b><small class="hint">niv. ${p.level}</small></span></span>
       <div class="row fbtns"><button class="btn sm primary" data-act="clan-accept" data-login="${esc(p.login)}" ${busy()}>Accepter</button><button class="btn sm" data-act="clan-refuse" data-login="${esc(p.login)}" ${busy()}>Refuser</button></div></div>`).join('')}</div>`) : '';
     const E = C.edit;
     const settings = !lead ? '' : E ? `<form class="card-box cform" id="clan-edit"><span class="eyebrow">Réglages du clan</span>
@@ -180,11 +193,11 @@ export function createClan(app) {
         <label class="ctoggle"><input type="checkbox" id="clan-eopen" ${E.open ? 'checked' : ''}> Ouvert à tous</label>
         <div class="row"><button class="btn primary" type="submit" ${busy()}>Enregistrer</button><button class="btn" type="button" data-act="clan-edit-cancel">Annuler</button></div></form>`
       : '<button class="btn" data-act="clan-edit-open">Modifier le blason, la description, l\'accès</button>';
-    const leave = C.confirm?.what === 'leave' ? `<div class="card-box"><p style="margin:0">Quitter ${esc(c.name)} ?${c.members.length === 1 ? ' Vous êtes le dernier membre : le clan disparaîtra.' : lead ? ' Le membre le plus ancien deviendra chef.' : ''} Ce que vous avez acheté au magasin vous reste.</p>
+    const leave = C.confirm?.what === 'leave' ? `<div class="card-box"><p style="margin:0">Quitter ${esc(c.name)} ?${c.members.length === 1 ? ' Vous êtes le dernier membre : le clan disparaîtra.' : c.role === 'maitre' ? ' L\'adjoint le plus ancien (sinon un sous-chef, sinon le membre le plus ancien) deviendra Maître.' : ''} Ce que vous avez acheté au magasin vous reste.</p>
         <div class="row"><button class="btn primary" data-act="clan-leave" ${busy()}>Quitter le clan</button><button class="btn" data-act="clan-no">Rester</button></div></div>`
       : '<button class="btn" data-act="clan-ask" data-what="leave">Quitter le clan</button>';
-    return `${reqs}${block(`Membres · ${c.members.length}/${c.progress.members}`, `<div class="flist">${c.members.map(row).join('')}</div>
-      <p class="hint" style="margin:0">Le rang classé de chaque membre compte pour le classement des clans.</p>`)}${settings}${leave}`;
+    return `${claim}${reqs}${block(`Membres · ${c.members.length}/${c.progress.members}`, `<div class="flist">${c.members.map(row).join('')}</div>
+      <p class="hint" style="margin:0">Le rang classé de chaque membre compte pour le classement des clans.</p>`)}${rolesHelp}${settings}${leave}`;
   }
 
   function donsHTML() {
@@ -196,8 +209,25 @@ export function createClan(app) {
         <div class="bar" aria-hidden="true"><span style="width:${pct(d.given, d.cap)}%"></span></div></div>
         <div class="row fbtns">${left >= d.rate ? steps.map(n => `<button class="btn sm ${n === steps[steps.length - 1] ? 'primary' : ''}" data-act="clan-donate" data-res="${d.res}" data-amount="${n}" ${ui.busy || d.have < n ? 'disabled' : ''}>Donner ${n} · +${Math.floor(n / d.rate) * d.coins} ${app.ico('ecu')}</button>`).join('') : '<small class="hint">Limite du jour atteinte</small>'}</div></div>`;
     };
-    return block(`Dons · vous avez ${coins(D.coins)} Écus`, `<p class="hint" style="margin:0">Donnez des ressources au clan : vous recevez des Écus à dépenser au magasin du clan, et vos dons font avancer la mission de dons de la semaine. Limites renouvelées à minuit.</p>
-      ${D.donations.map(row).join('')}`);
+    return `${block(`Dons · vous avez ${coins(D.coins)} Écus`, `<p class="hint" style="margin:0">Donnez des ressources au clan : elles vont au trésor du clan, vous recevez des Écus à dépenser au magasin du clan, et vos dons font avancer la mission de dons de la semaine. Limites renouvelées à minuit.</p>
+      ${D.donations.map(row).join('')}`)}${treasuryHTML(me())}`;
+  }
+  const RES = { shards: ['shard', 'Éclats'], prisms: ['prism', 'Prismes'], uniEssence: [null, 'essence universelle'] };
+  const resHTML = (r, n) => `${RES[r][0] ? app.ico(RES[r][0]) : ''}${n}${RES[r][0] ? '' : ` ${RES[r][1]}`}`;
+  // Trésor du clan : ce que les membres ont donné, et les projets que le Maître et les adjoints peuvent financer.
+  function treasuryHTML(c) {
+    const T = c.treasury, can = canDo(c.role, 'treasury');
+    const day = iso => new Date(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const proj = p => {
+      const enough = Object.entries(p.cost).every(([r, n]) => (T.bank[r] || 0) >= n);
+      const state = p.until ? `<span class="ok">En cours jusqu'au ${day(p.until)}</span>` : p.done ? '<span class="ok">Ouvert cette semaine ✓</span>'
+        : can ? `<button class="btn sm ${enough ? 'primary' : ''}" data-act="clan-fund" data-id="${p.id}" ${ui.busy || !enough ? 'disabled' : ''}>Financer</button>` : '';
+      return `<div class="cproj ${p.until || p.done ? 'on' : ''}"><div><b>${esc(p.name)}</b><small class="hint">${esc(p.desc)}</small>
+        <small class="num">Coût : ${Object.entries(p.cost).map(([r, n]) => `<span class="${p.until || p.done || (T.bank[r] || 0) >= n ? '' : 'short'}">${resHTML(r, n)}</span>`).join(' + ')}</small></div>${state}</div>`;
+    };
+    return block('Trésor du clan', `<div class="cbank num">${Object.keys(RES).map(r => `<span>${resHTML(r, T.bank[r] || 0)}</span>`).join('')}</div>
+      <p class="hint" style="margin:0">Les ressources données s'accumulent ici. ${can ? 'Vous pouvez' : 'Le Maître et les adjoints peuvent'} les dépenser en projets pour tout le clan ; leur coût suit la taille du clan.</p>
+      ${T.projects.map(proj).join('')}`);
   }
 
   function itemVisual(x) {
@@ -259,7 +289,11 @@ export function createClan(app) {
     else if (a === 'clan-ask') { C.confirm = { what: ds.what, login: ds.login }; app.render(); }
     else if (a === 'clan-no') { C.confirm = null; app.render(); }
     else if (a === 'clan-leave' && !ui.busy) { C.confirm = null; act('/api/clan/leave', {}, () => { C.tab = 'clan'; }); }
-    else if (['clan-kick', 'clan-promote', 'clan-accept', 'clan-refuse'].includes(a) && !ui.busy) { C.confirm = null; act(`/api/clan/${a.slice(5)}`, { login: ds.login }); }
+    else if (['clan-kick', 'clan-promote', 'clan-accept', 'clan-refuse'].includes(a) && !ui.busy) { C.confirm = null; C.manage = null; act(`/api/clan/${a.slice(5)}`, { login: ds.login }); }
+    else if (a === 'clan-manage') { C.manage = ds.login || null; C.confirm = null; app.render(); }
+    else if (a === 'clan-role' && !ui.busy) { C.manage = null; act('/api/clan/role', { login: ds.login, role: ds.role }); }
+    else if (a === 'clan-claim' && !ui.busy) act('/api/clan/claim', {});
+    else if (a === 'clan-fund' && !ui.busy) act('/api/clan/fund', { id: ds.id }, () => app.play('reveal'));
     else if (a === 'clan-donate' && !ui.busy) act('/api/clan/donate', { res: ds.res, amount: +ds.amount }, () => app.play('coin'));
     else if (a === 'clan-buy' && !ui.busy) act('/api/clan/buy', { item: ds.item }, () => app.play('reveal'));
     else return false;
@@ -296,14 +330,14 @@ export function createClan(app) {
       if (!C.data) { load(); return '<p class="wait">Chargement…</p>'; }
       return me() ? `${app.errLine()}${note()}${shopHTML()}` : '<p class="hint">Rejoignez un clan pour ouvrir son magasin.</p>';
     },
-    // Demandes d'adhésion en attente (pour le chef), pour la tuile de l'accueil.
-    pending: () => (me()?.leader === me()?.me ? me()?.requests.length || 0 : 0),
+    // Demandes d'adhésion en attente (pour ceux qui peuvent les accepter), pour la tuile de l'accueil.
+    pending: () => me()?.requests.length || 0,
     // Tuile de l'accueil : le clan, ou l'invitation à en rejoindre un.
     tile(account) {
       const c = me(), lv = c ? c.progress.level : 0;
       if (account.clan && c) {
         const left = [...c.missions.day].filter(m => !m.done).length;
-        return `<button class="tile ctile ${C.data?.clan?.requests.length && c.leader === c.me ? 'todo' : ''}" data-act="clan"><span class="eyebrow">Clan · niv. ${lv}</span>
+        return `<button class="tile ctile ${c.requests.length ? 'todo' : ''}" data-act="clan"><span class="eyebrow">Clan · niv. ${lv}</span>
           <b class="ctile-name">${crestHTML(c, 'sm')}${esc(c.name)}</b><span class="tile-foot num">${left ? `${left} mission${left > 1 ? 's' : ''} du jour en cours` : 'Missions du jour finies ✓'}</span></button>`;
       }
       return `<button class="tile ctile" data-act="clan"><span class="eyebrow">Clan</span><b>${account.clan ? 'Mon clan' : 'Rejoindre'}</b>

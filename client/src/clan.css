@@ -82,3 +82,12 @@
 .socialtabs { align-self: start; }
 .socialtabs button { padding: 8px 22px; font-weight: 600; }
 .shoptabs button.locked { opacity: .5; filter: grayscale(1); background: repeating-linear-gradient(-45deg, var(--surface) 0 6px, var(--sunk) 6px 12px); }
+.crole.r-adjoint { color: var(--gold, #e3b34a); }
+.crole.r-souschef { color: var(--ok, #7bd88f); }
+.croles span { font-size: 14px; }
+.cbank { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 18px; font-weight: 700; }
+.cbank span { display: inline-flex; align-items: center; gap: 4px; }
+.cproj { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding-top: 10px; border-top: 1px solid var(--line); }
+.cproj > div { display: grid; gap: 2px; }
+.cproj .short { color: var(--bad, #ff7a7a); }
+.cproj.on b { color: var(--accent); }

@@ -65,6 +65,31 @@ export const DONATIONS = {
 // Écus gagnés pour amount unités d'une ressource.
 export const donationCoins = (res, amount) => { const d = DONATIONS[res]; return d ? Math.floor(amount / d.rate) * (d.coins || 1) : 0; };
 
+// ---- Rôles ----
+// Maître : le fondateur (ou celui à qui il confie le clan). Adjoint : nommé par le Maître, mêmes droits que lui sauf nommer
+// des adjoints et confier le clan ; il peut prendre la tête du clan si le Maître ne vient plus depuis CLAN_INACTIVE_DAYS jours.
+// Sous-chef : accepte les demandes et exclut les simples membres. Membre : le rôle de base.
+export const CLAN_ROLES = { maitre: 'Maître', adjoint: 'Adjoint', souschef: 'Sous-chef', membre: 'Membre' };
+export const ROLE_RANK = { maitre: 3, adjoint: 2, souschef: 1, membre: 0 };
+export const CLAN_ROLE_MAX = { adjoint: 2, souschef: 4 };
+export const CLAN_INACTIVE_DAYS = 7;
+// Ce que chaque rôle peut faire : accepter les demandes, exclure (seulement plus bas que soi), nommer (sous-chefs et membres ;
+// les adjoints, seul le Maître), régler le clan, dépenser le trésor.
+export const CLAN_RIGHTS = {
+  requests: 1, kick: 1, roles: 2, edit: 2, treasury: 2,
+};
+export const canDo = (role, right) => (ROLE_RANK[role] || 0) >= CLAN_RIGHTS[right];
+
+// ---- Trésor du clan ----
+// Les ressources données vont au trésor du clan. Le Maître et les adjoints les dépensent en projets pour tout le clan.
+// cost : par membre (au moins CLAN_MIN_MEMBERS comptés). days : durée de l'effet ; un projet en cours ne se relance pas.
+export const CLAN_PROJECTS = {
+  festin: { name: 'Festin du clan', desc: 'Écus des missions de clan ×1,5 pendant 7 jours', cost: { shards: 600 }, days: 7, coins: 1.5 },
+  etendard: { name: 'Étendard levé', desc: 'XP de clan des missions ×1,5 pendant 7 jours', cost: { shards: 400, prisms: 3 }, days: 7, xp: 1.5 },
+  coffre: { name: 'Coffre du clan', desc: 'Un booster offert à chaque membre (une fois par semaine)', cost: { prisms: 4, uniEssence: 30 }, days: 7, boosters: 1 },
+};
+export const projectCost = (id, members) => Object.fromEntries(Object.entries(CLAN_PROJECTS[id].cost).map(([r, n]) => [r, n * Math.max(CLAN_MIN_MEMBERS, members)]));
+
 // ---- Magasin du clan ----
 // Tout se paie en Écus. level : niveau de clan qu'il faut pour l'acheter. Ce qui est acheté reste au joueur s'il quitte son clan.
 // kind : art (arts.js, édition Clan), back, frame ou title (identifiants de rewards.js).
