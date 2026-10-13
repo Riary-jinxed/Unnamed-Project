@@ -1418,7 +1418,7 @@ function achievementsHTML() {
   const groups = [...new Set(list.map(x => x.group))], done = list.filter(x => x.done).length;
   return `<div class="card-box"><div><span class="eyebrow">Succès</span><h2 style="font-size:22px">${done} sur ${list.length}</h2></div>
     ${groups.map(g => `<div class="gal-h">${esc(g)}</div><div class="achs">${list.filter(x => x.group === g).map(x => `<div class="ach ${x.done ? 'done' : ''}">
-      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(x.label)}</span><small class="hint">${[x.shards ? `${x.shards} Éclats` : '', x.prisms ? `${x.prisms} Prisme${x.prisms > 1 ? 's' : ''}` : '', x.chests ? `${x.chests} coffre${x.chests > 1 ? 's' : ''} d'arts` : '', x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? esc(x.frame) : ''].filter(Boolean).join(' · ')}</small></div>
+      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(x.label)}</span><small class="hint">${[x.shards ? `${x.shards} Éclats` : '', x.prisms ? `${x.prisms} Prisme${x.prisms > 1 ? 's' : ''}` : '', x.chests ? `${x.chests} coffre${x.chests > 1 ? 's' : ''} d'arts` : '', x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? `${x.frameId ? `<span class="frame frame-${esc(x.frameId)} swatch"></span>` : ''}${esc(x.frame)}` : ''].filter(Boolean).join(' · ')}</small></div>
       ${x.done ? '' : `<div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(x.value, x.goal)}%"></span></div><small class="num">${x.value}/${x.goal}</small></div>`}</div>`).join('')}</div>`).join('')}</div>`;
 }
 // Profil en onglets : le haut (image, pseudo, niveau) reste, la rubrique change en dessous.

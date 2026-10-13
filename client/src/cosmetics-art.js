@@ -4,6 +4,7 @@
 // Chaque fonction rend un Container de taille fixe (BACK_W × BACK_H, (FRAME_S + 2 × FRAME_PAD)², ICON_S²), ou null pour un identifiant inconnu
 // (le dessin CSS de style.css reste alors en place).
 import { BlurFilter, Container, FillGradient, Graphics, Sprite, Texture } from 'pixi.js';
+import { ART_THEME_FRAMES } from '@jeu/engine/rewards';
 
 export const BACK_W = 240, BACK_H = 336, FRAME_S = 256, ICON_S = 64;
 // Le cadre déborde du portrait : l'image fait 1 + 2 × FRAME_OUT fois la taille du portrait encadré (cosmetics.js).
@@ -587,6 +588,41 @@ FRAMES.clan_heraut = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2
   t.moveTo(C - 30, y + 10).lineTo(C - 22, y + 30).lineTo(C + 4, y + 30).lineTo(C + 8, y + 8).closePath().fill(0xb0282a).stroke(ink(2.5));
   star(t, C - 9, y + 20, 6, 5, 0.45).fill(0xf5d27a);
   g.addChild(t); };
+// Cadres des paliers des familles d'arts (rewards.js : art_<famille>_<set>). Éclipse : anneau d'ombre, soleil noir couronné de flammes
+// d'or au sommet, croissants et étoiles. Butin : anneau d'or, coffre ouvert qui déborde de lumière au sommet, rang de perles, piles de pièces.
+// Les autres familles ont un rendu provisoire à leurs couleurs, en attendant leur dessin.
+const ART_FRAME_DRAW = {
+  eclipse: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 4).stroke({ width: 14, color: 0xffffff }), 0xb0306a, 12, 0.8));
+    ring(g, { base: 0x24182e, hi: 0x6a4a8a, lo: 0x0c0612 }); beads(g, 10, (RH + RB) / 2, 0xb0306a, 3, TAU / 20);
+    for (const s of [-1, 1]) { g.poly(crescent(C + s * 92, C + 70, 11, s * 5, -4, 9)).fill(0xffe7a8).stroke(ink(2)); star(g, C + s * 100, C - 50, 6, 4, 0.3).fill(0xffe7a8).stroke(ink(1.5)); }
+    const sy = C - RB - 2;
+    add(g, glow(() => new Graphics().circle(C, sy, 30).fill(0xffffff), 0xffa42a, 12, 0.95));
+    const k = add(g, new Graphics());
+    for (let i = 0; i < 16; i++) { const a = i * TAU / 16, l = i % 2 ? 38 : 46;
+      k.poly([...pt(C, sy, 22, a - 0.16), ...pt(C, sy, l, a), ...pt(C, sy, 22, a + 0.16)]); }
+    k.fill(0xffc94a).stroke(ink(2));
+    g.circle(C, sy, 25).fill(0xffe7a8).stroke(ink(2.5)); g.circle(C, sy, 21).fill(0x0c0612).stroke(ink(2)); },
+  tresors: g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2).stroke({ width: 12, color: 0xffffff }), 0xffd45a, 10, 0.7));
+    for (const s of [-1, 1]) for (let i = 0; i < 5; i++) { const x = C + s * (78 + (i % 2) * 6), y = C + 104 - i * 9;
+      g.ellipse(x, y, 17, 6).fill(0xf2c94a).stroke(ink(2.5)); }
+    ring(g, METAL.or); beads(g, 20, (RH + RB) / 2, 0xfff6e0, 3, TAU / 40);
+    [[Math.PI / 2, 0xe0405a], [Math.PI * 0.15, 0x5ab4ff], [Math.PI * 0.85, 0x5ad27a]].forEach(([a, c]) => { const [x, y] = pt(C, C, (RH + RB) / 2, a); gem(g, x, y, 10, c); });
+    const y = C - RB + 4;
+    add(g, glow(() => new Graphics().ellipse(C, y - 26, 34, 18).fill(0xffffff), 0xfff0a0, 10, 1));
+    const k = add(g, new Graphics());
+    k.moveTo(C - 36, y - 22).lineTo(C - 30, y - 50).lineTo(C + 30, y - 50).lineTo(C + 36, y - 22).closePath().fill(0x8a4a1e).stroke(ink(3));
+    k.rect(C - 36, y - 22, 72, 30).fill(0x9a5a26).stroke(ink(3));
+    k.rect(C - 36, y - 22, 72, 7).fill(0xe3b552).stroke(ink(2.5)); k.rect(C - 26, y - 22, 8, 30).fill(0xe3b552).stroke(ink(2)); k.rect(C + 18, y - 22, 8, 30).fill(0xe3b552).stroke(ink(2));
+    k.roundRect(C - 6, y - 14, 12, 12, 2).fill(0xffd45a).stroke(ink(2));
+    for (const [dx, dy, c] of [[-16, -28, 0xf2c94a], [0, -32, 0xf2c94a], [14, -27, 0xf2c94a], [-6, -36, 0xe0405a], [8, -38, 0x5ab4ff]]) k.circle(C + dx, y + dy, 6).fill(c).stroke(ink(1.8));
+    sparkle(g, C - 44, y - 50, 7); sparkle(g, C + 46, y - 44, 6); },
+};
+const ART_FRAME_TINTS = { vitraux: [0x2a6ab0, 0xd04a5a, 0xf0c040], saisons: [0x6aa84a, 0xe08a3a, 0x8ac8f0], taverne: [0x8a4a1e, 0xf0a030, 0xe0405a],
+  astral: [0x1a2a6a, 0xf5d27a, 0x8ab4ff], bannieres: [0xb0282a, 0x2a5fa8, 0xf5d27a], bal: [0x5a1a4a, 0xc0306a, 0xf5d27a] };
+const provisional = t => g => { const [base, mid, hi] = ART_FRAME_TINTS[t] || [0x6a6a7a, 0xb0b0c0, 0xffffff];
+  ring(g, { base, hi: mid, lo: INK }); beads(g, 12, (RH + RB) / 2, hi, 3);
+  star(g, C, C - RB + 2, 18, 5, 0.45).fill(hi).stroke(ink(3)); };
+for (const [id] of ART_THEME_FRAMES) { const t = id.split('_')[1]; FRAMES[id] = ART_FRAME_DRAW[t] || provisional(t); }
 export function drawFrame(id) {
   const f = FRAMES[id]; if (!f) return null;
   const c = new Container(), g = layers(); f(g); c.addChild(g.root);

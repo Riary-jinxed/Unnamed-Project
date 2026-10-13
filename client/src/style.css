@@ -428,6 +428,10 @@ body:has(#app.ingame) { margin: 0; }
 .frame-platine { background: linear-gradient(135deg, #e9f6f4, #7fb7b0 50%, #d4ece8); box-shadow: 0 0 8px rgb(127 183 176 / .6); }
 .frame-diamant { background: conic-gradient(#bfe9ff, #5aa8e6, #e4f6ff, #3a7fd0, #bfe9ff); box-shadow: 0 0 10px rgb(90 168 230 / .7); }
 .frame-maitre { background: conic-gradient(from 90deg, #6a2bd0, #e04aa0, #ffcf4a, #6a2bd0); box-shadow: 0 0 12px rgb(160 70 210 / .7); }
+/* Cadres des paliers des familles d'arts (sans WebGL, ou avant que cosmetics.js ne les dessine). */
+.frame[class*="frame-art_"] { background: conic-gradient(#6a6a7a, #b0b0c0, #6a6a7a); }
+.frame[class*="frame-art_eclipse_"] { background: radial-gradient(circle at 50% 8%, #ffc94a 0 9%, #24182e 22%), conic-gradient(#24182e, #b0306a, #24182e); box-shadow: 0 0 10px rgb(176 48 106 / .6); }
+.frame[class*="frame-art_tresors_"] { background: radial-gradient(circle at 50% 30%, #fff3b0, #e3b552 45%, #8a4a1e); box-shadow: 0 0 9px rgb(255 212 90 / .6); }
 
 /* ---- Mode classé : palier, étoiles, classement ---- */
 .rank { display: inline-block; padding: 1px 10px; border-radius: 999px; color: #1d1a16; font-weight: 600; line-height: 1.5; white-space: nowrap; }
