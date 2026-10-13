@@ -1712,6 +1712,8 @@ const SEASON_OVERRIDE = (q => q === null ? null : q === 'base' ? '' : q)(new URL
 const lastScreen = { body: null, nodes: [] };
 function render() {
   const h = document.getElementById('hand'); const sx = h ? h.scrollLeft : 0;
+  // Menu glissant des rayons de la boutique : sa position est gardée quand l'écran se redessine.
+  const stx = app.querySelector('.shoptabs')?.scrollLeft || 0;
   // Défilement de la fenêtre ouverte, gardé quand elle se redessine (ex. : après une amélioration, en bas de la fiche).
   const sp = app.querySelector(':scope > .sheet .panel'); const sy = sp && ui.sheet === ui.shownSheet && ui.zoom?.id === ui.shownZoom ? sp.scrollTop : 0;
   const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, pass: renderPass, lobby: renderLobby, game: renderGame, friends: friends.screen, mail: mail.screen, clan: clan.screen };
@@ -1755,6 +1757,16 @@ function render() {
   ui.shownScreen = ui.screen; ui.shownSheet = ui.sheet; ui.shownZoom = ui.zoom?.id;
   if (ui.sheet === 'rename') { const r = document.getElementById('rename-input'); if (r && document.activeElement !== r) { r.focus(); r.select(); } }
   const h2 = document.getElementById('hand'); if (h2) h2.scrollLeft = sx;
+  // Rayon qui change : son onglet est amené dans le menu glissant s'il était caché sur le côté.
+  const st = app.querySelector('.shoptabs');
+  if (st) {
+    st.scrollLeft = stx;
+    const on = st.querySelector('button.on');
+    if (on && ui.shopTab !== ui.shownShopTab) { const l = on.offsetLeft - st.offsetLeft, r = l + on.offsetWidth; if (l < st.scrollLeft) st.scrollLeft = l; else if (r > st.scrollLeft + st.clientWidth) st.scrollLeft = r - st.clientWidth; }
+    ui.shownShopTab = ui.shopTab;
+    const edge = () => { st.classList.toggle('more-l', st.scrollLeft > 2); st.classList.toggle('more-r', st.scrollLeft + st.clientWidth < st.scrollWidth - 2); };
+    edge(); st.onscroll = edge;
+  }
   if (sy) { const p2 = app.querySelector(':scope > .sheet .panel'); if (p2) p2.scrollTop = sy; }
   const lb = document.getElementById('logbox'); if (lb) lb.parentElement.scrollTop = lb.scrollHeight;
   applyFx();

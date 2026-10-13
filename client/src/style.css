@@ -748,14 +748,17 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .artthumb .art { width: 100%; border-radius: var(--r); }
 
 /* Boutique : onglets Sets et Arts */
-.shoptabs { align-self: start; display: flex; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.shoptabs { align-self: start; display: flex; max-width: 100%; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; scroll-snap-type: x proximity; position: relative; }
 .shoptabs::-webkit-scrollbar { display: none; }
-.shoptabs button { flex: 0 0 auto; padding: 8px 18px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+.shoptabs button { flex: 0 0 auto; padding: 8px 18px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; scroll-snap-align: start; }
 .shoptabs .badge { min-width: 18px; padding: 0 5px; border-radius: 999px; background: #8a5bd6; color: #fff; font-size: 11px; line-height: 18px; }
 .shoptabs button.on .badge { background: var(--accent-ink); color: var(--accent); }
-/* Téléphone : les cinq rayons tiennent sur la largeur de l'écran (au pire, la barre défile seule, jamais la page). */
-@media (max-width: 520px) { .shoptabs { align-self: stretch; } .shoptabs button { flex: 1 0 auto; padding: 8px 8px; gap: 4px; } .shoptabs .lockico { width: 14px; height: 14px; } }
-@media (max-width: 400px) { .shoptabs button { padding: 8px 6px; font-size: 15px; } .shoptabs .badge { min-width: 16px; padding: 0 4px; line-height: 16px; } }
+/* Menu glissant : quand les rayons ne tiennent pas sur la largeur de l'écran, la barre défile au doigt (jamais la page) ; un
+   fondu sur le bord indique qu'il y en a d'autres. De nouveaux rayons pourront s'ajouter sans rien casser. */
+.shoptabs.more-r { mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
+.shoptabs.more-l { mask-image: linear-gradient(90deg, transparent, #000 36px); }
+.shoptabs.more-l.more-r { mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
+@media (max-width: 520px) { .shoptabs { align-self: stretch; } .shoptabs button { padding: 8px 14px; } }
 
 /* Calendrier de connexion du mois */
 .calline { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%; padding: 0; border: 0; background: none; color: inherit; text-align: left;
