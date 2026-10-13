@@ -33,6 +33,9 @@ export const passMissionLabel = m => PASS_KINDS[m.kind]?.label(m.target, m.fam) 
 // fams : familles des missions « Jouer des cartes … » de la saison. promo : arts Promo (arts.js) donnés au palier « tier »
 // de la piste gratuite. missions : id unique, sorte, objectif, XP de saison (objectif et XP réglables).
 // Cosmétiques : [id, nom] ; leur style est dans client/src/style.css (.frame-<id>, .mc.back.back-<id>).
+// theme : thème de l'interface de la saison (habillage.css, client/src/season.js), à tous pendant la saison, puis à choisir dans
+// la personnalisation pour qui l'a débloqué (palier THEME_TIER de la piste gratuite). start : jour où la saison se dévoile
+// (« AAAA-MM-JJ », le 1er du mois si absent) ; avant, le passe du mois et ses cartes restent cachés.
 const M = (id, kind, target, xp, extra = {}) => ({ id, kind, target, xp, ...extra });
 export const SEASONS = [
   { id: '2026-10', name: 'Nuit des citrouilles', theme: 'halloween',
@@ -47,7 +50,7 @@ export const SEASONS = [
       M('h_play', 'play', 60, 2000), M('h_win', 'win', 30, 2000), M('h_demon', 'fam', 100, 1500, { fam: 'Démon' }), M('h_sweep', 'sweep', 10, 1500),
       M('h_ranked', 'ranked', 15, 1500), M('h_missions', 'missions', 40, 2000), M('h_cards', 'season', 10, 1500), M('h_login', 'login', 20, 1500),
     ] },
-  { id: '2026-11', name: 'Néon 2099', theme: 'cyber',
+  { id: '2026-11', name: 'Néon 2099', theme: 'cyber', start: '2026-11-02',
     blurb: 'La ville ne dort jamais : drones, netrunners et méchas envahissent le champ de bataille sous les néons. Trois cartes uniques, des cosmétiques chromés et deux arts Promo à gagner ce mois-ci.',
     fams: ['Elfe', 'Dragon'],
     cards: ['drone', 'netrunner', 'mecha'],
@@ -61,8 +64,14 @@ export const SEASONS = [
     ] },
 ];
 export const seasonById = id => SEASONS.find(x => x.id === id) || null;
-// Saisons déjà commencées (month : mois courant, « AAAA-MM »). Les suivantes restent cachées dans l'appli.
-export const seasonStarted = (id, month) => id <= month;
+export const seasonStart = x => x.start || `${x.id}-01`;
+// Saison en cours le jour donné (« AAAA-MM-JJ », voir today()) : celle du mois, une fois dévoilée.
+export const currentSeason = day => SEASONS.find(x => x.id === day.slice(0, 7) && seasonStart(x) <= day) || null;
+// Saisons déjà dévoilées le jour donné. Les suivantes restent cachées dans l'appli.
+export const seasonStarted = (id, day) => { const x = seasonById(id); return !!x && seasonStart(x) <= day; };
+// Thèmes de l'interface des saisons : { theme: nom de la saison }, débloqués au palier THEME_TIER de la piste gratuite.
+export const THEME_TIER = 12;
+export const SEASON_THEMES = Object.fromEntries(SEASONS.map(x => [x.theme, x.name]));
 export const SEASON_CARDS = Object.fromEntries(SEASONS.flatMap(x => x.cards.map(c => [c, x.id])));
 export const seasonOfCard = id => seasonById(SEASON_CARDS[id]);
 export const SEASON_MISSIONS = Object.fromEntries(SEASONS.flatMap(x => x.missions.map(m => [m.id, m])));
@@ -82,7 +91,8 @@ export const SEASON_FRAMES = SEASONS.flatMap(x => [x.frame, x.framePremium]);
 export const SEASON_BACKS = SEASONS.flatMap(x => [x.back, x.backPremium]);
 
 // ---- Paliers ----
-// Piste gratuite : des Éclats à chaque palier, sauf les paliers spéciaux (titre, cartes uniques, arts Promo, Prismes, coffres d'arts, dos, cadre).
+// Piste gratuite : des Éclats à chaque palier, sauf les paliers spéciaux (titre, cartes uniques, arts Promo, Prismes, coffres d'arts, dos, cadre),
+// et le thème de l'interface (avec ses Éclats) au palier THEME_TIER.
 // Piste premium : des Prismes à chaque palier (c'est ce qui rembourse le passe), un coffre d'arts tous les 10 paliers, et ses cosmétiques.
 // r : réglages (DEFAULT_REWARDS complété par /admin).
 const CARD_TIERS = [10, 30, 22];
@@ -92,6 +102,7 @@ export function passTrack(season, r) {
     35: { prisms: r.passPrisms }, 40: { chests: r.passChests, frame: season.frame[0] },
   };
   season.cards.forEach((card, i) => { free[CARD_TIERS[i]] = { card }; });
+  free[THEME_TIER] = { shards: r.passShards, theme: season.theme };
   for (const p of season.promo) free[p.tier] = { ...free[p.tier], art: p.art };
   const premium = { 1: { frame: season.framePremium[0] }, 25: { back: season.backPremium[0] } };
   for (let t = 10; t <= PASS_TIERS; t += 10) premium[t] = { chests: r.passPremiumChests };

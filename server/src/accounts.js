@@ -54,7 +54,7 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   // Cartes dont le débordement du personnage est coupé.
   popOff: a.popOff || {} });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte.
 function addCards(a, ids, rate, essenceRate) {

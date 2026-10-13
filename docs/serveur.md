@@ -53,7 +53,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `calendar` | `{ month, days }` : jours du mois dont la récompense de connexion est prise (remis à zéro chaque mois). |
 | `freeChests` | Coffres d'arts offerts à ouvrir (succès rares, dimanches du calendrier). |
 | `achievements`, `completed` | Succès obtenus ; familles (`set:famille`) et sets complétés, avec leur date. |
-| `cosmetics`, `title`, `frame`, `back` | Titres, cadres et dos débloqués ; ceux qui sont portés. |
+| `cosmetics`, `title`, `frame`, `back`, `uiTheme` | Titres, cadres, dos et thèmes de l'interface débloqués (`cosmetics.themes`, un par passe de saison, au palier `THEME_TIER`) ; ceux qui sont portés. `uiTheme` : `null` suit la saison en cours, `base` garde le thème de base, sinon un thème débloqué. |
 | `inbox` | Récompenses gagnées à montrer au joueur (40 au plus), vidée quand il les a vues. |
 | `friends`, `friendsIn`, `friendsOut` | Identifiants des amis, des demandes reçues et des demandes envoyées (100 amis au plus). |
 | `seasonPass` | Passe de saison du mois : `{ season, xp, premium, free, prem, day, week, sm, done }` (XP de saison, premium acheté, derniers paliers donnés sur chaque piste, missions du jour et de la semaine, avancement et missions de saison accomplies, `bonus` : coffres de fin de passe ouverts). Repart à zéro chaque saison. |
@@ -104,7 +104,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `GET /api/mail` | Courrier du joueur (`mail` : messages visibles, lus, récompense récupérée). `account.mail` compte les messages non lus ou à récupérer. |
 | `POST /api/mail/read`, `/claim`, `/claim-all`, `/hide` | Marque lu, récupère une récompense (ou toutes), supprime un message déjà récupéré. |
 | `POST /api/redeem` | Utilise un code cadeau `{ code }`, une fois par compte. |
-| `PUT /api/cosmetics` | Change le titre, le cadre ou le dos de carte porté. |
+| `PUT /api/cosmetics` | Change le titre, le cadre, le dos de carte porté ou le thème de l'interface (`theme`). |
 | `POST /api/shop/art`, `/api/shop/chest` | Arts alternatifs (`arts.js`) : payés en Prismes. `{ art }` achète un art du jour ; le coffre donne un art classique pas encore possédé, au hasard selon sa rareté (`{ free: true }` : avec un coffre offert). Renvoie `art` et la boutique à jour. |
 | `POST /api/shop/convert` | `{ offer }` : change des Prismes en Éclats par une offre fixe (`exchangeOffers` du moteur, bâties sur le taux `prismShards` ; 0 : fermé). Jamais l'inverse ni au détail. |
 | `GET /api/pass` | Passe de saison du mois (`pass`, `null` sans saison) : paliers gratuits et premium, missions du jour, de la semaine et de la saison, arts Promo (palier de la piste gratuite), prix du premium et palier où il est remboursé. |

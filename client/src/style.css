@@ -696,7 +696,7 @@ body:has(#app.ingame) { margin: 0; }
 
 /* Passe de saison : chaque saison a ses deux couleurs (--sa, --sb), reprises par l'accueil et l'écran du passe. */
 .theme-halloween { --sa: #e8741c; --sb: #5b2a86; }
-.theme-cyber { --sa: #19c8e6; --sb: #d42bb8; }
+.theme-cyber { --sa: #19e6ff; --sb: #ff2bd6; }
 .passline { width: 100%; text-align: left; color: inherit; font: inherit; gap: 6px; border-color: color-mix(in srgb, var(--sa) 55%, var(--line));
   background: linear-gradient(120deg, color-mix(in srgb, var(--sb) 16%, var(--surface)), color-mix(in srgb, var(--sa) 14%, var(--surface))); }
 .passline b { font-family: var(--display); font-size: 20px; }

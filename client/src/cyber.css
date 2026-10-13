@@ -1,0 +1,108 @@
+/* Thème « Néon 2099 » (body[data-season="cyber"], écrit par main.js) : cyberpunk à la Shadowrun et Cyberpunk 2077.
+   Mégapole de nuit : bleu-noir, néons cyan et magenta, jaune signalétique pour l'action, rouge d'alerte.
+   Panneaux et boutons à coins coupés, titres en Orbitron, lignes de balayage d'écran et parasites sur les titres.
+   Ne touche qu'à l'apparence, comme habillage.css ; chaque règle commence par body[data-season="cyber"] pour passer devant lui. */
+body[data-season="cyber"] {
+  --bg: #05070f; --surface: #0c1426; --sunk: #03050b; --ink: #e2f4ff; --muted: #7fa3bf; --line: #1c4a66;
+  --accent: #fcee0a; --accent-ink: #0a0a0a;
+  --gold-hi: #fff9b0; --gold: #fcee0a; --gold-lo: #8a7f00; --leather: #0b1222; --leather-lo: #060a15; --rim: #17607e;
+  --neon: #19e6ff; --neon2: #ff2bd6; --alert: #ff003c;
+  --display: "Orbitron", "Rajdhani", "Segoe UI", sans-serif;
+  --cut: 12px;
+  background:
+    radial-gradient(ellipse at 50% -10%, rgb(25 230 255 / .18), transparent 60%),
+    radial-gradient(ellipse at 15% 110%, rgb(255 43 214 / .22), transparent 55%),
+    radial-gradient(ellipse at 90% 110%, rgb(252 238 10 / .08), transparent 50%),
+    linear-gradient(rgb(25 230 255 / .045) 1px, transparent 1px) 0 0 / 28px 28px,
+    linear-gradient(90deg, rgb(25 230 255 / .045) 1px, transparent 1px) 0 0 / 28px 28px,
+    #05070f;
+  background-attachment: fixed; }
+/* lignes de balayage d'écran, par-dessus tout mais sans gêner le toucher */
+body[data-season="cyber"]::after { content: ''; position: fixed; inset: 0; z-index: 2147483000; pointer-events: none;
+  background: repeating-linear-gradient(rgb(0 0 0 / 0) 0 2px, rgb(0 0 0 / .14) 2px 3px); mix-blend-mode: multiply; }
+
+/* titres : jaune signalétique, léger décalage cyan et rouge, parasites de temps en temps */
+body[data-season="cyber"] h2 { background: none; color: var(--gold); -webkit-background-clip: border-box; background-clip: border-box;
+  text-transform: uppercase; letter-spacing: .06em; text-shadow: 2px 0 0 rgb(25 230 255 / .55), -2px 0 0 rgb(255 0 60 / .45), 0 0 14px rgb(252 238 10 / .35); }
+body[data-season="cyber"] .top .title { font-family: var(--display); text-transform: uppercase; color: var(--neon);
+  text-shadow: 0 0 10px rgb(25 230 255 / .7), 2px 0 0 rgb(255 43 214 / .6); animation: glitch 6s steps(1) infinite; }
+body[data-season="cyber"] .eyebrow { font-family: "Rajdhani", var(--display); font-weight: 700; color: var(--neon); letter-spacing: .22em; }
+body[data-season="cyber"] .eyebrow::before { content: '// '; color: var(--neon2); }
+@keyframes glitch { 0%, 91%, 100% { transform: none; clip-path: none; }
+  92% { transform: translate(-3px, 1px) skewX(-8deg); clip-path: inset(10% 0 55% 0); }
+  93% { transform: translate(3px, -1px); clip-path: inset(55% 0 8% 0); }
+  94% { transform: translate(-1px, 0) skewX(4deg); clip-path: none; } }
+
+/* panneaux : verre fumé bleu nuit, liseré néon, coin coupé en haut à droite et en bas à gauche */
+body[data-season="cyber"] .card-box, body[data-season="cyber"] .sheet .panel, body[data-season="cyber"] .pbar, body[data-season="cyber"] .deckopt {
+  background: linear-gradient(160deg, rgb(16 30 56 / .95), rgb(6 10 21 / .97) 60%), var(--leather-lo); border-color: var(--rim); border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+  box-shadow: inset 0 0 0 1px rgb(25 230 255 / .18), inset 0 1px 0 rgb(25 230 255 / .45), inset 0 24px 40px -24px rgb(25 230 255 / .18); }
+body[data-season="cyber"] .card-box::before { inset: 0; border: 0; border-radius: 0;
+  background: linear-gradient(135deg, transparent calc(100% - var(--cut) * 1.5), var(--neon2) calc(100% - var(--cut) * 1.5) calc(100% - var(--cut) * 1.5 + 2px), transparent 0) top right / 40px 40px no-repeat,
+    linear-gradient(90deg, var(--gold) 0 26px, transparent 0) 0 0 / 100% 2px no-repeat; }
+body[data-season="cyber"] .card-box.booster.ready, body[data-season="cyber"] .deckopt.sel { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold), inset 0 0 30px -10px rgb(252 238 10 / .45); }
+body[data-season="cyber"] .sheet { background: rgb(2 4 10 / .8); backdrop-filter: blur(3px) saturate(1.3); }
+
+/* boutons : plaque sombre à coin coupé, texte en capitales ; le principal est jaune signalétique */
+body[data-season="cyber"] .btn { background: linear-gradient(180deg, #11223e, #08101f); border-color: var(--rim); border-radius: 0; color: var(--ink);
+  font-family: "Rajdhani", var(--body); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; text-shadow: none;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%); box-shadow: inset 0 0 0 1px rgb(25 230 255 / .25), inset 0 -2px 0 rgb(25 230 255 / .35); }
+body[data-season="cyber"] .btn:hover:not(:disabled) { filter: brightness(1.25); }
+body[data-season="cyber"] .btn.on, body[data-season="cyber"] .seg button.on { border-color: var(--neon); box-shadow: inset 0 0 0 1px var(--neon), inset 0 0 14px -4px var(--neon); }
+body[data-season="cyber"] .btn.primary, body[data-season="cyber"] .playbtn { background: linear-gradient(180deg, #fff35a, #fcee0a 45%, #d8c800); color: #0a0a0a; border-color: #000;
+  font-family: var(--display); text-shadow: none; box-shadow: inset 0 -3px 0 rgb(0 0 0 / .25), 0 0 18px -4px rgb(252 238 10 / .7); }
+body[data-season="cyber"] .playbtn { clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px)); animation-name: playglow-cy; }
+body[data-season="cyber"] .playbtn::after { background: linear-gradient(105deg, transparent 40%, rgb(255 255 255 / .6) 48%, rgb(25 230 255 / .5) 52%, transparent 60%); background-size: 250% 100%; }
+@keyframes playglow-cy { 0%, 100% { filter: drop-shadow(0 0 6px rgb(252 238 10 / .55)); } 50% { filter: drop-shadow(0 0 14px rgb(25 230 255 / .75)); } }
+body[data-season="cyber"] .seg { border-color: var(--rim); border-radius: 0; }
+body[data-season="cyber"] .seg button { background: linear-gradient(180deg, #11223e, #08101f); font-family: "Rajdhani", var(--body); font-weight: 700; text-transform: uppercase; }
+body[data-season="cyber"] .seg button.on { background: var(--gold); color: #0a0a0a; }
+body[data-season="cyber"] .chip { background: #08101f; border-color: var(--rim); border-radius: 0; }
+body[data-season="cyber"] input, body[data-season="cyber"] textarea, body[data-season="cyber"] .field select { background: #03060d; border-color: var(--rim); border-radius: 0; box-shadow: inset 0 0 8px rgb(25 230 255 / .15); }
+
+/* tuiles de l'accueil et vitrine */
+body[data-season="cyber"] .tile { background: linear-gradient(160deg, #0f1d36, #060a15); border-color: var(--rim); border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); box-shadow: inset 0 1px 0 rgb(25 230 255 / .4); }
+body[data-season="cyber"] .tile b { color: var(--ink); font-family: var(--display); }
+body[data-season="cyber"] .tile.todo { border-color: var(--neon2); box-shadow: inset 0 0 0 1px var(--neon2), inset 0 0 24px -8px rgb(255 43 214 / .55); }
+body[data-season="cyber"] .showcase { border-color: var(--neon); border-radius: 0; box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6), 0 0 26px -6px rgb(25 230 255 / .75), inset 0 0 0 2px rgb(255 43 214 / .2); }
+body[data-season="cyber"] .showcase::before { border-color: rgb(25 230 255 / .45); border-radius: 0; }
+body[data-season="cyber"] .showcase::after { background: linear-gradient(rgb(5 30 70 / .4), rgb(5 30 70 / .1) 35%, transparent 45%, rgb(0 0 0 / .85)), repeating-linear-gradient(rgb(0 0 0 / 0) 0 3px, rgb(25 230 255 / .05) 3px 4px); }
+body[data-season="cyber"] .sc-change { background: #08101f; border-color: var(--neon); color: var(--neon); border-radius: 0; }
+
+/* barre d'onglets : console néon */
+body[data-season="cyber"] .tabbar { background: linear-gradient(180deg, #0b1426, #03050b); border-top: 1px solid var(--neon); box-shadow: 0 -1px 14px rgb(25 230 255 / .35); }
+body[data-season="cyber"] .tabbar button { font-family: "Rajdhani", var(--body); font-weight: 700; text-transform: uppercase; color: #6f93ad; }
+body[data-season="cyber"] .tabbar button.on { color: var(--gold); background: linear-gradient(rgb(252 238 10 / .14), transparent 70%); text-shadow: 0 0 10px rgb(252 238 10 / .6); }
+body[data-season="cyber"] .tabbar.slid::before { background: linear-gradient(rgb(252 238 10 / .14), transparent 70%); box-shadow: inset 0 2px 0 var(--gold); }
+body[data-season="cyber"] .tabbar button.on svg { filter: drop-shadow(0 0 6px rgb(252 238 10 / .85)); }
+
+/* jauges : barre de données segmentée */
+body[data-season="cyber"] .bar { background: #03060d; border-color: var(--rim); border-radius: 0; }
+body[data-season="cyber"] .bar > span { border-radius: 0; background: repeating-linear-gradient(90deg, var(--neon) 0 6px, transparent 6px 8px), linear-gradient(90deg, rgb(25 230 255 / .3), rgb(255 43 214 / .3)); }
+
+/* en partie : table de la mégapole, zones en grille holographique, cartes à liseré néon */
+body[data-season="cyber"]:has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, #0e1a33, #05070f 70%), #05070f; }
+body.staged[data-season="cyber"]:has(#app.ingame) { background: #05070f; }
+body[data-season="cyber"] .zone { background: linear-gradient(rgb(25 230 255 / .06) 1px, transparent 1px) 0 0 / 14px 14px, linear-gradient(180deg, rgb(4 8 18 / .88), rgb(10 18 36 / .88)); border-color: #164a66; }
+body[data-season="cyber"] .terrain.set { background: linear-gradient(180deg, #11223e, #08101f); border-color: var(--neon); color: var(--neon); }
+body[data-season="cyber"] .hc, body[data-season="cyber"] .mc { border-color: #1f6f8e; box-shadow: 0 0 0 1px #000, 0 0 10px -2px rgb(25 230 255 / .45); }
+body[data-season="cyber"] .hc .seal { background: radial-gradient(circle at 35% 30%, #fffbb0, #fcee0a 50%, #8a7f00); color: #0a0a0a; }
+body[data-season="cyber"] .hc .p { color: var(--neon); background: radial-gradient(circle at 40% 30%, #12284a, #03060d 75%); box-shadow: 0 0 0 2px var(--neon), 0 0 8px rgb(25 230 255 / .6); }
+body[data-season="cyber"] .hc.sel { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold), 0 0 18px 2px rgb(252 238 10 / .55); }
+body[data-season="cyber"] .dock { background: linear-gradient(180deg, rgb(8 14 28 / .6), #03050b); border-top-color: var(--neon); }
+body[data-season="cyber"] .tturn b, body[data-season="cyber"] .tseals b { color: var(--gold); }
+
+/* ouverture des boosters et coffres */
+body[data-season="cyber"] .op { background: radial-gradient(circle at 50% 42%, #10234a 0, #070c1a 55%, #020308 100%); }
+body[data-season="cyber"] .op .op-skip { background: #08101f; border-color: var(--neon); border-radius: 0; color: var(--neon); }
+
+@media (prefers-reduced-motion: reduce) { body[data-season="cyber"] .top .title { animation: none; } }
+
+/* aperçu d'un thème dans la personnalisation et le passe */
+.theme-swatch { display: block; width: 44px; height: 30px; border: 1px solid #000; border-radius: 3px;
+  background: linear-gradient(135deg, var(--sa, #e3b552) 0 45%, var(--sb, #5a1624) 55% 100%); box-shadow: 0 0 8px -2px var(--sa, #e3b552); }
+.pgift .theme-swatch { width: 22px; height: 15px; }
+.theme-base { --sa: #e3b552; --sb: #5a1624; }
+.theme-cyber.theme-swatch { background: linear-gradient(rgb(25 230 255 / .35) 1px, transparent 1px) 0 0 / 6px 6px, linear-gradient(135deg, #fcee0a 0 30%, #05070f 30% 70%, #ff2bd6 70%); }

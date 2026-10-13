@@ -9,7 +9,8 @@ import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { TIERS, PLACES, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics,
   placeOf, placeShardsKey, placePrismsKey, placeTitles } from '@jeu/engine/ranked';
 import { ARTS, artExists, THEME_IDS } from '@jeu/engine/arts';
-import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seasonById, passTrack, refundTier, tierOf as passTierOf, weekOf, passMissionLabel, releasedCards, addMonths } from '@jeu/engine/pass';
+import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seasonById, passTrack, refundTier, tierOf as passTierOf, weekOf, passMissionLabel, releasedCards, addMonths,
+  currentSeason, THEME_TIER, SEASON_THEMES } from '@jeu/engine/pass';
 import { HttpError } from './accounts.js';
 
 const INBOX_MAX = 40;
@@ -85,6 +86,7 @@ export function createProgress(store) {
     if (r.title && !a.cosmetics.titles.includes(r.title)) a.cosmetics.titles.push(r.title);
     if (r.frame && !a.cosmetics.frames.includes(r.frame)) a.cosmetics.frames.push(r.frame);
     if (r.back && !a.cosmetics.backs.includes(r.back)) a.cosmetics.backs.push(r.back);
+    if (r.theme && !(a.cosmetics.themes ||= []).includes(r.theme)) a.cosmetics.themes.push(r.theme);
     if (r.art && ARTS[r.art] && !a.arts?.[r.art]) a.arts = { ...(a.arts || {}), [r.art]: { at: new Date().toISOString(), gift: true } };
     if (!silent) push(a, r);
     if (r.xp) addXp(a, r.xp);
@@ -329,7 +331,7 @@ export function createProgress(store) {
   // bonus (coffres de fin de passe ouverts) }. Tout repart à zéro à chaque saison ; les paliers sont donnés dès qu'ils sont atteints.
   // Renvoie null s'il n'y a pas de saison ce mois-ci.
   function pass(a) {
-    const season = seasonById(seasonId());
+    const season = currentSeason(today());
     if (!season || !a.level) return null;
     if (a.seasonPass?.season !== season.id) a.seasonPass = { season: season.id, xp: 0, premium: false, free: 0, prem: 0, bonus: 0, day: null, week: null, sm: {}, done: [] };
     const P = a.seasonPass, c = cfg(), day = today(), week = weekOf(day);
@@ -338,7 +340,8 @@ export function createProgress(store) {
     // Réglages changés depuis /admin (moins d'XP par palier) : les paliers atteints sont donnés tout de suite.
     const t = passTierOf(P.xp, c);
     // Arts Promo d'un palier déjà passé quand ils se gagnaient avec les missions de saison : donnés aussi.
-    if (t.tier > P.free || (P.premium && t.tier > P.prem) || t.bonus > (P.bonus || 0) || season.promo.some(p => p.tier <= P.free && ARTS[p.art] && !a.arts?.[p.art])) payTiers(a);
+    if (t.tier > P.free || (P.premium && t.tier > P.prem) || t.bonus > (P.bonus || 0) || season.promo.some(p => p.tier <= P.free && ARTS[p.art] && !a.arts?.[p.art])
+      || (P.free >= THEME_TIER && !a.cosmetics.themes?.includes(season.theme))) payTiers(a);
     return P;
   }
   // Missions du jour ou de la semaine : n sortes différentes, tirées parmi celles qui ont un objectif à cette échelle.
@@ -374,13 +377,15 @@ export function createProgress(store) {
     const P = a.seasonPass, season = seasonById(P.season), c = cfg(), tier = passTierOf(P.xp, c).tier, track = passTrack(season, c);
     const sum = { shards: 0, prisms: 0, chests: 0 };
     const give = (t, r, premium) => {
-      if (r.card || r.art || r.title || r.frame || r.back) grant(a, { kind: 'pass', label: `${season.name} : palier ${t}${premium ? ' premium' : ''}`, ...r });
+      if (r.card || r.art || r.title || r.frame || r.back || r.theme) grant(a, { kind: 'pass', label: `${season.name} : palier ${t}${premium ? ' premium' : ''}`, ...r });
       else { grant(a, r, { silent: true }); for (const k in sum) sum[k] += r[k] || 0; }
     };
     const from = Math.min(P.free, P.premium ? P.prem : P.free), onlyPremium = P.free >= tier;
     for (; P.free < tier; P.free++) give(P.free + 1, track[P.free].free, false);
     if (P.premium) for (; P.prem < tier; P.prem++) give(P.prem + 1, track[P.prem].premium, true);
     for (const p of season.promo) if (p.tier <= P.free && ARTS[p.art] && !a.arts?.[p.art]) give(p.tier, { art: p.art }, false);
+    // Thème de l'interface, pour qui avait passé son palier avant qu'il ne s'y gagne (octobre 2026).
+    if (P.free >= THEME_TIER && !a.cosmetics.themes?.includes(season.theme)) give(THEME_TIER, { theme: season.theme }, false);
     if (sum.shards || sum.prisms || sum.chests) push(a, { kind: 'pass', label: `${season.name}${onlyPremium ? ', premium' : ''} : ${tier - from > 1 ? `paliers ${from + 1} à ${tier}` : `palier ${tier}`}`, ...sum });
     for (const bonus = passTierOf(P.xp, c).bonus; (P.bonus || 0) < bonus; P.bonus = (P.bonus || 0) + 1) openBonus(a, season, c);
     checkAchievements(a);
@@ -437,7 +442,9 @@ export function createProgress(store) {
   const seasonCards = () => releasedCards(seasonId(), cfg().passCardMonths);
 
   // ---- Cosmétiques ----
-  async function equip(a, { title, frame, back }) {
+  // theme : thème de l'interface ; null suit la saison en cours, « base » garde le thème de base, sinon un thème débloqué.
+  async function equip(a, { title, frame, back, theme }) {
+    if (theme !== undefined) { if (theme !== null && theme !== 'base' && !a.cosmetics.themes?.includes(theme)) throw new HttpError(400, 'Thème non débloqué.'); a.uiTheme = theme; }
     if (title !== undefined) { if (title !== null && !a.cosmetics.titles.includes(title)) throw new HttpError(400, 'Titre non débloqué.'); a.title = title; }
     if (frame !== undefined) { if (frame !== null && !a.cosmetics.frames.includes(frame)) throw new HttpError(400, 'Cadre non débloqué.'); a.frame = frame; }
     if (back !== undefined) { if (!a.cosmetics.backs.includes(back)) throw new HttpError(400, 'Dos de carte non débloqué.'); a.back = back; }
@@ -470,15 +477,15 @@ export function createProgress(store) {
     looks: deck ? Object.fromEntries([...deck.cards, deck.general].filter(id => id && (a.cardLevels?.[id] || 1) > 1).map(id => [id, a.cardLevels[id]])) : {},
     arts: deck ? shownArts(a, [...deck.cards, deck.general]) : {} });
   function view(a) {
-    if (!a.level) return { ...levelView(a), freeBoosters: 0, missions: [], rerollsLeft: 0, inbox: [], badge: badge(a), cosmetics: { titles: [], frames: [], backs: [] }, cardLevels: levelsView(), pass: null };
+    if (!a.level) return { ...levelView(a), freeBoosters: 0, missions: [], rerollsLeft: 0, inbox: [], badge: badge(a), cosmetics: { titles: [], frames: [], backs: [], themes: [] }, cardLevels: levelsView(), pass: null };
     const ms = missions(a), c = cfg();
     return { ...levelView(a), freeBoosters: a.freeBoosters || 0,
       missions: ms.list.map(m => ({ label: missionLabel(m), n: m.n, target: m.target, done: m.done, xp: m.xp, shards: m.shards })),
       rerollsLeft: Math.max(0, c.missionRerolls - ms.rerolls), inbox: a.inbox || [], badge: badge(a), cardLevels: levelsView(), ranked: rankedView(a),
       freeChests: a.freeChests || 0, calendar: calendarView(a), pass: passSummary(a),
-      title: a.title, frame: a.frame, back: a.back,
+      title: a.title, frame: a.frame, back: a.back, theme: a.uiTheme ?? null,
       cosmetics: { titles: a.cosmetics.titles.map(id => ({ id, label: TITLES[id] || id })), frames: a.cosmetics.frames.map(id => ({ id, label: FRAMES[id] || id })),
-        backs: a.cosmetics.backs.map(id => ({ id, label: BACKS[id] || id })) } };
+        backs: a.cosmetics.backs.map(id => ({ id, label: BACKS[id] || id })), themes: (a.cosmetics.themes || []).map(id => ({ id, label: SEASON_THEMES[id] || id })) } };
   }
   // Succès et complétions avec leur avancement, pour la page de profil.
   function achievementsView(a) {
