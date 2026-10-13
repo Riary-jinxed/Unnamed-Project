@@ -84,6 +84,17 @@ async function init() {
     }
     lamp.tint = L.lamp; lamp.position.set(w / 2, h * 0.42); lamp.width = w * 1.6; lamp.height = h * 1.1;
     low.visible = !!L.low; if (L.low) { low.tint = L.low; low.position.set(w / 2, h * 1.02); low.width = w * 1.8; low.height = h * 0.7; }
+    if (L.moon) {
+      // pleine lune pâle en haut à droite, avec son halo, et quelques pierres tombales penchées sur les bords du bas
+      const mx = w * 0.82, my = h * 0.1, mr = Math.min(w, h) * 0.07;
+      wood.circle(mx, my, mr * 2.6).fill({ color: 0xffe6a0, alpha: 0.04 }).circle(mx, my, mr * 1.6).fill({ color: 0xffe6a0, alpha: 0.07 })
+        .circle(mx, my, mr).fill({ color: 0xf6ead0, alpha: 0.32 }).circle(mx - mr * 0.3, my - mr * 0.2, mr * 0.18).fill({ color: 0xc8b890, alpha: 0.25 });
+      for (const [x, s, tilt] of [[0.04, 1, -0.12], [0.13, 0.7, 0.08], [0.9, 0.85, 0.1], [0.97, 1.1, -0.06]]) {
+        const tw = 34 * s, th = 46 * s, bx = w * x, by = h + 4;
+        const pts = [[-tw / 2, 0], [-tw / 2, -th + tw / 2], [0, -th], [tw / 2, -th + tw / 2], [tw / 2, 0]].map(([px, py]) => [bx + px * Math.cos(tilt) - py * Math.sin(tilt), by + px * Math.sin(tilt) + py * Math.cos(tilt)]);
+        wood.poly(pts.flat()).fill({ color: 0x241830, alpha: 0.9 });
+      }
+    }
   };
   drawTable(); addEventListener('resize', drawTable);
   for (let i = 0; i < 26; i++) { const e = new Sprite(sparkTex); e.anchor.set(0.5); e.blendMode = 'add'; embers.addChild(ember(e, true)); }

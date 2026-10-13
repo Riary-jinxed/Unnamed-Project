@@ -13,12 +13,12 @@ export const PALETTE = {
 export const palette = () => PALETTE[season()] || PALETTE[''];
 
 // Table de partie (stage.js) : sol, planches (deux teintes et joint), lampe au-dessus du plateau et seconde lueur en bas,
-// grille néon (cyber), police et couleurs des annonces et du titre de fin.
+// grille néon (cyber), pleine lune (Halloween), police et couleurs des annonces et du titre de fin.
 const TABLE = {
   '': { ground: 0x140e0a, planks: [0x1c140e, 0x19110c], seam: 0x0a0604, lamp: 0xffc070, low: null, grid: null,
     font: 'Cinzel, Alegreya SC, serif', text: 0xffe8b0, stroke: 0x2a1606, band: 0x0c0806, edge: null },
   halloween: { ground: 0x120a16, planks: [0x1c1222, 0x170e1c], seam: 0x08040a, lamp: 0xff8a2a, low: 0x8a3cff, grid: null,
-    font: 'Cinzel, Alegreya SC, serif', text: 0xffd8a0, stroke: 0x2a0e30, band: 0x10081a, edge: 0xff8a2a },
+    font: 'Creepster, Cinzel, serif', text: 0xff9a3a, stroke: 0x1a0612, band: 0x10081a, edge: 0x8a3cff, moon: true },
   cyber: { ground: 0x05070f, planks: null, seam: null, lamp: 0x19e6ff, low: 0xff2bd6, grid: 0x19e6ff,
     font: 'Orbitron, Rajdhani, sans-serif', text: 0xfcee0a, stroke: 0x05070f, band: 0x060a16, edge: 0x19e6ff },
 };
