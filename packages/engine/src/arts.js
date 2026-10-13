@@ -6,6 +6,9 @@
 import { CARDS, GENERALS } from './engine.js';
 import { today } from './collection.js';
 
+// Arts préférés qu'un joueur montre sur son profil public (Profil, Personnalisation).
+export const MAX_FAV_ARTS = 3;
+
 // Raretés. price : prix par défaut en Prismes (réglable dans /admin) ; weight : chance relative de sortir
 // dans les offres du jour et dans le coffre. D'autres raretés pourront s'ajouter ici.
 export const ART_RARITIES = {

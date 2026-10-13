@@ -8,7 +8,7 @@ import { SETS, OWNABLE, today, setRevealed, setById } from '@jeu/engine/collecti
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { TIERS, PLACES, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics,
   placeOf, placeShardsKey, placePrismsKey, placeTitles } from '@jeu/engine/ranked';
-import { ARTS, artExists, THEME_IDS } from '@jeu/engine/arts';
+import { ARTS, artExists, THEME_IDS, MAX_FAV_ARTS } from '@jeu/engine/arts';
 import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seasonById, passTrack, refundTier, tierOf as passTierOf, weekOf, passMissionLabel, releasedCards, addMonths,
   currentSeason, THEME_TIER, SEASON_THEMES } from '@jeu/engine/pass';
 import { HttpError } from './accounts.js';
@@ -443,12 +443,20 @@ export function createProgress(store) {
 
   // ---- Cosmétiques ----
   // theme : thème de l'interface ; null suit la saison en cours, « base » garde le thème de base, sinon un thème débloqué.
-  async function equip(a, { title, frame, back, theme }) {
+  // favArts : jusqu'à MAX_FAV_ARTS arts possédés, montrés sur le profil public (dans l'ordre choisi).
+  async function equip(a, { title, frame, back, theme, favArts }) {
     if (theme !== undefined) { if (theme !== null && theme !== 'base' && !a.cosmetics.themes?.includes(theme)) throw new HttpError(400, 'Thème non débloqué.'); a.uiTheme = theme; }
     if (title !== undefined) { if (title !== null && !a.cosmetics.titles.includes(title)) throw new HttpError(400, 'Titre non débloqué.'); a.title = title; }
     if (frame !== undefined) { if (frame !== null && !a.cosmetics.frames.includes(frame)) throw new HttpError(400, 'Cadre non débloqué.'); a.frame = frame; }
     if (back !== undefined) { if (!a.cosmetics.backs.includes(back)) throw new HttpError(400, 'Dos de carte non débloqué.'); a.back = back; }
+    if (favArts !== undefined) {
+      if (!Array.isArray(favArts) || favArts.length > MAX_FAV_ARTS || new Set(favArts).size !== favArts.length
+        || favArts.some(id => typeof id !== 'string' || !a.arts?.[id] || !artExists(id))) throw new HttpError(400, `Arts préférés : ${MAX_FAV_ARTS} de vos arts au plus.`);
+      a.favArts = favArts;
+    }
   }
+  // Arts préférés encore possédés (un art retiré du jeu disparaît de la liste).
+  const favArts = a => (a.favArts || []).filter(id => a.arts?.[id] && artExists(id)).slice(0, MAX_FAV_ARTS);
 
   // ---- Niveaux de carte (cosmétiques) ----
   // Essence gagnée par doublon, propre à la carte. Le serveur la donne avec les Éclats du doublon (accounts.js).
@@ -522,7 +530,7 @@ export function createProgress(store) {
       missions: ms.list.map(m => ({ label: missionLabel(m), n: m.n, target: m.target, done: m.done, xp: m.xp, shards: m.shards })),
       rerollsLeft: Math.max(0, c.missionRerolls - ms.rerolls), inbox: a.inbox || [], badge: badge(a), cardLevels: levelsView(), ranked: rankedView(a),
       freeChests: a.freeChests || 0, calendar: calendarView(a), pass: passSummary(a),
-      title: a.title, frame: a.frame, back: a.back, theme: a.uiTheme ?? null,
+      title: a.title, frame: a.frame, back: a.back, theme: a.uiTheme ?? null, favArts: favArts(a),
       cosmetics: { titles: a.cosmetics.titles.map(id => ({ id, label: TITLES[id] || id })), frames: a.cosmetics.frames.map(id => ({ id, label: FRAMES[id] || id })),
         backs: a.cosmetics.backs.map(id => ({ id, label: BACKS[id] || id })), themes: (a.cosmetics.themes || []).map(id => ({ id, label: SEASON_THEMES[id] || id })) } };
   }
@@ -582,6 +590,6 @@ export function createProgress(store) {
     passPool: Object.fromEntries(Object.entries(PASS_KINDS).map(([k, x]) => [k, { daily: x.daily, weekly: x.weekly }])),
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
-  return { init, grant, cfg, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
+  return { init, grant, cfg, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
     seen: a => { a.inbox = []; } };
 }

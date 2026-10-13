@@ -903,3 +903,28 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .tile.todo .tile-foot { color: var(--accent); font-weight: 700; }
 .lobby .card-box.booster { padding: 8px 10px 8px 14px; gap: 8px; }
 .lobby .card-box.booster h2 { font-size: 17px; }
+
+/* Classement : un joueur s'ouvre en pop-up (profil public) ; le top 10 montre son image et son cadre. */
+.ladder .lwho { display: flex; align-items: center; gap: 10px; min-width: 0; border: 0; background: none; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ladder .lwho:hover b, .ladder .lwho:focus-visible b { text-decoration: underline; }
+.ladder li.top { padding-block: 10px; }
+.avatar.lav { width: 34px; height: 34px; border-width: 2px; }
+.avatar.lav.initials { font-size: 16px; }
+.frame.lav { padding: 3px; margin: 2px; }
+/* Profil public et Mon profil : cartes les plus jouées (version réduite), général le plus joué, arts préférés (illustration seule). */
+.topcards { display: grid; gap: 12px; }
+.topgen, .topfive { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.topgenrow { display: grid; grid-template-columns: calc((100% - 24px) / 5) 1fr; gap: 10px; align-items: center; line-height: 1.3; }
+.topgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.topcard { display: grid; gap: 4px; justify-items: stretch; text-align: center; align-content: start; min-width: 0; }
+.topcard > small { overflow-wrap: anywhere; line-height: 1.2; }
+.mc.topmc { height: clamp(72px, 22vw, 104px); font: inherit; text-align: left; width: 100%; }
+.mc.topmc .p.sm { font-family: inherit; font-size: 10px; }
+.favgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-width: 420px; }
+.favart { display: block; border: 0; padding: 0; background: none; border-radius: 4px; width: 100%; }
+.favpick { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.favopt { position: relative; display: grid; gap: 4px; justify-items: stretch; align-content: start; text-align: center; font-size: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 6px; color: inherit; }
+.favopt > .art { pointer-events: none; }
+.favopt.on { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.favopt:disabled:not(.on) { opacity: .45; }
+.favopt .favn { position: absolute; top: 2px; left: 2px; z-index: 3; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 13px; }

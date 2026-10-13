@@ -99,7 +99,8 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/decks/rename`, `/play`, `/reset`, `/delete` | Renomme, joue, vide ou supprime un deck (`{ id }`). |
 | `PUT /api/deck` | Ancienne route : enregistre le deck joué. |
 | `PUT /api/profile` | Pseudo et/ou image de profil. |
-| `GET /api/profile` | Stats du joueur, succès, avancement des familles et des sets. |
+| `GET /api/profile` | Stats du joueur (dont ses 5 cartes les plus jouées, `cards`), succès, avancement des familles et des sets. |
+| `GET /api/player?login=…` | Profil public d'un joueur (pop-up du classement) : image, cadre, titre, niveau, victoires, général et cartes les plus joués, arts préférés, rang de la saison, lien d'ami avec vous (`friend`). |
 | `GET /api/shop` | Boutique : prix et offres du jour par set. |
 | `POST /api/shop/card`, `/api/shop/booster` | Achète une carte du jour ou un booster (`free: true` : booster offert). |
 | `POST /api/missions/reroll` | Remplace une mission (`{ index }`). |
@@ -107,7 +108,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `GET /api/mail` | Courrier du joueur (`mail` : messages visibles, lus, récompense récupérée). `account.mail` compte les messages non lus ou à récupérer. |
 | `POST /api/mail/read`, `/claim`, `/claim-all`, `/hide` | Marque lu, récupère une récompense (ou toutes), supprime un message déjà récupéré. |
 | `POST /api/redeem` | Utilise un code cadeau `{ code }`, une fois par compte. |
-| `PUT /api/cosmetics` | Change le titre, le cadre, le dos de carte porté ou le thème de l'interface (`theme`). |
+| `PUT /api/cosmetics` | Change le titre, le cadre, le dos de carte porté ou le thème de l'interface (`theme`), et les 3 arts préférés du profil public (`favArts`). |
 | `POST /api/shop/art`, `/api/shop/chest` | Arts alternatifs (`arts.js`) : payés en Prismes. `{ art }` achète un art du jour ; le coffre donne un art classique pas encore possédé, au hasard selon sa rareté (`{ free: true }` : avec un coffre offert). Renvoie `art` et la boutique à jour. |
 | `POST /api/shop/convert` | `{ offer }` : change des Prismes en Éclats par une offre fixe (`exchangeOffers` du moteur, bâties sur le taux `prismShards` ; 0 : fermé). Jamais l'inverse ni au détail. |
 | `GET /api/pass` | Passe de saison du mois (`pass`, `null` sans saison) : paliers gratuits et premium, missions du jour, de la semaine et de la saison, arts Promo (palier de la piste gratuite), prix du premium et palier où il est remboursé. |
@@ -121,7 +122,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/shop/dup` | `{ card }` : achète un doublon du jour (`dupPrice` Éclats) ; il donne `essencePerDuplicate` essence de la carte (au-delà du plafond, de l'essence universelle), sans Éclats. |
 | `POST /api/shop/essence-art` | `{ art }` : achète un art de l'édition Essence avec l'essence universelle (`essArtPrice_<rareté>`). Renvoie `art`, la boutique et le compte. |
 | `POST /api/games/solo` | Résultat d'une partie contre l'IA (non classée) → récompenses. |
-| `GET /api/ranked` | Mode classé : rang du joueur (`ranked`), classement de la saison (`ladder`), récompenses de fin de saison par palier (`rewards`) et par place au classement final (`places`), podium figé de la saison précédente (`last`, ou `null`). |
+| `GET /api/ranked` | Mode classé : rang du joueur (`ranked`), classement de la saison (`ladder`, avec l'image de profil du top 10), récompenses de fin de saison par palier (`rewards`) et par place au classement final (`places`), podium figé de la saison précédente (`last`, ou `null`). |
 | `GET /api/friends` | Amis (avec statut `online`, `game` ou `off`, niveau, titre, cadre, empreinte de l'image), demandes reçues et envoyées, défi en cours. |
 | `GET /api/friends/avatars` | Images de profil des amis et des demandes (l'appli ne les redemande que si leur empreinte change). |
 | `POST /api/friends/add` | Demande d'ami (`{ name }` : identifiant, ou pseudo s'il n'est porté que par un joueur). Si l'autre avait déjà demandé, vous devenez amis. |
