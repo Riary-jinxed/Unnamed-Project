@@ -1,6 +1,6 @@
 // Événements temporaires (packages/engine/src/events.js) : la liste réglée depuis /admin (document « evenements » = { list }),
 // les multiplicateurs appliqués par progress.js, ce que voit le joueur et les routes de l'administration.
-import { DEFAULT_EVENTS, EVENT_EFFECTS, EVENT_WHEN, MAX_EVENTS, MULTS, occurrence, isLive, liveEvents, multiplier, daysLeft } from '@jeu/engine/events';
+import { DEFAULT_EVENTS, EVENT_EFFECTS, EVENT_WHEN, MAX_EVENTS, MULTS, occurrence, isLive, liveEvents, multiplier, daysLeft, dayEnd, periodLabel, multLabel } from '@jeu/engine/events';
 import { today } from '@jeu/engine/collection';
 import { HttpError } from './accounts.js';
 
@@ -10,14 +10,16 @@ export function createEvents(store) {
   const list = () => (store.doc('evenements') || {}).list || DEFAULT_EVENTS;
   const mult = (effect, day = today()) => multiplier(list(), effect, day);
 
-  // Pour l'appli : les événements en cours (avec leur dernier jour) et le prochain à venir dans les 14 jours.
+  // Pour l'appli : les événements en cours, avec leur période et l'instant où ils finissent (pastilles de l'accueil et leur pop-up).
   function view(day = today()) {
-    const live = liveEvents(list(), day).map(ev => { const o = occurrence(ev, day);
-      return { id: ev.id, name: ev.name, effect: ev.effect, mult: ev.mult, to: o.to, daysLeft: daysLeft(o, day) }; });
-    const next = list().filter(ev => ev.on && !isLive(ev, day)).map(ev => ({ ev, o: occurrence(ev, day) }))
-      .filter(x => x.o && x.o.from > day && daysLeft({ to: x.o.from }, day) <= 15).sort((x, y) => x.o.from.localeCompare(y.o.from))[0];
-    return { live, next: next ? { id: next.ev.id, name: next.ev.name, effect: next.ev.effect, mult: next.ev.mult, from: next.o.from } : null };
+    return { live: liveEvents(list(), day).map(ev => { const o = occurrence(ev, day);
+      return { id: ev.id, name: ev.name, effect: ev.effect, mult: ev.mult, from: o.from, to: o.to, period: periodLabel(o), ends: dayEnd(o.to), daysLeft: daysLeft(o, day) }; }) };
   }
+  // Un message du courrier par événement en cours (mail.js) : il apparaît au début de la période et disparaît à sa fin.
+  // Son identifiant change à chaque période : un week-end double XP lu reste lu, le suivant arrive comme un nouveau message.
+  const mails = (day = today()) => view(day).live.map(ev => ({ id: `ev-${ev.id}-${ev.from}`, at: `${ev.from}T06:00:00.000Z`,
+    kind: 'event', title: `${ev.name} : ${multLabel(ev.mult)} ${EVENT_EFFECTS[ev.effect].chip}`, until: ev.to, reward: null, to: null,
+    body: `${ev.name[0].toUpperCase()}${ev.name.slice(1)} ${ev.period} : ${multLabel(ev.mult)} sur les ${EVENT_EFFECTS[ev.effect].what}.${ev.effect === 'ranked' ? ' Les défaites ne retirent toujours qu\'une étoile.' : ''} Profitez-en !` }));
 
   // ---- /admin ----
   const adminView = () => ({ list: list().map(ev => ({ ...ev, live: isLive(ev), period: occurrence(ev) })), defaults: DEFAULT_EVENTS,
@@ -47,6 +49,6 @@ export function createEvents(store) {
     return adminView();
   }
 
-  return { list, mult, view,
+  return { list, mult, view, mails,
     routes: { 'GET /api/admin/events': () => adminView(), 'POST /api/admin/events': (_, body) => save(body || {}) } };
 }

@@ -1005,16 +1005,15 @@ function renderHome() {
   // et autour des tuiles (passe, missions, calendrier) qui ouvrent chacune leur écran ou leur feuille.
   const hero = g ? heroHTML(d.general, mySel(d.general)) : '';
   const cal = p.calendar;
-  const ev = p.events;
   return `
   <div class="top hometop hud"><button class="profile-btn" data-act="profile" aria-label="Mon profil">${avatarHTML(a)}</button>
     <button class="hud-id" data-act="profile"><b>${esc(a.name)}</b><span class="hud-lv num">Niv. ${p.level}<span class="bar" aria-hidden="true"><span style="width:${pct(p.xp, p.xpNext)}%"></span></span></span></button>
     <span class="wallet">${walletHTML()}</span>${mail.button()}${muteBtn()}</div>
   <div class="setup home lobby">
     ${gift}
-    ${ev ? eventsHTML(ev) : ''}
     <section class="showcase" style="${g ? famVar([g.fam]) : ''}" data-fam="${esc(g?.fam || '')}">
       <div class="sc-art">${hero || `<span class="sc-init" aria-hidden="true">${esc((g?.name || '?')[0])}</span>`}</div>
+      ${eventChips(p.events?.live || [])}
       ${p.ranked ? `<button class="sc-rank" data-act="ranked" aria-label="Classement">${rankHTML(p.ranked.rank)}<small>${esc(p.ranked.seasonName)}</small></button>` : ''}
       <button class="sc-deck" data-act="decks"><span class="eyebrow">Deck joué</span><b>${esc(d ? d.name : 'Aucun deck')}</b>${g ? `<small>${esc(g.name)}</small>` : ''}<span class="sc-change">Changer</span></button>
     </section>
@@ -1037,15 +1036,29 @@ function renderHome() {
 }
 // ---- Événements temporaires ----
 // Week-end double XP, semaine double points de classé… : réglés depuis /admin, appliqués par le serveur (events.js du moteur).
-const evLeft = ev => (ev.daysLeft > 1 ? `encore ${ev.daysLeft} jours` : 'dernier jour');
 function eventCard(ev, text) {
   return `<div class="card-box evcard ev-${esc(ev.effect)}"><span class="evmult num">${multLabel(ev.mult)}</span>
-    <div><span class="eyebrow">Événement · ${evLeft(ev)}</span><b>${esc(ev.name)}</b><small>${text}</small></div></div>`;
+    <div><span class="eyebrow">Événement · ${evRemaining(ev)}</span><b>${esc(ev.name)}</b><small>${text}</small></div></div>`;
 }
-function eventsHTML(E) {
-  const live = E.live.map(ev => eventCard(ev, `${multLabel(ev.mult)} sur les ${esc(EVENT_EFFECTS[ev.effect]?.what || '')}, jusqu'au ${esc(frDate(ev.to))} à minuit.${ev.effect === 'ranked' ? ' <button class="evgo" data-act="ranked">Jouer en classé</button>' : ''}`)).join('');
-  const next = E.next ? `<p class="evnext">Bientôt : <b>${esc(E.next.name)}</b>, dès ${esc(frDate(E.next.from))}.</p>` : '';
-  return live + next;
+// Pastilles « ×2 XP », « ×2 PC » en haut à gauche de la vitrine de l'accueil ; chacune ouvre la feuille de son événement.
+const eventChips = evs => (evs.length ? `<div class="sc-events">${evs.map(ev => `<button class="evchip ev-${esc(ev.effect)}" data-act="event" data-ev="${esc(ev.id)}"
+  aria-label="Événement ${esc(ev.name)}">${multLabel(ev.mult)} ${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}</button>`).join('')}</div>` : '');
+// Temps qui reste avant la fin (minuit, heure de Paris) : en jours, puis en heures le dernier jour.
+function evRemaining(ev) {
+  if (ev.daysLeft > 1) return `encore ${ev.daysLeft} jours`;
+  const h = Math.max(0, Math.ceil((Date.parse(ev.ends) - Date.now()) / 3600000));
+  return h > 1 ? `encore ${h} heures` : 'dernière heure';
+}
+function eventSheet(ev) {
+  const what = EVENT_EFFECTS[ev.effect];
+  return `<div class="sheet" data-act="close"><div class="panel" data-stop="1" role="dialog" aria-label="${esc(ev.name)}">
+    <div class="ph"><h2>${esc(ev.name)}</h2><button class="btn" data-act="close">Fermer</button></div>
+    <div class="evcard ev-${esc(ev.effect)}"><span class="evmult num">${multLabel(ev.mult)}</span>
+      <div><span class="eyebrow">Événement · ${evRemaining(ev)}</span><b>${multLabel(ev.mult)} sur les ${esc(what?.what || '')}</b>
+      <small>${esc(ev.period[0].toUpperCase() + ev.period.slice(1))}, jusqu'à minuit (heure de Paris).</small></div></div>
+    ${ev.effect === 'ranked' ? `<p class="hint" style="margin:0">Chaque victoire classée rapporte ${multLabel(ev.mult)} étoiles, bonus de série compris. Une défaite n'en retire toujours qu'une.</p>
+      <div class="row"><button class="btn primary" data-act="ranked">Jouer en classé</button></div>` : ''}
+  </div></div>`;
 }
 // Monnaies du joueur, en haut de l'accueil : chacune ouvre le rayon de la boutique où elle se dépense.
 function walletHTML() {
@@ -1601,6 +1614,7 @@ function sheetHTML() {
       <div class="row"><button class="btn primary" data-act="close">Super !</button></div></div></div>`;
   }
   if (ui.sheet === 'calendar' && prog().calendar) return calendarHTML(prog().calendar);
+  if (ui.sheet === 'event') { const ev = prog().events?.live.find(x => x.id === ui.evSel); if (ev) return eventSheet(ev); }
   if (ui.sheet === 'mail-got') return mail.gotSheet();
   if (ui.sheet === 'art' && ui.gotArt) {
     const art = ARTS[ui.gotArt.id], on = mySel(art.card) === art.id;
@@ -2029,7 +2043,7 @@ app.addEventListener('click', e => {
     else if (a === 'quit') {
       if (ui.screen === 'game' && ui.view?.ranked && ui.view.phase !== 'over' && !confirm('Quitter une partie classée en cours compte comme une défaite. Quitter quand même ?')) return;
       quit(); }
-    else if (a === 'ranked') openRanked();
+    else if (a === 'ranked') { ui.sheet = null; openRanked(); }
     else if (a === 'pass') openPass();
     else if (a === 'pass-buy' && !ui.busy) buyPass();
     else if (a === 'ranked-play') goRanked();
@@ -2056,6 +2070,7 @@ app.addEventListener('click', e => {
     else if (a === 'shop-change') { ui.need = null; ui.sheet = null; ui.zoom = null; openShop('change'); }
     else if (a === 'chest-info') { ui.sheet = 'chest-info'; render(); }
     else if (a === 'calendar') { ui.sheet = 'calendar'; ui.calGot = null; render(); }
+    else if (a === 'event') { ui.sheet = 'event'; ui.evSel = t.dataset.ev; render(); }
     else if (a === 'claim-day' && !ui.busy) claimDay();
     else if (a === 'art-pick' && !ui.busy) selectArt(ds.card, ds.art);
     else if (a === 'holo-toggle' && !ui.busy) toggleHolo(ds.card);
