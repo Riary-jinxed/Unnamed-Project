@@ -46,6 +46,7 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `client/src/net.js` | 75 | Connexion WebSocket avec reconnexion automatique. |
 | `client/src/friends.js` | ~180 | Écran des amis, bandeau de défi, choix du deck pour une partie entre amis. |
 | `client/src/solo.js` | 25 | Partie contre l'IA, entièrement dans le navigateur. |
+| `client/src/history.js` | ~170 | Onglet Historique du profil : bilan du joueur, dernières parties et détail de chacune (pas de replay). |
 | `client/src/api.js` | 10 | Appel JSON à l'API avec la session. |
 | `client/src/common.js` | 10 | Couleur de famille et échappement HTML, partagés par l'appli et `/admin`. |
 | `client/src/sfx.js` | ~70 | Bruitages synthétisés (Web Audio). |
@@ -80,7 +81,7 @@ Reprise après une coupure réseau : le siège reste gardé au joueur. Une page 
 
 ## Partie contre l'IA
 
-Elle tourne entièrement dans le navigateur (`client/src/solo.js`) avec le même moteur : l'IA choisit son plan avec `aiPlan`, puis `runTurn` résout le tour. Seul le résultat est envoyé au serveur (`POST /api/games/solo`), qui l'enregistre et calcule les récompenses à partir du deck enregistré sur le compte.
+Elle tourne entièrement dans le navigateur (`client/src/solo.js`) avec le même moteur : l'IA choisit son plan avec `aiPlan`, puis `runTurn` résout le tour. Seuls le résultat et le détail de la partie pour l'historique (`gameDetail`) sont envoyés au serveur (`POST /api/games/solo`), qui l'enregistre et calcule les récompenses à partir du deck enregistré sur le compte.
 
 ## Appels d'API
 

@@ -1,5 +1,5 @@
 // Partie contre l'IA : le même moteur tourne directement dans le navigateur.
-import { newGame, startTurn, runTurn, aiSearch, viewFor, pick } from '@jeu/engine';
+import { newGame, startTurn, runTurn, aiSearch, viewFor, pick, gameDetail } from '@jeu/engine';
 import { aiDeckKeys } from '@jeu/engine/collection';
 import { aiReply } from '@jeu/engine/emotes';
 
@@ -12,7 +12,7 @@ const TRIES = 250, SLICE = 10;
 // la partie (bonus de zone…), badges montre ses arts (badges[1].arts), et onOver(résultat) remplace l'envoi au serveur d'une partie contre l'IA.
 export function startSolo(handlers, { name, deck, foe = null, foeName = 'IA', tries = TRIES, setup = null, badges = null, onOver = null }) {
   const names = [name, foeName];
-  let st, ready = false, stopped = false, think = null;
+  let st, ready = false, stopped = false, think = null, startedAt = 0;
   const emit = flash => !stopped && handlers.onView(viewFor(st, 0, { flash, ready: { me: ready, foe: true }, names, connected: [true, true], ...(badges ? { badges } : {}) }));
   // Réflexion de l'IA pour le tour en cours. La partie ne change pas pendant la préparation : le plan reste valable.
   function startThinking() {
@@ -34,6 +34,7 @@ export function startSolo(handlers, { name, deck, foe = null, foeName = 'IA', tr
   function begin() {
     st = newGame(deck, foe || pick(aiDeckKeys()), names, { generals: [deck.general, foe ? foe.general : null] });
     if (setup) setup(st);
+    startedAt = Date.now();
     startTurn(st); st.phase = 'plan'; ready = false; emit(null); startThinking();
   }
   begin();
@@ -48,7 +49,7 @@ export function startSolo(handlers, { name, deck, foe = null, foeName = 'IA', tr
       // Fin de partie : résultat envoyé au serveur pour les statistiques (ou à la quête d'histoire).
       if (st.over && !stopped && onOver) onOver({ winner: st.result.winner, reason: st.result.reason, zones: st.result.zones });
       else if (st.over && !stopped && handlers.onSoloOver) handlers.onSoloOver({ winner: st.result.winner, reason: st.result.reason, zones: st.result.zones, played: st.p[0].played,
-        ai: { deckKey: st.p[1].deckKey, general: st.p[1].general, played: st.p[1].played } });
+        ai: { deckKey: st.p[1].deckKey, general: st.p[1].general, played: st.p[1].played }, detail: gameDetail(st), ms: Date.now() - startedAt });
     },
     // Émote du joueur : montrée tout de suite ; l'IA répond parfois aux politesses.
     emote(id) {

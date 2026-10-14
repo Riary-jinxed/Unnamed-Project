@@ -144,7 +144,7 @@ function startMatch(room) {
   room.st = room.boss ? newBossGame(decks[0], room.boss, room.seats[0].name)
     : newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => (typeof d === 'string' ? null : d.general)) });
   startTurn(room.st); room.st.phase = 'plan';
-  room.plans = [null, null]; room.rematch = [false, false]; room.rewards = null;
+  room.plans = [null, null]; room.rematch = [false, false]; room.rewards = null; room.startedAt = Date.now();
   room.seats.forEach((s, i) => { const acc = accounts.byToken(s.auth); if (acc) { s.badge = accounts.progress.badge(acc, decks[i]); s.avatar = acc.avatar || null; } s.avatarsSent = false; s.emotes = 0; });
   // Le boss se montre avec son art (portrait).
   if (room.boss) room.seats[1].badge = { boss: true, arts: { [room.boss]: GENERALS[room.boss].art }, looks: {}, borders: {} };
@@ -171,7 +171,6 @@ async function endMatch(room) {
     room.seats.forEach(s => s && stopAway(s));
     room.st.recorded = true;
     const mode = room.ranked === 'ai' ? 'pve' : 'pvp';
-    games.recordPvp(room.st, room.seats.map(s => s.login), room.decks, { mode, ranked: !!room.ranked });
     // Récompenses de fin de partie (et rang en classé), affichées à chacun sur l'écran de fin.
     const { winner, zones } = room.st.result;
     const result = i => (winner === i ? 'win' : winner < 0 ? 'draw' : 'loss');
@@ -183,6 +182,9 @@ async function endMatch(room) {
         zones: room.st.result.forfeit ? 0 : zones.filter(z => z === i).length, friend: !!room.invite, ranked: !!room.ranked }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
       return reward && ranks[i] ? { ...reward, ranked: ranks[i] } : reward;
     }));
+    // Enregistrée avec ce que chacun a gagné, pour l'historique des joueurs.
+    const kind = room.ranked === 'ai' ? 'classe-ia' : room.ranked === 'friend' ? 'defi-classe' : room.invite ? 'defi' : 'salon';
+    games.recordPvp(room.st, room.seats.map(s => s.login), room.decks, { mode, ranked: !!room.ranked, kind, ms: Date.now() - (room.startedAt || Date.now()), rewards: room.rewards });
   }
   broadcast(room);
 }

@@ -25,6 +25,8 @@ for (let r = 0; r < rounds; r++) for (const a of keys) for (const b of keys) {
     hash.update(JSON.stringify(plans));
     await runTurn(st, plans, flash => hash.update(`${JSON.stringify(viewFor(st, 0))}${JSON.stringify(viewFor(st, 1))}${flash}`), async () => {});
   }
-  hash.update(JSON.stringify(st));
+  // La trace de l'historique des joueurs (gameDetail) n'est pas une règle : laissée hors de l'empreinte.
+  const { trace: _, ...rest } = st;
+  hash.update(JSON.stringify(rest));
 }
 console.log(`${n} parties, empreinte ${hash.digest('hex').slice(0, 16)} (${Date.now() - t0} ms)`);
