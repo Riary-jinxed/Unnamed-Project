@@ -81,4 +81,6 @@ export default {
   'Une créature du deck de ⟦{p}⟧ perd 2.': 'A creature in ⟦{p}|@\'s|your⟧ deck loses 2.',
   "⟦{p}⟧ : {card} en main +1 sceau, -1 puissance.": "⟦{p}⟧: {card} in hand +1 seal, -1 power.",
   "⟦{p}⟧ : {card} en main -1 sceau, +1 puissance.": "⟦{p}⟧: {card} in hand -1 seal, +1 power.",
+  "Partie interrompue : {reason}.": "Game interrupted: {reason}.",
+  "interrompue par une mise à jour du jeu": "interrupted by a game update",
 };

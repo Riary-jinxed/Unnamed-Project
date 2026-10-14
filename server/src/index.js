@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { WebSocketServer } from 'ws';
-import { DECKS, GENERALS, newGame, startTurn, runTurn, viewFor, aiPlan, pick, forfeitGame, bossStep } from '@jeu/engine';
+import { DECKS, GENERALS, newGame, startTurn, runTurn, viewFor, aiPlan, pick, forfeitGame, interruptGame, bossStep } from '@jeu/engine';
 import { newBossGame, bossScore } from '@jeu/engine/boss';
 import { tierOf } from '@jeu/engine/ranked';
 import { EMOTE_COOLDOWN_MS, EMOTE_MAX, aiReply } from '@jeu/engine/emotes';
@@ -428,3 +428,27 @@ setInterval(() => {
 }, 60_000);
 
 server.listen(PORT, () => console.log(`Serveur de parties sur http://localhost:${PORT}`));
+
+// Arrêt du serveur (mise à jour sur Render : SIGTERM, puis arrêt forcé ~30 s plus tard). Les parties en cours vivent en mémoire :
+// elles sont enregistrées dans l'historique comme interrompues (sans victoire, défaite, récompense ni changement de rang),
+// et les joueurs voient l'écran de fin avec la raison. Les tentatives contre le boss sont laissées telles quelles.
+let stopping = false;
+async function shutdown(signal) {
+  if (stopping) return; stopping = true;
+  console.log(`${signal} : arrêt du serveur, parties en cours enregistrées comme interrompues.`);
+  const saves = [];
+  for (const room of rooms.values()) {
+    const st = room.st; if (!st || st.over || st.recorded || room.boss) continue;
+    try {
+      room.seats.forEach(s => s && stopAway(s));
+      interruptGame(st, msg('interrompue par une mise à jour du jeu'));
+      st.recorded = true; room.plans = [null, null];
+      const kind = room.ranked === 'ai' ? 'classe-ia' : room.ranked === 'friend' ? 'defi-classe' : room.invite ? 'defi' : 'salon';
+      saves.push(games.recordPvp(st, room.seats.map(s => s && s.login), room.decks, { mode: room.ranked === 'ai' ? 'pve' : 'pvp', ranked: !!room.ranked, kind, ms: Date.now() - (room.startedAt || Date.now()) }));
+      broadcast(room);
+    } catch (e) { console.error('Partie interrompue non enregistrée :', e); }
+  }
+  await Promise.race([Promise.allSettled(saves), new Promise(r => setTimeout(r, 15_000))]);
+  process.exit(0);
+}
+for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => { shutdown(signal); });

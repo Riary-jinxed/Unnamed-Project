@@ -51,4 +51,5 @@ export default {
   'Détail de la partie': 'Match details',
   'Partie arrêtée : {reason}': 'Match stopped: {reason}',
   "Voir l'historique détaillé": 'See detailed history',
+  'Interrompue': 'Interrupted',
 };

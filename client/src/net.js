@@ -22,7 +22,7 @@ export function connectOnline(handlers, firstMsg) {
       if (m.t === 'pong') return;
       tries = 0; link(true);
       if (m.t === 'lobby') { session = { room: m.room, token: m.token }; handlers.onLobby(m); }
-      else if (m.t === 'state') { view = m.view; settle(); handlers.onView(m.view, m.room); }
+      else if (m.t === 'state') { view = m.view; settle(); handlers.onView(m.view, m.room); if (m.view.result?.interrupted) stop(); } // serveur arrêté : plus de reprise
       else if (m.t === 'emote') handlers.onEmote?.(m.seat, m.id);
       else if (m.t === 'error') { stop(); handlers.onError(m.msg); }
       else if (m.t === 'gone') { stop(); handlers.onGone(); }

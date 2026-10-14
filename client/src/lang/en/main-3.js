@@ -173,4 +173,5 @@ export default {
   'Lien copié': 'Link copied',
   'Quitter une partie classée en cours compte comme une défaite. Quitter quand même ?': 'Leaving a ranked match in progress counts as a defeat. Leave anyway?',
   'Quitter la tentative la termine avec votre plateau actuel : elle compte comme jouée. Quitter quand même ?': 'Leaving ends the attempt with your current board: it counts as played. Leave anyway?',
+  'Partie interrompue': 'Game interrupted',
 };
