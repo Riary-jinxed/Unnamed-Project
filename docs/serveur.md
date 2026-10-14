@@ -49,7 +49,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `lvLook` | Bordure choisie, quand ce n'est pas celle du niveau (`{ id: 1..niveau − 1 }`). L'adversaire la voit (`badge.borders`) ; le reflet et le débordement restent ceux du niveau. |
 | `uniEssence` | Essence universelle : l'essence des doublons au-delà du plafond d'une carte (de quoi la monter jusqu'au niveau maximum). |
 | `dupShop` | Doublons du jour : `{ date, rotation, n, offers, bought }`. |
-| `decks`, `active` | Jusqu'à 5 decks `{ id, name, general, terrains, cards }` ; identifiant du deck joué. |
+| `decks`, `active` | Jusqu'à 10 decks `{ id, name, general, terrains, cards }` ; identifiant du deck joué. |
 | `lastBooster` | Jour du dernier booster quotidien ouvert. |
 | `shop` | Par set : `{ date, rotation, offers, bought }`, les cartes du jour du joueur. |
 | `level`, `xp`, `freeBoosters` | Niveau, XP vers le niveau suivant, boosters offerts à ouvrir. |

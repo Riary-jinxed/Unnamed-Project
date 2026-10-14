@@ -77,7 +77,7 @@ export function deckError(deck, account) {
 }
 
 // Plusieurs decks par joueur. Un deck en cours de création peut être incomplet : il n'est jouable qu'une fois complet.
-export const MAX_DECKS = 5;
+export const MAX_DECKS = 10;
 // Renvoie un message d'erreur, ou null si ce deck (complet ou non) respecte la collection et les règles.
 export function draftError(deck, account) {
   const owned = account.cards || {};
