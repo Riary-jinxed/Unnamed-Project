@@ -14,7 +14,7 @@ Au démarrage, dans l'ordre : ouverture du stockage, chargement des comptes (ave
   | --- | --- | --- |
   | `comptes` | `login` (clé), `data` (jsonb), `updated_at` | Un compte entier par ligne. |
   | `reglages` | `cle` (clé), `data` (jsonb), `updated_at` | Documents de réglages, voir ci-dessous. |
-  | `parties` | `id`, `data` (jsonb), `created_at` | Une partie terminée par ligne (stats). |
+  | `parties` | `id`, `data` (jsonb), `created_at` | Une partie terminée par ligne (stats de `/admin`, historique des joueurs : voir « Partie enregistrée »). |
 
 - **Sinon** (développement) : fichiers `server/data/comptes.json`, `reglages.json` et `parties.json`, réécrits en entier à chaque changement (écriture dans un fichier temporaire puis renommage).
 
@@ -29,7 +29,7 @@ Documents de la table `reglages` :
 | `brouillon` | onglets Cartes et Sets | Catalogue en cours de modification. |
 | `catalogue` | « Publier dans le jeu » | Catalogue publié, appliqué au moteur. |
 | `evenements` | onglet Événements | `{ list }` : événements temporaires (`events.js` du moteur). Absent ou vide : `DEFAULT_EVENTS`. |
-| `compteurs` | `activity.js` | Par jour (`AAAA-MM-JJ`, heure de Paris, 400 jours au plus) : boosters du jour, achetés et offerts ouverts, cartes du jour achetées, coffres d'arts ouverts, arts achetés, changes de Prismes en Éclats. Pour l'onglet Stats. |
+| `compteurs` | `activity.js` | Par jour (`AAAA-MM-JJ`, heure de Paris, 400 jours au plus) : boosters du jour, achetés et offerts ouverts, cartes du jour achetées, coffres d'arts ouverts, arts achetés, changes de Prismes en Éclats. Pour l'onglet Stats. Aussi, pour l'onglet Suivi : tentatives contre le boss (`bossRuns`) et achats à son magasin (`bossBuys`), chapitres gagnés (`storyChapters`), émotes envoyées en ligne et contre l'IA (`emotesOnline`, `emotesSolo`, et `emote:<id>` pour chacune), émotes achetées (`emotesBought`), codes de deck copiés (`deckShared`), decks importés d'un code ou bâtis d'une recette (`deckImported`, `deckRecipe`), notifications envoyées et touchées par sorte (`pushSent:<sorte>`, une par joueur ; `pushOpened:<sorte>`). |
 | `push` | `push.js` | `keys` : clés VAPID des notifications (créées au premier démarrage, sauf si `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY` sont définies) ; `sent` : envois planifiés déjà faits (`ev-<événement>-<premier jour>`, `saison-<AAAA-MM>`), 60 jours. |
 
 ## Compte joueur
@@ -49,7 +49,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `lvLook` | Bordure choisie, quand ce n'est pas celle du niveau (`{ id: 1..niveau − 1 }`). L'adversaire la voit (`badge.borders`) ; le reflet et le débordement restent ceux du niveau. |
 | `uniEssence` | Essence universelle : l'essence des doublons au-delà du plafond d'une carte (de quoi la monter jusqu'au niveau maximum). |
 | `dupShop` | Doublons du jour : `{ date, rotation, n, offers, bought }`. |
-| `decks`, `active` | Jusqu'à 5 decks `{ id, name, general, terrains, cards }` ; identifiant du deck joué. |
+| `decks`, `active` | Jusqu'à 10 decks `{ id, name, general, terrains, cards }` ; identifiant du deck joué. |
 | `lastBooster` | Jour du dernier booster quotidien ouvert. |
 | `shop` | Par set : `{ date, rotation, offers, bought }`, les cartes du jour du joueur. |
 | `level`, `xp`, `freeBoosters` | Niveau, XP vers le niveau suivant, boosters offerts à ouvrir. |
@@ -59,6 +59,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `freeChests` | Coffres d'arts offerts à ouvrir (succès rares, dimanches du calendrier). |
 | `welcome` | Bienvenue des 7 jours : `{ start, days }` (création, dates des cadeaux pris). Posé à la création du compte ; absent des comptes plus anciens. Gardé par la remise à zéro, qui vide seulement `days`. |
 | `achievements`, `completed` | Succès obtenus ; familles (`set:famille`) et sets complétés, avec leur date. |
+| `cosmetics.emotes`, `emoteSet` | Émotes gagnées ou achetées (les émotes offertes de `emotes.js` ne sont pas listées : tout le monde les a) ; émotes du sélecteur en partie, dans l'ordre choisi (absent : les émotes offertes). |
 | `cosmetics`, `title`, `frame`, `back`, `uiTheme` | Titres, cadres, dos et thèmes de l'interface débloqués (`cosmetics.themes`, un par passe de saison, au palier `THEME_TIER`) ; ceux qui sont portés. `uiTheme` : `null` suit la saison en cours, `base` garde le thème de base, sinon un thème débloqué. |
 | `inbox` | Récompenses gagnées à montrer au joueur (40 au plus), vidée quand il les a vues. |
 | `friends`, `friendsIn`, `friendsOut` | Identifiants des amis, des demandes reçues et des demandes envoyées (100 amis au plus). |
@@ -69,19 +70,37 @@ Un compte est un objet JSON (colonne `data`) :
 
 Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDuplicates`, `migrateDecks`, `grantStarterGenerals`, `progress.init`) ; rien n'est jamais supprimé de la base par ces mises à niveau.
 
+## Partie enregistrée
+
+Une ligne de `parties` (`store.addGame`), écrite à la fin de la partie, après les récompenses :
+
+| Champ | Contenu |
+| --- | --- |
+| `id`, `at` | Identifiant, date de fin. |
+| `mode`, `ranked`, `kind` | `pvp` ou `pve` ; partie classée ; type vu par le joueur : `salon` (code), `defi`, `defi-classe`, `classe-ia`, `ia` (dans l'appli). |
+| `winner`, `reason`, `forfeit` | Siège gagnant (0, 1, −1 pour un nul), raison, partie arrêtée par un abandon. |
+| `zones`, `turns`, `ms` | Gagnant de chaque zone, tours joués, durée. |
+| `trace` | Pour chaque fin de tour : puissance des 3 zones de chaque siège (`gameDetail` du moteur). |
+| `players` | Par siège : `login` (`null` pour l'IA), `name`, `general`, `deck`, `cards` (deck complet), `played` (cartes révélées), `pow` (puissance finale des zones), `terrains`, `cut` (nombre de cartes de `played` à la fin de chaque tour), `treasure`, `perfect`, `spells`, `lost`, `gen`, `genFired`, `gain` (`{ xp, shards, stars }`). |
+
+Les parties enregistrées avant l'historique n'ont que `mode`, `ranked`, `at`, `winner`, `reason` et, par siège, `login` à `played` : l'historique les montre sans détail. Pour une partie contre l'IA, l'appli envoie le détail (`detail`, `ms`) avec le résultat ; le serveur le relit et le borne (`cleanDetail`).
+
 ## Modules
 
 | Fichier | Rôle |
 | --- | --- |
 | `accounts.js` | `createAccounts(store)` : sessions, connexion, deck de départ, booster quotidien, boutique, decks, profil, administration des comptes et de la boutique. `apiHandler` : le routeur de l'API. |
 | `progress.js` | `createProgress(store)` : XP et niveaux, missions, succès, complétions, cosmétiques, rang classé et saisons, réglages des récompenses. Appelé par `accounts.js` (nouvelles cartes, booster, fin de partie). |
-| `games.js` | `createGames(store, accounts)` : enregistre les parties (JcJ par le serveur, JcE envoyées par l'appli), calcule les stats de `/admin` et du profil. |
-| `activity.js` | `createActivity(store)` : jours d'activité des joueurs (`seen`, appelé par le routeur), compteurs du jour (`count`, appelé par `accounts.js`), et leur synthèse pour l'onglet Stats (`stats`). |
+| `games.js` | `createGames(store, accounts)` : enregistre les parties (JcJ par le serveur, JcE envoyées par l'appli), calcule les stats de `/admin` et du profil, et l'historique de chaque joueur (`playerHistory`). |
+| `activity.js` | `createActivity(store)` : jours d'activité des joueurs (`seen`, appelé par le routeur), compteurs du jour (`count`, une clé ou une liste de clés, appelé par `accounts.js`, `boss.js`, `story.js`, `push.js`, `follow.js` et les émotes d'`index.js`), et leur synthèse pour l'onglet Stats (`stats`). |
+| `follow.js` | `createFollow(store, accounts, { boss, events })` : onglet Suivi de `/admin` (`GET /api/admin/follow`), calculé à la demande à partir des comptes, des documents `clans`, `boss-classement`, `quetes` et des compteurs ; et `POST /api/track`, ce que l'appli signale et que le serveur ne voit pas passer (code de deck copié, émote contre l'IA, notification touchée ; 40 par minute et par joueur au plus). |
 | `friends.js` | `createFriends(store, accounts, salons)` : amis et demandes, présence (qui est connecté, qui est en partie), défis entre amis. |
 | `events.js` | `createEvents(store)` : liste des événements temporaires (document `evenements`), multiplicateur du jour (`mult`), ce qu'en voit le joueur (`view` : événements en cours avec période et fin), un message du courrier par événement en cours (`mails`, ajouté par `mail.js` le temps de l'événement, identifiant `ev-<événement>-<premier jour>`) et routes `/api/admin/events`. Créé par `progress.js` (`progress.events`), qui multiplie l'XP des parties, des missions et des nouvelles cartes, les Éclats et l'XP de saison des parties, et les étoiles d'une victoire classée. |
 | `mail.js` | `createMail(store, accounts, { notify })` : courrier (messages de `/admin` à tous ou à quelques joueurs, avec récompense facultative, documents `courrier`) et codes cadeaux (document `codes`, 10 codes faux par heure au plus). Comptes : `mail = { read, got, hidden }`, `redeemed`. Routes `/api/mail…`, `/api/redeem`, `/api/admin/mail…`, `/api/admin/codes…`. |
 | `notes-maj.js` | `NOTES_MAJ` : notes de mise à jour, envoyées une seule fois dans le courrier de tous les comptes existants au premier démarrage du serveur qui les contient (`publishNotes`, identifiants retenus dans `courrier.notes`). Pour une nouvelle note : l'ajouter en fin de liste avec un identifiant nouveau. |
 | `clans.js` | `createClans(store, accounts)` : clans (document `clans`), missions de clan avancées à chaque fin de partie (`accounts.setGameHook`), dons contre des Écus, magasin du clan, classement des clans figé à la fin du mois en même temps que le classement classé (`progress.setSeasonHook`, document `classement-clans`) avec ses récompenses et bannières. Comptes : `clan`, `clanCoins`, `clanReq`, `clanDon`. Rôles (`roles`, Maître = `leader`), trésor (`bank`) et projets (`boosts`, `chest`). Routes `/api/clan…` (dont `role`, `claim`, `fund`), `/api/clans`, `/api/clans/ladder`, `/api/admin/clans…`. |
+| `boss.js` | `createBoss(store, accounts)` : boss mondial (`packages/engine/src/boss.js`). Tentatives du jour (`start`, comptée dès que la partie commence), score et paliers d'une tentative (`finish`, appelé à la fin de la partie ou à l'abandon), classement de la semaine figé chaque lundi à minuit avec les récompenses de chaque tranche (`closeWeek`, appelé chaque minute et quand un joueur passe à la semaine suivante ; document `boss-classement`), magasin du boss, tuile de l'accueil (`tile`, dans `accounts.me`), réglages de `/admin` (document `boss`). Comptes : `boss` (`{ week, boss, total, best, runs, day, used, last }`), `bossCoins` (Insignes), `bossBuys`, `bossDecks`. Routes `/api/boss`, `/api/boss/ladder`, `/api/boss/avatars`, `/api/boss/buy`, `/api/admin/boss`. |
+| `story.js` | `createStory(store, accounts)` : quêtes d'histoire (`packages/engine/src/story.js`). Vue du joueur (`view` : quêtes ouvertes, et quêtes limitées qui commencent dans 7 jours ou moins, nom et date seulement), tuile de l'accueil (`tile`, dans `accounts.me` sous `storyTile`), victoire d'un chapitre (`win`) : la quête doit être ouverte et le chapitre le suivant (ou un chapitre déjà gagné, rejoué sans récompense) ; la récompense (`chapterReward`) n'est donnée qu'une fois. Le combat se joue dans la page, comme une partie contre l'IA : le résultat est cru sur parole, comme `POST /api/games/solo`. Comptes : `story` (`{ [quête]: chapitres gagnés }`). Statistiques des succès : `storyChapters`, `storyCampaigns`, `storyLimited`. Une quête d'événement canon finie reste jouable dans l'histoire principale (`archive`, sans art Promo, Éclats à la place de la carte) ; sa carte rejoint le booster du Set de base (`releasedCards`, joint au catalogue par `cards.js` avec `setExtraCards`, comme les cartes de saison ; `onChange` rafraîchit le catalogue quand `/admin` change les dates). Réglages de `/admin` dans le document `quetes`. Routes `/api/story`, `/api/story/win`, `/api/admin/story`. |
 | `push.js` | `createPush(store, accounts, { isOnline, events })` : notifications push (Web Push). Comptes : `push = { subs, off, daily }` (abonnements des appareils, 5 au plus ; sortes coupées ; jour du dernier rappel). Sortes (`PUSH_KINDS`) : `daily` (rappel à 18 h, heure de Paris, si la récompense de connexion du jour n'est pas récupérée, joueurs venus ces 14 derniers jours), `events` (début d'un événement à 10 h ; `broadcast('events', …)` pour le Boss mondial), `social` (demandes d'ami et de clan, envoyées par `friends.js` et `clans.js`), `season` (dernier jour du mois à 12 h). Rien n'est envoyé à un joueur qui a l'appli ouverte. Un appareil appartient au dernier compte qui s'y abonne ; la déconnexion le retire. Vérification toutes les 5 minutes : le serveur endormi (Render gratuit) envoie au réveil. Routes `/api/push`, `/api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/kinds`, `/api/push/test`. |
 | `cards.js` | `createCatalog(store, accounts)` : brouillon du catalogue, publication (refusée si elle retire une carte qu'un joueur possède), catalogue public. |
 | `index.js` | Assemble le tout, sert les fichiers, gère les salons et les WebSockets. |
@@ -102,11 +121,13 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/logout` | Ferme la session. |
 | `POST /api/starter` | Choisit le deck de départ (`{ starter }`), une seule fois. |
 | `POST /api/booster` | Ouvre le booster du jour. |
-| `PUT /api/decks` | Crée (sans `id`) ou enregistre un deck, même incomplet ; `play: true` le rend joué s'il est complet. |
+| `PUT /api/decks` | Crée (sans `id`) ou enregistre un deck, même incomplet ; `play: true` le rend joué s'il est complet. `from: 'code'` ou `'recipe'` : nouveau deck repris d'un code ou d'une recette (compté pour l'onglet Suivi). |
+| `POST /api/track` | `{ what, id }` : `deckShare` (code de deck copié), `emote` (émote `id` envoyée contre l'IA), `pushOpen` (notification de la sorte `id` touchée). Compteurs de l'onglet Suivi. |
 | `POST /api/decks/rename`, `/play`, `/reset`, `/delete` | Renomme, joue, vide ou supprime un deck (`{ id }`). |
 | `PUT /api/deck` | Ancienne route : enregistre le deck joué. |
 | `PUT /api/profile` | Pseudo et/ou image de profil. |
 | `GET /api/profile` | Stats du joueur (dont ses 5 cartes les plus jouées, `cards`), succès, avancement des familles et des sets. |
+| `GET /api/history` | Historique du joueur (onglet Historique du profil) : ses 100 dernières parties vues de son côté (`games` : type, résultat, durée, zones, puissance à chaque fin de tour, cartes révélées tour par tour, compteurs, gains ; de l'adversaire, seulement les cartes révélées) et un bilan sur toutes ses parties (`summary` : taux, série en cours et record, forme des 10 dernières, zones gagnées en moyenne, victoires 3 zones, durée moyenne, par type, par deck, contre chaque général). |
 | `GET /api/player?login=…` | Profil public d'un joueur (pop-up du classement) : image, cadre, titre, niveau, victoires, général et cartes les plus joués, arts préférés, rang de la saison, lien d'ami avec vous (`friend`). |
 | `GET /api/shop` | Boutique : prix et offres du jour par set. |
 | `POST /api/shop/card`, `/api/shop/booster` | Achète une carte du jour ou un booster (`free: true` : booster offert). |
@@ -115,7 +136,8 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `GET /api/mail` | Courrier du joueur (`mail` : messages visibles, lus, récompense récupérée). `account.mail` compte les messages non lus ou à récupérer. |
 | `POST /api/mail/read`, `/claim`, `/claim-all`, `/hide` | Marque lu, récupère une récompense (ou toutes), supprime un message déjà récupéré. |
 | `POST /api/redeem` | Utilise un code cadeau `{ code }`, une fois par compte. |
-| `PUT /api/cosmetics` | Change le titre, le cadre, le dos de carte porté ou le thème de l'interface (`theme`), et les 3 arts préférés du profil public (`favArts`). |
+| `PUT /api/cosmetics` | Change le titre, le cadre, le dos de carte porté ou le thème de l'interface (`theme`), les 3 arts préférés du profil public (`favArts`) et les émotes du sélecteur en partie (`emotes` : de 1 à `EMOTE_SLOTS` émotes possédées). |
+| `POST /api/shop/emote` | `{ emote }` : achète une émote du rayon Émotes (`price` en Éclats ou `prisms` en Prismes, `emotes.js`). Si le sélecteur n'est pas plein, elle y prend place. |
 | `POST /api/shop/art`, `/api/shop/chest` | Arts alternatifs (`arts.js`) : payés en Prismes. `{ art }` achète un art du jour ; le coffre donne un art classique pas encore possédé, au hasard selon sa rareté (`{ free: true }` : avec un coffre offert). Renvoie `art` et la boutique à jour. |
 | `POST /api/shop/convert` | `{ offer }` : change des Prismes en Éclats par une offre fixe (`exchangeOffers` du moteur, bâties sur le taux `prismShards` ; 0 : fermé). Jamais l'inverse ni au détail. |
 | `GET /api/pass` | Passe de saison du mois (`pass`, `null` sans saison) : paliers gratuits et premium, missions du jour, de la semaine et de la saison, arts Promo (palier de la piste gratuite), prix du premium et palier où il est remboursé. |
@@ -140,6 +162,13 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `GET /api/clans?q=`, `GET /api/clans/ladder` | Clans à rejoindre (recherche par nom ou étiquette) ; classement des clans du mois, récompenses et podium du mois précédent. |
 | `POST /api/clan/create`, `/join`, `/cancel`, `/leave` | Créer un clan (50 Prismes), le rejoindre (ou demander si sur demande), annuler sa demande, le quitter. |
 | `POST /api/clan/accept`, `/refuse`, `/kick`, `/promote`, `/edit` | Chef du clan : demandes, exclusion, passer la main, blason, description et accès. |
+| `GET /api/boss` | Écran du boss mondial : boss de la semaine (script, cartes renforcées), tentatives du jour, total, meilleure tentative et place, barème, paliers, tranches, Insignes, magasin, boss de la semaine suivante et podium de la semaine passée. `GET /api/boss/ladder` : classement de la semaine ; `GET /api/boss/avatars` : images du top 10. |
+| `PUT /api/boss/deck`, `POST /api/boss/deck/reset` | `{ boss, name, general, terrains, cards }` : deck préparé contre un boss (compte : `bossDecks`, un par boss, même incomplet) ; complet, il remplace le deck joué pendant les tentatives contre lui. `{ boss }` : le supprimer. |
+| `POST /api/boss/buy` | `{ item }` : achat au magasin du boss, en Insignes (ressources limitées par semaine, cosmétiques une fois). |
+| `GET`/`POST /api/admin/boss` | Réglages du boss mondial (ouverture, tentatives par jour, barème, rotation, paliers, tranches, prix et limites du magasin) ; `{ reset: true }` revient aux valeurs par défaut. |
+| `GET /api/story` | Quêtes d'histoire du joueur : pour chaque quête ouverte, ses dates, jours restants, chapitres gagnés et récompense de chaque chapitre ; les quêtes limitées à venir dans 7 jours (`state: 'soon'`). |
+| `POST /api/story/win` | `{ quest, chapter }` : chapitre gagné. Renvoie `{ reward, done, story, account }` ; `reward` est `null` pour un chapitre déjà gagné. 409 si la quête n'est pas ouverte ou si un chapitre précédent manque. |
+| `GET`/`POST /api/admin/story` | Réglages des quêtes d'histoire : ouverte ou non, dates des quêtes limitées, nombres de chaque récompense (Éclats, XP, Prismes, boosters, coffres) ; `{ reset: true }` revient aux valeurs par défaut. |
 | `POST /api/clan/donate`, `/buy` | `{ res, amount }` : don contre des Écus ; `{ item }` : achat au magasin du clan. |
 | `POST /api/friends/accept`, `/remove` | Accepte une demande ; refuse une demande, annule la sienne ou retire un ami (`{ login }`, des deux côtés). |
 
@@ -156,6 +185,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `GET/POST /api/admin/events` | Événements temporaires : liste avec leur état (`live`, `period`), effets et périodes possibles. `POST { list }` remplace la liste (20 au plus), `{ reset: true }` revient aux événements par défaut. |
 | `GET/POST /api/admin/rewards` | Réglages des récompenses (`reset: true` revient aux valeurs par défaut). |
 | `GET /api/admin/stats?mode=&days=` | Stats des parties (`all`, `pvp`, `pve` ; sur N jours, 0 = tout), plus `activity` : comptes, joueurs actifs (aujourd'hui, 7 et 30 jours), compteurs de la période et courbe par jour (joueurs actifs, boosters ouverts). |
+| `GET /api/admin/follow?days=` | Onglet Suivi (sur N jours, 0 = 90 jours pour le parcours et tout pour les compteurs) : `retention` (`d1`, `d7`, `d30` : comptes revenus N jours ou plus après leur création ; `cohorts` : 8 semaines ; `sticky` ; `churn` : venus ces 30 jours mais pas ces 7), `funnel` (comptes créés sur la période), `welcome`, `clans`, `boss`, `story` (par quête, joueurs arrivés à chaque chapitre), `events` (actifs et parties par jour pendant et hors de chaque événement, 90 jours), `emotes`, `decks`, `push`, `seasons`, `series` (courbes par jour). |
 | `GET/PUT /api/admin/catalog`, `POST …/publish`, `POST …/discard` | Brouillon du catalogue, publication, abandon du brouillon. |
 
 ## Parties en ligne (WebSocket `/ws`)
@@ -166,12 +196,14 @@ Messages JSON, champ `t` pour le type.
 | --- | --- | --- |
 | `create` | `{ auth }` (session) | `lobby` |
 | `ranked` | `{ auth, deck? }` | `lobby` puis `state` : partie classée contre l'IA, jouée par le serveur |
+| `boss` | `{ auth }` | `lobby` puis `state` : tentative contre le boss mondial de la semaine, jouée par le serveur (`error` s'il ne reste plus de tentative). `rematch` y lance aussitôt une nouvelle tentative ; `leave` en cours de partie la termine avec le plateau du moment. La vue porte `boss` (`{ id, step, score }`) et, à la fin, `reward.boss` (score, paliers, gains, total de la semaine). |
 | `join` | `{ room, auth, deck? }` (`deck` : identifiant du deck à jouer, sinon le deck joué) | `lobby` aux deux, puis `state` (la partie démarre) |
 | `rejoin` | `{ room, token }` (jeton du `lobby`) | `state` ou `lobby` ; `gone` si le salon n'existe plus. L'ancienne connexion du siège est fermée. |
 | `plan` | `{ cards: [{ uid, zone }], moves: [{ uid, zone }], general, turn }` (`turn` : tour visé ; un plan renvoyé après une reconnexion pour un tour déjà joué est ignoré) | `state` (attente de l'autre, puis chaque étape de la révélation) |
 | `rematch` | | Nouvelle partie quand les deux l'ont demandée |
 | `leave` | | `left` à l'adversaire, salon supprimé |
 | `ping` | | `pong` (toutes les 10 s : l'appli repère ainsi une connexion morte sans fermeture) |
+| `emote` | `{ id }` (émote possédée) | `emote` `{ seat, id }` aux deux joueurs. Ignorée sans partie, si l'émote n'est pas possédée, moins de `EMOTE_COOLDOWN_MS` après la précédente du même joueur ou au-delà de `EMOTE_MAX` par partie. Contre l'IA classée (pas contre un boss mondial), l'IA répond parfois aux politesses (`aiReply`). Couper les émotes de l'adversaire se fait dans l'appli. |
 
 | Du serveur | Contenu |
 | --- | --- |

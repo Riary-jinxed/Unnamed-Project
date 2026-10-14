@@ -32,6 +32,16 @@ export const terrainBg = (id, side) => TERRAIN_ART[id] ? `<span class="tbg ${sid
 export const terrainHTML = (id, name, cls = '') => TERRAIN_ART[id] ? `<div class="art tart ${cls}" aria-hidden="true">
   <div class="art-clip"><img class="art-terrain" src="${TERRAIN_ART[id]}" alt="" loading="lazy" decoding="async"></div>
   <span class="art-name">${esc(name)}</span></div>` : provHTML(id, name, `tart ${cls}`, TERRAINS[id]?.fam || null);
+// Illustration d'un lieu ou d'une carte en grand, sans cadre ni nom (dialogues des quêtes d'histoire) : un terrain (art/terrain)
+// ou une carte (décor et personnage). Sans image : rien.
+// Le bandeau est large et l'image haute : SCENE_Y dit quelle hauteur de l'image garder (en %, 40 par défaut ; une carte : son visage).
+const SCENE_Y = { terrier: 45, aire: 45, couvoir: 62, charnier: 60, nid: 72, cimetiere: 34, chateau: 30, sanctuaire: 55, foire: 45, ruines: 45 };
+export function sceneHTML(id) {
+  const y = SCENE_Y[id] ?? FACES[id]?.[1] ?? 40, pos = `style="object-position: 50% ${y}%"`;
+  if (TERRAIN_ART[id]) return `<img src="${TERRAIN_ART[id]}" alt="" decoding="async" ${pos}>`;
+  const a = ART[id]; if (!a?.decor) return '';
+  return `<img src="${a.decor}" alt="" decoding="async" ${pos}>${a.perso ? `<img src="${a.perso}" alt="" decoding="async" ${pos}>` : ''}`;
+}
 // Un art alternatif a-t-il déjà ses images ?
 export const altReady = artId => !!ALT[artId]?.decor;
 
@@ -95,11 +105,14 @@ export function artHTML(id, name, lvl = 1, cls = '', artId = null) {
   const a = ART[id]; if (!a?.decor) return provFor(id) ? provHTML(id, name, cls) : '';
   return layers(a, name, lvl, `${holoOff()[id] ? '' : holoLv(lvl)} ${cls}`, isSpell(id), id);
 }
-// Calque d'une illustration. En vignette (classe « vignette », galerie de la collection), la version réduite est proposée avec
-// l'original : le navigateur prend la plus petite qui reste nette à la taille affichée (« auto » : sa vraie largeur ; sinon une
-// moitié d'écran sur téléphone, 380 px au-delà), si bien que la vignette n'est jamais moins nette que l'original à l'écran.
-const img = (c, a, layer, cls) => { const thumb = /\bvignette\b/.test(cls) && a[`${layer}Thumb`];
-  return `<img class="${c}" src="${a[layer]}"${thumb ? ` srcset="${thumb} 640w, ${a[layer]} 960w" sizes="auto, (max-width: 520px) 50vw, 380px"` : ''} alt="" loading="lazy" decoding="async">`; };
+// Calque d'une illustration. Partout (collection, boutique, passe, magasins, recueils…), la version réduite est proposée avec
+// l'original : le navigateur prend la plus petite qui reste nette pour une carte d'au plus une moitié d'écran sur téléphone,
+// 380 px au-delà, à la définition de l'écran. Les cartes montrées en grand gardent l'original : vue en grand (« zoomart »),
+// ouverture des boosters et des coffres (« grand »).
+// Pas de sizes="auto" : une image ainsi réglée que l'on retire de la page (changement d'écran ou d'onglet) est recalculée
+// pour 300 px de large et Chrome télécharge alors l'original de chaque carte de l'écran quitté (5 Mo en quittant la collection).
+const img = (c, a, layer, cls) => { const thumb = !/\b(zoomart|grand)\b/.test(cls) && a[`${layer}Thumb`];
+  return `<img class="${c}" src="${a[layer]}"${thumb ? ` srcset="${thumb} 640w, ${a[layer]} 960w" sizes="(max-width: 520px) 50vw, 380px"` : ''} alt="" loading="lazy" decoding="async">`; };
 // Personnage qui sort du cadre : la partie hors de la fenêtre est redessinée par-dessus le contour de la carte (style.css, .perso-out),
 // avec son propre reflet découpé à la silhouette du personnage (holo.css, .perso-foil, --perso) et l'ombre du bandeau du nom (.name-shade).
 // Seule la vue en grand (« zoomart ») fait déborder le personnage : en vignette, ses calques de débordement ne serviraient à rien
@@ -115,6 +128,11 @@ const layers = (a, name, lvl, cls, spell, card) => { const perso = !spell && a.p
 // Le portrait montre environ 40 % de la largeur et 33 % de la hauteur de l'image : le centre est borné pour ne jamais sortir de l'image.
 const FACES = { seraphine: [52, 44], aurelia: [48, 23], morgrath: [53, 29], vorgoth: [50, 25], grisk: [48, 39], snagg: [55, 46],
   sylvaen: [44, 24], lirael: [34, 25], vaelthar: [55, 8], ignaroth: [45, 13],
+  gorbag: [57, 30], intendant: [49, 22], ossa: [45, 25], elyndra: [47, 23], belzharoth: [47, 21], valdric: [50, 21], carmilla: [33, 17], ysmera: [45, 21],
+  // Cartes qui parlent dans les quêtes d'histoire (client/src/story.js) : même cadrage sur le visage.
+  boss_horde: [38, 27], gardienne_sentiers: [39, 19], heritier_abysses: [50, 18], citrouille: [50, 40], sorciere_sabbat: [44, 30], voix_aube: [49, 21],
+  chef: [50, 26], marmiton: [30, 32], archere: [27, 17], gardien_magot: [47, 36], druidesse: [62, 22], cultiste: [50, 22], diablotin: [40, 30],
+  servante: [47, 16], messagere: [45, 24],
   // Arts alternatifs des généraux : le visage n'est pas au même endroit que sur l'illustration d'origine.
   seraphine_zenith: [49, 48], aurelia_vitrail: [47, 29], morgrath_citrouilles: [47, 23], vorgoth_cercle: [50, 26],
   grisk_butin: [44, 30], grisk_farce: [54, 40], snagg_festin: [22, 37], sylvaen_automne: [49, 20], lirael_vitrail: [41, 34],

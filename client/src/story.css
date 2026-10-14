@@ -1,0 +1,128 @@
+/* Quêtes d'histoire (story.js) : liste des quêtes, carte d'une quête, chapitre, dialogues et fin de combat. */
+
+.linkbtn { background: none; border: 0; padding: 0; color: var(--gold-hi, var(--accent)); text-decoration: underline; font: inherit; cursor: pointer; justify-self: start; }
+
+/* Le monde : quelques lignes de lore en tête de l'écran. */
+.slore { display: grid; gap: 6px; }
+.slore h2 { margin: 0; font-family: var(--display); font-size: 22px; }
+.slore p { margin: 0; color: var(--muted); max-width: 62ch; }
+
+/* Une quête dans la liste : le portrait du héros à gauche sur le ciel de sa carte, le texte et la progression à droite. */
+.squests { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.squest { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 12px; align-items: stretch; text-align: left; color: inherit; font: inherit; padding: 0; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--fam, var(--accent)) 55%, var(--line)); border-radius: 10px; background: var(--surface); }
+.squest-art { position: relative; min-height: 112px; background: var(--sq-sky, linear-gradient(#2a2030, #120d0a)); }
+.squest-art .gport { position: absolute; inset: 0; border: 0; background: transparent; }
+.squest-art .gport-art img { width: 210%; }
+.squest-tx { display: grid; gap: 3px; align-content: center; padding: 10px 12px 10px 0; min-width: 0; }
+.squest-tx b { font-family: var(--display); font-size: 19px; line-height: 1.15; }
+.squest-tx small { line-height: 1.3; }
+.squest-foot { font-size: 12.5px; color: var(--ink); margin-top: 2px; }
+.squest .bar { height: 6px; }
+.squest.done { border-color: var(--up); }
+.squest.done .squest-foot { color: var(--up); }
+.squest.soon { opacity: .75; }
+.squest.soon .squest-art::after { content: '?'; position: absolute; inset: 0; display: grid; place-items: center; font: 700 40px var(--display); color: rgb(255 255 255 / .5); }
+/* Ciel de chaque carte, repris par la liste et la tuile de l'accueil. */
+.smap-razzia { --sq-sky: linear-gradient(#9ac0d8, #c9a23a); }
+.smap-racines { --sq-sky: linear-gradient(#20382a, #3a6a2a); }
+.smap-pacte { --sq-sky: linear-gradient(#1a0608, #6a1a14); }
+.smap-halloween { --sq-sky: linear-gradient(#140a26, #e8742a); }
+.smap-eclipse { --sq-sky: radial-gradient(circle at 70% 30%, #0a0410 22%, #ff9a2a 26%, #2a1030 34%, #05030a); }
+.smap-neon { --sq-sky: linear-gradient(#05081a, #ff3ad0 140%); }
+
+/* En-tête d'une quête : son prologue. */
+.squest-head { display: grid; gap: 4px; }
+.sprologue { margin: 0; font-style: italic; color: var(--ink); max-width: 62ch; }
+
+/* La carte : décor SVG (16/10), chemin, et une étape par chapitre (portrait de l'adversaire, numéro, lieu). */
+.smap { position: relative; width: 100%; aspect-ratio: 16 / 10; border-radius: 12px; overflow: hidden; isolation: isolate;
+  border: 2px solid color-mix(in srgb, var(--fam, var(--accent)) 50%, #c9a24a); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .5), 0 6px 18px rgb(0 0 0 / .45); }
+.smap-bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }
+.sroute { stroke: rgb(255 240 200 / .55); stroke-width: 1.1; stroke-dasharray: 2.2 2; stroke-linecap: round; }
+.sroute.done { stroke: #ffd45a; stroke-width: 1.5; stroke-dasharray: none; filter: drop-shadow(0 0 1.2px #ffb02a); }
+.snode { position: absolute; transform: translate(-50%, -50%); width: clamp(40px, 11vw, 60px); aspect-ratio: 1; padding: 0; border: 0; background: none; color: inherit; font: inherit; }
+.snode .gport { position: absolute; inset: 0; border-radius: 50%; border: 3px solid #8a7a60; box-shadow: 0 3px 8px rgb(0 0 0 / .6); }
+.snode .gport-art img { width: 230%; }
+.snode.locked .gport { filter: grayscale(.9) brightness(.55); }
+.snode.done .gport { border-color: #ffd45a; }
+.snode.next .gport { border-color: #fff3c0; animation: snext 1.6s ease-in-out infinite; }
+.snode.sel .gport { outline: 3px solid var(--gold-hi, #ffe08a); outline-offset: 2px; }
+.snum { position: absolute; right: -4px; top: -4px; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 999px; display: grid; place-items: center;
+  font-size: 11.5px; font-weight: 700; background: #2a1a10; border: 1.5px solid #c9a24a; color: #ffe8b0; }
+.snode.done .snum { background: #3a6a2a; border-color: #ffd45a; }
+.snode.locked .snum { color: #a89a80; }
+.splace { position: absolute; left: 50%; top: calc(100% + 3px); transform: translateX(-50%); white-space: nowrap; font-size: 10.5px; font-weight: 600; letter-spacing: .02em;
+  padding: 1px 6px; border-radius: 999px; background: rgb(10 6 4 / .72); color: #f6e8c6; pointer-events: none; }
+/* Près des bords de la carte, le nom du lieu se cale vers l'intérieur pour rester lisible. */
+.splace.r { left: auto; right: -6px; transform: none; }
+.splace.l { left: -6px; transform: none; }
+@keyframes snext { 50% { box-shadow: 0 0 0 5px rgb(255 230 150 / .35), 0 3px 8px rgb(0 0 0 / .6); } }
+@media (max-width: 420px) { .splace { font-size: 9px; padding: 0 4px; } }
+
+/* Le chapitre choisi : adversaire, difficulté, récompense, bouton. */
+.schap { display: grid; gap: 10px; border-top: 3px solid var(--fam, var(--accent)); }
+.schap h2 { margin: 0; font-family: var(--display); font-size: 22px; }
+.sfoe { display: flex; gap: 12px; align-items: center; }
+.sfoe .gport { flex: none; width: 64px; height: 64px; border-radius: 10px; }
+.sfoe > div { display: grid; gap: 1px; min-width: 0; }
+.sstars { color: #ffc94a; letter-spacing: 1px; }
+.sstars i { font-style: normal; color: var(--line); }
+.srew { display: grid; gap: 4px; }
+.srew-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.srew-row.got { opacity: .6; }
+.srew-row .ico { width: 16px; height: 16px; vertical-align: -3px; margin-right: 3px; }
+.chip.sgift { border-color: var(--gold-hi, var(--accent)); }
+.splay:disabled { filter: grayscale(.8); opacity: .7; }
+
+/* Onglets de la liste : histoire principale, événements (avec le nombre d'événements à finir). */
+.stabs { width: 100%; }
+.stabs button { flex: 1; }
+.stabs .dot { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 4px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; background: var(--gold-hi, var(--accent)); color: #2a1a10; vertical-align: 1px; }
+
+/* Dialogue avant le combat : une réplique à la fois. La narration s'affiche comme un parchemin. */
+.stalk-sheet { align-items: end; }
+.panel.stalk { display: grid; gap: 12px; max-width: 560px; }
+/* Le lieu (terrain ou carte illustrée) en bandeau ; l'image se recadre sur son centre, le personnage d'une carte par-dessus. */
+.stalk-scene { position: relative; height: clamp(110px, 26vh, 190px); margin: -4px -4px 0; border-radius: 10px; overflow: hidden; background: var(--sq-sky, #1a120c);
+  box-shadow: inset 0 0 0 1px rgb(255 230 170 / .25); }
+.stalk-scene img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; animation: sscene .5s ease-out; }
+.stalk-scene::after { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 55%, rgb(10 6 4 / .7)); }
+.stalk-scene.empty::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 120%, rgb(255 255 255 / .12), transparent 60%); }
+.stalk-place { position: absolute; left: 10px; bottom: 7px; z-index: 1; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; color: #f6e8c6; text-shadow: 0 1px 2px #000; }
+@keyframes sscene { from { opacity: .4; transform: scale(1.04); } }
+.stalk-body { display: flex; gap: 14px; align-items: flex-start; }
+.stalk-face { flex: none; width: 88px; height: 88px; border-radius: 12px; animation: stalkin .35s ease-out; }
+/* Portraits des dialogues et du chapitre : moins serrés que sur le plateau, pour voir tout le visage. */
+.stalk-face .gport-art img, .soutro .gport-art img, .sfoe .gport-art img { width: 190%; }
+.stalk-tx { display: grid; gap: 4px; min-width: 0; }
+.stalk-tx b { font-family: var(--famfont, var(--display)); font-size: 17px; color: var(--gold-hi, var(--ink)); }
+.stalk-tx p { margin: 0; font-size: 16px; line-height: 1.45; }
+.stalk.narr .stalk-tx p { font-style: italic; padding: 10px 14px; border-radius: 8px; color: #3a2814;
+  background: linear-gradient(#f4e6c4, #e6d0a0); box-shadow: inset 0 0 12px rgb(120 80 30 / .35); }
+.stalk-dots { display: flex; gap: 5px; justify-content: center; }
+.stalk-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.stalk-dots i.on { background: var(--gold-hi, var(--accent)); }
+.stalk .row { justify-content: flex-end; }
+@keyframes stalkin { from { opacity: 0; transform: translateY(6px) scale(.96); } }
+
+/* Fin d'un combat : récit de la victoire et récompense. */
+.soutros { display: grid; gap: 8px; width: 100%; text-align: left; }
+.soutro { display: flex; gap: 10px; align-items: flex-start; margin: 0; }
+.soutro .gport { flex: none; width: 48px; height: 48px; border-radius: 8px; }
+.soutro p { margin: 0; display: grid; gap: 1px; }
+.soutro p b { font-size: 13px; color: var(--gold-hi, var(--ink)); }
+.soutro.narr { font-style: italic; color: var(--muted); }
+.sdone { margin: 0; padding: 8px 12px; border-radius: var(--r); border: 1px solid var(--up); background: color-mix(in srgb, var(--up) 14%, transparent); }
+.sdeck .bcard { position: relative; }
+
+/* Tuile de l'accueil : le portrait du héros en fond, à droite. */
+.stile { position: relative; overflow: hidden; isolation: isolate; }
+.stile-art { position: absolute; inset: 0 0 0 45%; z-index: -1; opacity: .55; background: var(--sq-sky);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 60%); mask-image: linear-gradient(90deg, transparent, #000 60%); }
+.stile-art .gport { position: absolute; inset: 0; background: transparent; border: 0; }
+@media (prefers-reduced-motion: reduce) { .snode.next .gport, .stalk-face, .stalk-scene img { animation: none; } }
+/* Enjeu du chapitre : sur sa fiche et à la dernière réplique avant le combat. */
+.sgoal, .stalk-goal { margin: 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--fam, var(--accent)) 12%, transparent); border-left: 3px solid var(--fam, var(--accent)); line-height: 1.4; }
+.sgoal b, .stalk-goal b { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }

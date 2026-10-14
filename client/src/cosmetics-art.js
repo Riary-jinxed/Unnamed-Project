@@ -105,6 +105,14 @@ ICONS.ecu = () => { const g = new Graphics();
   star(g, 32, 31, 6, 5, 0.45).fill(0xfff0a0);
   glint(g, 50, 12, 6); glint(g, 13, 46, 4, 0xfff0a0);
   return group(glow(() => new Graphics().circle(32, 32, 26).fill(0xffffff), 0xffc040, 8, 0.6), g); };
+// Insigne du boss mondial : écu de fer marqué de trois griffures de braise, la monnaie du magasin du boss.
+ICONS.insigne = () => { const g = new Graphics();
+  const shield = k => k.moveTo(12, 8).lineTo(52, 8).lineTo(52, 30).quadraticCurveTo(52, 50, 32, 60).quadraticCurveTo(12, 50, 12, 30).closePath();
+  shield(g).fill(grad([[0, 0x8a8a96], [0.5, 0x4a4a56], [1, 0x24242c]], 'linear', [0, 0, 1, 1])); shield(g).stroke(ink(3));
+  g.moveTo(16, 12).lineTo(48, 12).stroke({ width: 2, color: 0xd8dde4, alpha: 0.7 });
+  for (const [x, y] of [[23, 0], [32, -2], [41, 0]]) g.moveTo(x - 5, 20 + y).quadraticCurveTo(x - 1, 34 + y, x + 4, 48 + y).lineTo(x + 1, 49 + y).quadraticCurveTo(x - 4, 34 + y, x - 7, 21 + y).closePath().fill(0xffa030).stroke(ink(1.5));
+  glint(g, 50, 10, 6); glint(g, 14, 44, 4, 0xffd080);
+  return group(glow(() => new Graphics().circle(32, 34, 26).fill(0xffffff), 0xff8a2a, 8, 0.6), g); };
 export function drawIcon(kind) {
   const f = ICONS[kind]; if (!f) return null;
   const c = new Container(); c.addChild(f()); return c;
@@ -253,6 +261,14 @@ EMBLEMS.tour = () => { const g = new Graphics();
   g.rect(-3, -76, 4, 30).fill(0x6a4a2a).stroke(ink(2)); g.poly([1, -76, 30, -68, 1, -58]).fill(0xb0282a).stroke(ink(2.5));
   return g; };
 
+// Boss mondial : un croc de bête, fendu et cerclé de fer.
+EMBLEMS.croc = () => { const g = new Graphics();
+  g.moveTo(-30, -56).quadraticCurveTo(0, -70, 30, -56).quadraticCurveTo(26, 10, 0, 64).quadraticCurveTo(-26, 10, -30, -56).closePath().fill(0xf4ead2).stroke(ink(4));
+  g.moveTo(-18, -50).quadraticCurveTo(-14, 0, 0, 44).stroke({ width: 5, color: 0xd8c8a0, cap: 'round' });
+  g.moveTo(8, -40).lineTo(2, -10).lineTo(10, 6).stroke(ink(3));
+  g.rect(-38, -62, 76, 14).fill(0x4a4a56).stroke(ink(3.5)); for (const x of [-26, 0, 26]) g.circle(x, -55, 3.5).fill(0xd8dde4).stroke(ink(1.5));
+  return g; };
+
 // ---- Dos de carte (240 × 336) ----
 // bg : dégradé du fond (haut, bas) ; ray : rayons ; rim : filet ; med : fond du médaillon ; pattern : motif sous la trame ; night : voile du Crépuscule.
 const FAMILY_BACKS = {
@@ -277,6 +293,9 @@ for (const f of ['ange', 'demon', 'gobelin', 'elfe', 'dragon', 'mortvivant', 'va
 // Clan : l'étendard sur fond de gueules et d'azur, la forteresse sous un ciel de pierre.
 FAMILY_BACKS.clan_etendard = { bg: [0x8a2024, 0x1a2a5a], ray: 0xc0403a, rim: 0xf5d27a, med: 0x1a1a3a, emblem: 'etendard' };
 FAMILY_BACKS.clan_forteresse = { bg: [0x5a6070, 0x16181e], ray: 0x7a8090, rim: 0xe3b552, med: 0x22242c, emblem: 'tour', glow: 0xf5d27a };
+
+// Boss mondial : le croc du trophée sur fond de braises.
+FAMILY_BACKS.boss_trophee = { bg: [0x6a1e10, 0x140504], ray: 0x9a3418, rim: 0xffb04a, med: 0x2a0806, emblem: 'croc', glow: 0xff7a2a };
 
 function panelShape(g, inset, r) { return g.roundRect(inset, inset, BACK_W - inset * 2, BACK_H - inset * 2, r); }
 function backFrame(c, t, inner) {
@@ -636,6 +655,13 @@ const provisional = t => g => { const [base, mid, hi] = ART_FRAME_TINTS[t] || [0
   ring(g, { base, hi: mid, lo: INK }); beads(g, 12, (RH + RB) / 2, hi, 3);
   star(g, C, C - RB + 2, 18, 5, 0.45).fill(hi).stroke(ink(3)); };
 for (const [id] of ART_THEME_FRAMES) { const t = id.split('_')[1]; FRAMES[id] = ART_FRAME_DRAW[t] || provisional(t); }
+// Cadre du magasin du boss mondial : anneau de fer hérissé de crocs, une gemme de braise au sommet.
+FRAMES.boss_crocs = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 4).stroke({ width: 12, color: 0xffffff }), 0xff7a2a, 10, 0.7));
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i + 0.5) * TAU / 10, k = new Graphics();
+    k.moveTo(-9, 0).quadraticCurveTo(-6, -22, 0, -34).quadraticCurveTo(6, -22, 9, 0).closePath().fill(0xf4ead2).stroke(ink(2.5));
+    const [x, y] = pt(C, C, RB - 4, a); k.position.set(x, y); k.rotation = a + Math.PI / 2; g.addChild(k); }
+  ring(g, METAL.fer); beads(g, 10, (RH + RB) / 2, 0xd8dde4, 3, -Math.PI / 2);
+  gem(g, C, C - RB + 2, 15, 0xff6a1a, 0xffd080); };
 export function drawFrame(id) {
   const f = FRAMES[id]; if (!f) return null;
   const c = new Container(), g = layers(); f(g); c.addChild(g.root);

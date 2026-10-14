@@ -12,6 +12,7 @@ import { ARTS, artExists, THEME_IDS, MAX_FAV_ARTS, isEssenceArt } from '@jeu/eng
 import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seasonById, passTrack, refundTier, tierOf as passTierOf, weekOf, passMissionLabel, releasedCards, addMonths,
   currentSeason, THEME_TIER, SEASON_THEMES } from '@jeu/engine/pass';
 import { boost } from '@jeu/engine/events';
+import { EMOTES, EMOTE_SLOTS, ownsEmote, ownedEmotes, emoteSet } from '@jeu/engine/emotes';
 import { HttpError } from './accounts.js';
 import { createEvents } from './events.js';
 
@@ -79,12 +80,13 @@ export function createProgress(store) {
     }
     checkAchievements(a);
   }
-  // Donne une récompense (Éclats, Prismes, XP, boosters et coffres d'arts offerts, carte, titre, cadre, dos) et la range dans la boîte du compte
+  // Donne une récompense (Éclats, Prismes, XP, boosters et coffres d'arts offerts, carte, titre, cadre, dos, émote) et la range dans la boîte du compte
   // (sauf silent : le calendrier montre lui-même ce qu'il donne).
   function grant(a, r, { silent = false } = {}) {
     if (r.shards) a.shards = (a.shards || 0) + r.shards;
     if (r.prisms) a.prisms = (a.prisms || 0) + r.prisms;
     if (r.clanCoins) a.clanCoins = (a.clanCoins || 0) + r.clanCoins;
+    if (r.bossCoins) a.bossCoins = (a.bossCoins || 0) + r.bossCoins;
     if (r.chests) a.freeChests = (a.freeChests || 0) + r.chests;
     if (r.boosters) a.freeBoosters = (a.freeBoosters || 0) + r.boosters;
     if (r.card && !a.cards[r.card]) a.cards[r.card] = 1;
@@ -92,6 +94,7 @@ export function createProgress(store) {
     if (r.frame && !a.cosmetics.frames.includes(r.frame)) a.cosmetics.frames.push(r.frame);
     if (r.back && !a.cosmetics.backs.includes(r.back)) a.cosmetics.backs.push(r.back);
     if (r.theme && !(a.cosmetics.themes ||= []).includes(r.theme)) a.cosmetics.themes.push(r.theme);
+    if (r.emote && !ownsEmote(a.cosmetics.emotes, r.emote)) (a.cosmetics.emotes ||= []).push(r.emote);
     if (r.art && ARTS[r.art] && !a.arts?.[r.art]) a.arts = { ...(a.arts || {}), [r.art]: { at: new Date().toISOString(), gift: true } };
     if (!silent) push(a, r);
     if (r.xp) addXp(a, r.xp);
@@ -115,10 +118,12 @@ export function createProgress(store) {
   function checkAchievements(a) {
     const s = statsOf(a), c = cfg();
     for (const x of ACHIEVEMENTS) {
+      // Succès obtenu avant que son émote existe : l'émote est donnée sans bruit.
+      if (a.achievements[x.id] && x.emote && !ownsEmote(a.cosmetics.emotes, x.emote)) (a.cosmetics.emotes ||= []).push(x.emote);
       if (a.achievements[x.id] || statValue(s, x.stat) < x.goal) continue;
       a.achievements[x.id] = new Date().toISOString();
       grant(a, { kind: 'achievement', label: `Succès : ${x.label}`, shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id],
-        title: x.title ? x.id : undefined, frame: x.frame });
+        title: x.title ? x.id : undefined, frame: x.frame, emote: x.emote });
     }
   }
 
@@ -494,7 +499,8 @@ export function createProgress(store) {
   // ---- Cosmétiques ----
   // theme : thème de l'interface ; null suit la saison en cours, « base » garde le thème de base, sinon un thème débloqué.
   // favArts : jusqu'à MAX_FAV_ARTS arts possédés, montrés sur le profil public (dans l'ordre choisi).
-  async function equip(a, { title, frame, back, theme, favArts }) {
+  // emotes : les émotes du sélecteur en partie, EMOTE_SLOTS au plus parmi celles possédées (dans l'ordre choisi).
+  async function equip(a, { title, frame, back, theme, favArts, emotes }) {
     if (theme !== undefined) { if (theme !== null && theme !== 'base' && !a.cosmetics.themes?.includes(theme)) throw new HttpError(400, 'Thème non débloqué.'); a.uiTheme = theme; }
     if (title !== undefined) { if (title !== null && !a.cosmetics.titles.includes(title)) throw new HttpError(400, 'Titre non débloqué.'); a.title = title; }
     if (frame !== undefined) { if (frame !== null && !a.cosmetics.frames.includes(frame)) throw new HttpError(400, 'Cadre non débloqué.'); a.frame = frame; }
@@ -504,7 +510,28 @@ export function createProgress(store) {
         || favArts.some(id => typeof id !== 'string' || !a.arts?.[id] || !artExists(id))) throw new HttpError(400, `Arts préférés : ${MAX_FAV_ARTS} de vos arts au plus.`);
       a.favArts = favArts;
     }
+    if (emotes !== undefined) {
+      if (!Array.isArray(emotes) || !emotes.length || emotes.length > EMOTE_SLOTS || new Set(emotes).size !== emotes.length
+        || emotes.some(id => typeof id !== 'string' || !ownsEmote(a.cosmetics.emotes, id))) throw new HttpError(400, `Émotes : de 1 à ${EMOTE_SLOTS} de vos émotes.`);
+      a.emoteSet = emotes;
+    }
   }
+  // Émotes : achat en boutique (Éclats ou Prismes), droit d'en envoyer une en partie.
+  function buyEmote(a, { emote } = {}) {
+    const e = EMOTES[emote];
+    if (!e || !(e.price || e.prisms)) throw new HttpError(400, 'Cette émote n\'est pas en vente.');
+    if (!a.cosmetics) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (ownsEmote(a.cosmetics.emotes, emote)) throw new HttpError(409, 'Vous avez déjà cette émote.');
+    const [k, cost, name] = e.prisms ? ['prisms', e.prisms, 'Prismes'] : ['shards', e.price, 'Éclats'];
+    if ((a[k] || 0) < cost) throw new HttpError(409, `Il vous faut ${cost} ${name} (vous en avez ${a[k] || 0}).`);
+    a[k] = (a[k] || 0) - cost;
+    (a.cosmetics.emotes ||= []).push(emote);
+    // Le sélecteur n'est pas plein : la nouvelle émote y prend place.
+    const set = emoteSet(a.cosmetics.emotes, a.emoteSet);
+    if (set.length < EMOTE_SLOTS) a.emoteSet = [...set, emote];
+    return emote;
+  }
+  const canEmote = (a, id) => !!a?.cosmetics && ownsEmote(a.cosmetics.emotes, id);
   // Arts préférés encore possédés (un art retiré du jeu disparaît de la liste).
   const favArts = a => (a.favArts || []).filter(id => a.arts?.[id] && artExists(id)).slice(0, MAX_FAV_ARTS);
 
@@ -590,21 +617,22 @@ export function createProgress(store) {
     arts: deck ? shownArts(a, [...deck.cards, deck.general]) : {},
     borders: deck ? Object.fromEntries([...deck.cards, deck.general].filter(id => id && borderOf(a, id) !== (a.cardLevels?.[id] || 1)).map(id => [id, borderOf(a, id)])) : {} });
   function view(a) {
-    if (!a.level) return { ...levelView(a), freeBoosters: 0, missions: [], rerollsLeft: 0, inbox: [], badge: badge(a), cosmetics: { titles: [], frames: [], backs: [], themes: [] }, cardLevels: levelsView(), pass: null };
+    if (!a.level) return { ...levelView(a), freeBoosters: 0, missions: [], rerollsLeft: 0, inbox: [], badge: badge(a), cosmetics: { titles: [], frames: [], backs: [], themes: [], emotes: [] }, emotes: [], cardLevels: levelsView(), pass: null };
     const ms = missions(a), c = cfg();
     return { ...levelView(a), freeBoosters: a.freeBoosters || 0,
       missions: ms.list.map(m => ({ label: missionLabel(m), n: m.n, target: m.target, done: m.done, xp: m.xp, shards: m.shards })),
       rerollsLeft: Math.max(0, c.missionRerolls - ms.rerolls), inbox: a.inbox || [], badge: badge(a), cardLevels: levelsView(), ranked: rankedView(a),
       freeChests: a.freeChests || 0, calendar: calendarView(a), welcome: welcomeView(a), pass: passSummary(a), events: events.view(),
-      title: a.title, frame: a.frame, back: a.back, theme: a.uiTheme ?? null, favArts: favArts(a),
+      title: a.title, frame: a.frame, back: a.back, theme: a.uiTheme ?? null, favArts: favArts(a), emotes: emoteSet(a.cosmetics.emotes, a.emoteSet),
       cosmetics: { titles: a.cosmetics.titles.map(id => ({ id, label: TITLES[id] || id })), frames: a.cosmetics.frames.map(id => ({ id, label: FRAMES[id] || id })),
-        backs: a.cosmetics.backs.map(id => ({ id, label: BACKS[id] || id })), themes: (a.cosmetics.themes || []).map(id => ({ id, label: SEASON_THEMES[id] || id })) } };
+        backs: a.cosmetics.backs.map(id => ({ id, label: BACKS[id] || id })), themes: (a.cosmetics.themes || []).map(id => ({ id, label: SEASON_THEMES[id] || id })),
+        emotes: ownedEmotes(a.cosmetics.emotes) } };
   }
   // Succès et complétions avec leur avancement, pour la page de profil.
   function achievementsView(a) {
     const s = statsOf(a), c = cfg();
     return ACHIEVEMENTS.filter(x => !x.set || setRevealed(setById(x.set))).map(x => ({ id: x.id, group: x.group, label: x.label, goal: x.goal, value: Math.min(x.goal, statValue(s, x.stat)), done: !!a.achievements?.[x.id],
-      shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id], title: x.title || null, frame: x.frame ? FRAMES[x.frame] : null, frameId: x.frame || null }));
+      shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id], title: x.title || null, frame: x.frame ? FRAMES[x.frame] : null, frameId: x.frame || null, emote: x.emote || null }));
   }
   function collectionView(a) {
     return SETS.filter(s => s.cards.length && setRevealed(s)).map(set => ({ id: set.id, name: set.name, done: !!a.completed?.[set.id], reward: SET_REWARDS[set.id] || null,
@@ -656,6 +684,6 @@ export function createProgress(store) {
     passPool: Object.fromEntries(Object.entries(PASS_KINDS).map(([k, x]) => [k, { daily: x.daily, weekly: x.weekly }])),
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
-  return { init, grant, cfg, events, count, best, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, claimWelcome, welcomeView, startWelcome, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
+  return { init, grant, cfg, events, count, best, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, claimWelcome, welcomeView, startWelcome, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings, buyEmote, canEmote,
     seen: a => { a.inbox = []; }, setSeasonHook: f => { seasonHook = f; } };
 }

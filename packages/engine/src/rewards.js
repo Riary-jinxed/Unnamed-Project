@@ -6,6 +6,8 @@ import { SEASON_TITLES, SEASON_FRAMES, SEASON_BACKS } from './pass.js';
 import { ARTS, ART_THEMES, MAX_FAV_ARTS } from './arts.js';
 import { CLAN_TITLES, CLAN_FRAMES, CLAN_BACKS, CLAN_LEVELS } from './clans.js';
 import { DEFAULT_SETS, setOf } from './collection.js';
+import { BOSS_TITLES, BOSS_FRAMES, BOSS_BACKS } from './boss.js';
+import { STORY_TITLES } from './story.js';
 
 // ---- Réglages chiffrés ----
 // Les valeurs par défaut sont justifiées dans la proposition d'économie (recompenses/economie.md).
@@ -143,6 +145,8 @@ export const FRAMES = {
   // Cadres du magasin de clan (clans.js).
   ...Object.fromEntries(CLAN_FRAMES),
   // Cadres des paliers des familles d'arts : ajoutés plus bas (ART_THEME_FRAMES).
+  // Cadres du magasin du boss mondial (boss.js).
+  ...Object.fromEntries(BOSS_FRAMES),
 };
 const FAM_KEY = { 'Ange': 'ange', 'Démon': 'demon', 'Gobelin': 'gobelin', 'Elfe': 'elfe', 'Dragon': 'dragon', 'Mort-vivant': 'mortvivant', 'Vampire': 'vampire', 'Hacker': 'hacker', 'Cyborg': 'cyborg' };
 export const famKey = fam => FAM_KEY[fam] || 'neutre';
@@ -153,7 +157,7 @@ export const BACKS = { classique: 'Dos classique', ange: 'Dos céleste', demon: 
   dragon_set2: 'Dos des couvées',
   hacker: 'Dos du réseau', cyborg: 'Dos chromé', ange_set3: 'Dos de la Grille', demon_set3: 'Dos des daemons', gobelin_set3: 'Dos survolté',
   elfe_set3: 'Dos technomancien', dragon_set3: 'Dos corporatiste', mortvivant_set3: 'Dos fantôme', vampire_set3: 'Dos néon rouge',
-  ...Object.fromEntries(SEASON_BACKS), ...Object.fromEntries(CLAN_BACKS) };
+  ...Object.fromEntries(SEASON_BACKS), ...Object.fromEntries(CLAN_BACKS), ...Object.fromEntries(BOSS_BACKS) };
 
 // ---- Niveaux de carte ----
 // Purement cosmétiques : la carte joue pareil à tous les niveaux. Chaque doublon donne de l'essence propre à la carte (ou au général) ;
@@ -245,14 +249,14 @@ Object.assign(FRAMES, Object.fromEntries(ART_THEME_FRAMES));
 export const familyOf = id => (GENERALS[id] ? GENERALS[id].fam : CARDS[id]?.kw.find(k => FAMILIES.includes(k))) || null;
 
 // ---- Succès ----
-// stat : compteur du compte comparé à goal. Éclats et Prismes se règlent dans /admin ; titres et cadres sont fixes.
+// stat : compteur du compte comparé à goal. Éclats et Prismes se règlent dans /admin ; titres, cadres et émotes (emotes.js) sont fixes.
 // prisms : Prismes (monnaie des arts alternatifs), surtout pour les succès difficiles ; un peu pour les faciles.
 // chests : coffres d'arts offerts, réservés aux succès les plus rares.
 const A = (id, group, label, stat, goal, shards, extra = {}) => ({ id, group, label, stat, goal, shards, prisms: 0, chests: 0, ...extra });
 export const ACHIEVEMENTS = [
   A('lvl5', 'Niveau', 'Atteindre le niveau 5', 'level', 5, 100, { prisms: 2, title: 'Apprenti' }),
   A('lvl10', 'Niveau', 'Atteindre le niveau 10', 'level', 10, 200, { prisms: 5, frame: 'bronze' }),
-  A('lvl20', 'Niveau', 'Atteindre le niveau 20', 'level', 20, 400, { prisms: 10, frame: 'argent', title: 'Vétéran' }),
+  A('lvl20', 'Niveau', 'Atteindre le niveau 20', 'level', 20, 400, { prisms: 10, frame: 'argent', title: 'Vétéran', emote: 'patience' }),
   A('lvl30', 'Niveau', 'Atteindre le niveau 30', 'level', 30, 600, { prisms: 20, frame: 'or' }),
   A('lvl50', 'Niveau', 'Atteindre le niveau 50', 'level', 50, 1000, { prisms: 40, frame: 'legende', title: 'Légende vivante' }),
   A('win1', 'Victoires', 'Remporter une première victoire', 'wins', 1, 50, { prisms: 2, title: 'Recrue' }),
@@ -260,12 +264,12 @@ export const ACHIEVEMENTS = [
   A('win50', 'Victoires', 'Remporter 50 victoires', 'wins', 50, 300, { prisms: 10, title: 'Champion' }),
   A('win200', 'Victoires', 'Remporter 200 victoires', 'wins', 200, 600, { prisms: 30, title: 'Seigneur de guerre', frame: 'flamme' }),
   A('pvp5', 'Victoires', 'Gagner 5 parties en ligne', 'pvpWins', 5, 150, { prisms: 5, title: 'Duelliste' }),
-  A('pvp25', 'Victoires', 'Gagner 25 parties en ligne', 'pvpWins', 25, 400, { prisms: 20, title: 'Maître duelliste', frame: 'duel' }),
+  A('pvp25', 'Victoires', 'Gagner 25 parties en ligne', 'pvpWins', 25, 400, { prisms: 20, title: 'Maître duelliste', frame: 'duel', emote: 'garde' }),
   A('pve10', 'Victoires', 'Battre l\'IA 10 fois', 'pveWins', 10, 100, { prisms: 3, title: 'Fléau des automates' }),
   A('streak3', 'Victoires', 'Gagner 3 parties d\'affilée', 'bestStreak', 3, 150, { prisms: 3, title: 'Inarrêtable' }),
-  A('streak5', 'Victoires', 'Gagner 5 parties d\'affilée', 'bestStreak', 5, 300, { prisms: 10, title: 'Invaincu' }),
+  A('streak5', 'Victoires', 'Gagner 5 parties d\'affilée', 'bestStreak', 5, 300, { prisms: 10, title: 'Invaincu', emote: 'feu' }),
   A('games50', 'Parties', 'Jouer 50 parties', 'games', 50, 200, { prisms: 5, title: 'Infatigable' }),
-  A('games200', 'Parties', 'Jouer 200 parties', 'games', 200, 500, { prisms: 20, title: 'Pilier de la taverne' }),
+  A('games200', 'Parties', 'Jouer 200 parties', 'games', 200, 500, { prisms: 20, title: 'Pilier de la taverne', emote: 'tournee' }),
   A('missions10', 'Parties', 'Accomplir 10 missions', 'missions', 10, 150, { prisms: 3, title: 'Assidu' }),
   A('missions50', 'Parties', 'Accomplir 50 missions', 'missions', 50, 400, { prisms: 15, frame: 'etoile' }),
   A('cards50', 'Collection', 'Posséder 50 cartes', 'cards', 50, 150, { prisms: 5, title: 'Collectionneur' }),
@@ -296,11 +300,24 @@ export const ACHIEVEMENTS = [
   A('rk50', 'Classé', 'Gagner 50 parties classées', 'rankedWins', 50, 400, { prisms: 15, title: 'Habitué de l\'arène' }),
   A('tier_or', 'Classé', 'Atteindre le palier Or', 'bestTier', 2, 200, { prisms: 5 }),
   A('tier_diamant', 'Classé', 'Atteindre le palier Diamant', 'bestTier', 4, 600, { prisms: 15, chests: 1 }),
-  A('tier_maitre', 'Classé', 'Atteindre le palier Maître', 'bestTier', 5, 1000, { prisms: 25, chests: 2 }),
+  A('tier_maitre', 'Classé', 'Atteindre le palier Maître', 'bestTier', 5, 1000, { prisms: 25, chests: 2, emote: 'admire' }),
   A('friend1', 'Amis', 'Ajouter un ami', 'friends', 1, 50, { prisms: 1 }),
   A('friend5', 'Amis', 'Avoir 5 amis', 'friends', 5, 150, { prisms: 3, title: 'Âme de la taverne' }),
   A('friendWin', 'Amis', 'Gagner un défi contre un ami', 'friendWins', 1, 100, { prisms: 2 }),
-  A('friendWin25', 'Amis', 'Gagner 25 défis contre des amis', 'friendWins', 25, 400, { prisms: 10, title: 'Rival redouté' }),
+  A('friendWin25', 'Amis', 'Gagner 25 défis contre des amis', 'friendWins', 25, 400, { prisms: 10, title: 'Rival redouté', emote: 'attendais' }),
+  // Boss mondial (boss.js) : tentatives, meilleur score d'une tentative, boss différents affrontés, top 10 d'une semaine.
+  A('boss1', 'Boss mondial', 'Affronter un boss mondial', 'bossRuns', 1, 50, { prisms: 2 }),
+  A('boss25', 'Boss mondial', 'Faire 25 tentatives contre les boss mondiaux', 'bossRuns', 25, 300, { prisms: 10, title: 'Traqueur' }),
+  A('boss100', 'Boss mondial', 'Faire 100 tentatives contre les boss mondiaux', 'bossRuns', 100, 800, { prisms: 20, chests: 1 }),
+  A('bossKinds', 'Boss mondial', 'Affronter 3 boss mondiaux différents', 'bossKinds', 3, 200, { prisms: 5 }),
+  A('boss650', 'Boss mondial', 'Marquer 650 points en une tentative', 'bossBest', 650, 200, { prisms: 5 }),
+  A('boss1000', 'Boss mondial', 'Marquer 1000 points en une tentative', 'bossBest', 1000, 500, { prisms: 15, title: 'Briseur de boss' }),
+  A('bossTop10', 'Boss mondial', 'Finir une semaine dans le top 10 d\'un boss mondial', 'bossTop10', 1, 500, { prisms: 15, chests: 1 }),
+  // Quêtes d'histoire (story.js) : chapitres gagnés pour la première fois, campagnes finies, quêtes à durée limitée finies.
+  A('story1', 'Histoire', 'Gagner un premier chapitre d\'histoire', 'storyChapters', 1, 50, { prisms: 2 }),
+  A('storyCamp1', 'Histoire', 'Finir une campagne d\'histoire', 'storyCampaigns', 1, 200, { prisms: 5, title: 'Conteur' }),
+  A('storyCamp3', 'Histoire', 'Finir les trois campagnes des Terres d\'Aube', 'storyCampaigns', 3, 500, { prisms: 15, chests: 1, title: 'Chroniqueur de l\'Aube' }),
+  A('storyLimited', 'Histoire', 'Finir une quête à durée limitée', 'storyLimited', 1, 200, { prisms: 5 }),
   A('login7', 'Connexion', 'Se connecter 7 jours', 'loginDays', 7, 100, { prisms: 2 }),
   A('login30', 'Connexion', 'Se connecter 30 jours', 'loginDays', 30, 300, { prisms: 10, title: 'Habitué' }),
   A('login100', 'Connexion', 'Se connecter 100 jours', 'loginDays', 100, 800, { prisms: 20, chests: 1 }),
@@ -339,6 +356,8 @@ export const TITLES = Object.fromEntries([
   ...PLACES.map(p => [`rang:${p.id}`, p.title]),
   ...SEASON_TITLES,
   ...CLAN_TITLES,
+  ...BOSS_TITLES,
+  ...STORY_TITLES,
   [WELCOME_TITLE, 'Recrue prometteuse'],
 ]);
 

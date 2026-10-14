@@ -68,6 +68,7 @@ st = {
   log: [{ turn, msg, kind }],
   nextUid, order,         // compteurs : identifiant des jetons, ordre de pose
   over, result,           // fin de partie : { winner (0, 1 ou -1), reason, zones, tot }
+  trace,                  // à chaque fin de tour : { pow: puissance des zones de chaque joueur, n: cartes révélées } (historique)
   sim,                    // true dans les copies simulées par l'IA (pas de journal)
 }
 P = {
@@ -106,6 +107,10 @@ L'ordre de résolution compte : le joueur qui mène résout d'abord, zones de ga
 
 Les messages du journal sont écrits une fois pour les deux joueurs avec des marqueurs : `⟦0⟧` (nom du joueur 0, ou « Vous ») et `⟦0|révèle|révélez⟧` (verbe conjugué). `renderLog(msg, siège, noms)` les remplace pour celui qui regarde.
 
+## Détail d'une partie
+
+`gameDetail(st)` résume une partie terminée pour l'historique des joueurs (pas de replay) : tours joués, `trace` (puissance des 3 zones de chaque joueur à chaque fin de tour, avant les effets de fin de partie) et, par joueur, puissance finale des zones, terrains, `cut` (nombre de cartes révélées à la fin de chaque tour, pour découper `played` tour par tour), Trésor, tours parfaits, sorts, créatures perdues, général activé. `endTurn` remplit `st.trace` hors simulation ; la copie de l'IA (`clone`) et `npm run empreinte` la laissent de côté.
+
 ## Vue d'un joueur
 
 `viewFor(st, siège, extra)` construit ce qu'un joueur a le droit de voir : sa main avec les coûts du moment, ses cartes cachées, la puissance des cartes révélées, le nombre de cartes de l'adversaire, ses cartes cachées sous forme `{ hidden: true }`, et les 80 derniers messages du journal. C'est la seule chose envoyée à l'appli.
@@ -122,7 +127,8 @@ Réglages : 250 essais contre un joueur (`client/src/solo.js`), de 15 (Bronze) �
 - `COLLECTIBLE` (cartes hors jetons), `OWNABLE` (cartes et généraux), `BOOSTER_POOL` (contenu du booster quotidien) : tableaux mis à jour sur place quand un catalogue est appliqué.
 - `openBooster(collection)` : 3 cartes dont au moins une nouvelle tant qu'il en manque.
 - `deckError(deck, compte)` : message d'erreur ou `null` si le deck est jouable (15 cartes différentes possédées, 5 terrains autorisés, un général possédé). `draftError` accepte un deck incomplet.
-- `allowedTerrains` : terrains neutres et ceux des familles dont le joueur possède un général.
+- `allowedTerrains` : terrains neutres et ceux des familles dont le joueur possède un général, sauf ceux d'un set pas encore sorti.
+- `deckCode(deck)` / `readDeckCode(code)` : code de deck à partager (`DK1-` puis nom, général, terrains et cartes en base64url) ; il ne dépend pas de la collection. `fitDeck(deck, compte)` ramène un deck (code ou recette) à la collection : `deck` avec ce que le joueur possède, `missing` (général, terrains, cartes ; `unknown` compte les identifiants inconnus ou d'un set pas sorti, sans les nommer), `complete`. `recipeKeys()` : decks préconstruits proposés en recettes (ceux des sets sortis).
 - `SETS` / `DEFAULT_SETS` : sets (cartes, ouvert en boutique, booster quotidien, présentation) ; `dailyOffers` : cartes du jour en boutique.
 - `EXCHANGE_TIERS`, `exchangeOffers(rate)`, `exchangeFor(rate, need)` : offres fixes du change de Prismes en Éclats (bonus pour les grosses offres), et celle à proposer quand il manque `need` Éclats (la plus petite qui suffit, sinon la plus grosse).
 - `today()` : le jour à Paris (`AAAA-MM-JJ`) ; tout ce qui est quotidien bascule à minuit, heure française.
@@ -147,6 +153,10 @@ Le rang d'un joueur tient en un nombre d'étoiles `r` : 3 étoiles par division,
 - Chaque palier règle la force de l'IA (`ai` : essais d'`aiPlan`) et ses récompenses de fin de saison (`title`, `frame` ; Éclats dans les réglages `rankShards…` de `rewards.js`, voir `seasonShardsKey`).
 - Saisons : une par mois, heure de Paris (`seasonId`, `seasonName`, `seasonDaysLeft`) ; `seasonReset(r)` fait redescendre d'un palier au début de la suivante.
 - Classement final : `PLACES` (1re place, podium, top 10) donne en plus des Éclats et Prismes (réglages `rankPlaceShards…` et `rankPlacePrisms…`, voir `placeShardsKey`, `placePrismsKey`) et un titre (`rang:top1`, `rang:top3`, `rang:top10`, avec ceux des places en dessous : `placeTitles`), aux joueurs qui ont joué au moins `rankPlaceGames` parties classées dans la saison.
+
+## Quêtes d'histoire (`story.js`)
+
+Le lore (`LORE`) et les quêtes (`QUESTS`) : trois campagnes, une par deck de départ, qui se suivent comme les livres I à III d'une même histoire (`book` ; `razzia` : Grisk vole la clé du Septième Sceau ; `racines` : Sylvaën retient la fissure ; `pacte` : Morgrath brise le Sceau), toujours ouvertes, et des quêtes à durée limitée (`kind: 'limitee'`, dates par défaut `from`, `to` : `halloween`, `eclipse`, `neon`). Chaque quête a son héros, son deck (un deck de départ, parfois retouché), le thème de sa carte, un prologue, la quête qui raconte la suite (`next`, proposée à la fin) et ses chapitres (`C(...)`) : lieu et place sur la carte, enjeu en une phrase (`goal`, sur la fiche du chapitre et avant le combat), adversaire (`foe(nom, général, deck, essais, bonus de zone)`), récompense de la première victoire, dialogues d'avant et d'après (`[qui, texte]`, `NARRATOR` pour la narration), et parfois un allié qui rejoint le deck (`join : { card, out }`, appliqué aux chapitres suivants par `chapterDeck`). Le dernier chapitre donne un art Promo (`arts.js`) et un titre (`STORY_TITLES`) ; les quêtes limitées donnent aussi une carte de récompense (`STORY_CARDS` : `epouvantail`, `pretre_eclipse`, `coursier_neon`, set `recompense`, jamais en booster). Réglages de `/admin` (`questCfg`, `DEFAULT_STORY`, `STORY_LIMITS`) : ouverte ou non, dates, nombres de chaque récompense ; `questState` dit si une quête est `open`, `soon`, `over`, `archive` ou `off`. Une quête d'événement qui fait avancer l'histoire (`canon` : Éclipse, Signal perdu) passe à sa fin dans l'histoire principale (`archive`, `questTab`) : même progression, mais `chapterReward(…, archive)` retire l'art Promo et remplace la carte de quête par `CARD_SHARDS` Éclats, et `releasedStoryCards` met sa carte dans le booster du Set de base (le serveur la joint au catalogue). Une quête non canon (Halloween) disparaît à sa fin. Dialogues : une réplique est `[qui, texte]` ou `[qui, texte, illustration]` ; `qui` est un général, une carte (son illustration sert de portrait) ou `NARRATOR` ; chaque chapitre a un lieu illustré (`scene`, table `SCENES` : un terrain ou une carte), montré en tête des dialogues (`lineScene`). Les essais de l'IA et les decks adverses ont été réglés par simulation : environ 60 à 80 % de victoires au premier chapitre et 55 à 75 % au dernier, pour que le combat final ne soit pas frustrant. Une quête de plus : une entrée dans `QUESTS` (avec ses arts dans `arts.js` et son titre dans `STORY_TITLES`), son décor dans `DECOR` et `SKY` (`client/src/story.js`) ; le chargement vérifie que chaque général et chaque carte existe.
 
 ## Événements temporaires (`events.js`)
 

@@ -34,21 +34,10 @@ Cartes renforcées
 Les decks préconstruits sont désormais bien plus proches les uns des autres. Dites-nous ce que vous en pensez en jeu !`,
   },
   {
-    id: 'maj-equilibrage-2',
-    title: 'Mise à jour : équilibrage des sets 1 et 2',
-    body: `Deuxième passe d'équilibrage, d'après vos parties et de nouvelles simulations entre IA.
-
-Correctifs
-• Les effets « Début de partie » des généraux (Vael'Thar, L'Érudit, Ysmera, L'Intendant) se déclenchent bien.
-• Une partie pouvait se figer quand une zone se retrouvait avec 5 créatures après un déplacement : c'est corrigé.
-
-Généraux
-• Ignaroth le Dévoreur : son effet de fin de tour ne touche plus qu'un Dragon au hasard de votre main (au lieu de tous les Dragons de la main et du deck).
-• Snagg, Maître de la Horde : répartit la puissance de la Horde détruite, plus 3, entre vos autres Hordes.
-
-Cartes
-• Prière : la créature gagne +X+1 (au lieu de +X).
-
-Dites-nous ce que vous en pensez en jeu !`,
+    id: 'hotfix-1',
+    title: 'Hotfix #1 : équilibrage de quelques cartes',
+    body: `• Ignaroth le Dévoreur : son effet de fin de tour ne touche plus qu'un Dragon au hasard de votre main (au lieu de tous les Dragons de votre main et de votre deck).
+• Snagg, Maître de la Horde : la puissance de la Horde détruite est répartie avec +3 entre vos autres Hordes.
+• Prière : votre créature la plus faible ici gagne +X+1 (au lieu de +X).`,
   },
 ];

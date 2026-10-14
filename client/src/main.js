@@ -4,8 +4,10 @@ import './habillage.css';
 import './cyber.css';
 import './halloween.css';
 import './clan.css';
-import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
-import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, setById, setRevealed, unrevealed, allowedGenerals, allowedTerrains, starterGenerals, deckError, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder, today } from '@jeu/engine/collection';
+import './boss.css';
+import './story.css';
+import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog, bossBoost } from '@jeu/engine';
+import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, setById, setOf, setRevealed, unrevealed, allowedGenerals, allowedTerrains, starterGenerals, deckError, deckCode, readDeckCode, fitDeck, recipeKeys, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder, today } from '@jeu/engine/collection';
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
@@ -15,6 +17,10 @@ import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
 import { createNotifs } from './notifs.js';
 import { createClan, crestHTML } from './clan.js';
+import { createBoss } from './boss.js';
+import { createStory } from './story.js';
+import { createHistory } from './history.js';
+import { questOfCard } from '@jeu/engine/story';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
 import { artBg, artHTML, heroHTML, portraitHTML, terrainBg, terrainHTML, holoCard, setHoloOff, popCard, setPopOff } from './art.js';
@@ -28,7 +34,8 @@ import { TABS, screenDir, slides, ghostScreen, ghostSheet } from './transition.j
 import { openPack, openChest } from './opening.js';
 import { setHome } from './lobby.js';
 import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
-import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL, FAMILY_REWARDS, SET_REWARDS } from '@jeu/engine/rewards';
+import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL, FAMILY_REWARDS, SET_REWARDS, ACHIEVEMENTS } from '@jeu/engine/rewards';
+import { EMOTES, EMOTE_SLOTS, EMOTE_COOLDOWN_MS, EMOTE_SHOW_MS, SHOP_EMOTES, FREE_EMOTES } from '@jeu/engine/emotes';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { EVENT_EFFECTS, multLabel } from '@jeu/engine/events';
 import { SEASONS, PASS_TIERS, SEASON_THEMES, seasonOfCard, seasonStarted, seasonStart, currentSeason, releaseMonth } from '@jeu/engine/pass';
@@ -50,8 +57,8 @@ const ui = {
   booster: null, shop: null, edit: null, deckStep: 0, renaming: null, profile: null, nameDraft: '', colFam: '', joinCode: (params.get('code') || '').toUpperCase(),
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
-  drag: null, fx: null, zoom: null, soloReward: null, avatars: null, player: null, friendFoe: null, rankedAi: false, rankedData: null,
-  codexQuery: '', zoomBack: null, coach: null, coachShown: null, gotArt: null, offline: false,
+  drag: null, fx: null, zoom: null, soloReward: null, avatars: null, player: null, friendFoe: null, rankedAi: false, bossRun: false, rankedData: null,
+  codexQuery: '', zoomBack: null, coach: null, coachShown: null, gotArt: null, offline: false, bubbles: {}, emotePick: false, emoteMute: false, emoteAt: 0,
 };
 const app = document.getElementById('app');
 // Amis et défis (friends.js) : écran, bandeau de défi, choix du deck pour une partie entre amis.
@@ -61,19 +68,30 @@ const friends = createFriends({ ui, render: () => render(), call: (...x) => call
 const mail = createMail({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), rewardItem: r => rewardItem(r), play: (...x) => play(...x) });
 // Clans (clan.js) : création, adhésion, missions de clan, dons, magasin et classement des clans.
 const clan = createClan({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), avatarHTML: (...x) => avatarHTML(...x), ico: k => ico(k), play: (...x) => play(...x) });
+// Boss mondial (boss.js) : boss de la semaine, tentatives, classement et magasin du boss ; à la table, son bandeau et la fin de tentative.
+const boss = createBoss({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), avatarHTML: (...x) => avatarHTML(...x), ico: k => ico(k), play: (...x) => play(...x),
+  go: () => goBoss(), editBossDeck: id => { editBossDeck(id); render(); }, gotArt: id => { ui.gotArt = { id }; ui.sheet = 'art'; render(); }, leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
+// Quêtes d'histoire (story.js) : campagnes et quêtes du moment, carte, dialogues ; le combat se joue dans la page (goStory).
+const story = createStory({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), ico: k => ico(k), play: (...x) => play(...x),
+  anyCard: (...x) => anyCard(...x), zoomKey: (...x) => zoomKey(...x), rewardItem: r => rewardItem(r), setAccount: a => setAccount(a), go: (q, i) => goStory(q, i), quit: () => quit(),
+  leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
+// Historique des parties (history.js) : onglet du profil et détail d'une partie.
+const gameHistory = createHistory({ ui, render: () => render(), zoomKey: (...x) => zoomKey(...x) });
 // Notifications push (notifs.js) : réglées dans le profil ; en toucher une ouvre l'écran qu'elle annonce.
-const notifs = createNotifs({ ui, render: () => render(), call: (...x) => call(...x), open: where => openFromNotif(where) });
+const notifs = createNotifs({ ui, render: () => render(), call: (...x) => call(...x), open: where => openFromNotif(where), track: (...x) => track(...x) });
 
 // ---- Contrôleurs (en ligne / IA) ----
 const handlers = {
   // Partie classée contre l'IA : le salon démarre aussitôt, pas d'écran d'attente.
-  onLobby(m) { if (ui.rankedAi) { store.set('session', { room: m.room, token: m.token }); return; }
+  onLobby(m) { if (ui.rankedAi || ui.bossRun) { store.set('session', { room: m.room, token: m.token }); return; }
     ui.screen = 'lobby'; ui.room = m.room; ui.lobbyNames = m.names; ui.error = ''; store.set('session', { room: m.room, token: m.token, foe: ui.friendFoe }); render(); },
   onView(view, room) {
     if (room) ui.room = room;
     if (view.avatars) ui.avatars = view.avatars;
     ui.awayUntil = (view.away || []).map(ms => (ms == null ? null : Date.now() + ms));
     const prev = ui.screen === 'game' ? ui.view : null;
+    // Arrivée à la table : pas de bulle, sélecteur fermé ; les émotes de l'adversaire coupées si le joueur l'a choisi (Profil).
+    if (!prev) { ui.bubbles = {}; ui.emotePick = false; ui.emoteMute = !!store.get('emotes-off', false); }
     if (view.phase !== 'plan' || view.turn !== ui.lastTurn) { ui.pending = []; ui.moves = []; ui.moveSel = null; ui.genZone = null; ui.sel = null; }
     if (view.phase === 'plan' && view.turn !== ui.lastTurn) ui.msg = '';
     ui.lastTurn = view.turn; ui.view = view; ui.screen = 'game';
@@ -82,6 +100,16 @@ const handlers = {
     if (view.phase !== 'over') { ui.rematchAsked = false; if (ui.sheet === 'end') ui.sheet = null; }
     viewEffects(prev, view);
     render();
+  },
+  // Émote reçue (la sienne comprise) : une bulle à côté du joueur, sauf celles de l'adversaire quand il les a coupées.
+  onEmote(seat, id) {
+    if (!EMOTES[id] || ui.screen !== 'game' || !ui.view) return;
+    const mine = seat === ui.view.seat;
+    if (!mine && ui.emoteMute) return;
+    const b = ui.bubbles[seat] = { id, at: Date.now() };
+    if (!mine) play('emote');
+    render();
+    setTimeout(() => { if (ui.bubbles[seat] === b) { delete ui.bubbles[seat]; if (ui.screen === 'game') render(); } }, EMOTE_SHOW_MS + 30);
   },
   onError(msg) { ui.error = msg; ui.offline = false; render(); },
   // Partie en ligne : connexion perdue ou retrouvée (net.js se reconnecte seul et reprend la partie).
@@ -134,11 +162,27 @@ function goRanked() {
     ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'ranked', auth: ui.auth });
   });
 }
+// Boss mondial : une tentative contre le boss de la semaine, jouée par le serveur. Elle compte dès que la partie commence.
+function goBoss() {
+  if (!boss.bossDeck(ui.account.boss?.id) && !deckReady()) return;
+  toTable('Le boss se dresse devant vous…', () => {
+    ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = false; ui.bossRun = true; ui.sheet = null; ui.lastTurn = 0;
+    ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'boss', auth: ui.auth });
+  });
+}
 function goSolo() {
   if (!deckReady()) return;
   toTable('La table se prépare…', () => {
     ui.mode = 'solo'; ui.sheet = null; ui.lastTurn = 0; ui.soloReward = null;
     ui.ctrl = startSolo(handlers, { name: ui.account.name, deck: ui.account.deck });
+  });
+}
+// Quête d'histoire : un chapitre contre l'IA, dans la page, avec le deck du héros (story.js). Pas besoin d'un deck jouable.
+function goStory(quest, i) {
+  toTable('Le récit se poursuit…', () => {
+    ui.mode = 'story'; ui.sheet = null; ui.lastTurn = 0; ui.soloReward = null; ui.error = '';
+    const ctrl = startSolo(handlers, story.gameOpts(quest, i, ui.account.name)), rematch = ctrl.rematch;
+    ui.ctrl = { ...ctrl, rematch: () => { story.rematched(); rematch(); } };
   });
 }
 // Tutoriel : leçons guidées contre l'IA avec un deck fixé, sans deck du joueur ni récompense (tutorial.js).
@@ -195,7 +239,7 @@ function setAccount(a) {
   if (MENU.includes(ui.screen)) ui.screen = a.starter ? 'home' : 'starter';
 }
 function signedOut(msg = '') {
-  friends.stop(); clan.stop();
+  friends.stop(); clan.stop(); boss.stop(); story.stop();
   store.set('auth', null); ui.auth = null; ui.account = null; ui.screen = 'login'; ui.error = msg; ui.busy = false;
 }
 // Appel à l'API avec la session du joueur ; une session expirée renvoie à l'écran de connexion.
@@ -205,6 +249,8 @@ async function call(method, path, body) {
   catch (e) { if (e.status === 401) signedOut(e.message); else ui.error = e.message; return null; }
   finally { ui.busy = false; render(); }
 }
+// Signale au serveur un geste qu'il ne voit pas passer (onglet Suivi de /admin) : code de deck copié, émote contre l'IA, notification touchée.
+const track = (what, id) => { if (ui.auth) api('POST', '/api/track', { what, id }, ui.auth).catch(() => {}); };
 // Cartes et sets publiés depuis /admin : appliqués au moteur pour l'affichage et la partie contre l'IA.
 let catalogVersion = 0;
 async function loadCatalog() {
@@ -244,7 +290,7 @@ function showCards(r, set = 'base') {
   const summary = () => { ui.booster = { ...r, opened: r.cards.length > 1 }; ui.sheet = 'booster'; render(); };
   if (r.cards.length < 2) { play('reveal'); summary(); return; }
   openPack({ title: r.title, set, setName: esc(SETS.find(x => x.id === set)?.name || ''), back: prog().back,
-    cards: r.cards.map((id, i) => ({ html: anyCard(id, myLevel(id), mySel(id), myBorder(id)), fresh: !!r.fresh[i], general: !!GENERALS[id],
+    cards: r.cards.map((id, i) => ({ html: anyCard(id, myLevel(id), mySel(id), myBorder(id), 'grand'), fresh: !!r.fresh[i], general: !!GENERALS[id],
       tag: r.fresh[i] ? (GENERALS[id] ? 'Nouveau général !' : 'Nouvelle carte !') : dupTag(id) })) }, summary);
 }
 async function openBoosterNow() {
@@ -267,7 +313,7 @@ async function buyArt(path, body) {
   ui.shop = r.shop; ui.msg = '';
   const art = ARTS[r.art], show = () => { ui.gotArt = { id: r.art, chest: !!r.chest }; ui.sheet = 'art'; render(); };
   // Coffre : on le frappe, il s'ouvre (opening.js), puis l'art s'affiche, prêt à être choisi.
-  if (r.chest) { openChest({ rarity: art.rarity, html: artHTML(art.card, nameOf(art.card), myLevel(art.card), '', art.id), chip: rarChip(art), name: esc(art.name), sub: esc(nameOf(art.card)) }, show); return; }
+  if (r.chest) { openChest({ rarity: art.rarity, html: artHTML(art.card, nameOf(art.card), myLevel(art.card), 'grand', art.id), chip: rarChip(art), name: esc(art.name), sub: esc(nameOf(art.card)) }, show); return; }
   play(['epique', 'legendaire'].includes(art.rarity) ? 'astral' : 'reveal'); show();
 }
 // ---- Change de devises : Prismes en Éclats, par offres fixes (exchangeOffers du moteur), jamais l'inverse ----
@@ -315,15 +361,24 @@ const maxDecks = () => ui.account?.maxDecks ?? MAX_DECKS;
 const stepOpen = (e, i) => i === 0 || (i === 1 ? !!e.general : !!e.general && e.terrains.length === DECK_TERRAINS);
 function editDeck(id = ui.account.active, back = 'home') {
   const d = id && deckById(id);
-  ui.edit = d ? { id: d.id, name: d.name, cards: d.cards.slice(), terrains: d.terrains.slice(), general: d.general, back }
+  // Un terrain d'un set pas encore sorti (choisi avant qu'il soit caché) est retiré : il n'apparaît pas parmi les choix.
+  ui.edit = d ? { id: d.id, name: d.name, cards: d.cards.slice(), terrains: d.terrains.filter(t => !unrevealed(t)), general: d.general, back }
     : { id: null, name: `Deck ${ui.account.decks.length + 1}`, cards: [], terrains: [], general: null, back };
   // Un deck commencé reprend à la dernière étape accessible.
   ui.deckStep = [0, 1, 2].filter(i => stepOpen(ui.edit, i)).pop();
   ui.screen = 'deck'; ui.error = ''; ui.msg = '';
 }
+// Deck préparé contre un boss mondial (boss.js) : le sien, sinon une copie du deck joué à ajuster.
+function editBossDeck(boss) {
+  const d = ui.account.bossDecks?.[boss] || ui.account.deck;
+  ui.edit = { boss, id: null, name: ui.account.bossDecks?.[boss]?.name || `Contre ${GENERALS[boss].name.split(/,\s*/)[0]}`,
+    cards: d ? d.cards.slice() : [], terrains: d ? d.terrains.slice() : [], general: d?.general || null, back: 'decks' };
+  ui.deckStep = [0, 1, 2].filter(i => stepOpen(ui.edit, i)).pop();
+  ui.screen = 'deck'; ui.error = ''; ui.msg = '';
+}
 async function saveDeck() {
-  const e = ui.edit;
-  const r = await call('PUT', '/api/decks', { id: e.id, name: e.name, general: e.general, terrains: e.terrains, cards: e.cards });
+  const e = ui.edit, body = { name: e.name, general: e.general, terrains: e.terrains, cards: e.cards };
+  const r = e.boss ? await call('PUT', '/api/boss/deck', { boss: e.boss, ...body }) : await call('PUT', '/api/decks', { id: e.id, ...body, ...(e.id ? {} : { from: e.from }) });
   if (r) { ui.screen = e.back; ui.edit = null; ui.msg = ''; render(); }
 }
 function openDecks() { ui.screen = 'decks'; ui.error = ''; ui.msg = ''; render(); }
@@ -340,6 +395,38 @@ async function renameDeck() {
   ui.sheet = null; ui.renaming = null;
   await call('POST', '/api/decks/rename', r);
 }
+// Codes de deck : partager un deck (le sien ou une recette) en copiant son code, en créer un en collant celui d'un autre.
+function showDeckCode(d) { ui.shareDeck = { name: d.name, code: deckCode(d) }; ui.sheet = 'deck-code'; render(); }
+function copyDeckCode(btn) {
+  const box = document.getElementById('deck-code');
+  navigator.clipboard.writeText(ui.shareDeck.code).then(() => { btn.textContent = 'Code copié'; }).catch(() => { box?.select(); });
+  track('deckShare');
+}
+// Liste lisible de noms, raccourcie au-delà de `max`.
+const namesLine = (ids, max = 6) => ids.slice(0, max).map(nameOf).join(', ') + (ids.length > max ? ` et ${ids.length - max} autre${ids.length - max > 1 ? 's' : ''}` : '');
+// Ce qui manque pour reconstruire un deck avec sa collection, en une phrase.
+function missingLine({ missing: m }) {
+  const parts = [m.general && `le général ${nameOf(m.general)}`,
+    m.terrains.length && `${m.terrains.length > 1 ? 'les terrains' : 'le terrain'} ${m.terrains.map(t => TERRAINS[t].name).join(', ')} (il faut un général de leur famille)`,
+    m.cards.length && `${m.cards.length} carte${m.cards.length > 1 ? 's' : ''} : ${namesLine(m.cards)}`].filter(Boolean);
+  return parts.length ? `Il vous manque ${parts.join(' ; ')}.` : '';
+}
+// Ouvre le constructeur sur un nouveau deck rempli avec ce que la collection permet de reprendre d'un code ou d'une recette.
+function buildFrom(d, what) {
+  if (ui.account.decks.length >= maxDecks()) { ui.error = `${maxDecks()} decks au plus : supprimez-en un pour ${what === 'code' ? 'importer ce code' : 'construire cette recette'}.`; render(); return; }
+  const fit = fitDeck(d, ui.account), skip = fit.missing.unknown;
+  editDeck(null, 'decks');
+  Object.assign(ui.edit, { ...fit.deck, name: fit.deck.name || ui.edit.name, from: what });
+  ui.deckStep = [0, 1, 2].filter(i => stepOpen(ui.edit, i)).pop();
+  ui.msg = [fit.complete ? 'Vous avez tout : vérifiez le deck puis enregistrez-le.' : `${missingLine(fit)} Complétez avec vos cartes, ou enregistrez-le incomplet pour le finir plus tard.`,
+    skip ? `${skip} élément${skip > 1 ? 's' : ''} inconnu${skip > 1 ? 's' : ''} ou pas encore sorti${skip > 1 ? 's' : ''} ignoré${skip > 1 ? 's' : ''}.` : ''].filter(Boolean).join(' ');
+  ui.importCode = ''; ui.importErr = ''; render(); scrollTo(0, 0);
+}
+function importDeck() {
+  const d = readDeckCode(ui.importCode);
+  if (!d) { ui.importErr = 'Ce code de deck est illisible : copiez-le en entier, il commence par DK1-.'; render(); return; }
+  buildFrom(d, 'code');
+}
 
 // Notification touchée (notifs.js) : l'écran qu'elle annonce, sauf en pleine partie ou dans un salon.
 function openFromNotif(where) {
@@ -347,6 +434,7 @@ function openFromNotif(where) {
   ui.sheet = null; ui.error = ''; ui.msg = '';
   if (where === 'friends' || where === 'clan') { (where === 'clan' ? clan : friends).click(where, {}); return; }
   if (where === 'ranked') { openRanked(); return; }
+  if (where === 'boss') { boss.click('boss', {}); return; }
   ui.screen = 'home';
   if (where === 'calendar') { ui.sheet = 'calendar'; ui.calGot = null; }
   render();
@@ -354,7 +442,7 @@ function openFromNotif(where) {
 
 // ---- Profil ----
 function openProfile(tab = 'profil') {
-  ui.screen = 'profile'; ui.profileTab = tab; ui.error = ''; ui.msg = ''; ui.nameDraft = ui.account.name; ui.profile = null; ui.notifs.note = ''; render();
+  ui.screen = 'profile'; ui.profileTab = tab; ui.error = ''; ui.msg = ''; ui.nameDraft = ui.account.name; ui.profile = null; ui.notifs.note = ''; gameHistory.reset(); render();
   notifs.load();
   call('GET', '/api/profile').then(r => { if (r) { ui.profile = r.stats; ui.progressInfo = { achievements: r.achievements, collection: r.collection }; render(); } });
 }
@@ -452,7 +540,8 @@ const levelBar = p => `<div class="lvl"><span class="lvlnum num">Niv. ${p.level}
 const gains = r => [r.xp ? `+${r.xp} XP` : '', r.shards ? `+${r.shards} Éclats` : '', r.prisms ? `+${r.prisms} Prisme${r.prisms > 1 ? 's' : ''}` : '',
   r.chests ? `+${r.chests} coffre${r.chests > 1 ? 's' : ''} d'arts offert${r.chests > 1 ? 's' : ''}` : '', r.boosters ? `+${r.boosters} booster${r.boosters > 1 ? 's' : ''} offert${r.boosters > 1 ? 's' : ''}` : '',
   r.passXp ? `+${r.passXp} XP de saison` : '', r.essence ? `+${r.essence} essence${r.essenceCard ? ` de ${nameOf(r.essenceCard)}` : ''}` : '',
-  r.uniEssence ? `+${r.uniEssence} essence universelle` : '', r.clanCoins ? `+${r.clanCoins} Écu${r.clanCoins > 1 ? 's' : ''} de clan` : ''].filter(Boolean).join(' · ');
+  r.uniEssence ? `+${r.uniEssence} essence universelle` : '', r.clanCoins ? `+${r.clanCoins} Écu${r.clanCoins > 1 ? 's' : ''} de clan` : '',
+  r.bossCoins ? `+${r.bossCoins} Insigne${r.bossCoins > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
 const titleLabel = id => prog().cosmetics.titles.find(t => t.id === id)?.label || '';
 function missionsHTML() {
   const p = prog();
@@ -467,7 +556,8 @@ function missionsHTML() {
 function rewardItem(r) {
   const art = r.art && ARTS[r.art];
   const extra = [r.title ? `Titre « ${esc(titleLabel(r.title) || r.title)} »` : '', r.frame ? esc(FRAMES[r.frame] || r.frame) : '', r.back ? esc(BACKS[r.back] || r.back) : '',
-    art ? `Art Promo « ${esc(art.name)} »` : '', r.theme ? `Thème de l'interface « ${esc(SEASON_THEMES[r.theme] || r.theme)} » (Profil, Personnalisation)` : ''].filter(Boolean).join(' · ');
+    art ? `Art Promo « ${esc(art.name)} »` : '', r.theme ? `Thème de l'interface « ${esc(SEASON_THEMES[r.theme] || r.theme)} » (Profil, Personnalisation)` : '',
+    r.emote && EMOTES[r.emote] ? `Émote ${EMOTES[r.emote].icon} « ${esc(EMOTES[r.emote].text)} » (Profil, Personnalisation)` : ''].filter(Boolean).join(' · ');
   return `<div class="reward"><div><b>${esc(r.label)}</b>${gains(r) ? `<div class="num">${gains(r)}</div>` : ''}${extra ? `<div class="hint">${extra}</div>` : ''}</div>
     ${r.card ? `<button class="ccard" data-zoom="${zoomKey(r.card)}">${anyCard(r.card)}</button>` : ''}
     ${art ? `<button class="ccard" data-zoom="${zoomKey(art.card, art.id)}">${anyCard(art.card, myLevel(art.card), art.id, myBorder(art.card))}</button>` : ''}</div>`;
@@ -599,6 +689,7 @@ const setHidden = id => !!id && !setRevealed(setById(id));
 const futureCosmetic = id => futureSeasons().some(x => [x.frame[0], x.framePremium[0], x.back[0], x.backPremium[0]].includes(id))
   || FAMILY_REWARDS.some(r => r.back === id && setHidden(r.set)) || Object.entries(SET_REWARDS).some(([set, r]) => r.frame === id && setHidden(set));
 const hiddenCard = id => { if (owned(id)) return false; const x = seasonOfCard(id); if (x && !seasonStarted(x.id, today())) return true;
+  if (questOfCard(id)?.from > today()) return true;
   return unrevealed(id) || setHidden(rewardSourceOf(id)?.set); };
 // Familles à montrer : celles qui ont au moins une carte visible.
 const shownFamilies = () => FAMILIES.filter(f => OWNABLE.some(id => famOfCard(id) === f && !hiddenCard(id)));
@@ -679,7 +770,7 @@ function endRewardHTML() {
 }
 // Ce que l'écran de fin anime sur PixiJS (fx.js, setEnd) : les récompenses de la partie, une fois connues.
 function endReel() {
-  if (ui.sheet !== 'end' || ui.mode === 'tuto' || !ui.view?.result) return null;
+  if (ui.sheet !== 'end' || ui.mode === 'tuto' || ui.mode === 'story' || !ui.view?.result || ui.view.boss) return null;
   const r = ui.mode === 'online' ? ui.view.reward : ui.soloReward; if (!r) return null;
   const w = ui.view.result.winner;
   return { key: JSON.stringify(r), reward: r, result: w === ui.view.seat ? 'win' : w < 0 ? 'tie' : 'lose' };
@@ -903,24 +994,63 @@ function genSlot(side, isMe, canGen) {
   return `<button class="gencard${lvCls(borderIn(seat, side.general))} ${state}" style="${famVar([g.fam])}; --gt: -${Math.round(performance.now())}ms" data-general="${side.general}" data-gfam="${g.fam || ''}" data-side="${isMe ? 'me' : 'foe'}"
     aria-label="Général : ${esc(g.name)}, ${esc(note)}" title="${esc(g.text)}">
     <span class="gport">${pic}</span>
-    <span class="gtx"><span class="gk">Général</span><span class="gn ${epithet ? '' : 'two'}">${esc(short)}</span>${epithet ? `<span class="ge">${esc(epithet)}</span>` : ''}
+    <span class="gtx"><span class="gk">${g.boss ? 'Boss' : 'Général'}</span><span class="gn ${epithet ? '' : 'two'}">${esc(short)}</span>${epithet ? `<span class="ge">${esc(epithet)}</span>` : ''}
     <span class="gs">${g.activate ? '<i class="gdot" aria-hidden="true"></i>' : ''}${esc(note)}</span></span></button>`;
 }
 function pbar(side, isMe, connected, canGen = false) {
   const seat = isMe ? ui.view.seat : 1 - ui.view.seat, b = badgeOf(seat);
   const who = { name: side.name, avatar: avatarOf(seat), progress: { frame: b?.frame } };
-  const stats = [
+  // Le boss n'a ni main ni deck : sa ligne dit plutôt combien de zones il tient encore.
+  const held = !isMe && ui.view.boss ? [0, 1, 2].filter(z => !ui.view.boss.score.zones[z]?.beat).length : 0;
+  const stats = !isMe && ui.view.boss ? `<span class="num">${held ? `Tient ${held} zone${held > 1 ? 's' : ''} sur 3` : 'Débordé partout'}</span>` : [
     !isMe ? `<span class="num" title="Sceaux de l'adversaire ce tour">Sceaux ${side.seals}</span>` : '',
     `<span class="num">Main ${side.handCount}</span>`, `<span class="num">Deck ${side.deckCount}</span>`,
     side.treasure ? `<span class="num" title="Sceaux non dépensés aux tours précédents">Trésor ${side.treasure}</span>` : '',
     side.perfectTurns ? `<span class="num" title="Tours finis avec tous les sceaux dépensés">Grâce ${side.perfectTurns}</span>` : '',
   ].filter(Boolean).join('');
   const ready = !isMe && ui.view.phase === 'plan' && ui.view.ready.foe;
-  return `<div class="pbar ${isMe ? 'me' : 'foe'}">
-    <span class="pav">${avatarHTML(who, 'pa')}${!isMe && ui.mode === 'online' ? `<span class="dot ${connected ? '' : 'off'}" title="${connected ? 'Connecté' : 'Déconnecté'}"></span>` : ''}</span>
-    <div class="pid"><div class="pline"><span class="who">${isMe ? 'Vous' : esc(side.name)}</span>${b ? `<small class="lv num">niv. ${b.level}</small>` : ''}${ready ? '<span class="chip ok">Prêt</span>' : ''}${b?.title ? `<span class="ptitle">${esc(b.title)}</span>` : ''}</div>
+  const av = `${avatarHTML(who, 'pa')}${!isMe && ui.mode === 'online' ? `<span class="dot ${connected ? '' : 'off'}" title="${connected ? 'Connecté' : 'Déconnecté'}"></span>` : ''}`;
+  // Émotes (pas dans le tutoriel) : votre portrait ouvre le sélecteur, celui de l'adversaire coupe ou rétablit ses émotes.
+  const emo = ui.mode === 'online' || ui.mode === 'solo';
+  const pav = !emo ? `<span class="pav">${av}</span>` : isMe
+    ? `<button class="pav emobtn ${ui.emotePick ? 'on' : ''}" data-act="emotes" aria-haspopup="menu" aria-expanded="${ui.emotePick}" aria-label="Envoyer une émote" title="Émotes">${av}<span class="emohint" aria-hidden="true">${EMO_ICON}</span></button>`
+    : `<button class="pav emobtn" data-act="emote-mute" aria-pressed="${ui.emoteMute}" aria-label="${ui.emoteMute ? 'Rétablir' : 'Couper'} les émotes de ${esc(side.name)}" title="${ui.emoteMute ? 'Émotes coupées' : 'Couper ses émotes'}">${av}${ui.emoteMute ? `<span class="emohint off" aria-hidden="true">${MUTED_ICON}</span>` : ''}</button>`;
+  // Bulle et sélecteur d'émotes : à côté du bandeau, pas dedans (les thèmes découpent le bandeau, clip-path, ce qui les cacherait).
+  return `<div class="pslot">${bubbleHTML(seat, isMe)}${isMe && emo && ui.emotePick ? emotePickHTML() : ''}<div class="pbar ${isMe ? 'me' : 'foe'}">
+    ${pav}
+    <div class="pid"><div class="pline"><span class="who">${isMe ? 'Vous' : esc(side.name)}</span>${b?.level ? `<small class="lv num">niv. ${b.level}</small>` : ''}${ready ? '<span class="chip ok">Prêt</span>' : ''}${b?.title ? `<span class="ptitle">${esc(b.title)}</span>` : ''}</div>
       <div class="pstats">${stats}</div></div>
-    ${ui.view.noGeneral ? '' : genSlot(side, isMe, canGen)}</div>`;
+    ${ui.view.noGeneral ? '' : genSlot(side, isMe, canGen)}</div></div>`;
+}
+// ---- Émotes en partie ----
+const EMO_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>';
+const MUTED_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="currentColor" stroke="none" opacity=".35"/><path d="M3 3l18 18"/></svg>';
+const emoteBody = id => `<span class="ei" aria-hidden="true">${EMOTES[id].icon}</span><span class="et">${esc(EMOTES[id].text)}</span>`;
+// Bulle d'une émote à côté du joueur. Son animation (pop, puis fondu) reprend où elle en était quand la partie se redessine.
+function bubbleHTML(seat, isMe) {
+  const b = ui.bubbles[seat], t = b ? Date.now() - b.at : 0;
+  if (!b || t >= EMOTE_SHOW_MS) return '';
+  return `<div class="ebubble ${isMe ? 'me' : 'foe'}" role="status" style="animation-delay:-${t}ms">${emoteBody(b.id)}</div>`;
+}
+// Sélecteur, au-dessus de votre bandeau : vos émotes (Profil, Personnalisation), et de quoi couper celles de l'adversaire.
+function emotePickHTML() {
+  const list = prog().emotes?.length ? prog().emotes : FREE_EMOTES;
+  return `<div class="emotepick" role="menu" aria-label="Émotes">
+    <div class="emogrid">${list.filter(id => EMOTES[id]).map(id => `<button class="emo" role="menuitem" data-act="emote" data-id="${id}">${emoteBody(id)}</button>`).join('')}</div>
+    <button class="emomute ${ui.emoteMute ? 'on' : ''}" data-act="emote-mute" aria-pressed="${ui.emoteMute}">${ui.emoteMute ? MUTED_ICON : EMO_ICON}${ui.emoteMute ? 'Émotes de l\'adversaire coupées' : 'Couper les émotes de l\'adversaire'}</button></div>`;
+}
+function sendEmote(id) {
+  ui.emotePick = false;
+  if (Date.now() - ui.emoteAt < EMOTE_COOLDOWN_MS) { ui.msg = 'Une émote à la fois : attendez un instant.'; msgFades(); render(); return; }
+  ui.emoteAt = Date.now(); ui.ctrl?.emote?.(id); play('pick'); render();
+  // Une émote en ligne passe par le serveur, qui la compte ; contre l'IA, la partie tourne dans la page.
+  if (ui.ctrl && !ui.ctrl.online) track('emote', id);
+}
+function toggleEmoteMute() {
+  ui.emoteMute = !ui.emoteMute; ui.emotePick = false;
+  if (ui.emoteMute && ui.view) delete ui.bubbles[1 - ui.view.seat];
+  ui.msg = ui.emoteMute ? `Émotes de ${ui.view?.foe.name || 'l\'adversaire'} coupées pour cette partie.` : `Émotes de ${ui.view?.foe.name || 'l\'adversaire'} rétablies.`;
+  msgFades(); render();
 }
 // Tour en cours, dans la barre du haut sous le type de partie : numéro et un point par tour.
 function turnHTML(label) {
@@ -963,10 +1093,10 @@ function renderGame() {
     const pcls = c.power > d.power ? 'up' : c.power < d.power ? 'down' : '';
     return `<button class="hc${lvCls(myBorder(c.id))} ${ui.sel === c.uid ? 'sel' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${cant ? 'cant' : ''}" style="${famVar(d.kw)}" data-hand="${c.uid}" data-id="${c.id}">${artBg(c.id, mySel(c.id))}
       <span class="top2"><span class="seal">${costLabel(d, c.cost)}</span>${d.type === 'C' ? `<span class="p num ${pcls}">${c.power}</span>` : '<span class="t">Sort</span>'}</span>
-      <span class="n">${esc(d.name)}</span>${d.text ? `<span class="x">${rich(d.text)}</span>` : `<span class="k">${kwLine(d)}</span>`}</button>`; }).join('');
+      <span class="n">${esc(d.name)}</span>${d.text ? `<span class="x">${rich(d.text)}</span>` : `<span class="k">${kwLine(d)}</span>`}${boss.handChip(v, c.id)}</button>`; }).join('');
   const canGen = play && g.activate && !m.generalUsed && m.seals >= (g.activateCost || 0);
   const goLabel = v.phase === 'reveal' ? 'Révélation…' : v.ready.me ? 'En attente…' : v.turn === v.turns ? 'Valider le dernier tour' : 'Valider le tour';
-  const mode = ui.mode === 'online' ? (v.ranked ? 'Partie classée' : `Partie ${esc(ui.room || '')}`) : ui.mode === 'tuto' ? 'Tutoriel' : 'Contre l\'IA';
+  const mode = ui.mode === 'online' ? (v.boss ? 'Boss mondial' : v.ranked ? 'Partie classée' : `Partie ${esc(ui.room || '')}`) : ui.mode === 'tuto' ? 'Tutoriel' : ui.mode === 'story' ? esc(story.label()) : 'Contre l\'IA';
   // Hors tutoriel, pas d'encadré d'info : une double touche ouvre la carte en grand, et un refus (zone pleine, sceaux) s'affiche en bulle au-dessus de la main.
   const toast = ui.msg ? `<div class="toast" role="alert">${esc(ui.msg)}</div>` : '';
   return `
@@ -974,6 +1104,7 @@ function renderGame() {
     ${muteBtn()}<button class="btn" data-act="log">Journal</button><button class="btn" data-act="set">Cartes</button></div>
   ${linkHTML(v)}
   ${pbar(f, false, v.connected[1 - v.seat])}
+  ${boss.tableHTML(v)}
   <div class="board">${board}</div>
   ${pbar(m, true, true, canGen)}
   ${ui.coach ? coachHTML(ui.coach) : ''}
@@ -1024,7 +1155,7 @@ const famRank = id => { const i = FAMILIES.indexOf(famOfCard(id)); return i < 0 
 const byFamCost = (a, b) => famRank(a) - famRank(b) || costKey(a) - costKey(b) || nameOf(a).localeCompare(nameOf(b));
 // Carte ou général, tel qu'il sort d'un booster ou s'affiche dans la collection.
 // border : niveau de la bordure montrée (myBorder), par défaut celle du niveau.
-// cls : classe de l'illustration (« vignette » dans la galerie de la collection, art.js).
+// cls : classe de l'illustration (« grand » : toujours l'original, pour une carte montrée en grand ; art.js).
 const anyCard = (id, lvl = 1, art = null, border = lvl, cls = '') => GENERALS[id] ? genCard(id, lvl, art, border, cls) : fullCard(id, lvl, art, border, cls);
 // art : montrer cet art alternatif en grand (aperçu en boutique).
 const zoomKey = (id, art = '') => `${GENERALS[id] ? 'general' : 'card'}:${id}${art ? `:${art}` : ''}`;
@@ -1107,7 +1238,7 @@ function renderHome() {
         <span class="tile-foot num">${cal.ready ? 'Récompense à récupérer' : `${cal.got} jour${cal.got > 1 ? 's' : ''} sur ${cal.days.length}`}</span></button>` : ''}
       ${p.welcome && !p.welcome.expired && (!p.welcome.done || p.welcome.claimed) ? `<button class="tile welcometile ${p.welcome.ready ? 'todo' : ''}" data-act="welcome"><span class="eyebrow">Bienvenue · ${p.welcome.left} j</span><b class="num">${p.welcome.got}/${p.welcome.steps}</b>
         <span class="tile-foot">${p.welcome.ready ? 'Cadeau à récupérer' : p.welcome.done ? 'Terminée ✓' : 'Revenez demain'}</span></button>` : ''}
-      ${clan.tile(a)}
+      ${story.tile(a)}${boss.tile(a)}${clan.tile(a)}
       <button class="tile" data-act="profile" data-tab="succes"><span class="eyebrow">Progression${p.title ? ` · ${esc(titleLabel(p.title))}` : ''}</span><b class="num">Niv. ${p.level}</b>
         <span class="tile-foot num">${p.xp}/${p.xpNext} XP · Succès</span></button>
     </div>
@@ -1128,7 +1259,7 @@ const MEDAL = `<svg class="medal-svg" viewBox="0 0 60 76" aria-hidden="true">
   <circle class="face" cx="30" cy="48" r="19"/><circle class="ring" cx="30" cy="48" r="16.5"/>
   <ellipse class="shine" cx="23" cy="40" rx="8" ry="4.5" transform="rotate(-30 23 40)"/></svg>`;
 const eventChips = evs => (evs.length ? `<div class="sc-events">${evs.map(ev => `<button class="medal ev-${esc(ev.effect)}" data-act="event" data-ev="${esc(ev.id)}"
-  aria-label="Événement ${esc(ev.name)} : ${multLabel(ev.mult)} ${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}">${MEDAL}<span class="medal-txt"><b>${multLabel(ev.mult)}</b><small>${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}</small></span></button>`).join('')}</div>` : '');
+  aria-label="Événement ${esc(ev.name)} : ${multLabel(ev.mult)} ${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}">${MEDAL}<span class="medal-txt${(EVENT_EFFECTS[ev.effect]?.chip || '').length > 6 ? ' long' : ''}"><b>${multLabel(ev.mult)}</b><small>${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}</small></span></button>`).join('')}</div>` : '');
 // Temps qui reste avant la fin (minuit, heure de Paris) : en jours, puis en heures le dernier jour.
 function evRemaining(ev) {
   if (ev.daysLeft > 1) return `encore ${ev.daysLeft} jours`;
@@ -1156,7 +1287,7 @@ function walletHTML() {
 const HOME_PATH = 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z';
 const tabIcon = d => `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
 // Écrans qui ont la barre du bas, et l'onglet allumé sur chacun (aucun pour les sous-écrans de l'accueil).
-const TABBED = { home: 'home', collection: 'collection', decks: 'decks', shop: 'shop', friends: 'friends', profile: '', ranked: '', pass: '', mail: '', clan: 'friends' };
+const TABBED = { home: 'home', collection: 'collection', decks: 'decks', shop: 'shop', friends: 'friends', profile: '', ranked: '', pass: '', mail: '', clan: 'friends', boss: '', story: '' };
 function tabbar(cur) {
   const upgradable = OWNABLE.filter(canUpgrade).length, asks = friends.pending();
   const nav = (act, label, badge, extra = '') => `<button data-act="${act}" ${cur === act ? 'class="on" aria-current="page"' : ''} ${extra}>${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
@@ -1168,6 +1299,8 @@ function tabbar(cur) {
 }
 // Cartes de récompense : on dit comment les obtenir.
 function lockLabel(id) {
+  // Carte de quête : réservée à sa quête, tant qu'elle n'est pas arrivée dans le booster du Set de base (quête passée dans l'histoire principale).
+  const sq = questOfCard(id); if (sq && !SETS.some(x => x.cards.includes(id))) return `Récompense : quête ${sq.name}`;
   const ss = seasonOfCard(id);
   if (ss && !SETS.some(x => x.cards.includes(id))) return `Récompense : passe de saison ${ss.name}`;
   const src = rewardSourceOf(id);
@@ -1180,7 +1313,7 @@ function renderCollection() {
   const shown = OWNABLE.filter(id => !hiddenCard(id) && (!ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam)).sort(byFamCost);
   const tile = id => { const n = owned(id), lvl = myLevel(id), up = canUpgrade(id);
     return `<button class="ccard ${n ? '' : 'locked'} ${n && (lvl > 1 || up) ? 'tagged' : ''}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? `, niveau ${lvl}${up ? ', peut monter de niveau' : ''}` : ', pas encore obtenue'}">
-      ${anyCard(id, n ? lvl : 1, n ? mySel(id) : null, n ? myBorder(id) : 1, 'vignette')}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
+      ${anyCard(id, n ? lvl : 1, n ? mySel(id) : null, n ? myBorder(id) : 1)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
       ${n && (lvl > 1 || up) ? `<span class="lvtag num ${up ? 'up' : ''}">${lvl > 1 ? `Niv. ${lvl}` : ''}${up ? `${lvl > 1 ? ' · ' : ''}↑ Améliorer` : ''}</span>` : ''}</button>`; };
   return `<div class="top"><span class="title">Ma collection</span><button class="btn" data-act="edit">Modifier le deck</button></div>
   <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.filter(id => !hiddenCard(id)).length}, généraux compris. Touchez une carte pour la voir en grand et la faire monter de niveau avec l'essence de ses doublons.</p>
@@ -1194,13 +1327,15 @@ function renderCollection() {
 // Cadenas d'un rayon fermé.
 const LOCK = '<svg class="lockico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 function renderShop() {
-  const sh = ui.shop, a = ui.account, tab = ['arts', 'essence', 'change'].includes(ui.shopTab) && sh?.arts ? ui.shopTab : ui.shopTab === 'clan' && a.clan ? 'clan' : 'sets';
+  const sh = ui.shop, a = ui.account, tab = ['arts', 'essence', 'change'].includes(ui.shopTab) && sh?.arts ? ui.shopTab : ui.shopTab === 'clan' && a.clan ? 'clan' : ui.shopTab === 'boss' ? 'boss' : ui.shopTab === 'emotes' ? 'emotes' : 'sets';
   const tabBtn = (id, label, badge) => `<button role="tab" data-act="shop-tab" data-tab="${id}" class="${tab === id ? 'on' : ''}" aria-selected="${tab === id}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
   // Rayon du clan : verrouillé (cadenas) tant que le joueur n'a pas de clan ; le toucher mène alors à l'écran des clans.
   const clanTab = a.clan ? tabBtn('clan', `${ico('ecu')}Clan`) : `<button role="tab" class="locked" data-act="clan" aria-disabled="true" title="Rejoignez un clan pour l'ouvrir">${LOCK}Clan</button>`;
   const top = `<div class="top"><span class="title">Boutique</span><span class="chip num cur" title="Éclats" aria-label="${a.shards} Éclats">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="Prismes" aria-label="${sh.arts.prisms} Prismes">${ico('prism')}${sh.arts.prisms}</span>` : ''}${tab === 'essence' && sh?.essence ? `<span class="chip num cur uni" title="Essence universelle" aria-label="${sh.essence.universal} essence universelle">${ico('essence')}${fmt(sh.essence.universal)}</span>` : ''}</div>
-    ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}${sh.essence ? tabBtn('essence', 'Essence') : ''}${tabBtn('change', 'Change')}${clanTab}</div>` : ''}`;
+    ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}${sh.essence ? tabBtn('essence', 'Essence') : ''}${tabBtn('change', 'Change')}${tabBtn('emotes', 'Émotes')}${clanTab}${tabBtn('boss', `${ico('insigne')}Boss`)}</div>` : ''}`;
   if (tab === 'clan') return `${top}${clan.shopTab()}`;
+  if (tab === 'boss') return `${top}${boss.shopTab()}`;
+  if (tab === 'emotes') return `${top}${errLine()}${emoteShopHTML()}`;
   if (!sh) return `${top}${errLine()}<p class="wait">Chargement…</p>`;
   if (tab === 'arts') return `${top}${artStall(sh.arts)}${errLine()}${artShopHTML(sh.arts)}`;
   if (tab === 'change') return `${top}${errLine()}${exchangeHTML(sh.arts)}`;
@@ -1278,6 +1413,34 @@ async function buyDup(id) {
   ui.msg = `+${r.essence} essence de ${nameOf(id)}${r.universal ? ` et ${r.universal} essence universelle` : ''}.${myLevel(id) < MAX_CARD_LEVEL && missingEssence(id) === 0 ? ' Elle peut monter de niveau dans la collection.' : ''}`;
   play('reveal'); render();
 }
+// Rayon Émotes : les émotes en vente (Éclats ou Prismes), puis celles des succès et celles offertes à tous.
+function emoteShopHTML() {
+  const a = ui.account, mine = prog().cosmetics.emotes || [];
+  const bubble = id => `<span class="ebubble static">${emoteBody(id)}</span>`;
+  const sale = id => { const e = EMOTES[id], own = mine.includes(id), price = e.prisms ? `${ico('prism')}${e.prisms}` : `${ico('shard')}${e.price}`;
+    const off = ui.busy || (e.prisms ? (a.prisms || 0) < e.prisms : !canPay(e.price));
+    return `<li class="emoitem ${own ? 'owned' : ''}">${bubble(id)}${own ? '<span class="chip ok">Possédée</span>'
+      : `<button class="btn primary num" data-act="buy-emote" data-id="${id}" ${off ? 'disabled' : ''} aria-label="Acheter l'émote « ${esc(e.text)} » pour ${e.prisms ? `${e.prisms} Prismes` : `${e.price} Éclats`}">${price}</button>`}</li>`; };
+  const won = ACHIEVEMENTS.filter(x => x.emote && EMOTES[x.emote]).map(x => `<li class="emoitem ${mine.includes(x.emote) ? 'owned' : ''}">${bubble(x.emote)}
+    ${mine.includes(x.emote) ? '<span class="chip ok">Possédée</span>' : `<small class="hint">Succès : ${esc(x.label)}</small>`}</li>`).join('');
+  return `<section class="card-box shopset emoshop">
+    <div><span class="eyebrow">Cosmétique</span><h2 style="font-size:22px">Émotes</h2></div>
+    <p class="hint" style="margin:0">Une icône et une phrase courte pour saluer, féliciter ou taquiner votre adversaire : en partie, touchez votre portrait pour en envoyer une. Chacun peut couper les émotes de l'autre en touchant son portrait.</p>
+    ${ui.msg && !ui.sheet ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
+    <ul class="emolist">${SHOP_EMOTES.map(sale).join('')}</ul>
+    <div class="gal-h">À gagner avec les succès</div>
+    <ul class="emolist">${won}</ul>
+    <div class="gal-h">Offertes à tous</div>
+    <ul class="emolist free">${FREE_EMOTES.map(id => `<li>${bubble(id)}</li>`).join('')}</ul>
+    <p class="hint" style="margin:0">Choisissez les ${EMOTE_SLOTS} émotes de votre sélecteur dans votre profil, rubrique Personnalisation.</p>
+  </section>`;
+}
+async function buyEmote(id) {
+  const r = await call('POST', '/api/shop/emote', { emote: id });
+  if (!r) return;
+  ui.msg = `Émote « ${EMOTES[id].text} » obtenue${prog().emotes?.includes(id) ? ', déjà dans votre sélecteur' : ' : ajoutez-la à votre sélecteur depuis votre profil'}.`;
+  play('reveal'); render();
+}
 // Prix d'un booster d'un set (le serveur l'envoie avec chaque set de la boutique).
 const boosterPriceOf = id => ui.shop?.sets.find(x => x.id === id)?.boosterPrice ?? ui.shop?.prices.boosterPrice;
 // Prix en Éclats : payable tout de suite, ou après un change si le change est ouvert.
@@ -1350,9 +1513,14 @@ function exchangeHTML(A) {
   </section>`;
 }
 
-// Liste des decks du joueur : jouer, modifier, renommer, remettre à zéro, supprimer, créer.
+// Liste des decks du joueur : jouer, modifier, renommer, partager, remettre à zéro, supprimer, créer ou importer.
+// Onglets de l'écran des decks : les decks du joueur, les recettes (decks préconstruits à reconstruire) et ceux préparés contre les boss mondiaux (boss.js).
+const decksTabs = cur => `<div class="seg btabs" role="tablist" aria-label="Decks">${[['mine', 'Mes decks'], ['recettes', 'Recettes'], ['boss', 'Boss mondial']].map(([id, label]) =>
+  `<button role="tab" data-act="decks-tab" data-tab="${id}" class="${cur === id ? 'on' : ''}" aria-selected="${cur === id}">${label}</button>`).join('')}</div>`;
 function renderDecks() {
   const a = ui.account, full = a.decks.length >= maxDecks();
+  if (ui.decksTab === 'recettes') return renderRecipes();
+  if (ui.decksTab === 'boss') return `<div class="top"><span class="title">Decks contre les boss</span></div>${decksTabs('boss')}${boss.decksHTML()}`;
   const item = d => {
     const err = deckError(d, a), g = GENERALS[d.general], on = d.id === a.active;
     return `<div class="card-box deckitem ${on ? 'active' : ''}" style="${famVar([g?.fam])}">
@@ -1363,15 +1531,53 @@ function renderDecks() {
         ${on ? '' : `<button class="btn ${err ? '' : 'primary'}" data-act="deck-play" data-id="${d.id}" ${err || ui.busy ? 'disabled' : ''}>Jouer ce deck</button>`}
         <button class="btn" data-act="deck-edit" data-id="${d.id}">Modifier</button>
         <button class="btn" data-act="deck-rename" data-id="${d.id}">Renommer</button>
+        ${d.general || d.cards.length || d.terrains.length ? `<button class="btn" data-act="deck-share" data-id="${d.id}">Partager</button>` : ''}
         <button class="btn" data-act="deck-reset" data-id="${d.id}" ${ui.busy ? 'disabled' : ''}>Remettre à 0</button>
         <button class="btn" data-act="deck-delete" data-id="${d.id}" ${a.decks.length <= 1 || ui.busy ? 'disabled' : ''}>Supprimer</button>
       </div></div>`;
   };
   return `<div class="top"><span class="title">Mes decks</span><span class="chip num">${a.decks.length}/${maxDecks()}</span></div>
+  ${decksTabs('mine')}
   <p class="hint" style="margin:0">Jusqu'à ${maxDecks()} decks. Le deck joué sert en ligne et contre l'IA ; un deck incomplet est gardé mais ne peut pas être joué.</p>
   ${errLine()}
   ${a.decks.map(item).join('')}
-  <div class="row"><button class="btn primary" data-act="deck-new" ${full ? 'disabled' : ''}>Nouveau deck</button>${full ? `<span class="hint">Supprimez un deck pour en créer un autre.</span>` : ''}</div>`;
+  <div class="row"><button class="btn primary" data-act="deck-new" ${full ? 'disabled' : ''}>Nouveau deck</button>${full ? `<span class="hint">Supprimez un deck pour en créer un autre.</span>` : ''}</div>
+  <form class="card-box deckimport" id="deck-import-form">
+    <div><span class="eyebrow">Code de deck</span><h2 style="font-size:22px">Importer un deck</h2></div>
+    <p class="hint" style="margin:0">Collez le code qu'un joueur vous a partagé (bouton Partager de ses decks). Le deck est repris avec les cartes de votre collection ; ce qui vous manque est indiqué.</p>
+    <div class="field"><label class="eyebrow" for="deck-import">Code</label><input id="deck-import" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="DK1-…" value="${esc(ui.importCode || '')}"></div>
+    ${ui.importErr ? `<p class="err" role="alert" style="margin:0">${esc(ui.importErr)}</p>` : ''}
+    <div class="row"><button class="btn primary" type="submit" ${full ? 'disabled' : ''}>Importer</button>${full ? `<span class="hint">Supprimez un deck pour en importer un.</span>` : ''}</div>
+  </form>`;
+}
+// Recettes : les decks préconstruits des sets sortis, avec ce que le joueur en possède. Les plus proches d'être complets d'abord.
+function renderRecipes() {
+  const a = ui.account, full = a.decks.length >= maxDecks();
+  const list = recipeKeys().map(k => ({ k, d: DECKS[k], fit: fitDeck(DECKS[k], a) }))
+    .map(x => ({ ...x, have: x.fit.deck.cards.length + x.fit.deck.terrains.length + (x.fit.deck.general ? 1 : 0) }))
+    .sort((x, y) => y.have - x.have);
+  const item = ({ k, d, fit, have }) => {
+    const g = GENERALS[d.general], own = id => !!owned(id), tOk = t => fit.deck.terrains.includes(t);
+    return `<div class="card-box deckitem recipe ${fit.complete ? 'ready' : ''}" style="${famVar([d.fam])}">
+      <div><span class="eyebrow">${esc(d.fam)} · ${esc(setById(d.set || setOf(d.general))?.name || 'Set de base')}</span><h2 style="font-size:22px">${esc(d.name)}</h2></div>
+      <p style="margin:0">${esc(g.name)} · <span class="num">${have}/${1 + DECK_TERRAINS + DECK_SIZE}</span> en votre possession${fit.complete ? ' · <b>complet</b>' : ''}</p>
+      <div class="rbar" aria-hidden="true"><span style="width:${Math.round(100 * have / (1 + DECK_TERRAINS + DECK_SIZE))}%"></span></div>
+      ${fit.complete ? '' : `<p class="hint" style="margin:0">${esc(missingLine(fit))}</p>`}
+      <details class="rlist"><summary>Voir la recette</summary>
+        <p class="hint" style="margin:0">Général : <span class="${own(d.general) ? '' : 'miss'}">${esc(g.name)}</span></p>
+        <p class="hint" style="margin:0">Terrains : ${d.terrains.map(t => `<span class="${tOk(t) ? '' : 'miss'}">${esc(TERRAINS[t].name)}</span>`).join(', ')}</p>
+        <ul>${d.cards.slice().sort(byFamCost).map(id => `<li class="${own(id) ? '' : 'miss'}"><span class="seal">${CARDS[id].x ? 'X' : CARDS[id].cost}</span>${esc(nameOf(id))}${own(id) ? '' : ' <small>à obtenir</small>'}</li>`).join('')}</ul>
+      </details>
+      <div class="row">
+        <button class="btn ${fit.complete ? 'primary' : ''}" data-act="recipe-use" data-id="${k}" ${full ? 'disabled' : ''}>Construire ce deck</button>
+        <button class="btn" data-act="recipe-share" data-id="${k}">Partager</button>
+      </div></div>`;
+  };
+  return `<div class="top"><span class="title">Recettes</span><span class="chip num">${a.decks.length}/${maxDecks()}</span></div>
+  ${decksTabs('recettes')}
+  <p class="hint" style="margin:0">Les decks préconstruits du jeu, ceux que joue l'IA. Construisez-en un : il est repris avec les cartes de votre collection, et vous complétez ce qui manque.${full ? ` Vous avez déjà ${maxDecks()} decks : supprimez-en un pour en construire un autre.` : ''}</p>
+  ${errLine()}
+  ${list.map(item).join('')}`;
 }
 
 // Constructeur de deck en trois étapes : le général, puis les terrains, puis les cartes de la collection.
@@ -1390,15 +1596,15 @@ function renderDeck() {
     help = `Choisissez ${DECK_TERRAINS} terrains différents : les neutres et ceux des familles de vos généraux.`;
     body = `<div class="gallery">${allowedTerrains(a).map(k => `<button class="ccard pickcard ${e.terrains.includes(k) ? 'on' : ''}" data-tpick="${k}" aria-pressed="${e.terrains.includes(k)}">${terrainCard(k)}</button>`).join('')}</div>`;
   } else {
-    help = `Choisissez ${DECK_SIZE} cartes différentes de votre collection.`;
+    help = `Choisissez ${DECK_SIZE} cartes différentes de votre collection.${e.boss ? ' Les cartes marquées +N sont renforcées contre ce boss.' : ''}`;
     const row = (id, on) => { const d = CARDS[id];
       return `<button class="pickrow ${on ? 'on' : ''}" data-pick="${id}" style="${famVar(d.kw)}" aria-pressed="${on}">
         <span class="seal">${d.x ? 'X' : d.cost}</span><span class="pn"><b>${esc(d.name)}</b><small>${kwLine(d)} · ${d.text ? rich(d.text) : 'Pas d\'effet.'}</small></span>
-        ${d.type === 'C' ? `<span class="p num">${d.power}</span>` : '<span class="p sm">Sort</span>'}</button>`; };
+        ${d.type === 'C' ? `<span class="p num">${d.power}</span>` : '<span class="p sm">Sort</span>'}${e.boss && bossBoost(e.boss, id) ? `<span class="bboost-tag num" title="Renforcée contre ce boss">+${bossBoost(e.boss, id)}</span>` : ''}</button>`; };
     body = `<div class="picklist">${COLLECTIBLE.filter(owned).sort(byFamCost).map(id => row(id, e.cards.includes(id))).join('')}</div>`;
   }
   const next = step < 2 && stepOpen(e, step + 1);
-  return `<div class="top"><span class="title">${e.id ? 'Modifier le deck' : 'Nouveau deck'}</span><button class="btn" data-act="deck-cancel">Annuler</button>
+  return `<div class="top"><span class="title">${e.boss ? `Contre ${esc(GENERALS[e.boss].name.split(/,\s*/)[0])}` : e.id ? 'Modifier le deck' : 'Nouveau deck'}</span><button class="btn" data-act="deck-cancel">Annuler</button>
     <button class="btn primary" data-act="save-deck" ${ui.busy ? 'disabled' : ''}>Enregistrer</button></div>
   <div class="field"><label class="eyebrow" for="deck-name">Nom du deck</label><input id="deck-name" maxlength="30" value="${esc(e.name)}"></div>
   <div class="deckbar steps" role="group" aria-label="Étapes">${stepper}</div>
@@ -1424,7 +1630,7 @@ function themePicks(p) {
 }
 function customizeHTML() {
   const a = ui.account, p = prog(), c = p.cosmetics;
-  return `<div class="card-box"><div><span class="eyebrow">Personnalisation</span><h2 style="font-size:22px">Thème, titre, cadre et dos de carte</h2></div>
+  return `<div class="card-box"><div><span class="eyebrow">Personnalisation</span><h2 style="font-size:22px">Thème, titre, cadre, dos de carte et émotes</h2></div>
     ${themePicks(p)}
     <div class="field"><label class="eyebrow" for="title-pick">Titre affiché sous votre pseudo</label>
       <select id="title-pick" ${c.titles.length ? '' : 'disabled'}><option value="">Aucun titre</option>${c.titles.map(t => `<option value="${esc(t.id)}" ${p.title === t.id ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
@@ -1437,7 +1643,24 @@ function customizeHTML() {
     <div class="picks">${Object.entries(BACKS).filter(([id]) => !futureCosmetic(id) || c.backs.some(b => b.id === id)).map(([id, label]) => { const ok = c.backs.some(b => b.id === id);
       return `<button class="pickc ${p.back === id ? 'on' : ''} ${ok ? '' : 'locked'}" ${ok ? `data-back="${id}"` : 'disabled'}><span class="mc back back-${id}"></span><small>${esc(label)}</small></button>`; }).join('')}</div>
     ${favArtsHTML()}
+    ${emotesHTML()}
   </div>`;
+}
+// Émotes du sélecteur en partie : EMOTE_SLOTS au plus parmi celles possédées, dans l'ordre choisi (au moins une).
+function emotesHTML() {
+  const p = prog(), set = p.emotes || [], mine = p.cosmetics.emotes || [];
+  return `<div class="gal-h">Émotes en partie · <span class="num">${set.length}/${EMOTE_SLOTS}</span></div>
+    <p class="hint" style="margin:0">En partie, touchez votre portrait pour envoyer une émote. Touchez-en une ici pour l'ajouter à votre sélecteur ou l'en retirer.</p>
+    <div class="emopick">${mine.map(id => { const i = set.indexOf(id), full = i < 0 && set.length >= EMOTE_SLOTS, last = i >= 0 && set.length === 1;
+      return `<button class="emo ${i >= 0 ? 'on' : ''}" data-act="emote-slot" data-id="${id}" aria-pressed="${i >= 0}" ${ui.busy || full || last ? 'disabled' : ''}>
+        ${emoteBody(id)}${i >= 0 ? `<span class="favn num" aria-label="Choix ${i + 1}">${i + 1}</span>` : ''}</button>`; }).join('')}</div>
+    <label class="check"><input type="checkbox" id="emotes-off" ${store.get('emotes-off', false) ? 'checked' : ''}> Couper les émotes de mes adversaires à chaque partie</label>
+    <div class="row"><button class="btn" data-act="shop-emotes">D'autres émotes en boutique</button></div>`;
+}
+function toggleEmoteSlot(id) {
+  const set = (prog().emotes || []).slice(), i = set.indexOf(id);
+  if (i >= 0) { if (set.length === 1) return; set.splice(i, 1); } else if (set.length < EMOTE_SLOTS) set.push(id); else return;
+  equip({ emotes: set }, i >= 0 ? 'Émote retirée du sélecteur.' : 'Émote ajoutée au sélecteur.');
 }
 // Arts préférés : jusqu'à MAX_FAV_ARTS arts possédés, montrés dans cet ordre sur le profil public.
 const favArts = () => prog().favArts || [];
@@ -1468,11 +1691,11 @@ function achievementsHTML() {
   const groups = [...new Set(list.map(x => x.group))], done = list.filter(x => x.done).length;
   return `<div class="card-box"><div><span class="eyebrow">Succès</span><h2 style="font-size:22px">${done} sur ${list.length}</h2></div>
     ${groups.map(g => `<div class="gal-h">${esc(g)}</div><div class="achs">${list.filter(x => x.group === g).map(x => `<div class="ach ${x.done ? 'done' : ''}">
-      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(x.label)}</span><small class="hint">${[x.shards ? `${x.shards} Éclats` : '', x.prisms ? `${x.prisms} Prisme${x.prisms > 1 ? 's' : ''}` : '', x.chests ? `${x.chests} coffre${x.chests > 1 ? 's' : ''} d'arts` : '', x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? `${x.frameId ? `<span class="frame frame-${esc(x.frameId)} swatch"></span>` : ''}${esc(x.frame)}` : ''].filter(Boolean).join(' · ')}</small></div>
+      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(x.label)}</span><small class="hint">${[x.shards ? `${x.shards} Éclats` : '', x.prisms ? `${x.prisms} Prisme${x.prisms > 1 ? 's' : ''}` : '', x.chests ? `${x.chests} coffre${x.chests > 1 ? 's' : ''} d'arts` : '', x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? `${x.frameId ? `<span class="frame frame-${esc(x.frameId)} swatch"></span>` : ''}${esc(x.frame)}` : '', x.emote && EMOTES[x.emote] ? `émote ${EMOTES[x.emote].icon} « ${esc(EMOTES[x.emote].text)} »` : ''].filter(Boolean).join(' · ')}</small></div>
       ${x.done ? '' : `<div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(x.value, x.goal)}%"></span></div><small class="num">${x.value}/${x.goal}</small></div>`}</div>`).join('')}</div>`).join('')}</div>`;
 }
 // Profil en onglets : le haut (image, pseudo, niveau) reste, la rubrique change en dessous.
-const PROFILE_TABS = [['profil', 'Profil'], ['collection', 'Collection'], ['perso', 'Personnalisation'], ['succes', 'Succès']];
+const PROFILE_TABS = [['profil', 'Profil'], ['historique', 'Historique'], ['collection', 'Collection'], ['perso', 'Personnalisation'], ['succes', 'Succès']];
 function renderProfile() {
   const a = ui.account, st = ui.profile, p = prog();
   const sets = SETS.filter(s => s.cards.length && setRevealed(s)).map(s => { const n = s.cards.filter(owned).length, pct = Math.round(100 * n / s.cards.length);
@@ -1486,7 +1709,8 @@ function renderProfile() {
     <div class="gal-h">Cartes</div>${cardStatsHTML((st.cards || []).map(c => ({ ...c, level: myLevel(c.id), border: myBorder(c.id), art: mySel(c.id) })),
       st.generals[0] && { ...st.generals[0], level: myLevel(st.generals[0].id), border: myBorder(st.generals[0].id), art: mySel(st.generals[0].id) })}
     ${st.generals.length ? `<div class="gal-h">Par général</div><div class="statlist">${st.generals.map(g => `<div class="row"><span style="flex:1">${esc(g.name)}</span><span class="num hint">${g.games} partie${g.games > 1 ? 's' : ''}</span><b class="num">${g.rate} %</b></div>`).join('')}</div>` : ''}
-    ${st.recent.length ? `<div class="gal-h">Dernières parties</div><div class="statlist">${st.recent.map(r => `<div class="row"><b class="res ${r.result}">${RES[r.result]}</b><span style="flex:1">contre ${esc(r.foe)} <small class="hint">· ${esc(r.deck || '')}</small></span><small class="hint num">${new Date(r.at).toLocaleDateString('fr-FR')}</small></div>`).join('')}</div>`
+    ${st.recent.length ? `<div class="gal-h">Dernières parties</div><div class="statlist">${st.recent.map(r => `<div class="row"><b class="res ${r.result}">${RES[r.result]}</b><span style="flex:1">contre ${esc(r.foe)} <small class="hint">· ${esc(r.deck || '')}</small></span><small class="hint num">${new Date(r.at).toLocaleDateString('fr-FR')}</small></div>`).join('')}</div>
+      <div class="row"><button class="btn" data-act="profile-tab" data-tab="historique">Voir l'historique détaillé</button></div>`
       : '<p class="hint" style="margin:0">Aucune partie jouée pour l\'instant.</p>'}`;
   const tab = PROFILE_TABS.some(([id]) => id === ui.profileTab) ? ui.profileTab : 'profil';
   const tabBtn = ([id, label]) => `<button role="tab" data-act="profile-tab" data-tab="${id}" class="${tab === id ? 'on' : ''}" aria-selected="${tab === id}">${label}</button>`;
@@ -1508,6 +1732,7 @@ function renderProfile() {
     collection: () => `<div class="card-box"><div><span class="eyebrow">Collection</span><h2 style="font-size:22px">${complete} set${complete > 1 ? 's' : ''} complété${complete > 1 ? 's' : ''}</h2></div>
       <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.filter(id => !hiddenCard(id)).length}, généraux compris.</p>${sets}${ui.progressInfo ? familiesHTML() : '<p class="wait">Chargement…</p>'}
       <div class="row"><button class="btn" data-act="collection">Voir mes cartes</button></div></div>`,
+    historique: gameHistory.tab,
     perso: customizeHTML,
     succes: () => (ui.progressInfo ? achievementsHTML() : '<p class="wait">Chargement…</p>'),
   }[tab]();
@@ -1639,8 +1864,10 @@ function closeSheet() {
 }
 function sheetHTML() {
   if (ui.sheet === 'zoom' && ui.zoom) return zoomHTML();
+  const st = story.sheet(); if (st) return st;
   if (ui.sheet === 'friend-deck') return friends.deckSheet();
   if (ui.sheet === 'player' && ui.player) return playerSheet();
+  if (ui.sheet === 'game') return gameHistory.sheet();
   if (ui.sheet === 'log' && ui.view) {
     const names = ui.view.names;
     const lines = ui.view.log.map(l => `<div class="${l.kind}">${esc(renderLog(l.msg, ui.view.seat, names))}</div>`).join('');
@@ -1654,7 +1881,7 @@ function sheetHTML() {
       const cards = ids(CARDS).filter(k => !CARDS[k].token && (CARDS[k].kw[0] || null) === fam && !hiddenCard(k));
       const tokens = fam === null ? ids(CARDS).filter(k => CARDS[k].token && !unrevealed(k)) : [];
       h += `<div class="gal-h">${fam || 'Neutres et jetons'}</div><div class="gallery">
-        ${ids(GENERALS).filter(k => GENERALS[k].fam === fam && !hiddenCard(k)).map(k => genCard(k)).join('')}
+        ${ids(GENERALS).filter(k => GENERALS[k].fam === fam && !GENERALS[k].boss && !hiddenCard(k)).map(k => genCard(k)).join('')}
         ${cards.map(k => fullCard(k)).join('')}${ids(TERRAINS).filter(k => TERRAINS[k].fam === fam && !unrevealed(k)).map(terrainCard).join('')}${tokens.map(k => fullCard(k)).join('')}</div>`;
     }
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Toutes les cartes</h2><div class="row"><button class="btn" data-act="codex">Mots-clés</button><button class="btn" data-act="close">Fermer</button></div></div>
@@ -1709,6 +1936,12 @@ function sheetHTML() {
       <div class="row"><button class="btn primary" data-act="exchange" data-id="${o.id}" ${short > 0 || ui.busy ? 'disabled' : ''}>${ico('prism')} ${o.prisms} · Changer et ${verb}</button>
         <button class="btn" data-act="shop-change">Toutes les offres</button></div></div></div>`;
   }
+  if (ui.sheet === 'deck-code' && ui.shareDeck) {
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Partager « ${esc(ui.shareDeck.name)} »</h2><button class="btn" data-act="close">Fermer</button></div>
+      <p class="hint" style="margin:0">Envoyez ce code à un ami : il le colle dans « Importer un deck » de ses decks et retrouve ce deck avec les cartes qu'il possède.</p>
+      <textarea id="deck-code" class="deckcode" readonly rows="${Math.min(10, Math.max(3, Math.ceil(ui.shareDeck.code.length / 40)))}" spellcheck="false">${esc(ui.shareDeck.code)}</textarea>
+      <div class="row"><button class="btn primary" data-act="dcode-copy">Copier le code</button></div></div></div>`;
+  }
   if (ui.sheet === 'rename' && ui.renaming) {
     return `<div class="sheet" data-act="close"><form class="panel" data-stop="1" id="rename-form"><div class="ph"><h2>Renommer le deck</h2><button class="btn" type="button" data-act="close">Fermer</button></div>
       <div class="field"><label class="eyebrow" for="rename-input">Nom du deck</label><input id="rename-input" maxlength="30" value="${esc(ui.renaming.name)}"></div>
@@ -1727,7 +1960,7 @@ function sheetHTML() {
     const art = ARTS[ui.gotArt.id], on = mySel(art.card) === art.id;
     return `<div class="sheet" data-act="close"><div class="panel gotart" data-stop="1"><div class="ph"><h2>${ui.gotArt.chest ? 'Coffre d\'arts' : 'Nouvel art'}</h2><button class="btn" data-act="close">Fermer</button></div>
       <div class="row" style="gap:8px">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}</small></div>
-      <div class="bcard gotcard">${artHTML(art.card, nameOf(art.card), myLevel(art.card), '', art.id)}</div>
+      <div class="bcard gotcard">${artHTML(art.card, nameOf(art.card), myLevel(art.card), 'grand', art.id)}</div>
       ${ui.msg ? `<p class="hint" role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
       <div class="row"><button class="btn ${on ? '' : 'primary'}" data-act="art-pick" data-card="${art.card}" data-art="${art.id}" ${on || ui.busy ? 'disabled' : ''}>${on ? 'Art utilisé ✓' : 'Utiliser cet art'}</button>
         <button class="btn" data-act="close">Plus tard</button></div>
@@ -1740,6 +1973,8 @@ function sheetHTML() {
       <p class="hint" style="margin:0">${sum}.</p>
       <div class="gallery ${ui.booster.opened ? 'opened' : ''}">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">${dupTag(id)}</span>`}${anyCard(id, myLevel(id), mySel(id))}</div>`).join('')}</div></div></div>`;
   }
+  if (ui.sheet === 'end' && ui.view?.result && ui.view.boss) return boss.endHTML(ui.view, ui.rematchAsked);
+  if (ui.sheet === 'end' && ui.view?.result && ui.mode === 'story') return story.endHTML(ui.view);
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;
     const t = r.winner === s ? 'Victoire' : r.winner < 0 ? 'Match nul' : 'Défaite';
@@ -1767,7 +2002,7 @@ function render() {
   const stx = app.querySelector('.shoptabs')?.scrollLeft || 0;
   // Défilement de la fenêtre ouverte, gardé quand elle se redessine (ex. : après une amélioration, en bas de la fiche).
   const sp = app.querySelector(':scope > .sheet .panel'); const sy = sp && ui.sheet === ui.shownSheet && ui.zoom?.id === ui.shownZoom ? sp.scrollTop : 0;
-  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, pass: renderPass, lobby: renderLobby, game: renderGame, friends: friends.screen, mail: mail.screen, clan: clan.screen };
+  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, pass: renderPass, lobby: renderLobby, game: renderGame, friends: friends.screen, mail: mail.screen, clan: clan.screen, boss: boss.screen, story: story.screen };
   // Récompenses gagnées (niveau, missions, succès, familles et sets complétés) : affichées en revenant à l'accueil.
   if (ui.screen === 'home' && !ui.sheet && prog().inbox.length) ui.sheet = 'inbox';
   // Cadeau de bienvenue du jour pas encore récupéré : la bienvenue s'ouvre une fois par visite, avant le calendrier.
@@ -1957,7 +2192,10 @@ function viewEffects(prev, view) {
     // Fanfare (ou chute) et vibration avec le grand titre (stage.js, ending) : il frappe tout de suite en victoire,
     // il tombe en défaite et la vibration arrive quand il touche le sol.
     const res = result;
-    after.push(() => { [0, 1, 2].forEach(z => { const s = zoneSide(view, z); if (s) zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[s], z * 220, true); });
+    // Boss mondial : pas de victoire ni de défaite, le score de la tentative s'affiche à la place du grand titre.
+    if (view.boss) after.push(() => { [0, 1, 2].forEach(z => { if (view.boss.score.zones[z]?.beat) zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[1], z * 220, true); });
+      setTimeout(() => { play('win'); feel('win'); confetti(); }, 700); });
+    else after.push(() => { [0, 1, 2].forEach(z => { const s = zoneSide(view, z); if (s) zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[s], z * 220, true); });
       setTimeout(() => { ending(res); play(res); setTimeout(() => feel(res), res === 'lose' ? 490 : 0); }, 700); if (win) setTimeout(confetti, 450); });
   }
   ui.fx = { list, flip, burst, after };
@@ -2102,7 +2340,10 @@ function quit() {
 function leaveTable() {
   if (ui.ctrl) ui.ctrl.leave();
   store.set('session', null);
-  ui.ctrl = null; ui.view = null; ui.friendFoe = null; ui.rankedAi = false; ui.screen = menuScreen(); ui.sheet = null; ui.pending = []; ui.lastTurn = 0; ui.soloReward = null; render();
+  // Un chapitre d'histoire ramène à la carte de sa quête.
+  const back = ui.mode === 'story' && ui.account?.starter ? 'story' : menuScreen();
+  if (back === 'story') { ui.mode = null; story.reload(); }
+  ui.ctrl = null; ui.view = null; ui.friendFoe = null; ui.rankedAi = false; ui.bossRun = false; ui.screen = back; ui.sheet = null; ui.pending = []; ui.lastTurn = 0; ui.soloReward = null; render();
   // Le compte a pu changer pendant la partie (XP, Éclats, missions, succès).
   if (ui.auth) api('GET', '/api/me', undefined, ui.auth).then(r => { setAccount(r.account); render(); }).catch(() => {});
 }
@@ -2112,6 +2353,7 @@ app.addEventListener('input', e => {
   if (e.target.id === 'login-pass') ui.loginPass = e.target.value;
   if (e.target.id === 'deck-name' && ui.edit) ui.edit.name = e.target.value;
   if (e.target.id === 'rename-input' && ui.renaming) ui.renaming.name = e.target.value;
+  if (e.target.id === 'deck-import') { ui.importCode = e.target.value; if (ui.importErr) { ui.importErr = ''; e.target.closest('form')?.querySelector('.err')?.remove(); } }
   if (e.target.id === 'profile-name') { ui.nameDraft = e.target.value; const b = e.target.form?.querySelector('[type=submit]');
     if (b) b.disabled = ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === ui.account.name; }
   if (e.target.id === 'codex-q') { ui.codexQuery = e.target.value; document.getElementById('codex-list').innerHTML = codexHTML(ui.codexQuery); }
@@ -2127,6 +2369,7 @@ app.addEventListener('change', e => {
   if (e.target.id === 'vibrations-on') { setVibrations(e.target.checked); buzz(40); }
   if (e.target.id === 'avatar-file') { pickAvatar(e.target.files[0]); e.target.value = ''; }
   if (e.target.id === 'title-pick') equip({ title: e.target.value || null }, 'Titre changé.');
+  if (e.target.id === 'emotes-off') store.set('emotes-off', e.target.checked);
 });
 app.addEventListener('submit', e => {
   e.preventDefault(); if (ui.busy) return;
@@ -2134,17 +2377,20 @@ app.addEventListener('submit', e => {
   if (e.target.id === 'login-form') doLogin();
   else if (e.target.id === 'name-form') saveName();
   else if (e.target.id === 'rename-form') renameDeck();
+  else if (e.target.id === 'deck-import-form') importDeck();
 });
 // Les missions repliées ou dépliées le restent d'un affichage à l'autre.
 app.addEventListener('click', e => {
   const t = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-frame],[data-back],[data-theme],[data-stop]');
+  // Sélecteur d'émotes ouvert : toucher ailleurs le referme.
+  if (ui.emotePick && !e.target.closest('.emotepick,[data-act="emotes"]')) { ui.emotePick = false; if (!t) { render(); return; } }
   if (!t) return;
   const ds = t.dataset;
   if (ds.stop && !e.target.closest('[data-act]')) return;
   if (ds.act) {
     const a = ds.act;
     if (a === 'friends' && ui.sheet === 'play-friend') { ui.sheet = null; ui.error = ''; }
-    if (friends.click(a, ds) || mail.click(a, ds) || clan.click(a, ds) || notifs.click(a)) return;
+    if (friends.click(a, ds) || mail.click(a, ds) || clan.click(a, ds) || boss.click(a, ds) || story.click(a, ds) || gameHistory.click(a, ds) || notifs.click(a)) return;
     if (a === 'close') closeSheet();
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
@@ -2176,12 +2422,19 @@ app.addEventListener('click', e => {
     else if (a === 'again') { ui.tutoSent = false; ui.tutoReward = null; ui.rematchAsked = true; ui.soloReward = null; ui.ctrl.rematch(); render(); }
     else if (a === 'quit') {
       if (ui.screen === 'game' && ui.view?.ranked && ui.view.phase !== 'over' && !confirm('Quitter une partie classée en cours compte comme une défaite. Quitter quand même ?')) return;
+      if (ui.screen === 'game' && ui.view?.boss && ui.view.phase !== 'over' && !confirm('Quitter la tentative la termine avec votre plateau actuel : elle compte comme jouée. Quitter quand même ?')) return;
       quit(); }
     else if (a === 'ranked') { ui.sheet = null; openRanked(); }
     else if (a === 'pass') openPass();
     else if (a === 'pass-buy' && !ui.busy) buyPass();
     else if (a === 'ranked-play') goRanked();
     else if (a === 'mute') { setMuted(!isMuted()); render(); }
+    else if (a === 'emotes') { ui.emotePick = !ui.emotePick; if (ui.emotePick) play('pick'); render(); }
+    else if (a === 'emote') sendEmote(ds.id);
+    else if (a === 'emote-mute') toggleEmoteMute();
+    else if (a === 'emote-slot' && !ui.busy) toggleEmoteSlot(ds.id);
+    else if (a === 'buy-emote' && !ui.busy) { const e = EMOTES[ds.id], go = () => buyEmote(ds.id); if (e.prisms || !lacksShards(e.price, 'acheter', go)) go(); }
+    else if (a === 'shop-emotes') openShop('emotes');
     else if (a === 'logout') doLogout();
     else if (a === 'retry') boot();
     else if (a === 'starter' && ui.starterPick && !ui.busy) call('POST', '/api/starter', { starter: ui.starterPick });
@@ -2219,6 +2472,11 @@ app.addEventListener('click', e => {
     else if (a === 'home') { ui.screen = 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
     else if (a === 'decks') openDecks();
     else if (a === 'deck-new') { if (ui.account.decks.length < maxDecks()) { editDeck(null, 'decks'); render(); } }
+    else if (a === 'deck-share') { const d = deckById(ds.id); if (d) showDeckCode(d); }
+    else if (a === 'decks-tab') { ui.decksTab = ds.tab; ui.error = ''; ui.msg = ''; render(); scrollTo(0, 0); }
+    else if (a === 'recipe-use' && DECKS[ds.id]) buildFrom(DECKS[ds.id], 'recette');
+    else if (a === 'recipe-share' && DECKS[ds.id]) showDeckCode(DECKS[ds.id]);
+    else if (a === 'dcode-copy' && ui.shareDeck) copyDeckCode(t);
     else if (a.startsWith('deck-') && a !== 'deck-cancel' && !ui.busy) deckAction(a, ds.id);
     else if (a === 'deck-cancel') { ui.screen = ui.edit?.back || 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
     else if (a === 'step-next' && stepOpen(ui.edit, ui.deckStep + 1)) { ui.deckStep++; ui.msg = ''; render(); scrollTo(0, 0); }
@@ -2238,7 +2496,7 @@ app.addEventListener('click', e => {
   if (ds.theme !== undefined && !ui.busy) { equip({ theme: ds.theme || null }, 'Thème changé.'); return; }
   if (ds.back && !ui.busy) { equip({ back: ds.back }, 'Dos de carte changé.'); return; }
   if (ds.fam !== undefined) { ui.colFam = ds.fam; render(); return; }
-  if (ds.zoom) { const [kind, id, art] = ds.zoom.split(':'); const back = ui.sheet === 'codex' || ui.sheet === 'player' ? ui.sheet : null; openZoom({ kind, id, art: art || null }); ui.zoomBack = back; ui.msg = ''; render(); return; }
+  if (ds.zoom) { const [kind, id, art] = ds.zoom.split(':'); const back = ui.sheet === 'codex' || ui.sheet === 'player' || ui.sheet === 'game' ? ui.sheet : null; openZoom({ kind, id, art: art || null }); ui.zoomBack = back; ui.msg = ''; render(); return; }
   if (ds.pick) { togglePick(ds.pick); return; }
   if (ds.tpick) { toggleTerrain(ds.tpick); return; }
   if (ds.gpick) { ui.edit.general = ds.gpick; ui.msg = '';
@@ -2273,7 +2531,10 @@ app.addEventListener('click', e => {
   if (ds.general) { if (doubleTap(`general:${ds.side}`)) { ui.focus = { kind: 'general', id: ds.general }; ui.msg = ''; openZoom({ kind: 'general', id: ds.general, mine: ds.side === 'me', side: ds.side }); render(); } return; }
   const zone = t.closest('[data-z]'); if (zone) tryPlace(+zone.dataset.z);
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.sheet && ui.sheet !== 'friend-deck') closeSheet(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && ui.emotePick) { ui.emotePick = false; render(); return; }
+  if (e.key === 'Escape' && ui.sheet && ui.sheet !== 'friend-deck') closeSheet();
+});
 app.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.zone.target')) { e.preventDefault(); tryPlace(+e.target.dataset.z); } });
 
 // Reprise d'une partie en ligne après rechargement de la page

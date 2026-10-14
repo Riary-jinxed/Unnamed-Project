@@ -47,6 +47,10 @@
     .bars span:hover { background: var(--ink); }
     .bars-axis { justify-content: space-between; margin: 2px 0 8px; }
     .check { display: inline-flex; gap: 6px; align-items: center; }
+    .meter { display: block; min-width: 80px; height: 8px; border-radius: 4px; background: var(--sunk); overflow: hidden; }
+    .meter i { display: block; height: 100%; width: var(--w); background: var(--accent); }
+    .admin td.heat { background: color-mix(in srgb, var(--accent) calc(var(--p) * .6), transparent); }
+    details > summary { cursor: pointer; padding: 6px 0; }
   </style>
 </head>
 <body>

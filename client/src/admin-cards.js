@@ -21,7 +21,7 @@ function eff(cat, id) {
 }
 const allIds = cat => [...BASE_IDS, ...Object.keys(cat.cards).filter(id => !BASE_CARDS[id])];
 // Les sets rangent aussi les généraux : ils sortent des boosters comme les cartes, mais ne se retouchent pas ici.
-const setIds = cat => [...allIds(cat), ...Object.keys(GENERALS)];
+const setIds = cat => [...allIds(cat), ...Object.keys(GENERALS).filter(g => !GENERALS[g].boss)];
 const setEntry = (cat, id) => GENERALS[id] ? { name: `${GENERALS[id].name} (général)`, fam: GENERALS[id].fam || '' } : eff(cat, id);
 
 export function cardsTab({ call, render, say, esc, notice, onPublished }) {
