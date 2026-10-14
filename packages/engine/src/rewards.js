@@ -7,6 +7,7 @@ import { ARTS, ART_THEMES, MAX_FAV_ARTS } from './arts.js';
 import { CLAN_TITLES, CLAN_FRAMES, CLAN_BACKS, CLAN_LEVELS } from './clans.js';
 import { DEFAULT_SETS, setOf } from './collection.js';
 import { BOSS_TITLES, BOSS_FRAMES, BOSS_BACKS } from './boss.js';
+import { STORY_TITLES } from './story.js';
 
 // ---- Réglages chiffrés ----
 // Les valeurs par défaut sont justifiées dans la proposition d'économie (recompenses/economie.md).
@@ -312,6 +313,11 @@ export const ACHIEVEMENTS = [
   A('boss650', 'Boss mondial', 'Marquer 650 points en une tentative', 'bossBest', 650, 200, { prisms: 5 }),
   A('boss1000', 'Boss mondial', 'Marquer 1000 points en une tentative', 'bossBest', 1000, 500, { prisms: 15, title: 'Briseur de boss' }),
   A('bossTop10', 'Boss mondial', 'Finir une semaine dans le top 10 d\'un boss mondial', 'bossTop10', 1, 500, { prisms: 15, chests: 1 }),
+  // Quêtes d'histoire (story.js) : chapitres gagnés pour la première fois, campagnes finies, quêtes à durée limitée finies.
+  A('story1', 'Histoire', 'Gagner un premier chapitre d\'histoire', 'storyChapters', 1, 50, { prisms: 2 }),
+  A('storyCamp1', 'Histoire', 'Finir une campagne d\'histoire', 'storyCampaigns', 1, 200, { prisms: 5, title: 'Conteur' }),
+  A('storyCamp3', 'Histoire', 'Finir les trois campagnes des Terres d\'Aube', 'storyCampaigns', 3, 500, { prisms: 15, chests: 1, title: 'Chroniqueur de l\'Aube' }),
+  A('storyLimited', 'Histoire', 'Finir une quête à durée limitée', 'storyLimited', 1, 200, { prisms: 5 }),
   A('login7', 'Connexion', 'Se connecter 7 jours', 'loginDays', 7, 100, { prisms: 2 }),
   A('login30', 'Connexion', 'Se connecter 30 jours', 'loginDays', 30, 300, { prisms: 10, title: 'Habitué' }),
   A('login100', 'Connexion', 'Se connecter 100 jours', 'loginDays', 100, 800, { prisms: 20, chests: 1 }),
@@ -351,6 +357,7 @@ export const TITLES = Object.fromEntries([
   ...SEASON_TITLES,
   ...CLAN_TITLES,
   ...BOSS_TITLES,
+  ...STORY_TITLES,
   [WELCOME_TITLE, 'Recrue prometteuse'],
 ]);
 

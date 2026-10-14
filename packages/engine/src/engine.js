@@ -468,6 +468,13 @@ export const CARDS = {
   dieu_set3:   { set: 'recompense', name: 'Nexus, Dieu du Réseau', type: 'C', cost: 6, power: 7, kw: ['Hacker'], text: 'Révélation : Piratage du général adverse jusqu\'à la fin du tour suivant, puis Malware 2. Persistant : +1 par Malware exécuté chez l\'adversaire cette partie.',
                  onReveal: (c, st) => { hackGeneral(st, 1 - c.owner); malware(st, c.owner, 2); },
                  self: (c, st) => st.p[1 - c.owner].malwareRun || 0 },
+  // Quêtes d'histoire à durée limitée (story.js) : une carte neutre par quête, gagnée pendant la quête seulement.
+  epouvantail: { set: 'recompense', name: 'Épouvantail hanté', type: 'C', cost: 3, power: 3, kw: [], text: 'Persistant : +3 tant que l\'adversaire a plus de créatures que vous ici.',
+                 self: (c, st) => (creaturesAt(st, 1 - c.owner, c.zone).length > creaturesAt(st, c.owner, c.zone).length ? 3 : 0) },
+  pretre_eclipse:{ set: 'recompense', name: 'Prêtre de l\'éclipse', type: 'C', cost: 4, power: 5, kw: [], text: 'Révélation : les autres créatures ici, les vôtres comme celles de l\'adversaire, perdent 1.',
+                 onReveal: (c, st) => [0, 1].forEach(p => creaturesAt(st, p, c.zone).filter(x => x !== c).forEach(x => buff(st, x, -1))) },
+  coursier_neon:{ set: 'recompense', name: 'Coursier néon', type: 'C', cost: 2, power: 2, kw: [], mobile: true, text: 'Déplaçable. Déplacement : piochez 1 carte.',
+                 onMove: (c, st) => draw(st, c.owner, 1, true) },
 
   // ---- Saisons : cartes du passe de saison (pass.js), jamais dans un booster pendant leur saison ----
   // Elles rejoignent le Set de base quelques mois après leur saison (réglage passCardMonths). Neutres : elles vont dans tous les decks.

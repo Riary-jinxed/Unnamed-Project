@@ -5,6 +5,7 @@ import './cyber.css';
 import './halloween.css';
 import './clan.css';
 import './boss.css';
+import './story.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog, bossBoost } from '@jeu/engine';
 import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, setById, setOf, setRevealed, unrevealed, allowedGenerals, allowedTerrains, starterGenerals, deckError, deckCode, readDeckCode, fitDeck, recipeKeys, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder, today } from '@jeu/engine/collection';
 import { api } from './api.js';
@@ -17,6 +18,8 @@ import { createMail } from './mail.js';
 import { createNotifs } from './notifs.js';
 import { createClan, crestHTML } from './clan.js';
 import { createBoss } from './boss.js';
+import { createStory } from './story.js';
+import { questOfCard } from '@jeu/engine/story';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
 import { artBg, artHTML, heroHTML, portraitHTML, terrainBg, terrainHTML, holoCard, setHoloOff, popCard, setPopOff } from './art.js';
@@ -67,6 +70,10 @@ const clan = createClan({ ui, render: () => render(), call: (...x) => call(...x)
 // Boss mondial (boss.js) : boss de la semaine, tentatives, classement et magasin du boss ; à la table, son bandeau et la fin de tentative.
 const boss = createBoss({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), avatarHTML: (...x) => avatarHTML(...x), ico: k => ico(k), play: (...x) => play(...x),
   go: () => goBoss(), editBossDeck: id => { editBossDeck(id); render(); }, gotArt: id => { ui.gotArt = { id }; ui.sheet = 'art'; render(); }, leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
+// Quêtes d'histoire (story.js) : campagnes et quêtes du moment, carte, dialogues ; le combat se joue dans la page (goStory).
+const story = createStory({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), ico: k => ico(k), play: (...x) => play(...x),
+  anyCard: (...x) => anyCard(...x), zoomKey: (...x) => zoomKey(...x), rewardItem: r => rewardItem(r), setAccount: a => setAccount(a), go: (q, i) => goStory(q, i), quit: () => quit(),
+  leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
 // Notifications push (notifs.js) : réglées dans le profil ; en toucher une ouvre l'écran qu'elle annonce.
 const notifs = createNotifs({ ui, render: () => render(), call: (...x) => call(...x), open: where => openFromNotif(where) });
 
@@ -167,6 +174,14 @@ function goSolo() {
     ui.ctrl = startSolo(handlers, { name: ui.account.name, deck: ui.account.deck });
   });
 }
+// Quête d'histoire : un chapitre contre l'IA, dans la page, avec le deck du héros (story.js). Pas besoin d'un deck jouable.
+function goStory(quest, i) {
+  toTable('Le récit se poursuit…', () => {
+    ui.mode = 'story'; ui.sheet = null; ui.lastTurn = 0; ui.soloReward = null; ui.error = '';
+    const ctrl = startSolo(handlers, story.gameOpts(quest, i, ui.account.name)), rematch = ctrl.rematch;
+    ui.ctrl = { ...ctrl, rematch: () => { story.rematched(); rematch(); } };
+  });
+}
 // Tutoriel : leçons guidées contre l'IA avec un deck fixé, sans deck du joueur ni récompense (tutorial.js).
 // Premier lancement : un compte qui n'a pas encore de deck de départ entre directement dans l'initiation, une fois par appareil.
 const tutoKey = () => `tuto-${ui.account?.login || ''}`;
@@ -221,7 +236,7 @@ function setAccount(a) {
   if (MENU.includes(ui.screen)) ui.screen = a.starter ? 'home' : 'starter';
 }
 function signedOut(msg = '') {
-  friends.stop(); clan.stop(); boss.stop();
+  friends.stop(); clan.stop(); boss.stop(); story.stop();
   store.set('auth', null); ui.auth = null; ui.account = null; ui.screen = 'login'; ui.error = msg; ui.busy = false;
 }
 // Appel à l'API avec la session du joueur ; une session expirée renvoie à l'écran de connexion.
@@ -668,6 +683,7 @@ const setHidden = id => !!id && !setRevealed(setById(id));
 const futureCosmetic = id => futureSeasons().some(x => [x.frame[0], x.framePremium[0], x.back[0], x.backPremium[0]].includes(id))
   || FAMILY_REWARDS.some(r => r.back === id && setHidden(r.set)) || Object.entries(SET_REWARDS).some(([set, r]) => r.frame === id && setHidden(set));
 const hiddenCard = id => { if (owned(id)) return false; const x = seasonOfCard(id); if (x && !seasonStarted(x.id, today())) return true;
+  if (questOfCard(id)?.from > today()) return true;
   return unrevealed(id) || setHidden(rewardSourceOf(id)?.set); };
 // Familles à montrer : celles qui ont au moins une carte visible.
 const shownFamilies = () => FAMILIES.filter(f => OWNABLE.some(id => famOfCard(id) === f && !hiddenCard(id)));
@@ -748,7 +764,7 @@ function endRewardHTML() {
 }
 // Ce que l'écran de fin anime sur PixiJS (fx.js, setEnd) : les récompenses de la partie, une fois connues.
 function endReel() {
-  if (ui.sheet !== 'end' || ui.mode === 'tuto' || !ui.view?.result || ui.view.boss) return null;
+  if (ui.sheet !== 'end' || ui.mode === 'tuto' || ui.mode === 'story' || !ui.view?.result || ui.view.boss) return null;
   const r = ui.mode === 'online' ? ui.view.reward : ui.soloReward; if (!r) return null;
   const w = ui.view.result.winner;
   return { key: JSON.stringify(r), reward: r, result: w === ui.view.seat ? 'win' : w < 0 ? 'tie' : 'lose' };
@@ -1072,7 +1088,7 @@ function renderGame() {
       <span class="n">${esc(d.name)}</span>${d.text ? `<span class="x">${rich(d.text)}</span>` : `<span class="k">${kwLine(d)}</span>`}${boss.handChip(v, c.id)}</button>`; }).join('');
   const canGen = play && g.activate && !m.generalUsed && m.seals >= (g.activateCost || 0);
   const goLabel = v.phase === 'reveal' ? 'Révélation…' : v.ready.me ? 'En attente…' : v.turn === v.turns ? 'Valider le dernier tour' : 'Valider le tour';
-  const mode = ui.mode === 'online' ? (v.boss ? 'Boss mondial' : v.ranked ? 'Partie classée' : `Partie ${esc(ui.room || '')}`) : ui.mode === 'tuto' ? 'Tutoriel' : 'Contre l\'IA';
+  const mode = ui.mode === 'online' ? (v.boss ? 'Boss mondial' : v.ranked ? 'Partie classée' : `Partie ${esc(ui.room || '')}`) : ui.mode === 'tuto' ? 'Tutoriel' : ui.mode === 'story' ? esc(story.label()) : 'Contre l\'IA';
   // Hors tutoriel, pas d'encadré d'info : une double touche ouvre la carte en grand, et un refus (zone pleine, sceaux) s'affiche en bulle au-dessus de la main.
   const toast = ui.msg ? `<div class="toast" role="alert">${esc(ui.msg)}</div>` : '';
   return `
@@ -1214,7 +1230,7 @@ function renderHome() {
         <span class="tile-foot num">${cal.ready ? 'Récompense à récupérer' : `${cal.got} jour${cal.got > 1 ? 's' : ''} sur ${cal.days.length}`}</span></button>` : ''}
       ${p.welcome && !p.welcome.expired && (!p.welcome.done || p.welcome.claimed) ? `<button class="tile welcometile ${p.welcome.ready ? 'todo' : ''}" data-act="welcome"><span class="eyebrow">Bienvenue · ${p.welcome.left} j</span><b class="num">${p.welcome.got}/${p.welcome.steps}</b>
         <span class="tile-foot">${p.welcome.ready ? 'Cadeau à récupérer' : p.welcome.done ? 'Terminée ✓' : 'Revenez demain'}</span></button>` : ''}
-      ${boss.tile(a)}${clan.tile(a)}
+      ${story.tile(a)}${boss.tile(a)}${clan.tile(a)}
       <button class="tile" data-act="profile" data-tab="succes"><span class="eyebrow">Progression${p.title ? ` · ${esc(titleLabel(p.title))}` : ''}</span><b class="num">Niv. ${p.level}</b>
         <span class="tile-foot num">${p.xp}/${p.xpNext} XP · Succès</span></button>
     </div>
@@ -1263,7 +1279,7 @@ function walletHTML() {
 const HOME_PATH = 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z';
 const tabIcon = d => `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
 // Écrans qui ont la barre du bas, et l'onglet allumé sur chacun (aucun pour les sous-écrans de l'accueil).
-const TABBED = { home: 'home', collection: 'collection', decks: 'decks', shop: 'shop', friends: 'friends', profile: '', ranked: '', pass: '', mail: '', clan: 'friends', boss: '' };
+const TABBED = { home: 'home', collection: 'collection', decks: 'decks', shop: 'shop', friends: 'friends', profile: '', ranked: '', pass: '', mail: '', clan: 'friends', boss: '', story: '' };
 function tabbar(cur) {
   const upgradable = OWNABLE.filter(canUpgrade).length, asks = friends.pending();
   const nav = (act, label, badge, extra = '') => `<button data-act="${act}" ${cur === act ? 'class="on" aria-current="page"' : ''} ${extra}>${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
@@ -1275,6 +1291,8 @@ function tabbar(cur) {
 }
 // Cartes de récompense : on dit comment les obtenir.
 function lockLabel(id) {
+  // Carte de quête : réservée à sa quête, tant qu'elle n'est pas arrivée dans le booster du Set de base (quête passée dans l'histoire principale).
+  const sq = questOfCard(id); if (sq && !SETS.some(x => x.cards.includes(id))) return `Récompense : quête ${sq.name}`;
   const ss = seasonOfCard(id);
   if (ss && !SETS.some(x => x.cards.includes(id))) return `Récompense : passe de saison ${ss.name}`;
   const src = rewardSourceOf(id);
@@ -1836,6 +1854,7 @@ function closeSheet() {
 }
 function sheetHTML() {
   if (ui.sheet === 'zoom' && ui.zoom) return zoomHTML();
+  const st = story.sheet(); if (st) return st;
   if (ui.sheet === 'friend-deck') return friends.deckSheet();
   if (ui.sheet === 'player' && ui.player) return playerSheet();
   if (ui.sheet === 'log' && ui.view) {
@@ -1944,6 +1963,7 @@ function sheetHTML() {
       <div class="gallery ${ui.booster.opened ? 'opened' : ''}">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">${dupTag(id)}</span>`}${anyCard(id, myLevel(id), mySel(id))}</div>`).join('')}</div></div></div>`;
   }
   if (ui.sheet === 'end' && ui.view?.result && ui.view.boss) return boss.endHTML(ui.view, ui.rematchAsked);
+  if (ui.sheet === 'end' && ui.view?.result && ui.mode === 'story') return story.endHTML(ui.view);
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;
     const t = r.winner === s ? 'Victoire' : r.winner < 0 ? 'Match nul' : 'Défaite';
@@ -1971,7 +1991,7 @@ function render() {
   const stx = app.querySelector('.shoptabs')?.scrollLeft || 0;
   // Défilement de la fenêtre ouverte, gardé quand elle se redessine (ex. : après une amélioration, en bas de la fiche).
   const sp = app.querySelector(':scope > .sheet .panel'); const sy = sp && ui.sheet === ui.shownSheet && ui.zoom?.id === ui.shownZoom ? sp.scrollTop : 0;
-  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, pass: renderPass, lobby: renderLobby, game: renderGame, friends: friends.screen, mail: mail.screen, clan: clan.screen, boss: boss.screen };
+  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, pass: renderPass, lobby: renderLobby, game: renderGame, friends: friends.screen, mail: mail.screen, clan: clan.screen, boss: boss.screen, story: story.screen };
   // Récompenses gagnées (niveau, missions, succès, familles et sets complétés) : affichées en revenant à l'accueil.
   if (ui.screen === 'home' && !ui.sheet && prog().inbox.length) ui.sheet = 'inbox';
   // Cadeau de bienvenue du jour pas encore récupéré : la bienvenue s'ouvre une fois par visite, avant le calendrier.
@@ -2309,7 +2329,10 @@ function quit() {
 function leaveTable() {
   if (ui.ctrl) ui.ctrl.leave();
   store.set('session', null);
-  ui.ctrl = null; ui.view = null; ui.friendFoe = null; ui.rankedAi = false; ui.bossRun = false; ui.screen = menuScreen(); ui.sheet = null; ui.pending = []; ui.lastTurn = 0; ui.soloReward = null; render();
+  // Un chapitre d'histoire ramène à la carte de sa quête.
+  const back = ui.mode === 'story' && ui.account?.starter ? 'story' : menuScreen();
+  if (back === 'story') { ui.mode = null; story.reload(); }
+  ui.ctrl = null; ui.view = null; ui.friendFoe = null; ui.rankedAi = false; ui.bossRun = false; ui.screen = back; ui.sheet = null; ui.pending = []; ui.lastTurn = 0; ui.soloReward = null; render();
   // Le compte a pu changer pendant la partie (XP, Éclats, missions, succès).
   if (ui.auth) api('GET', '/api/me', undefined, ui.auth).then(r => { setAccount(r.account); render(); }).catch(() => {});
 }
@@ -2356,7 +2379,7 @@ app.addEventListener('click', e => {
   if (ds.act) {
     const a = ds.act;
     if (a === 'friends' && ui.sheet === 'play-friend') { ui.sheet = null; ui.error = ''; }
-    if (friends.click(a, ds) || mail.click(a, ds) || clan.click(a, ds) || boss.click(a, ds) || notifs.click(a)) return;
+    if (friends.click(a, ds) || mail.click(a, ds) || clan.click(a, ds) || boss.click(a, ds) || story.click(a, ds) || notifs.click(a)) return;
     if (a === 'close') closeSheet();
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
