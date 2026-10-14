@@ -253,7 +253,7 @@ async function call(method, path, body) {
   finally { ui.busy = false; render(); }
 }
 // Signale au serveur un geste qu'il ne voit pas passer (onglet Suivi de /admin) : code de deck copié, émote contre l'IA, notification touchée.
-const track = (what, id) => { if (ui.auth) api('POST', '/api/track', { what, id }, ui.auth).catch(() => {}); };
+const track = (what, id) => { if (ui.auth) api('POST', '/api/track', { what, id }, ui.auth).then(r => { if (r?.account) { setAccount(r.account); render(); } }).catch(() => {}); };
 // Cartes et sets publiés depuis /admin : appliqués au moteur pour l'affichage et la partie contre l'IA.
 let catalogVersion = 0;
 async function loadCatalog() {
@@ -548,14 +548,20 @@ const gains = r => [r.xp ? `+${r.xp} XP` : '', r.shards ? t('+{n} Éclats', { n:
   r.uniEssence ? t('+{n} essence universelle', { n: r.uniEssence }) : '', r.clanCoins ? tp(r.clanCoins, '+{n} Écu de clan', '+{n} Écus de clan') : '',
   r.bossCoins ? tp(r.bossCoins, '+{n} Insigne', '+{n} Insignes') : ''].filter(Boolean).join(' · ');
 const titleLabel = id => t(prog().cosmetics.titles.find(x => x.id === id)?.label || '');
-function missionsHTML() {
-  const p = prog();
-  if (!p.missions.length) return '';
-  return `<div class="missions">${p.missions.map((m, i) => `<div class="mission ${m.done ? 'done' : ''}">
+// Missions du jour (qu'on peut changer) puis de la semaine, avec le bonus quand toutes celles de la semaine sont faites.
+const missionRow = (m, i, reroll) => `<div class="mission ${m.done ? 'done' : ''}">
     <div class="row" style="justify-content:space-between;gap:8px"><span>${m.done ? '✓ ' : ''}${esc(tField(m, 'label'))}</span><small class="hint num">${gains(m)}</small></div>
     <div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(m.n, m.target)}%"></span></div><small class="num">${m.n}/${m.target}</small>
-      ${!m.done && p.rerollsLeft ? `<button class="btn sm" data-act="reroll" data-i="${i}" ${ui.busy ? 'disabled' : ''}>${t('Changer')}</button>` : ''}</div></div>`).join('')}</div>
-    <p class="hint" style="margin:0">${t('Nouvelles missions chaque jour à minuit.')}${p.rerollsLeft ? ` ${t('Vous pouvez en changer {n} aujourd\'hui.', { n: p.rerollsLeft })}` : ''}</p>`;
+      ${reroll && !m.done ? `<button class="btn sm" data-act="reroll" data-i="${i}" ${ui.busy ? 'disabled' : ''}>${t('Changer')}</button>` : ''}</div></div>`;
+function missionsHTML() {
+  const p = prog(), W = p.weekly;
+  const daily = p.missions.length ? `<div class="gal-h">${t('Du jour')}</div><div class="missions">${p.missions.map((m, i) => missionRow(m, i, p.rerollsLeft)).join('')}</div>
+    <p class="hint" style="margin:0">${t('Nouvelles missions chaque jour à minuit.')}${p.rerollsLeft ? ` ${t('Vous pouvez en changer {n} aujourd\'hui.', { n: p.rerollsLeft })}` : ''}</p>` : '';
+  if (!W?.list.length) return daily;
+  const bonus = gains(W.bonus);
+  return `${daily}<div class="gal-h">${t('De la semaine')}</div><p class="hint" style="margin:0">${t('Jusqu\'au {date} à minuit.', { date: esc(frDate(W.ends)) })}</p>
+    <div class="missions">${W.list.map((m, i) => missionRow(m, i, false)).join('')}</div>
+    ${bonus ? `<p class="hint" style="margin:0">${W.bonus.got ? `✓ ${t('Bonus de la semaine reçu : {gains}', { gains: bonus })}` : t('Toutes accomplies : {gains} en bonus.', { gains: bonus })}</p>` : ''}`;
 }
 // Ce que contient une récompense : gains, carte, titre, cadre, dos de carte, art Promo.
 function rewardItem(r) {
@@ -1212,7 +1218,7 @@ function renderHome() {
   const a = ui.account, d = a.deck, g = d && GENERALS[d.general], p = prog();
   clan.warm();
   const deckErr = d ? deckError(d, a) : t('Aucun deck.');
-  const left = p.missions.filter(m => !m.done).length;
+  const left = p.missions.filter(m => !m.done).length, weekLeft = (p.weekly?.list || []).filter(m => !m.done).length;
   // Booster du jour, boosters et coffres offerts : un seul bandeau, seulement quand il y a quelque chose à ouvrir.
   // Les cadeaux s'ouvrent ici même (un bouton par set ouvert), sans passer par la boutique.
   const dis = ui.busy ? 'disabled' : '';
@@ -1253,8 +1259,8 @@ function renderHome() {
     <div class="tiles">
       ${p.pass ? `<button class="tile passline theme-${p.pass.theme}" data-act="pass"><span class="eyebrow">${t('Passe · {n} j', { n: p.pass.daysLeft })}</span><b>${esc(t(p.pass.name))}</b>
         <span class="tile-foot num">${t('Palier {tier}/{tiers}', { tier: p.pass.tier, tiers: p.pass.tiers })}</span><span class="bar" aria-hidden="true"><span style="width:${pct(p.pass.xp, p.pass.next)}%"></span></span></button>` : ''}
-      ${p.missions.length ? `<button class="tile ${left ? 'todo' : ''}" data-act="missions"><span class="eyebrow">${t('Missions du jour')}</span><b class="num">${p.missions.length - left}/${p.missions.length}</b>
-        <span class="tile-foot">${left ? t('{n} à faire', { n: left }) : t('Toutes faites ✓')}</span></button>` : ''}
+      ${p.missions.length || p.weekly?.list.length ? `<button class="tile ${left ? 'todo' : ''}" data-act="missions"><span class="eyebrow">${t('Missions du jour')}</span><b class="num">${p.missions.length - left}/${p.missions.length}</b>
+        <span class="tile-foot">${left ? t('{n} à faire', { n: left }) : t('Toutes faites ✓')}${p.weekly?.list.length ? ` · ${t('Semaine {done}/{total}', { done: p.weekly.list.length - weekLeft, total: p.weekly.list.length })}` : ''}</span></button>` : ''}
       ${cal ? `<button class="tile ${cal.ready ? 'todo' : ''}" data-act="calendar"><span class="eyebrow">${t('Calendrier')}</span><b>${esc(t(cal.name).split(' ')[0])}</b>
         <span class="tile-foot num">${cal.ready ? t('Récompense à récupérer') : tp(cal.got, '{n} jour sur {days}', '{n} jours sur {days}', { days: cal.days.length })}</span></button>` : ''}
       ${p.welcome && !p.welcome.expired && (!p.welcome.done || p.welcome.claimed) ? `<button class="tile welcometile ${p.welcome.ready ? 'todo' : ''}" data-act="welcome"><span class="eyebrow">${t('Bienvenue · {n} j', { n: p.welcome.left })}</span><b class="num">${p.welcome.got}/${p.welcome.steps}</b>
@@ -1923,7 +1929,7 @@ function sheetHTML() {
         <button class="btn" data-act="join" style="align-self:end">${t('Rejoindre')}</button></div>${errLine()}</div></div>`;
   }
   if (ui.sheet === 'missions') {
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${t('Missions du jour')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${t('Missions')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
       ${levelBar(prog())}${missionsHTML()}</div></div>`;
   }
   if (ui.sheet === 'gift') {

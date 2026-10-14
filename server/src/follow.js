@@ -189,14 +189,19 @@ export function createFollow(store, accounts, { boss, events }) {
 
   // ---- Signalements de l'appli ----
   const recent = new Map();
-  function track(a, body) {
+  async function track(a, body) {
     const what = String(body?.what || ''), id = String(body?.id || '');
     const key = { deckShare: 'deckShared', emote: EMOTES[id] ? 'emotesSolo' : null, pushOpen: PUSH_KINDS[id] ? `pushOpened:${id}` : null }[what];
     if (!key) throw new HttpError(400, 'Signalement inconnu.');
     const now = Date.now(), r = recent.get(a.login);
     if (r && now - r.at < 60_000) { if (r.n >= TRACK_PER_MIN) return { ok: true }; r.n++; } else recent.set(a.login, { at: now, n: 1 });
     accounts.activity.count(what === 'emote' ? [key, `emote:${id}`] : key);
-    return { ok: true };
+    // Missions « partager un deck » et « envoyer des émotes » (une émote possédée, contre l'IA).
+    const mission = what === 'deckShare' ? 'deckShare' : what === 'emote' && accounts.progress.canEmote(a, id) ? 'emote' : null;
+    if (!mission) return { ok: true };
+    accounts.progress.act(a, mission); await store.put(a);
+    // Un deck partagé depuis les menus : l'appli reprend le compte (missions à jour). En partie, elle le reprend à la fin.
+    return mission === 'deckShare' ? { ok: true, account: accounts.me(a) } : { ok: true };
   }
 
   return {

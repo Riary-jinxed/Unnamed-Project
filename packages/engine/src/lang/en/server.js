@@ -67,6 +67,8 @@ export default {
   "Famille {fam} complétée ({set})": "{fam} family completed ({set})",
   "Set {set} complété": "{set} set completed",
   "Mission : {label}": "Mission: {label}",
+  "Mission de la semaine : {label}": "Weekly mission: {label}",
+  "Toutes les missions de la semaine accomplies": "All weekly missions complete",
   "Cette mission ne peut pas être remplacée.": "This mission can't be replaced.",
   "Plus de remplacement possible aujourd'hui.": "No more rerolls today.",
   "Aucune autre mission disponible.": "No other mission available.",

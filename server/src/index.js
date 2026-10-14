@@ -358,6 +358,8 @@ function handle(ws, msg) {
     if (now - (s.emoteAt || 0) < EMOTE_COOLDOWN_MS || (s.emotes || 0) >= EMOTE_MAX) return;
     s.emoteAt = now; s.emotes = (s.emotes || 0) + 1;
     accounts.activity.count(['emotesOnline', `emote:${id}`]);
+    // Missions « envoyer des émotes » : le compte est enregistré avec la fin de la partie.
+    accounts.progress.act(accounts.byToken(s.auth), 'emote');
     const say = (seat, e) => room.seats.forEach(x => x && send(x.ws, { t: 'emote', seat, id: e }));
     say(ws.seat, id);
     const ai = room.seats.findIndex(x => x && x.ai && !x.boss), reply = ai >= 0 ? aiReply(id) : null;

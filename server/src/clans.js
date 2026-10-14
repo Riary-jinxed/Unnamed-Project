@@ -110,6 +110,7 @@ export function createClans(store, accounts, push = null) {
       const b = login === current?.login ? current : store.get(login); if (!b) continue;
       progress.grant(b, { kind: 'clan', label, labelMsg: msg('Mission de clan accomplie : {label}', { label: inLang(b, () => clanMissionLabel(m)) }), clanCoins: r.coins });
       progress.count(b, 'clanMissions');
+      progress.act(b, 'clanMission');
       if (b !== current) put(b);
     }
     const after = level(c);
@@ -450,6 +451,7 @@ export function createClans(store, accounts, push = null) {
     log(c, msg('{name} donne {n} {res} ({coins}).', { name: a.name, n: give, res: [give > 1 ? d.name : d.name.replace(/s$/, '')], coins: coinsMsg(coins) }));
     advance(c, a, { dons: coins });
     progress.count(a, 'clanDonated', coins);
+    progress.act(a, 'clanDon');
     await Promise.all([save(), store.put(a)]);
     return done(a, msg('Merci ! +{coins}.', { coins: coinsMsg(coins) }));
   }

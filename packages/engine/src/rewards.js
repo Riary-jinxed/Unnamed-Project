@@ -24,6 +24,9 @@ export const DEFAULT_REWARDS = {
   xpNewCard: 15,
   // Missions quotidiennes : nombre par jour, et missions qu'on peut remplacer par jour.
   missionsPerDay: 3, missionRerolls: 1,
+  // Missions de la semaine (hors passe, WEEKLY_MISSIONS) : nombre par semaine, et bonus quand elles sont toutes accomplies
+  // (coffres d'arts et Prismes). Leurs objectifs, XP et Éclats se règlent avec ceux des missions quotidiennes.
+  weeklyMissions: 3, weeklyBonusChests: 1, weeklyBonusPrisms: 3,
   // Complétion : famille d'un set (avec carte unique, titre et dos), set entier.
   familyShards: 200, setShards: 1000, setBoosters: 3,
   // Niveaux de carte : essence de la carte gagnée par doublon, puis essence et Éclats pour passer au niveau n (2 à 5).
@@ -61,7 +64,7 @@ export const REWARD_LIMITS = {
   xpBase: [10, 100000], xpStep: [0, 100000], xpCap: [10, 1000000], levelShards: [0, 100000], boosterEvery: [0, 100],
   xpPvpWin: [0, 10000], xpPvpLoss: [0, 10000], xpPveWin: [0, 10000], xpPveLoss: [0, 10000],
   shardsPvpWin: [0, 10000], shardsPveWin: [0, 10000], shardsLoss: [0, 10000], gamesPerDay: [0, 100],
-  xpNewCard: [0, 10000], missionsPerDay: [0, 6], missionRerolls: [0, 10],
+  xpNewCard: [0, 10000], missionsPerDay: [0, 6], missionRerolls: [0, 10], weeklyMissions: [0, 6], weeklyBonusChests: [0, 10], weeklyBonusPrisms: [0, 10000],
   familyShards: [0, 100000], setShards: [0, 1000000], setBoosters: [0, 20],
   essencePerDuplicate: [0, 1000], uniPerDuplicate: [0, 1000], uniPerEssence: [1, 1000],
   lvl2Essence: [0, 10000], lvl2Shards: [0, 100000], lvl3Essence: [0, 10000], lvl3Shards: [0, 100000],
@@ -94,6 +97,12 @@ export const xpToNext = (level, r = DEFAULT_REWARDS) => Math.min(r.xpCap, r.xpBa
 // pick(compte) : ce que la mission demande (famille, carte), tiré parmi les cartes que le joueur possède,
 // ou null s'il n'en a pas assez pour la faire : la mission n'est alors pas tirée.
 // group : deux missions du même groupe ne sont pas tirées le même jour. retired : n'est plus tirée (gardée pour les missions déjà tirées).
+// stat : ce qui la fait avancer en fin de partie, parmi play, win, win_pvp, win_pve, ranked, friend, sweep, zones (son id par défaut).
+// on : ce qui la fait avancer hors partie (progress.act) : booster, boss (tentative du boss mondial menée au bout), story (chapitre de
+// quête d'histoire gagné la première fois), emote (émote envoyée en partie), clanDon (don au clan), clanMission (mission de clan accomplie
+// avec sa contribution), deckShare (deck partagé), missions (mission du jour accomplie).
+// need : mode auquel le joueur doit avoir accès pour qu'elle soit tirée (progress.js, needs) : clan, friends, boss, story ;
+// needTarget : il faut au moins « objectif » de quoi la faire (chapitres d'histoire encore à gagner).
 // Objectifs des missions de cartes : environ trois parties (une partie pose 8 à 10 cartes, dont 6 à 8 de la famille du deck).
 const plays = test => (m, played) => played.filter(id => CARDS[id] && test(CARDS[id], id, m)).length;
 // Cartes possédées (hors généraux et jetons) qui vérifient test.
@@ -129,9 +138,39 @@ export const MISSIONS = {
   // Zones remportées en fin de partie, gagnée ou non : remplace « gagner en remportant les 3 zones », trop rare (une partie sur vingt).
   zones:   { label: n => tp(n, 'Remporter {n} zone', 'Remporter {n} zones'), target: 4, xp: 120, shards: 30 },
   sweep:   { label: () => t('Gagner une partie en remportant les 3 zones'), target: 1, xp: 150, shards: 35, retired: true },
-  booster: { label: () => t('Ouvrir le booster du jour'), target: 1, xp: 50, shards: 10 },
+  booster: { label: () => t('Ouvrir le booster du jour'), target: 1, xp: 50, shards: 10, on: 'booster' },
+  // Modes arrivés depuis : classé, boss mondial, quêtes d'histoire, et les petites missions « sociales » (une par jour au plus).
+  ranked:  { label: n => tp(n, 'Jouer {n} partie classée', 'Jouer {n} parties classées'), target: 2, xp: 120, shards: 30 },
+  boss:    { label: n => tp(n, 'Affronter le boss mondial', 'Affronter le boss mondial {n} fois'), target: 1, xp: 100, shards: 25, need: 'boss', on: 'boss' },
+  story:   { label: n => tp(n, 'Gagner {n} chapitre de quête d\'histoire', 'Gagner {n} chapitres de quête d\'histoire'), target: 1, xp: 120, shards: 30, need: 'story', needTarget: true, on: 'story' },
+  emote:   { label: n => tp(n, 'Envoyer {n} émote en partie', 'Envoyer {n} émotes en partie'), target: 3, xp: 60, shards: 15, group: 'social', on: 'emote' },
+  clan_don: { label: () => t('Faire un don à votre clan'), target: 1, xp: 60, shards: 15, group: 'social', need: 'clan', on: 'clanDon' },
+  deck_share: { label: () => t('Partager un de vos decks'), target: 1, xp: 50, shards: 10, group: 'social', on: 'deckShare' },
 };
-export const missionLabel = m => MISSIONS[m.id]?.label(m.target, m.fam, CARDS[m.card]?.name || m.card) || m.id;
+
+// ---- Missions de la semaine ----
+// Hors passe : tirées chaque lundi (semaine du jeu, weekOf dans pass.js), plus longues et mieux payées que celles du jour,
+// avec un bonus quand elles sont toutes accomplies (weeklyBonusChests, weeklyBonusPrisms). Mêmes champs que MISSIONS ;
+// leurs réglages sont rangés avec ceux des missions quotidiennes (identifiants en « w_ »).
+export const WEEKLY_MISSIONS = {
+  w_play:   { label: MISSIONS.play.label, stat: 'play', target: 15, xp: 400, shards: 100 },
+  w_win:    { label: MISSIONS.win.label, stat: 'win', target: 8, xp: 500, shards: 120, group: 'win' },
+  w_win_pvp: { label: MISSIONS.win_pvp.label, stat: 'win_pvp', target: 3, xp: 500, shards: 120, group: 'win' },
+  w_ranked: { label: MISSIONS.ranked.label, stat: 'ranked', target: 8, xp: 500, shards: 120 },
+  w_friend: { label: n => tp(n, 'Jouer {n} partie contre un ami', 'Jouer {n} parties contre un ami'), stat: 'friend', target: 2, xp: 450, shards: 110, need: 'friends' },
+  w_zones:  { label: MISSIONS.zones.label, stat: 'zones', target: 12, xp: 450, shards: 110 },
+  w_sweep:  { label: n => tp(n, 'Gagner une partie en remportant les 3 zones', 'Gagner {n} parties en remportant les 3 zones'), stat: 'sweep', target: 1, xp: 500, shards: 120 },
+  w_fam:    { label: MISSIONS.fam.label, target: 60, xp: 450, shards: 110, group: 'cards', pick: a => ownedFam(a, 5), count: plays(sameFam) },
+  w_spells: { label: MISSIONS.spells.label, target: 20, xp: 400, shards: 100, group: 'cards', pick: enough(2, isS), count: plays(isS) },
+  w_boss:   { label: MISSIONS.boss.label, target: 5, xp: 450, shards: 110, need: 'boss', on: 'boss' },
+  w_story:  { label: MISSIONS.story.label, target: 2, xp: 500, shards: 120, need: 'story', needTarget: true, on: 'story' },
+  w_clan:   { label: n => tp(n, 'Contribuer à {n} mission de clan accomplie', 'Contribuer à {n} missions de clan accomplies'), target: 3, xp: 450, shards: 110, need: 'clan', on: 'clanMission' },
+  w_emote:  { label: MISSIONS.emote.label, target: 10, xp: 300, shards: 80, on: 'emote' },
+  w_missions: { label: n => tp(n, 'Accomplir {n} mission du jour', 'Accomplir {n} missions du jour'), target: 10, xp: 500, shards: 120, on: 'missions' },
+};
+// Toutes les missions (du jour et de la semaine), par identifiant.
+export const ALL_MISSIONS = { ...MISSIONS, ...WEEKLY_MISSIONS };
+export const missionLabel = m => ALL_MISSIONS[m.id]?.label(m.target, m.fam, CARDS[m.card]?.name || m.card) || m.id;
 
 // ---- Cosmétiques ----
 export const FRAMES = {
