@@ -59,11 +59,12 @@ addEventListener('pointermove', e => {
 document.addEventListener('mouseleave', () => hovered && leave(hovered));
 function leave(el) { el.style.removeProperty('--tilt-x'); el.style.removeProperty('--tilt-y'); el.classList.remove('hover'); hovered = null; }
 
-// Cartes hors de l'écran : leurs animations (reflet qui ondule, bordure astrale qui tourne, éclat des légendaires) sont mises
-// en pause (holo.css, .horsvue) et reprennent où elles en étaient en revenant à l'écran. Dans la collection, plus de
-// 200 cartes animées faisaient travailler le téléphone sans arrêt alors qu'on n'en voit que quelques-unes.
+// Cartes hors de l'écran : leurs animations (reflet qui ondule, bordure astrale qui tourne, éclat des légendaires, reflet des
+// cartes des vitrines de la boutique) sont mises en pause (holo.css, .horsvue) et reprennent où elles en étaient en revenant
+// à l'écran. Dans la collection, plus de 200 cartes animées faisaient travailler le téléphone sans arrêt alors qu'on n'en voit
+// que quelques-unes ; dans la boutique, les cartes des vitrines plus bas tournaient aussi.
 // Les cartes à l'écran (shown) reçoivent aussi l'inclinaison du téléphone.
-const ANIMATED = '.art.holo, .art.rar, .lv-astral', shown = new Set(), watched = new Set();
+const ANIMATED = '.art.holo, .art.rar, .lv-astral, .vit-card', shown = new Set(), watched = new Set();
 const seen = new IntersectionObserver(list => { for (const e of list) {
   e.target.classList.toggle('horsvue', !e.isIntersecting);
   if (e.isIntersecting && e.target.matches('.art.holo')) { shown.add(e.target); if (root.dataset.tilt && e.target !== hovered) tilt(e.target); } else shown.delete(e.target);

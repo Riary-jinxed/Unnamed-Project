@@ -72,12 +72,22 @@
 .ladder .cname { display: flex; gap: 8px; }
 .ladder .cname > span { display: grid; min-width: 0; }
 .cscore { color: var(--accent); }
-.ctile .ctile-name { display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.pclan { display: flex; align-items: center; gap: 6px; }
+/* Blason à gauche du nom ; le nom passe sur deux lignes au plus (.tile b). */
+.ctile .ctile-name { display: flex; align-items: center; gap: 6px; }
+.ctile .ctile-name > span { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+/* Clan sur le profil public : blason, nom, étiquette et rôle à la suite, comme une phrase (en flex, le nom se coupait en colonne). */
+.pclan { display: block; line-height: 1.35; }
+.pclan .crest { margin-right: 4px; }
 @media (max-width: 480px) {
   .chero { grid-template-columns: 1fr; }
   .cheader { grid-template-columns: 1fr; justify-items: start; }
   .cshop { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Les cinq rubriques tiennent sur la largeur (« Classement » était coupé). */
+  .ctabs { display: flex; align-self: stretch; }
+  .ctabs button { flex: 1 1 auto; justify-content: center; padding: 8px 6px; font-size: 13.5px; }
+  /* Membres : rang et activité sous le nom, qui garde toute la largeur. */
+  .frow.cmember { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .cmember .cstat { justify-items: start; text-align: left; padding-left: 50px; }
 }
 .socialtabs { align-self: start; }
 .socialtabs button { padding: 8px 22px; font-weight: 600; }
