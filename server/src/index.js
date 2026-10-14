@@ -22,6 +22,7 @@ import { createClans } from './clans.js';
 import { createBoss } from './boss.js';
 import { createStory } from './story.js';
 import { createPush } from './push.js';
+import { createFollow } from './follow.js';
 import { NOTES_MAJ } from './notes-maj.js';
 
 const PORT = +process.env.PORT || 8787;
@@ -60,7 +61,9 @@ accounts.setBossTile(a => boss.tile(a));
 const story = createStory(store, accounts, { onChange: () => catalog.refresh() });
 catalog.setExtraCards(() => story.releasedCards());
 accounts.setStoryTile(a => story.tile(a));
-const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...accounts.progress.events.routes, ...clans.routes, ...push.routes, ...boss.routes, ...story.routes }, catalog.public);
+// Onglet Suivi de /admin : rétention et suivi du nouveau contenu.
+const follow = createFollow(store, accounts, { boss, events: accounts.progress.events });
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...accounts.progress.events.routes, ...clans.routes, ...push.routes, ...boss.routes, ...story.routes, ...follow.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
 // Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.
@@ -337,6 +340,7 @@ function handle(ws, msg) {
     if (!room.st || !s || !accounts.progress.canEmote(accounts.byToken(s.auth), id)) return;
     if (now - (s.emoteAt || 0) < EMOTE_COOLDOWN_MS || (s.emotes || 0) >= EMOTE_MAX) return;
     s.emoteAt = now; s.emotes = (s.emotes || 0) + 1;
+    accounts.activity.count(['emotesOnline', `emote:${id}`]);
     const say = (seat, e) => room.seats.forEach(x => x && send(x.ws, { t: 'emote', seat, id: e }));
     say(ws.seat, id);
     const ai = room.seats.findIndex(x => x && x.ai && !x.boss), reply = ai >= 0 ? aiReply(id) : null;

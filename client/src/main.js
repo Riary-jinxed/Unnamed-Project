@@ -75,7 +75,7 @@ const story = createStory({ ui, render: () => render(), call: (...x) => call(...
   anyCard: (...x) => anyCard(...x), zoomKey: (...x) => zoomKey(...x), rewardItem: r => rewardItem(r), setAccount: a => setAccount(a), go: (q, i) => goStory(q, i), quit: () => quit(),
   leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
 // Notifications push (notifs.js) : réglées dans le profil ; en toucher une ouvre l'écran qu'elle annonce.
-const notifs = createNotifs({ ui, render: () => render(), call: (...x) => call(...x), open: where => openFromNotif(where) });
+const notifs = createNotifs({ ui, render: () => render(), call: (...x) => call(...x), open: where => openFromNotif(where), track: (...x) => track(...x) });
 
 // ---- Contrôleurs (en ligne / IA) ----
 const handlers = {
@@ -246,6 +246,8 @@ async function call(method, path, body) {
   catch (e) { if (e.status === 401) signedOut(e.message); else ui.error = e.message; return null; }
   finally { ui.busy = false; render(); }
 }
+// Signale au serveur un geste qu'il ne voit pas passer (onglet Suivi de /admin) : code de deck copié, émote contre l'IA, notification touchée.
+const track = (what, id) => { if (ui.auth) api('POST', '/api/track', { what, id }, ui.auth).catch(() => {}); };
 // Cartes et sets publiés depuis /admin : appliqués au moteur pour l'affichage et la partie contre l'IA.
 let catalogVersion = 0;
 async function loadCatalog() {
@@ -373,7 +375,7 @@ function editBossDeck(boss) {
 }
 async function saveDeck() {
   const e = ui.edit, body = { name: e.name, general: e.general, terrains: e.terrains, cards: e.cards };
-  const r = e.boss ? await call('PUT', '/api/boss/deck', { boss: e.boss, ...body }) : await call('PUT', '/api/decks', { id: e.id, ...body });
+  const r = e.boss ? await call('PUT', '/api/boss/deck', { boss: e.boss, ...body }) : await call('PUT', '/api/decks', { id: e.id, ...body, ...(e.id ? {} : { from: e.from }) });
   if (r) { ui.screen = e.back; ui.edit = null; ui.msg = ''; render(); }
 }
 function openDecks() { ui.screen = 'decks'; ui.error = ''; ui.msg = ''; render(); }
@@ -395,6 +397,7 @@ function showDeckCode(d) { ui.shareDeck = { name: d.name, code: deckCode(d) }; u
 function copyDeckCode(btn) {
   const box = document.getElementById('deck-code');
   navigator.clipboard.writeText(ui.shareDeck.code).then(() => { btn.textContent = 'Code copié'; }).catch(() => { box?.select(); });
+  track('deckShare');
 }
 // Liste lisible de noms, raccourcie au-delà de `max`.
 const namesLine = (ids, max = 6) => ids.slice(0, max).map(nameOf).join(', ') + (ids.length > max ? ` et ${ids.length - max} autre${ids.length - max > 1 ? 's' : ''}` : '');
@@ -410,7 +413,7 @@ function buildFrom(d, what) {
   if (ui.account.decks.length >= maxDecks()) { ui.error = `${maxDecks()} decks au plus : supprimez-en un pour ${what === 'code' ? 'importer ce code' : 'construire cette recette'}.`; render(); return; }
   const fit = fitDeck(d, ui.account), skip = fit.missing.unknown;
   editDeck(null, 'decks');
-  Object.assign(ui.edit, { ...fit.deck, name: fit.deck.name || ui.edit.name });
+  Object.assign(ui.edit, { ...fit.deck, name: fit.deck.name || ui.edit.name, from: what });
   ui.deckStep = [0, 1, 2].filter(i => stepOpen(ui.edit, i)).pop();
   ui.msg = [fit.complete ? 'Vous avez tout : vérifiez le deck puis enregistrez-le.' : `${missingLine(fit)} Complétez avec vos cartes, ou enregistrez-le incomplet pour le finir plus tard.`,
     skip ? `${skip} élément${skip > 1 ? 's' : ''} inconnu${skip > 1 ? 's' : ''} ou pas encore sorti${skip > 1 ? 's' : ''} ignoré${skip > 1 ? 's' : ''}.` : ''].filter(Boolean).join(' ');
@@ -1037,6 +1040,8 @@ function sendEmote(id) {
   ui.emotePick = false;
   if (Date.now() - ui.emoteAt < EMOTE_COOLDOWN_MS) { ui.msg = 'Une émote à la fois : attendez un instant.'; msgFades(); render(); return; }
   ui.emoteAt = Date.now(); ui.ctrl?.emote?.(id); play('pick'); render();
+  // Une émote en ligne passe par le serveur, qui la compte ; contre l'IA, la partie tourne dans la page.
+  if (ui.ctrl && !ui.ctrl.online) track('emote', id);
 }
 function toggleEmoteMute() {
   ui.emoteMute = !ui.emoteMute; ui.emotePick = false;

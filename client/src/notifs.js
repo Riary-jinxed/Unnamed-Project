@@ -81,11 +81,11 @@ export function createNotifs(app) {
   // Notification touchée : l'appli déjà ouverte reçoit un message du service worker, sinon elle s'ouvre avec « ?ouvrir= ».
   function listen() {
     if (!supported()) return;
-    navigator.serviceWorker.addEventListener('message', e => { if (e.data?.t === 'notif-open') app.open(e.data.open); });
-    const open = new URLSearchParams(location.search).get('ouvrir');
+    navigator.serviceWorker.addEventListener('message', e => { if (e.data?.t === 'notif-open') { app.track?.('pushOpen', e.data.kind); app.open(e.data.open); } });
+    const q = new URLSearchParams(location.search), open = q.get('ouvrir'), kind = q.get('notif');
     if (open) {
       history.replaceState(null, '', location.pathname);
-      const wait = setInterval(() => { if (ui.account?.starter && ui.screen === 'home') { clearInterval(wait); app.open(open); } }, 300);
+      const wait = setInterval(() => { if (ui.account?.starter && ui.screen === 'home') { clearInterval(wait); if (kind) app.track?.('pushOpen', kind); app.open(open); } }, 300);
       setTimeout(() => clearInterval(wait), 30_000);
     }
   }
