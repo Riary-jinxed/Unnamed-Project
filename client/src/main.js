@@ -1388,7 +1388,18 @@ function renderShop() {
         ${sh.freeBoosters ? `<button class="btn primary" data-act="free-booster" data-set="${set.id}" ${ui.busy ? 'disabled' : ''}>${t('Ouvrir un booster offert ({n})', { n: sh.freeBoosters })}</button>` : ''}</div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">${t('Bientôt disponible')}</span><h2 style="font-size:22px">${esc(t(set.name))}</h2></div>
       <p class="hint" style="margin:0">${esc(t(set.teaser))}</p></section>`; };
-  return `${top}${stall}${errLine()}${dupsHTML(sh)}${sh.sets.map(section).join('')}${mail.codeForm()}`;
+  return `${top}${stall}${errLine()}${familyHTML(sh)}${dupsHTML(sh)}${sh.sets.map(section).join('')}${mail.codeForm()}`;
+}
+// Booster de famille : gagné tous les F.every boosters ouverts. Gagné, le joueur choisit sa famille ; sinon, le compteur avance.
+function familyHTML(sh) {
+  const F = sh.family;
+  if (!F || !(F.every > 0)) return '';
+  if (!F.boosters) return `<section class="card-box famboost"><div class="row" style="gap:8px"><span class="gal-h" style="margin-right:auto">${t('Booster de famille')}</span><small class="num">${F.progress}/${F.every}</small></div>
+    <div class="bar" role="progressbar" aria-valuenow="${F.progress}" aria-valuemin="0" aria-valuemax="${F.every}" aria-label="${t('Booster de famille')}"><span style="width:${pct(F.progress, F.every)}%"></span></div>
+    <p class="hint" style="margin:0">${tp(F.every - F.progress, 'Encore {n} booster à ouvrir pour gagner un booster de famille : vous choisirez la famille de ses cartes.', 'Encore {n} boosters à ouvrir pour gagner un booster de famille : vous choisirez la famille de ses cartes.')}</p></section>`;
+  return `<section class="card-box famboost ready"><div><span class="eyebrow">${tp(F.boosters, '{n} booster de famille à ouvrir', '{n} boosters de famille à ouvrir')}</span><h2 style="font-size:22px">${t('Booster de famille')}</h2></div>
+    <p class="hint" style="margin:0">${t('Choisissez une famille : ses {n} cartes ne viendront que d\'elle, dont au moins une qui vous manque s\'il en reste.', { n: sh.prices.boosterSize })}</p>
+    <div class="famchoice">${F.fams.map(x => `<button class="btn" data-act="family-booster" data-fam="${esc(x.fam)}" style="${famStyle(x.fam)}" ${ui.busy ? 'disabled' : ''}>${esc(t(x.fam))}<small class="num">${x.owned}/${x.size}</small></button>`).join('')}</div></section>`;
 }
 // Doublons du jour : des cartes possédées qui peuvent encore monter, en vitrine ; chacun donne l'essence d'un doublon.
 function dupsHTML(sh) {
@@ -2467,6 +2478,7 @@ app.addEventListener('click', e => {
     else if (a === 'buy-card' && !ui.busy) { const go = () => buy('/api/shop/card', { set: ds.set, card: ds.id }); if (!lacksShards(ui.shop?.prices.cardPrice, t('acheter'), go)) go(); }
     else if (a === 'buy-booster' && !ui.busy) { const go = () => buy('/api/shop/booster', { set: ds.set }); if (!lacksShards(boosterPriceOf(ds.set), t('acheter'), go)) go(); }
     else if (a === 'free-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set, free: true });
+    else if (a === 'family-booster' && !ui.busy) buy('/api/shop/family-booster', { fam: ds.fam });
     else if (a === 'buy-art' && !ui.busy) buyArt('/api/shop/art', { art: ds.id });
     else if (a === 'chest' && !ui.busy) buyArt('/api/shop/chest', {});
     else if (a === 'chest-free' && !ui.busy) buyArt('/api/shop/chest', { free: true });

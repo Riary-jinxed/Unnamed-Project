@@ -1133,3 +1133,9 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .emolist.free .ebubble.static { font-size: 13px; padding: 5px 10px 5px 7px; box-shadow: 0 0 0 1px #4a3214; }
 .emolist.free .ebubble.static .ei { font-size: 17px; }
 .emoitem .btn { flex: none; display: inline-flex; align-items: center; gap: 4px; }
+/* Booster de famille : compteur, puis choix de la famille (un bouton à sa couleur par famille). */
+.famboost.ready { border-color: var(--accent); }
+.famchoice { display: flex; flex-wrap: wrap; gap: 8px; }
+.famchoice .btn { display: inline-flex; gap: 8px; align-items: center; }
+.famchoice .btn::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--fam); box-shadow: 0 0 6px var(--fam); }
+.famchoice .btn small { opacity: .7; }

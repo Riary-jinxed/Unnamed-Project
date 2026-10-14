@@ -2,7 +2,7 @@
 // API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, boutique, administration.
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
-import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, setRevealed, dailyOffers, dupOffers, exchangeOffers, setBoosterPrice, shopOrder } from '@jeu/engine/collection';
+import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, setRevealed, dailyOffers, dupOffers, exchangeOffers, setBoosterPrice, shopOrder, FAMILY_BOOSTER_EVERY, familyPool, familyChoices, familyBooster } from '@jeu/engine/collection';
 import { pick, CARDS, GENERALS } from '@jeu/engine';
 import { ART_RARITIES, RARITY_IDS, ESSENCE_ART_PRICES, RETIRED_ARTS } from '@jeu/engine/arts';
 import { SEASON_THEMES } from '@jeu/engine/pass';
@@ -25,12 +25,13 @@ const LOGIN_RE = /^[a-z0-9._-]{2,24}$/;
 // Arts alternatifs : nombre d'offres du jour, prix du coffre et prix de chaque rareté (artPrice_<rareté>), en Prismes.
 // Doublons du jour : nombre d'offres (dupOffers, 0 les retire) et prix d'un doublon en Éclats (dupPrice).
 // Rayon Essence : prix des arts de l'édition Essence selon leur rareté (essArtPrice_<rareté>), en essence universelle.
+// Booster de famille : un de gagné tous les familyBoosterEvery boosters ouverts (0 : plus de booster de famille).
 export const DEFAULT_SETTINGS = { cardPrice: SHOP.cardPrice, boosterPrice: SHOP.boosterPrice, dailyCards: SHOP.dailyCards, boosterSize: SHOP.boosterSize, shardsPerDuplicate: SHARDS_PER_DUPLICATE,
-  dupOffers: 3, dupPrice: 100,
+  dupOffers: 3, dupPrice: 100, familyBoosterEvery: FAMILY_BOOSTER_EVERY,
   artOffers: 3, chestPrice: 60, ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, ART_RARITIES[r].price])), prismShards: 10,
   ...Object.fromEntries(RARITY_IDS.map(r => [`essArtPrice_${r}`, ESSENCE_ART_PRICES[r]])), rotation: 0 };
 const SETTING_LIMITS = { cardPrice: [0, 100000], boosterPrice: [0, 100000], dailyCards: [1, 10], boosterSize: [1, 10], shardsPerDuplicate: [0, 10000],
-  dupOffers: [0, 10], dupPrice: [0, 100000],
+  dupOffers: [0, 10], dupPrice: [0, 100000], familyBoosterEvery: [0, 100],
   artOffers: [0, 12], chestPrice: [0, 10000], ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, [0, 100000]])), prismShards: [0, 10000],
   ...Object.fromEntries(RARITY_IDS.map(r => [`essArtPrice_${r}`, [0, 1000000]])) };
 
@@ -76,7 +77,7 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   // Decks préparés contre chaque boss ({ [boss]: deck }) : joués à sa place pendant les tentatives contre lui.
   bossDecks: Object.fromEntries(Object.entries(a.bossDecks || {}).map(([k, d]) => [k, cleanDeck(d)])) });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift', 'uniEssence', 'dupShop', 'lvLook', 'clanCoins', 'clanDon', 'boss', 'bossCoins', 'bossBuys', 'emoteSet', 'story'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift', 'uniEssence', 'dupShop', 'lvLook', 'clanCoins', 'clanDon', 'boss', 'bossCoins', 'bossBuys', 'emoteSet', 'story', 'familyBoosters', 'familyProgress'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte
 // (giveEssence : au-delà du plafond, de quoi monter la carte jusqu'au niveau maximum, de l'essence universelle).
@@ -176,7 +177,7 @@ export function createAccounts(store) {
     const cards = openBooster(a.cards);
     const got = add(a, cards);
     a.lastBooster = today();
-    progress.onBooster(a);
+    progress.onBooster(a); countBooster(a);
     activity.count('boosterDaily');
     await store.put(a);
     return { title: msg('Booster du jour'), cards, ...got, account: me(a) };
@@ -201,6 +202,7 @@ export function createAccounts(store) {
   function shopView(a) {
     const c = cfg();
     return { shards: a.shards || 0, freeBoosters: a.freeBoosters || 0, prices: { dailyCards: c.dailyCards, cardPrice: c.cardPrice, boosterPrice: c.boosterPrice, boosterSize: c.boosterSize, shardsPerDuplicate: c.shardsPerDuplicate, dupPrice: c.dupPrice },
+      family: a.starter ? familyView(a) : null,
       dups: a.starter ? dupDay(a).offers.map(id => ({ id, bought: dupDay(a).bought.includes(id), capped: !canLevel(a)(id) })) : [],
       // Rayon Essence : essence universelle du joueur et arts de l'édition Essence.
       essence: a.starter ? { universal: a.uniEssence || 0, arts: arts.essenceView(a) } : null,
@@ -272,9 +274,35 @@ export function createAccounts(store) {
       a.freeBoosters--;
     } else pay(a, setBoosterPrice(set, c.boosterPrice));
     const cards = Array.from({ length: c.boosterSize }, () => pick(set.cards)), got = add(a, cards);
+    countBooster(a);
     activity.count(free ? 'boosterFree' : 'boosterBought');
     await store.put(a);
     return { title: `${free ? 'Booster offert' : 'Booster'} ${set.name}`, titleMsg: msg(free ? 'Booster offert {set}' : 'Booster {set}', { set: [set.name] }), cards, ...got, shop: shopView(a), account: me(a) };
+  }
+  // Booster de famille : chaque booster ouvert (quotidien, acheté, offert) avance le compteur ; au réglage familyBoosterEvery,
+  // le joueur gagne un booster de famille. Le booster de famille lui-même ne compte pas.
+  function countBooster(a) {
+    const every = cfg().familyBoosterEvery;
+    if (!(every > 0)) return;
+    a.familyProgress = (a.familyProgress || 0) + 1;
+    if (a.familyProgress >= every) { a.familyProgress = 0; a.familyBoosters = (a.familyBoosters || 0) + 1; }
+  }
+  const familySets = () => SETS.filter(s => s.open && setRevealed(s));
+  function familyView(a) {
+    const every = cfg().familyBoosterEvery;
+    return { boosters: a.familyBoosters || 0, progress: Math.min(a.familyProgress || 0, Math.max(0, every - 1)), every, fams: a.familyBoosters ? familyChoices(familySets(), a.cards) : [] };
+  }
+  // Ouvre un booster de famille gagné : des cartes de la famille choisie seulement, prises dans les sets en vente.
+  async function familyBoosterOpen(a, { fam } = {}) {
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
+    if (!(a.familyBoosters > 0)) throw new HttpError(409, msg('Aucun booster de famille à ouvrir.'));
+    const pool = familyPool(fam, familySets());
+    if (!pool.length) throw new HttpError(400, msg('Famille inconnue.'));
+    a.familyBoosters--;
+    const cards = familyBooster(pool, a.cards, cfg().boosterSize), got = add(a, cards);
+    activity.count('boosterFamily');
+    await store.put(a);
+    return { title: `Booster de famille ${fam}`, titleMsg: msg('Booster de famille {fam}', { fam: [fam] }), cards, ...got, shop: shopView(a), account: me(a) };
   }
   // Arts alternatifs : achat d'un art du jour, coffre, choix de l'art d'une carte. Payés en Prismes.
   function payPrisms(a, price) {
@@ -477,7 +505,7 @@ export function createAccounts(store) {
     return { created: !old, account: adminView(a) };
   }
   const adminView = a => ({ login: a.login, name: a.name, starter: a.starter, cards: Object.values(a.cards).reduce((s, n) => s + n, 0), shards: a.shards || 0, prisms: a.prisms || 0, uniEssence: a.uniEssence || 0, level: a.level || 1,
-    xp: a.xp || 0, freeBoosters: a.freeBoosters || 0, freeChests: a.freeChests || 0,
+    xp: a.xp || 0, freeBoosters: a.freeBoosters || 0, familyBoosters: a.familyBoosters || 0, freeChests: a.freeChests || 0,
     lastBooster: a.lastBooster, created: a.created, disabled: !!a.disabled, sessions: (a.tokens || []).length, deckName: activeDeck(a)?.name || null });
   // inDecks : cartes présentes dans au moins un deck du joueur (elles ne peuvent pas être retirées de sa collection).
   const adminDetail = a => ({ ...adminView(a), owned: Object.keys(a.cards).filter(id => a.cards[id]), deck: activeDeck(a), decks: (a.decks || []).length,
@@ -488,7 +516,7 @@ export function createAccounts(store) {
   const done = async a => { await store.put(a); return { account: adminDetail(a) }; };
 
   // Modifie un compte : pseudo, Éclats, désactivation. Seuls les champs présents changent.
-  async function adminUpdate({ login, name, shards, prisms, uniEssence, level, freeBoosters, freeChests, disabled }) {
+  async function adminUpdate({ login, name, shards, prisms, uniEssence, level, freeBoosters, familyBoosters, freeChests, disabled }) {
     const a = target(login);
     if (name !== undefined) a.name = String(name).trim().slice(0, 20) || a.login;
     const int = (v, max, label) => { const n = Number(v); if (!Number.isInteger(n) || n < 0 || n > max) throw new HttpError(400, `${label} : un nombre entier positif.`); return n; };
@@ -496,6 +524,7 @@ export function createAccounts(store) {
     if (prisms !== undefined) a.prisms = int(prisms, 1_000_000, 'Prismes');
     if (uniEssence !== undefined) a.uniEssence = int(uniEssence, 10_000_000, 'Essence universelle');
     if (freeBoosters !== undefined) a.freeBoosters = int(freeBoosters, 1000, 'Boosters offerts');
+    if (familyBoosters !== undefined) a.familyBoosters = int(familyBoosters, 1000, 'Boosters de famille');
     if (freeChests !== undefined) a.freeChests = int(freeChests, 1000, 'Coffres d\'arts offerts');
     // Changer le niveau ne donne pas les récompenses des niveaux sautés ; les succès de niveau, si.
     if (level !== undefined && a.level) { const n = int(level, 1000, 'Niveau'); if (n !== a.level) { a.level = Math.max(1, n); a.xp = 0; progress.checkCollection(a); } }
@@ -572,7 +601,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, familyBoosterOpen, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminWelcome, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -606,6 +635,7 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'GET /api/shop': a => accounts.shop(a),
     'POST /api/shop/card': (a, body) => accounts.buyCard(a, body),
     'POST /api/shop/booster': (a, body) => accounts.buyBooster(a, body),
+    'POST /api/shop/family-booster': (a, body) => accounts.familyBoosterOpen(a, body),
     'POST /api/shop/art': (a, body) => accounts.buyArt(a, body),
     'POST /api/shop/chest': (a, body) => accounts.openChest(a, body || {}),
     'POST /api/shop/convert': (a, body) => accounts.convertPrisms(a, body || {}),
