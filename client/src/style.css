@@ -1019,7 +1019,7 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
    Téléphone : une seule colonne, .home-play et .home-side s'effacent (display: contents) et le cadeau du jour remonte tout en haut. */
 .home { gap: 12px; }
 .home-play, .home-side { display: contents; }
-.home .card-box.booster { order: -1; }
+.home .card-box.booster, .home .nw-banner { order: -1; }
 .home .showcase { height: clamp(210px, 36dvh, 400px); }
 .home-sec { display: grid; gap: 8px; }
 .home-h { margin: 4px 2px 0; font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
