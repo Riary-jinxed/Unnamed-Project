@@ -14,6 +14,7 @@
 // un récit avant (intro) et après la victoire (outro), un lieu sur la carte (at : [x, y] en % de la carte) et une récompense,
 // donnée à la première victoire. Le joueur joue le deck de la quête, que des alliés renforcent au fil des chapitres (join).
 import { DECKS, GENERALS, CARDS } from './engine.js';
+import { t } from './i18n.js';
 
 // L'univers en quelques lignes : montré en tête de l'histoire principale. Les trois campagnes (livres I à III) se suivent,
 // puis les quêtes d'événement canon (Éclipse, Signal perdu) racontent la suite.
@@ -430,7 +431,7 @@ export function foeDeck(ch) {
 }
 // Portrait d'un personnage dans une quête : l'art choisi pour la quête (arts), sinon celui du chapitre, sinon l'original.
 export const castArt = (q, gen, ch = null) => (ch && ch.foe.general === gen && ch.foe.art) || q.arts?.[gen] || null;
-export const castName = who => GENERALS[who]?.name || CARDS[who]?.name || 'Récit';
+export const castName = who => GENERALS[who]?.name || CARDS[who]?.name || t('Récit');
 // Illustration d'une réplique : la sienne, sinon le lieu du chapitre.
 export const lineScene = (ch, line) => line[2] || ch.scene || null;
 
@@ -477,6 +478,11 @@ export const questDaysLeft = (c, day) => (c.to ? Math.max(1, Math.round((Date.pa
 // Cartes et arts gagnés dans les quêtes : pour dire où les obtenir (collection) et les cacher avant le début d'une quête.
 export const STORY_CARDS = Object.fromEntries(QUESTS.flatMap(q => q.chapters.filter(ch => ch.reward.card).map(ch => [ch.reward.card, q.id])));
 export const questOfCard = id => questById(STORY_CARDS[id]);
+// Textes des quêtes affichés par t(…) dans l'appli (vérifiés par scripts/i18n.js) : titres, quêtes, chapitres, répliques.
+// Les noms des decks préconstruits (DECKS) sont traduits avec les cartes : seuls les decks renommés pour une quête comptent ici.
+const ownDeck = name => (Object.values(DECKS).some(d => d.name === name) ? null : name);
+export const STORY_TEXTS = { lore: LORE, titles: STORY_TITLES.map(([, name]) => name), quests: QUESTS.map(q => ({ name: q.name, tagline: q.tagline, prologue: q.prologue, deck: ownDeck(q.deck.name),
+  chapters: q.chapters.map(ch => ({ name: ch.name, place: ch.place, goal: ch.goal, foe: ch.foe.name, deck: ownDeck(foeDeck(ch).name), lines: [...ch.intro, ...ch.outro].map(l => l[1]) })) })) };
 // Lieu de chaque chapitre (C(…).scene) : un terrain illustré (art/terrain) ou une carte. Sans illustration, l'appli montre le ciel de la carte.
 const SCENES = {
   razzia: ['terrier', 'guet', 'table', 'bois', 'aire'], racines: ['razzia', 'clairiere', 'cercle', 'couvoir', 'charnier'],

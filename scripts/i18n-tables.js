@@ -30,4 +30,5 @@ export default [
   ['boss.js', 'BOSS_SHOP', ['name']],
   ['ranked.js', 'TIERS', ['name', 'title']],
   ['ranked.js', 'PLACES', ['name', 'title']],
+  ['story.js', 'STORY_TEXTS', '*'],
 ];
