@@ -384,7 +384,7 @@ body:has(#app.ingame) { margin: 0; }
 .deckitem { border-left: 5px solid var(--fam, var(--f-neutre)); }
 .deckitem.active { border-color: var(--accent); border-left-color: var(--fam, var(--f-neutre)); box-shadow: inset 0 0 0 1px var(--accent); }
 /* Codes de deck et recettes */
-.deckcode { box-sizing: border-box; width: 100%; font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; resize: none; background: var(--sunk); color: inherit; border: 1px solid var(--line); border-radius: var(--r); padding: 8px; }
+.deckcode { box-sizing: border-box; width: 100%; field-sizing: content; max-height: 14lh; font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; resize: none; background: var(--sunk); color: inherit; border: 1px solid var(--line); border-radius: var(--r); padding: 8px; }
 .recipe .rbar { height: 6px; border-radius: 3px; background: var(--sunk); overflow: hidden; }
 .recipe .rbar span { display: block; height: 100%; background: var(--fam, var(--accent)); }
 .recipe.ready .rbar span { background: var(--accent); }
@@ -404,7 +404,13 @@ body:has(#app.ingame) { margin: 0; }
 .step:disabled { opacity: .45; cursor: default; }
 .pickcard { border: 0; background: none; padding: 0; text-align: left; border-radius: var(--r); }
 .pickcard.on .fc { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--bg)); }
-@media (max-width: 480px) { .step > span:nth-child(2) { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+/* Sur téléphone, le compte passe sous le nom de l'étape : « Terrains » et « Cartes » ne sont plus coupés. */
+@media (max-width: 480px) {
+  .step { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 6px; row-gap: 0; }
+  .step .sn { grid-row: span 2; }
+  .step > span:nth-child(2) { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .step .sc { margin-left: 0; font-size: 12px; line-height: 1.1; }
+}
 
 /* ---- Progression : niveau, missions, récompenses, succès ---- */
 .lvl { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
@@ -647,8 +653,6 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
    et calée en haut, pour que le haut du personnage (tête, ailes, armes) reste visible ; seul le bas, sous le nom, est rogné. */
 .art:not(.zoomart.pop) :is(.art-decor, .art-perso) { left: 0; top: 0; width: 100%; }
 .art-clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
-/* Vignette (art.js, sizes="auto") : le navigateur ne lit plus la hauteur dans l'image (contain: size), on lui donne le gabarit. */
-.art img[sizes] { aspect-ratio: 960 / 1424; }
 .art-decor, .art-perso { position: absolute; left: -7.6923%; top: -16.4384%; width: 115.3846%; height: auto; max-width: none; pointer-events: none; user-select: none; }
 .art-name { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 18% 6% 5%; text-align: center; color: #fff; line-height: 1.05;
   font-family: var(--famfont, var(--display)); font-size: clamp(12px, 11cqi, 30px); text-wrap: balance;
@@ -929,6 +933,14 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .hud-lv { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; min-width: 0; }
 /* La barre d'XP rétrécit (jusqu'à disparaître) plutôt que de passer sous les monnaies sur les écrans étroits. */
 .hud-lv .bar { width: 56px; flex-shrink: 1; min-width: 0; height: 6px; }
+/* Téléphone : monnaies et boutons un peu plus serrés, pour que le pseudo tienne (« Roit… » sur 390 px). */
+@media (max-width: 480px) {
+  .hud { gap: 6px; }
+  .hud .wallet { gap: 4px; }
+  .hud .chip.cur { padding-inline: 7px; gap: 3px; }
+  .hud > .btn.icon { padding-inline: 6px; }
+}
+@media (max-width: 380px) { .hud { gap: 5px; } .hud .chip.cur { padding-inline: 6px; } .hud-id b { font-size: 14px; } }
 .showcase { position: relative; height: clamp(220px, 40dvh, 400px); border-radius: 10px; overflow: hidden; isolation: isolate;
   background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--fam, var(--accent)) 45%, #000), #000 75%); }
 .sc-art, .hero-art { position: absolute; inset: 0; }
@@ -954,7 +966,8 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .tile { min-width: 0; min-height: 96px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 12px; text-align: left; color: inherit; font: inherit;
   border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
-.tile b { font-family: var(--display); font-size: 18px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+/* Titre long (passe « Nuit des citrouilles », boss, nom du clan) : sur deux lignes au plus plutôt que coupé après quelques lettres sur téléphone. */
+.tile b { font-family: var(--display); font-size: 18px; line-height: 1.15; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; text-wrap: balance; overflow-wrap: anywhere; }
 .tile .eyebrow { font-size: 10.5px; }
 .tile-foot { margin-top: auto; font-size: 12.5px; color: var(--muted); }
 .tile .bar { width: 100%; height: 6px; }
@@ -1005,6 +1018,9 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
   text-shadow: 0 1px 0 rgb(255 255 255 / .45); font-family: var(--display); }
 .medal-txt b { font-size: 13.5px; font-weight: 800; }
 .medal-txt small { font-size: 8.5px; font-weight: 800; letter-spacing: .03em; }
+/* Libellé long (« XP saison ») : sur deux lignes, dans la médaille, plutôt que de déborder sur le bord dentelé. */
+.medal-txt.long { top: 29px; height: 28px; }
+.medal-txt.long small { font-size: 7.5px; letter-spacing: 0; max-width: 34px; text-align: center; text-wrap: balance; }
 @keyframes medalsway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
 .evcard { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #d98b2b; border-radius: 10px;
   background: linear-gradient(100deg, color-mix(in srgb, #d98b2b 26%, var(--surface)), var(--surface) 70%); }
@@ -1066,13 +1082,14 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .emopick .emo:disabled:not(.on) { opacity: .45; }
 .emopick .emo .favn { position: absolute; right: 5px; top: 50%; translate: 0 -50%; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 11px; }
 /* boutique : rayon Émotes */
-.emolist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
-.emoitem { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 8px; min-height: 52px; padding: 8px; border: 1px solid var(--line); border-radius: var(--r); background: color-mix(in srgb, #000 12%, var(--surface)); }
+.emolist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+/* Émote à gauche, prix (ou « Possédée ») à droite, même pour une phrase longue qui passe alors sur deux lignes dans sa bulle. */
+.emoitem { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; justify-items: start; gap: 6px 8px; min-height: 52px; padding: 8px; border: 1px solid var(--line); border-radius: var(--r); background: color-mix(in srgb, #000 12%, var(--surface)); }
 .emoitem .ebubble.static { font-size: 14px; padding: 6px 11px 6px 8px; min-width: 0; }
 .emoitem .ebubble.static .ei { font-size: 20px; }
 .emoitem .ebubble.static { max-width: 100%; }
 .emoitem.owned .ebubble.static { opacity: .92; }
-.emoitem small.hint { flex: 1 1 100%; padding-left: 4px; font-size: 12px; }
+.emoitem small.hint { grid-column: 1 / -1; padding-left: 4px; font-size: 12px; }
 .emolist.free { display: flex; flex-wrap: wrap; gap: 8px; }
 .emolist.free .ebubble.static { font-size: 13px; padding: 5px 10px 5px 7px; box-shadow: 0 0 0 1px #4a3214; }
 .emolist.free .ebubble.static .ei { font-size: 17px; }

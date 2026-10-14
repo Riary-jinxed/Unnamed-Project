@@ -53,7 +53,9 @@ export function openBooster(owned = {}, rand = pick) {
 }
 
 // Jour courant à Paris (AAAA-MM-JJ) : le booster quotidien revient à minuit, heure française.
-export const today = (d = new Date()) => new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(d);
+// Le format est créé une fois : en créer un à chaque appel coûtait cher (unrevealed() le demande pour chaque carte affichée).
+const PARIS_DAY = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' });
+export const today = (d = new Date()) => PARIS_DAY.format(d);
 
 // Renvoie un message d'erreur, ou null si le deck est jouable avec cette collection.
 export function deckError(deck, account) {

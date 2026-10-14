@@ -285,7 +285,7 @@ function showCards(r, set = 'base') {
   const summary = () => { ui.booster = { ...r, opened: r.cards.length > 1 }; ui.sheet = 'booster'; render(); };
   if (r.cards.length < 2) { play('reveal'); summary(); return; }
   openPack({ title: r.title, set, setName: esc(SETS.find(x => x.id === set)?.name || ''), back: prog().back,
-    cards: r.cards.map((id, i) => ({ html: anyCard(id, myLevel(id), mySel(id), myBorder(id)), fresh: !!r.fresh[i], general: !!GENERALS[id],
+    cards: r.cards.map((id, i) => ({ html: anyCard(id, myLevel(id), mySel(id), myBorder(id), 'grand'), fresh: !!r.fresh[i], general: !!GENERALS[id],
       tag: r.fresh[i] ? (GENERALS[id] ? 'Nouveau général !' : 'Nouvelle carte !') : dupTag(id) })) }, summary);
 }
 async function openBoosterNow() {
@@ -308,7 +308,7 @@ async function buyArt(path, body) {
   ui.shop = r.shop; ui.msg = '';
   const art = ARTS[r.art], show = () => { ui.gotArt = { id: r.art, chest: !!r.chest }; ui.sheet = 'art'; render(); };
   // Coffre : on le frappe, il s'ouvre (opening.js), puis l'art s'affiche, prêt à être choisi.
-  if (r.chest) { openChest({ rarity: art.rarity, html: artHTML(art.card, nameOf(art.card), myLevel(art.card), '', art.id), chip: rarChip(art), name: esc(art.name), sub: esc(nameOf(art.card)) }, show); return; }
+  if (r.chest) { openChest({ rarity: art.rarity, html: artHTML(art.card, nameOf(art.card), myLevel(art.card), 'grand', art.id), chip: rarChip(art), name: esc(art.name), sub: esc(nameOf(art.card)) }, show); return; }
   play(['epique', 'legendaire'].includes(art.rarity) ? 'astral' : 'reveal'); show();
 }
 // ---- Change de devises : Prismes en Éclats, par offres fixes (exchangeOffers du moteur), jamais l'inverse ----
@@ -1147,7 +1147,7 @@ const famRank = id => { const i = FAMILIES.indexOf(famOfCard(id)); return i < 0 
 const byFamCost = (a, b) => famRank(a) - famRank(b) || costKey(a) - costKey(b) || nameOf(a).localeCompare(nameOf(b));
 // Carte ou général, tel qu'il sort d'un booster ou s'affiche dans la collection.
 // border : niveau de la bordure montrée (myBorder), par défaut celle du niveau.
-// cls : classe de l'illustration (« vignette » dans la galerie de la collection, art.js).
+// cls : classe de l'illustration (« grand » : toujours l'original, pour une carte montrée en grand ; art.js).
 const anyCard = (id, lvl = 1, art = null, border = lvl, cls = '') => GENERALS[id] ? genCard(id, lvl, art, border, cls) : fullCard(id, lvl, art, border, cls);
 // art : montrer cet art alternatif en grand (aperçu en boutique).
 const zoomKey = (id, art = '') => `${GENERALS[id] ? 'general' : 'card'}:${id}${art ? `:${art}` : ''}`;
@@ -1251,7 +1251,7 @@ const MEDAL = `<svg class="medal-svg" viewBox="0 0 60 76" aria-hidden="true">
   <circle class="face" cx="30" cy="48" r="19"/><circle class="ring" cx="30" cy="48" r="16.5"/>
   <ellipse class="shine" cx="23" cy="40" rx="8" ry="4.5" transform="rotate(-30 23 40)"/></svg>`;
 const eventChips = evs => (evs.length ? `<div class="sc-events">${evs.map(ev => `<button class="medal ev-${esc(ev.effect)}" data-act="event" data-ev="${esc(ev.id)}"
-  aria-label="Événement ${esc(ev.name)} : ${multLabel(ev.mult)} ${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}">${MEDAL}<span class="medal-txt"><b>${multLabel(ev.mult)}</b><small>${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}</small></span></button>`).join('')}</div>` : '');
+  aria-label="Événement ${esc(ev.name)} : ${multLabel(ev.mult)} ${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}">${MEDAL}<span class="medal-txt${(EVENT_EFFECTS[ev.effect]?.chip || '').length > 6 ? ' long' : ''}"><b>${multLabel(ev.mult)}</b><small>${esc(EVENT_EFFECTS[ev.effect]?.chip || '')}</small></span></button>`).join('')}</div>` : '');
 // Temps qui reste avant la fin (minuit, heure de Paris) : en jours, puis en heures le dernier jour.
 function evRemaining(ev) {
   if (ev.daysLeft > 1) return `encore ${ev.daysLeft} jours`;
@@ -1305,7 +1305,7 @@ function renderCollection() {
   const shown = OWNABLE.filter(id => !hiddenCard(id) && (!ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam)).sort(byFamCost);
   const tile = id => { const n = owned(id), lvl = myLevel(id), up = canUpgrade(id);
     return `<button class="ccard ${n ? '' : 'locked'} ${n && (lvl > 1 || up) ? 'tagged' : ''}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? `, niveau ${lvl}${up ? ', peut monter de niveau' : ''}` : ', pas encore obtenue'}">
-      ${anyCard(id, n ? lvl : 1, n ? mySel(id) : null, n ? myBorder(id) : 1, 'vignette')}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
+      ${anyCard(id, n ? lvl : 1, n ? mySel(id) : null, n ? myBorder(id) : 1)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
       ${n && (lvl > 1 || up) ? `<span class="lvtag num ${up ? 'up' : ''}">${lvl > 1 ? `Niv. ${lvl}` : ''}${up ? `${lvl > 1 ? ' · ' : ''}↑ Améliorer` : ''}</span>` : ''}</button>`; };
   return `<div class="top"><span class="title">Ma collection</span><button class="btn" data-act="edit">Modifier le deck</button></div>
   <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.filter(id => !hiddenCard(id)).length}, généraux compris. Touchez une carte pour la voir en grand et la faire monter de niveau avec l'essence de ses doublons.</p>
@@ -1928,7 +1928,7 @@ function sheetHTML() {
   if (ui.sheet === 'deck-code' && ui.shareDeck) {
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Partager « ${esc(ui.shareDeck.name)} »</h2><button class="btn" data-act="close">Fermer</button></div>
       <p class="hint" style="margin:0">Envoyez ce code à un ami : il le colle dans « Importer un deck » de ses decks et retrouve ce deck avec les cartes qu'il possède.</p>
-      <textarea id="deck-code" class="deckcode" readonly rows="4" spellcheck="false">${esc(ui.shareDeck.code)}</textarea>
+      <textarea id="deck-code" class="deckcode" readonly rows="${Math.min(10, Math.max(3, Math.ceil(ui.shareDeck.code.length / 40)))}" spellcheck="false">${esc(ui.shareDeck.code)}</textarea>
       <div class="row"><button class="btn primary" data-act="dcode-copy">Copier le code</button></div></div></div>`;
   }
   if (ui.sheet === 'rename' && ui.renaming) {
@@ -1949,7 +1949,7 @@ function sheetHTML() {
     const art = ARTS[ui.gotArt.id], on = mySel(art.card) === art.id;
     return `<div class="sheet" data-act="close"><div class="panel gotart" data-stop="1"><div class="ph"><h2>${ui.gotArt.chest ? 'Coffre d\'arts' : 'Nouvel art'}</h2><button class="btn" data-act="close">Fermer</button></div>
       <div class="row" style="gap:8px">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}</small></div>
-      <div class="bcard gotcard">${artHTML(art.card, nameOf(art.card), myLevel(art.card), '', art.id)}</div>
+      <div class="bcard gotcard">${artHTML(art.card, nameOf(art.card), myLevel(art.card), 'grand', art.id)}</div>
       ${ui.msg ? `<p class="hint" role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
       <div class="row"><button class="btn ${on ? '' : 'primary'}" data-act="art-pick" data-card="${art.card}" data-art="${art.id}" ${on || ui.busy ? 'disabled' : ''}>${on ? 'Art utilisé ✓' : 'Utiliser cet art'}</button>
         <button class="btn" data-act="close">Plus tard</button></div>

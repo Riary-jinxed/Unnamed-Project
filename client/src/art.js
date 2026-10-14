@@ -105,11 +105,14 @@ export function artHTML(id, name, lvl = 1, cls = '', artId = null) {
   const a = ART[id]; if (!a?.decor) return provFor(id) ? provHTML(id, name, cls) : '';
   return layers(a, name, lvl, `${holoOff()[id] ? '' : holoLv(lvl)} ${cls}`, isSpell(id), id);
 }
-// Calque d'une illustration. En vignette (classe « vignette », galerie de la collection), la version réduite est proposée avec
-// l'original : le navigateur prend la plus petite qui reste nette à la taille affichée (« auto » : sa vraie largeur ; sinon une
-// moitié d'écran sur téléphone, 380 px au-delà), si bien que la vignette n'est jamais moins nette que l'original à l'écran.
-const img = (c, a, layer, cls) => { const thumb = /\bvignette\b/.test(cls) && a[`${layer}Thumb`];
-  return `<img class="${c}" src="${a[layer]}"${thumb ? ` srcset="${thumb} 640w, ${a[layer]} 960w" sizes="auto, (max-width: 520px) 50vw, 380px"` : ''} alt="" loading="lazy" decoding="async">`; };
+// Calque d'une illustration. Partout (collection, boutique, passe, magasins, recueils…), la version réduite est proposée avec
+// l'original : le navigateur prend la plus petite qui reste nette pour une carte d'au plus une moitié d'écran sur téléphone,
+// 380 px au-delà, à la définition de l'écran. Les cartes montrées en grand gardent l'original : vue en grand (« zoomart »),
+// ouverture des boosters et des coffres (« grand »).
+// Pas de sizes="auto" : une image ainsi réglée que l'on retire de la page (changement d'écran ou d'onglet) est recalculée
+// pour 300 px de large et Chrome télécharge alors l'original de chaque carte de l'écran quitté (5 Mo en quittant la collection).
+const img = (c, a, layer, cls) => { const thumb = !/\b(zoomart|grand)\b/.test(cls) && a[`${layer}Thumb`];
+  return `<img class="${c}" src="${a[layer]}"${thumb ? ` srcset="${thumb} 640w, ${a[layer]} 960w" sizes="(max-width: 520px) 50vw, 380px"` : ''} alt="" loading="lazy" decoding="async">`; };
 // Personnage qui sort du cadre : la partie hors de la fenêtre est redessinée par-dessus le contour de la carte (style.css, .perso-out),
 // avec son propre reflet découpé à la silhouette du personnage (holo.css, .perso-foil, --perso) et l'ombre du bandeau du nom (.name-shade).
 // Seule la vue en grand (« zoomart ») fait déborder le personnage : en vignette, ses calques de débordement ne serviraient à rien

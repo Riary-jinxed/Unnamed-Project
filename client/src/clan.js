@@ -338,7 +338,7 @@ export function createClan(app) {
       if (account.clan && c) {
         const left = [...c.missions.day].filter(m => !m.done).length;
         return `<button class="tile ctile ${c.requests.length ? 'todo' : ''}" data-act="clan"><span class="eyebrow">Clan · niv. ${lv}</span>
-          <b class="ctile-name">${crestHTML(c, 'sm')}${esc(c.name)}</b><span class="tile-foot num">${left ? `${left} mission${left > 1 ? 's' : ''} du jour en cours` : 'Missions du jour finies ✓'}</span></button>`;
+          <b class="ctile-name">${crestHTML(c, 'sm')}<span>${esc(c.name)}</span></b><span class="tile-foot num">${left ? `${left} mission${left > 1 ? 's' : ''} du jour en cours` : 'Missions du jour finies ✓'}</span></button>`;
       }
       return `<button class="tile ctile" data-act="clan"><span class="eyebrow">Clan</span><b>${account.clan ? 'Mon clan' : 'Rejoindre'}</b>
         <span class="tile-foot">${account.clan ? 'Missions, dons, magasin' : 'Créer ou rejoindre un clan'}</span></button>`;
