@@ -96,6 +96,20 @@ export function poseAt(el, style) {
   if (!active() || !el || !POSE_FX[style] || kit().root?.querySelector('.sheet')) return;
   const r = shown(el); if (r) land(r, style);
 }
+// Carte posée : attend la fin de son vol depuis la main (flyFrom de fx.js) pour lire sa vraie place. Un délai fixe la lisait
+// encore en vol sur un téléphone lent, et l'effet partait sous la case. Un rendu peut remplacer l'élément en route : il est relu.
+async function settle(root, uid) {
+  await new Promise(r => requestAnimationFrame(r));
+  const until = performance.now() + 1500;
+  for (let i = 0; i < 4 && performance.now() < until; i++) {
+    const el = root.querySelector(`.board .mc[data-card="${uid}"]`); if (!el) return null;
+    // (seulement celles qui finissent : une lueur CSS qui tourne en boucle ne retient pas l'effet)
+    const run = el.getAnimations().filter(a => a.playState === 'running' && a.effect?.getComputedTiming().endTime !== Infinity);
+    if (!run.length) return el;
+    await Promise.race([Promise.all(run.map(a => a.finished.catch(() => null))), new Promise(r => setTimeout(r, until - performance.now()))]);
+  }
+  return null;
+}
 // Effet de pose du joueur, écrit par main.js dans <body data-pose>.
 const myPose = () => document.body.dataset.pose || 'poussiere';
 
@@ -113,7 +127,7 @@ export function start() {
       const uid = el.dataset.card, z = el.closest('.zone')?.dataset.z; here.add(uid);
       if (seen.get(uid) === z) continue;
       seen.set(uid, z);
-      setTimeout(() => { const now2 = root.querySelector(`.board .mc[data-card="${uid}"]`); const r = now2 && active() && shown(now2); if (r) land(r, myPose()); }, 320);
+      settle(root, uid).then(el2 => { const r = el2 && active() && shown(el2); if (r) land(r, myPose()); });
     }
     for (const uid of seen.keys()) if (!here.has(uid)) seen.delete(uid);
 
