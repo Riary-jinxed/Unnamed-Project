@@ -47,7 +47,7 @@ export const CARDS = {
   cultiste:    { name: 'Cultiste', type: 'C', cost: 1, power: 1, kw: ['Démon'], text: 'Révélation : créez une Chèvre ici.',
                  onReveal: (c, st) => summon(st, c.owner, c.zone, 'chevre') },
   pacte:       { name: 'Marché des âmes', type: 'S', cost: 1, power: 0, kw: ['Démon'], text: 'Détruisez votre créature la plus faible ici, puis piochez une carte.',
-                 onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, c.owner, c.zone)); if (w) destroy(st, w, c.owner); draw(st, c.owner, 1); } },
+                 onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, c.owner, c.zone)); if (w) destroy(st, w, c.owner); draw(st, c.owner, 1, true); } },
   bourreau:    { name: 'Bourreau', type: 'C', cost: 2, power: 3, kw: ['Démon'], text: 'Quand une de vos autres créatures ici est détruite : +2.',
                  onAllyDestroyed: (c, st, dead, z) => { if (z === c.zone) buff(st, c, 2); } },
   molosse:     { name: 'Molosse infernal', type: 'C', cost: 2, power: 5, kw: ['Démon'], sacrifice: 1, text: 'Sacrifice.' },
@@ -138,7 +138,7 @@ export const CARDS = {
                  onReveal: (c, st) => { const s = strongest(st, creaturesAt(st, c.owner, c.zone)); if (s) buff(st, s, 2); } },
   mercenaire:  { name: 'Mercenaire', type: 'C', cost: 2, power: 3, kw: [], text: '' },
   barde:       { name: 'Barde errant', type: 'C', cost: 2, power: 1, kw: [], text: 'Révélation : piochez une carte.',
-                 onReveal: (c, st) => draw(st, c.owner, 1) },
+                 onReveal: (c, st) => draw(st, c.owner, 1, true) },
   golem:       { name: 'Golem de pierre', type: 'C', cost: 4, power: 6, kw: [], text: '' },
   colosse:     { name: 'Colosse', type: 'C', cost: 6, power: 9, kw: [], text: '' },
 
@@ -554,9 +554,10 @@ export const GENERALS = {
                text: 'Début de partie : crée un Magot de dragon dans une zone au hasard. Magot : en fin de tour, gagne autant de puissance que vos sceaux non dépensés.',
                onStart: (p, st) => summon(st, p, pick([0, 1, 2]), 'magot') },
   ignaroth:  { name: 'Ignaroth le Dévoreur', fam: 'Dragon', kind: 'Fin de tour',
-               text: 'Fin de tour : si vous avez dépensé tous vos sceaux, un Dragon au hasard de votre main gagne +1 sceau et -1 puissance ; sinon -1 sceau et +1 puissance (coût minimum 1).',
-               onEndTurn: (p, st) => { const P = st.p[p], spent = P.seals === 0, d = P.hand.filter(c => hasKw(c, 'Dragon')); if (!d.length) return;
-                 const c = pick(d); c.costMod = (c.costMod || 0) + (spent ? 1 : -1); c.buff += spent ? -1 : 1;
+               text: 'Fin de tour : si vous avez dépensé tous vos sceaux, une créature Dragon au hasard de votre main gagne +1 sceau et -1 puissance ; sinon -1 sceau et +1 puissance (coût minimum 1).',
+               onEndTurn: (p, st) => { const P = st.p[p], spent = P.seals === 0, d = P.hand.filter(c => isCreature(c) && hasKw(c, 'Dragon')); if (!d.length) return;
+                 // Au coût minimum, le sceau n'est pas retiré (pas de dette cachée qui annulerait les +1 sceau suivants).
+                 const c = pick(d); if (spent || costOf(st, c) > 1) c.costMod = (c.costMod || 0) + (spent ? 1 : -1); c.buff += spent ? -1 : 1;
                  log(st, spent ? '⟦{p}⟧ : {card} en main +1 sceau, -1 puissance.' : '⟦{p}⟧ : {card} en main -1 sceau, +1 puissance.', spent ? 'down' : 'up', { p, card: nm(c.id) }); } },
   cartographe:{ name: 'Le Cartographe', fam: null, kind: 'Début de partie', preview: true,
                text: 'Début de partie : vous voyez tous vos terrains, et où et quand ils seront révélés.' },
@@ -1114,7 +1115,7 @@ const MALWARES = ['virus', 'ver', 'rancon'];
 // Un Malware glissé au hasard parmi les 6 premières cartes du deck du joueur p.
 function plant(st, p, id) {
   const D = st.p[p].deck;
-  D.splice(Math.floor(Math.random() * (Math.min(D.length, 6) + 1)), 0, { uid: st.nextUid++, id, owner: p, zone: -1, buff: 0, revealed: false });
+  D.splice(Math.floor(Math.random() * Math.min(D.length + 1, 6)), 0, { uid: st.nextUid++, id, owner: p, zone: -1, buff: 0, revealed: false });
 }
 // Malware N : N Malwares (Virus par défaut, 'mix' pour un de chaque sorte) glissés dans le haut du deck adverse.
 function malware(st, p, n, kind = 'virus') {
@@ -1278,7 +1279,7 @@ export function doStep(st, s) {
     const c = [0, 1, 2].flatMap(z => P.board[z]).find(x => x.uid === s.uid);
     if (!c || !isMobile(st, c) || c.playerMoved === st.turn) return null;
     // Les cartes de la zone d'arrivée qui doivent encore en partir lui laissent leur place (une zone vidée et remplie le même tour).
-    const leaving = P.moves.filter(m => m.zone !== s.zone && P.board[s.zone].some(x => x.uid === m.uid && x.playerMoved !== st.turn)).length;
+    const leaving = P.moves.filter(m => m.zone !== s.zone && P.board[s.zone].some(x => x.uid === m.uid && x.playerMoved !== st.turn && isMobile(st, x))).length;
     c.playerMoved = st.turn; move(st, c, s.zone, SLOTS - P.board[s.zone].length + leaving); return c;
   }
   const c = [0, 1, 2].flatMap(z => P.board[z]).find(x => x.uid === s.uid); if (!c) return null;
@@ -1334,7 +1335,7 @@ export function endTurn(st) {
   if (st.turn >= turnsOf(st)) finish(st);
 }
 function finish(st) {
-  for (const p of [st.leader, 1 - st.leader]) genHook(st, p, 'onEndGame');
+  for (const p of [st.leader, 1 - st.leader]) guard(() => genHook(st, p, 'onEndGame'), 'onEndGame');
   st.over = true;
   const w = [0, 0]; const zones = [0, 1, 2].map(z => zoneWinner(st, z)); zones.forEach(r => { if (r >= 0) w[r]++; });
   const tot = [0, 1].map(p => [0, 1, 2].reduce((s, z) => s + zonePower(st, p, z), 0));
@@ -1425,8 +1426,8 @@ export function aiSearch(st, p, tries) {
     plan.cards.sort((a, b) => (CARDS[P.hand.find(c => c.uid === a.uid).id].x ? 1 : 0) - (CARDS[P.hand.find(c => c.uid === b.uid).id].x ? 1 : 0));
     const sim = clone(st);
     const gen = [null, null]; gen[p] = applyPlan(sim, p, plan);
-    for (const s of revealSteps(sim, gen).filter(s => s.p === p)) doStep(sim, s);
-    endTurn(sim);
+    // Un plan dont la simulation plante (effet en erreur) est écarté : l'IA joue quand même.
+    try { for (const s of revealSteps(sim, gen).filter(s => s.p === p)) doStep(sim, s); endTurn(sim); } catch { continue; }
     const v = evalFor(sim, p) + Math.random() * 0.01;
     if (v > bestV) { bestV = v; best = plan; }
   }
@@ -1460,17 +1461,22 @@ export function applyPlan(st, p, plan) {
 
 // Résout un tour une fois les deux plans connus. `emit(flashUid)` est appelé après chaque étape visible,
 // `wait(ms)` laisse le temps à l'animation (instantané en simulation).
+// Un effet qui plante est noté dans la console et sauté : la partie continue et va jusqu'au bout (fin, historique).
 export async function runTurn(st, plans, emit, wait) {
   const gen = [applyPlan(st, 0, plans[0]), applyPlan(st, 1, plans[1])];
   st.phase = 'reveal';
   const steps = revealSteps(st, gen);
   // Le bandeau « Révélation » (1,5 s côté appli) disparaît avant que la première carte soit révélée.
   emit(null); await wait(1600);
-  for (const s of steps) { const c = doStep(st, s); emit(c ? c.uid : null); await wait(850); }
-  endTurn(st);
+  for (const s of steps) { const c = guard(() => doStep(st, s), s); emit(c ? c.uid : null); await wait(850); }
+  guard(() => endTurn(st), 'endTurn');
+  if (!st.over && st.turn >= turnsOf(st)) guard(() => finish(st), 'finish');
   if (st.over) { st.phase = 'over'; emit(null); return; }
   emit(null); await wait(350);
-  startTurn(st); st.phase = 'plan'; emit(null);
+  guard(() => startTurn(st), 'startTurn'); st.phase = 'plan'; emit(null);
+}
+function guard(fn, what) {
+  try { return fn(); } catch (e) { console.error('Effet en erreur, ignoré :', what, e); return null; }
 }
 
 // Vue d'une partie pour un siège : la main et les cartes cachées de l'adversaire ne sont jamais envoyées.
@@ -1503,7 +1509,7 @@ export function viewFor(st, seat, extra = {}) {
 // ⟦p⟧ = nom du joueur p (ou « Vous »), ⟦p|il|vous⟧ = l'une ou l'autre forme selon qui regarde (@ y vaut le nom du joueur p),
 // ⟪c:id⟫, ⟪g:id⟫, ⟪t:id⟫ = nom d'une carte, d'un général, d'un terrain ; ⟪z:n⟫ = nom d'une zone.
 // Une ligne d'avant (msg déjà rédigé, sans vars) passe aussi.
-const NAMED = { c: id => CARDS[id]?.name, g: id => GENERALS[id]?.name, t: id => TERRAINS[id]?.name, z: n => t(ZONE_NAMES[+n]) };
+const NAMED = { c: id => t(CARDS[id]?.name), g: id => t(GENERALS[id]?.name), t: id => t(TERRAINS[id]?.name), z: n => t(ZONE_NAMES[+n]) };
 export function renderLog(line, seat, names) {
   const m = line && typeof line === 'object' && !Array.isArray(line) ? (line.vars ? [line.msg, line.vars] : line.msg) : line;
   return tMsg(m)
