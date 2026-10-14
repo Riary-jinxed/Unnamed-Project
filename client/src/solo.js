@@ -2,6 +2,7 @@
 import { newGame, startTurn, runTurn, aiSearch, viewFor, pick, gameDetail } from '@jeu/engine';
 import { aiDeckKeys } from '@jeu/engine/collection';
 import { aiReply } from '@jeu/engine/emotes';
+import { t } from '@jeu/engine/i18n';
 
 // L'IA essaie 250 plans au hasard et garde le meilleur. Elle les essaie pendant que le joueur prépare son tour,
 // par petites tranches entre deux images : valider ne bloque plus l'écran le temps qu'elle réfléchisse.
@@ -10,7 +11,7 @@ const TRIES = 250, SLICE = 10;
 // deck : le deck du joueur { name, cards, terrains, general } ; l'IA prend un deck préconstruit au hasard.
 // Quêtes d'histoire (story.js) : foe donne le deck de l'IA (avec son général) et son nom, tries sa force, setup(st) prépare
 // la partie (bonus de zone…), badges montre ses arts (badges[1].arts), et onOver(résultat) remplace l'envoi au serveur d'une partie contre l'IA.
-export function startSolo(handlers, { name, deck, foe = null, foeName = 'IA', tries = TRIES, setup = null, badges = null, onOver = null }) {
+export function startSolo(handlers, { name, deck, foe = null, foeName = t('IA'), tries = TRIES, setup = null, badges = null, onOver = null }) {
   const names = [name, foeName];
   let st, ready = false, stopped = false, think = null, startedAt = 0;
   const emit = flash => !stopped && handlers.onView(viewFor(st, 0, { flash, ready: { me: ready, foe: true }, names, connected: [true, true], ...(badges ? { badges } : {}) }));

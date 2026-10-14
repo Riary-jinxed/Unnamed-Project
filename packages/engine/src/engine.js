@@ -1,4 +1,5 @@
 // Moteur de règles : pur, sans DOM ni réseau. Partagé par le serveur (parties en ligne) et l'appli (partie contre l'IA).
+import { t, tMsg, msg } from './i18n.js';
 export const TURNS = 7, SLOTS = 4, HAND_MAX = 7, START_HAND = 3;
 // Nombre de tours de la partie : TURNS, sauf partie plus courte (newGame, opts.turns).
 const turnsOf = st => st.turns || TURNS;
@@ -28,7 +29,7 @@ export const CARDS = {
   messagere:   { name: 'Messagère', type: 'C', cost: 2, power: 2, kw: ['Ange'], text: 'Grâce : une autre de vos créatures ici gagne +1.',
                  grace: (c, st) => { const o = creaturesAt(st, c.owner, c.zone).filter(x => x !== c); if (o.length) buff(st, pick(o), 1); } },
   annonciatrice:{ name: 'Annonciatrice', type: 'C', cost: 2, power: 2, kw: ['Ange'], text: 'Révélation : +1 sceau au tour suivant.',
-                 onReveal: (c, st) => { st.p[c.owner].bonusSeals++; log(st, `${who(st, c.owner)} : +1 sceau au tour suivant.`, 'up'); } },
+                 onReveal: (c, st) => { st.p[c.owner].bonusSeals++; log(st, '⟦{p}⟧ : +1 sceau au tour suivant.', 'up', { p: c.owner }); } },
   heraut:      { name: 'Héraut céleste', type: 'C', cost: 3, power: 3, kw: ['Ange'], text: 'Révélation : vos autres Anges gagnent +1.',
                  onReveal: (c, st) => mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)) },
   juge:        { name: 'Juge céleste', type: 'C', cost: 3, power: 4, kw: ['Ange'], text: 'Grâce : la créature adverse la plus puissante ici perd 1.',
@@ -98,7 +99,7 @@ export const CARDS = {
                  onReveal: (c, st) => { const o = creaturesAt(st, c.owner, c.zone).filter(x => x !== c); const to = bestZone(st, c.owner, c.zone);
                    if (o.length && to !== null) move(st, weakest(st, o), to); } },
   sentier:     { name: 'Sentier caché', type: 'S', cost: 1, power: 0, kw: ['Elfe'], text: 'Vos créatures ici deviennent Déplaçables.',
-                 onReveal: (c, st) => { const o = creaturesAt(st, c.owner, c.zone); o.forEach(x => { x.mobile = true; }); if (o.length) log(st, `${o.length} créature(s) deviennent Déplaçables.`); } },
+                 onReveal: (c, st) => { const o = creaturesAt(st, c.owner, c.zone); o.forEach(x => { x.mobile = true; }); if (o.length) log(st, '{n} créature(s) deviennent Déplaçables.', '', { n: o.length }); } },
   archere:     { name: 'Archère des cimes', type: 'C', cost: 3, power: 5, kw: ['Elfe'], mobile: true, text: 'Déplaçable.' },
   canopee:     { name: 'Gardien de la canopée', type: 'C', cost: 3, power: 3, kw: ['Elfe'], text: 'Fin de tour : vos créatures qui se sont déplacées ce tour gagnent +1.',
                  onEndTurn: (c, st) => { const m = movedThisTurn(st, c.owner); m.forEach(x => buff(st, x, 1)); if (!m.length) return false; } },
@@ -114,7 +115,7 @@ export const CARDS = {
   gardien_magot:{ name: 'Gardien du magot', type: 'C', cost: 1, power: 0, kw: ['Dragon'], text: 'Révélation : créez un Magot de dragon ici.',
                  onReveal: (c, st) => summon(st, c.owner, c.zone, 'magot') },
   thesauriser: { name: 'Thésauriser', type: 'S', cost: 1, power: 0, kw: ['Dragon'], text: 'Votre Trésor gagne +2.',
-                 onReveal: (c, st) => { st.p[c.owner].treasure += 2; log(st, `${who(st, c.owner)} : Trésor +2.`, 'up'); } },
+                 onReveal: (c, st) => { st.p[c.owner].treasure += 2; log(st, '⟦{p}⟧ : Trésor +2.', 'up', { p: c.owner }); } },
   oeuf:        { name: 'Œuf de dragon', type: 'C', cost: 2, power: 0, kw: ['Dragon'], text: 'Début du tour 6 : gagne autant de puissance que votre Trésor.',
                  onStartTurn: (c, st) => { if (st.turn === 6 && st.p[c.owner].treasure) buff(st, c, st.p[c.owner].treasure); } },
   drake:       { name: 'Drake avide', type: 'C', cost: 3, power: 3, kw: ['Dragon'], text: 'Révélation : +1 par tranche de 2 de votre Trésor.',
@@ -212,9 +213,9 @@ export const CARDS = {
   archiviste:  { set: 'set2', name: 'Gardienne des archives', type: 'C', cost: 4, power: 3, kw: ['Ange'], text: 'Inspiration : vos autres Anges ici gagnent +1.',
                  onInspire: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => x !== c && hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)) },
   muse:        { set: 'set2', name: 'Muse ailée', type: 'C', cost: 4, power: 2, kw: ['Ange'], text: 'Révélation : piochez 1 carte ; si c\'est un Ange, il gagne +1.',
-                 onReveal: (c, st) => draw(st, c.owner, 1, true).filter(x => hasKw(x, 'Ange')).forEach(x => { x.buff += 1; log(st, `${who(st, c.owner)} : l'Ange pioché gagne +1.`, 'up'); }) },
+                 onReveal: (c, st) => draw(st, c.owner, 1, true).filter(x => hasKw(x, 'Ange')).forEach(x => { x.buff += 1; log(st, "⟦{p}⟧ : l'Ange pioché gagne +1.", 'up', { p: c.owner }); }) },
   choeur:      { set: 'set2', name: 'Chœur céleste', type: 'C', cost: 6, power: 4, kw: ['Ange'], text: 'Révélation : les Anges de votre main gagnent +1.',
-                 onReveal: (c, st) => { const a = st.p[c.owner].hand.filter(x => hasKw(x, 'Ange')); a.forEach(x => { x.buff++; }); if (a.length) log(st, `${who(st, c.owner)} : Anges en main +1.`, 'up'); } },
+                 onReveal: (c, st) => { const a = st.p[c.owner].hand.filter(x => hasKw(x, 'Ange')); a.forEach(x => { x.buff++; }); if (a.length) log(st, '⟦{p}⟧ : Anges en main +1.', 'up', { p: c.owner }); } },
 
   // DRAGON : Œufs
   oeuf_braise: { set: 'set2', name: 'Œuf de braise', type: 'C', cost: 1, power: 0, kw: ['Dragon'], egg: true, text: 'Œuf. Éclosion : au début du 3e tour après sa pose.',
@@ -260,10 +261,10 @@ export const CARDS = {
   // NEUTRES
   pilleur:     { set: 'set2', name: 'Pilleur de tombes', type: 'C', cost: 2, power: 2, kw: [], text: 'Révélation : reprenez en main la dernière carte de votre défausse.',
                  onReveal: (c, st) => { const P = st.p[c.owner], x = P.discard.at(-1); if (!x || P.hand.length >= HAND_MAX) return;
-                   P.discard.pop(); P.hand.push(fresh(x)); log(st, `${who(st, c.owner)} ${vb(c.owner, 'reprend', 'reprenez')} ${nm(x.id)} en main.`, 'up'); } },
+                   P.discard.pop(); P.hand.push(fresh(x)); log(st, '⟦{p}⟧ ⟦{p}|reprend|reprenez⟧ {card} en main.', 'up', { p: c.owner, card: nm(x.id) }); } },
   alchimiste:  { set: 'set2', name: 'Alchimiste', type: 'C', cost: 2, power: 1, kw: [], text: 'Révélation : les sorts de votre main coûtent 1 de moins.',
                  onReveal: (c, st) => { const s = st.p[c.owner].hand.filter(x => CARDS[x.id].type === 'S' && !CARDS[x.id].x); s.forEach(x => { x.discount = (x.discount || 0) - 1; });
-                   if (s.length) log(st, `${who(st, c.owner)} : sorts en main -1 sceau.`, 'up'); } },
+                   if (s.length) log(st, '⟦{p}⟧ : sorts en main -1 sceau.', 'up', { p: c.owner }); } },
   garde_pont:  { set: 'set2', name: 'Garde du pont', type: 'C', cost: 3, power: 3, kw: [], text: 'Persistant : +2 si l\'adversaire a plus de créatures que vous ici.',
                  self: (c, st) => creaturesAt(st, 1 - c.owner, c.zone).length > creaturesAt(st, c.owner, c.zone).length ? 2 : 0 },
   chevalier:   { set: 'set2', name: 'Chevalier errant', type: 'C', cost: 3, power: 4, kw: [], text: '' },
@@ -367,7 +368,7 @@ export const CARDS = {
   dragonnet_chrome:{ set: 'set3', name: 'Dragonnet chromé', type: 'C', cost: 1, power: 1, kw: ['Dragon'], text: 'Fin de tour : si vous gardez au moins 1 sceau, Implant 1 sur lui-même.',
                  onEndTurn: (c, st) => { if (st.p[c.owner].seals > 0) implant(st, c, 1); else return false; } },
   investissement:{ set: 'set3', name: 'Investissement', type: 'S', cost: 1, power: 0, kw: ['Dragon'], text: 'Votre Trésor gagne +1. Implant 1 sur votre Dragon le plus faible ici.',
-                 onReveal: (c, st) => { st.p[c.owner].treasure += 1; log(st, `${who(st, c.owner)} : Trésor +1.`, 'up'); implant(st, weakest(st, creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Dragon'))), 1); } },
+                 onReveal: (c, st) => { st.p[c.owner].treasure += 1; log(st, '⟦{p}⟧ : Trésor +1.', 'up', { p: c.owner }); implant(st, weakest(st, creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Dragon'))), 1); } },
   dragon_pdg:  { set: 'set3', name: 'Dragon PDG', type: 'C', cost: 6, power: 6, kw: ['Dragon'], text: 'Coûte 1 de moins par tranche de 3 de votre Trésor. Révélation : Implant 1 sur vos autres Dragons en jeu.',
                  costFn: (st, p) => -Math.floor(st.p[p].treasure / 3),
                  onReveal: (c, st) => mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Dragon')).forEach(x => implant(st, x, 1)) },
@@ -399,7 +400,7 @@ export const CARDS = {
   mercenaire_augmente:{ set: 'set3', name: 'Mercenaire augmenté', type: 'C', cost: 2, power: 2, kw: [], text: 'Révélation : Implant 1 sur lui-même.',
                  onReveal: (c, st) => implant(st, c, 1) },
   fixeuse:     { set: 'set3', name: 'Fixeuse', type: 'C', cost: 2, power: 1, kw: [], text: 'Révélation : une carte au hasard de votre main coûte 1 de moins.',
-                 onReveal: (c, st) => { const h = st.p[c.owner].hand.filter(x => (costOf(st, x) ?? 0) > 0); if (h.length) { const x = pick(h); x.discount = (x.discount || 0) - 1; log(st, `${who(st, c.owner)} : une carte de la main coûte 1 de moins.`, 'up'); } } },
+                 onReveal: (c, st) => { const h = st.p[c.owner].hand.filter(x => (costOf(st, x) ?? 0) > 0); if (h.length) { const x = pick(h); x.discount = (x.discount || 0) - 1; log(st, '⟦{p}⟧ : une carte de la main coûte 1 de moins.', 'up', { p: c.owner }); } } },
   tourelle:    { set: 'set3', name: 'Tourelle automatique', type: 'C', cost: 3, power: 2, kw: [], text: 'Fin de tour : la créature adverse la plus faible ici perd 1.',
                  onEndTurn: (c, st) => { const w = weakest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (w) buff(st, w, -1); else return false; } },
   garde_securite:{ set: 'set3', name: 'Garde de sécurité', type: 'C', cost: 3, power: 4, kw: [], firewall: true, text: 'Pare-feu : vos créatures ici ne peuvent pas être piratées.' },
@@ -408,7 +409,7 @@ export const CARDS = {
   // ---- Récompenses : jamais dans les boosters (voir rewards.js) ----
   // Une carte par famille complétée dans son set d'origine, et une carte Dieu par set complété.
   voix_aube:   { set: 'recompense', name: 'Voix de l\'Aube', type: 'C', cost: 4, power: 4, kw: ['Ange'], text: 'Révélation : +1 sceau au tour suivant. Grâce : vos autres créatures ici gagnent +1.',
-                 onReveal: (c, st) => { st.p[c.owner].bonusSeals++; log(st, `${who(st, c.owner)} : +1 sceau au tour suivant.`, 'up'); },
+                 onReveal: (c, st) => { st.p[c.owner].bonusSeals++; log(st, '⟦{p}⟧ : +1 sceau au tour suivant.', 'up', { p: c.owner }); },
                  grace: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => x !== c).forEach(x => buff(st, x, 1)) },
   heritier_abysses:{ set: 'recompense', name: 'Héritier des abysses', type: 'C', cost: 4, power: 7, kw: ['Démon'], sacrifice: 1, text: 'Sacrifice. Quand une de vos autres créatures est détruite, votre zone ici gagne +1.',
                  onAllyDestroyed: (c, st) => addZone(st, c.owner, c.zone, 1) },
@@ -418,7 +419,7 @@ export const CARDS = {
                  onMove: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => x !== c).forEach(x => buff(st, x, 1)) },
   wyrm_tresor: { set: 'recompense', name: 'Wyrm du trésor', type: 'C', cost: 5, power: 7, kw: ['Dragon'], text: 'Coûte 1 de moins par tranche de 3 de votre Trésor. Révélation : votre Trésor gagne +2.',
                  costFn: (st, p) => -Math.floor(st.p[p].treasure / 3),
-                 onReveal: (c, st) => { st.p[c.owner].treasure += 2; log(st, `${who(st, c.owner)} : Trésor +2.`, 'up'); } },
+                 onReveal: (c, st) => { st.p[c.owner].treasure += 2; log(st, '⟦{p}⟧ : Trésor +2.', 'up', { p: c.owner }); } },
   faucheur:    { set: 'recompense', name: 'Faucheur éternel', type: 'C', cost: 4, power: 5, kw: ['Mort-vivant'], raise: true, text: 'Relève. Révélation : exhumez ici la créature la plus puissante de votre défausse qui coûte 3 ou moins.',
                  onReveal: (c, st) => exhume(st, c.owner, c.zone, 3) },
   reine_ecarlate:{ set: 'recompense', name: 'Reine écarlate', type: 'C', cost: 5, power: 5, kw: ['Vampire'], text: 'Révélation : Drain 1 sur chaque créature adverse ici, et Drain 1 sur une créature de la main adverse.',
@@ -441,7 +442,7 @@ export const CARDS = {
                  costFn: (st, p) => -Math.floor(st.p[p].treasure / 3),
                  onReveal: (c, st) => mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Dragon')).forEach(x => buff(st, x, 2)) },
   dieu_set2:   { set: 'recompense', name: 'Solenne, Déesse de l\'Aube', type: 'C', cost: 6, power: 7, kw: ['Ange'], text: 'Révélation : +2 sceaux au tour suivant. Grâce : vos Anges gagnent +1.',
-                 onReveal: (c, st) => { st.p[c.owner].bonusSeals += 2; log(st, `${who(st, c.owner)} : +2 sceaux au tour suivant.`, 'up'); },
+                 onReveal: (c, st) => { st.p[c.owner].bonusSeals += 2; log(st, '⟦{p}⟧ : +2 sceaux au tour suivant.', 'up', { p: c.owner }); },
                  grace: (c, st) => mine(st, c.owner).filter(x => hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)) },
   // Familles complétées dans la Cité Néon : une carte par famille, sur la mécanique de son soutien dans ce set.
   architecte_chaos:{ set: 'recompense', name: 'Architecte du chaos', type: 'C', cost: 4, power: 4, kw: ['Hacker'], text: 'Révélation : Malware 2, puis Piratage sur la créature adverse la plus puissante ici.',
@@ -490,7 +491,7 @@ export const CARDS = {
   netrunner:   { set: 'saison', name: 'Netrunner', type: 'C', cost: 3, power: 2, kw: [], text: 'Révélation : la carte la plus chère de la main adverse coûte 1 de plus, puis piochez 1 carte.',
                  onReveal: (c, st) => { const h = st.p[1 - c.owner].hand.filter(x => costOf(st, x) !== null);
                    if (h.length) { const t = h.reduce((a, b) => (costOf(st, b) > costOf(st, a) ? b : a)); t.discount = (t.discount || 0) + 1;
-                     log(st, `${who(st, 1 - c.owner)} : le Netrunner s'infiltre, une carte de la main coûte 1 de plus.`, 'down'); }
+                     log(st, "⟦{p}⟧ : le Netrunner s'infiltre, une carte de la main coûte 1 de plus.", 'down', { p: 1 - c.owner }); }
                    draw(st, c.owner, 1, true); } },
   mecha:       { set: 'saison', name: 'Mécha de la mégapole', type: 'C', cost: 5, power: 5, kw: [], text: 'Révélation : créez un Drone éclaireur dans la zone où vous êtes le plus en retard.',
                  onReveal: (c, st) => { const z = bestZone(st, c.owner, -1); if (z !== null) summon(st, c.owner, z, 'drone'); } },
@@ -498,7 +499,7 @@ export const CARDS = {
   // JETONS
   horde:       { name: 'Horde', type: 'C', cost: 0, power: 0, kw: ['Gobelin'], token: true, text: 'Jeton. Une seule Horde par zone : les effets Horde la font grandir.' },
   chevre:      { name: 'Chèvre', type: 'C', cost: 0, power: -1, kw: [], token: true, text: 'Jeton. Si elle est sacrifiée, +1 sceau au tour suivant.',
-                 onDestroyed: (c, st, z, sacrificed) => { if (sacrificed) { st.p[c.owner].bonusSeals++; log(st, `${who(st, c.owner)} : +1 sceau au tour suivant.`, 'up'); } } },
+                 onDestroyed: (c, st, z, sacrificed) => { if (sacrificed) { st.p[c.owner].bonusSeals++; log(st, '⟦{p}⟧ : +1 sceau au tour suivant.', 'up', { p: c.owner }); } } },
   magot:       { name: 'Magot de dragon', type: 'C', cost: 0, power: 0, kw: [], token: true, text: 'Jeton. Fin de tour : gagne autant de puissance que vos sceaux non dépensés.',
                  onEndTurn: (c, st) => { const n = st.p[c.owner].seals; if (n > 0) buff(st, c, n); else return false; } },
   festin:      { set: 'set2', name: 'Festin', type: 'C', cost: 0, power: 0, kw: [], token: true, text: 'Jeton. Un seul Festin par zone. En fin de tour, votre Gobelin le plus faible ici le dévore : il gagne sa puissance et le Festin disparaît.' },
@@ -506,15 +507,15 @@ export const CARDS = {
   virus:       { set: 'set3', name: 'Virus', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware. Quand vous le piochez, il s\'exécute et disparaît : votre créature la plus puissante en jeu perd 1 (sans créature, vous perdez 1 sceau ce tour).',
                  malware: (st, p) => virusHit(st, p) },
   ver:         { set: 'set3', name: 'Worm', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware. Quand vous le piochez, il s\'exécute et disparaît : comme un Virus, puis un Virus est mélangé dans votre deck.',
-                 malware: (st, p) => { virusHit(st, p); plant(st, p, 'virus'); log(st, `Le Worm se copie : un Virus rejoint le deck de ${who(st, p)}.`, 'down'); } },
+                 malware: (st, p) => { virusHit(st, p); plant(st, p, 'virus'); log(st, 'Le Worm se copie : un Virus rejoint le deck de ⟦{p}⟧.', 'down', { p }); } },
   rancon:      { set: 'set3', name: 'Ransomware', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware. Quand vous le piochez, il s\'exécute et disparaît : la carte la plus chère de votre main coûte 1 de plus.',
                  malware: (st, p) => { const c = st.p[p].hand.filter(x => costOf(st, x) !== null).sort((a, b) => costOf(st, b) - costOf(st, a))[0];
-                   if (c) { c.costMod = (c.costMod || 0) + 1; log(st, `${nm(c.id)} coûte 1 de plus.`, 'down'); } } },
+                   if (c) { c.costMod = (c.costMod || 0) + 1; log(st, '{card} coûte 1 de plus.', 'down', { card: nm(c.id) }); } } },
   // Jetons des boss mondiaux (boss.js) : ses sbires, et ce qu'il pose chez le joueur.
   sbire:       { name: 'Sbire du boss', type: 'C', cost: 0, power: 4, kw: [], token: true, text: 'Jeton du boss, un dans chaque zone au début de la partie. Dépassez la puissance du boss dans une zone pour marquer des points en plus.' },
   cendres:     { name: 'Cendres d\'éclipse', type: 'C', cost: 0, power: -1, kw: [], token: true, text: 'Jeton du boss Ignaroth. Il prend une place dans votre zone.' },
   givre:       { name: 'Éclat de givre', type: 'S', cost: 0, power: 0, kw: [], token: true, text: 'Malware du boss Vael\'Thar. Quand vous le piochez, il s\'exécute et disparaît : vous perdez 1 sceau ce tour et votre créature la plus puissante perd 1.',
-                 malware: (st, p) => { const P = st.p[p]; if (P.seals > 0) { P.seals--; log(st, `${who(st, p)} : -1 sceau.`, 'down'); } const s = strongest(st, mine(st, p)); if (s) buff(st, s, -1); } },
+                 malware: (st, p) => { const P = st.p[p]; if (P.seals > 0) { P.seals--; log(st, '⟦{p}⟧ : -1 sceau.', 'down', { p }); } const s = strongest(st, mine(st, p)); if (s) buff(st, s, -1); } },
 };
 
 // ---- Généraux : rattachés à une famille pour le thème, sans restreindre le deck ----
@@ -536,7 +537,7 @@ export const GENERALS = {
   grisk:     { name: 'Grisk, Roi des Pillards', fam: 'Gobelin', kind: 'Fin de tour',
                text: 'Fin de tour, une fois par partie : si vous avez une Horde dans chaque zone, chaque Horde gagne +2.',
                onEndTurn: (p, st) => { const P = st.p[p]; if (P.generalUsed) return; const h = hordes(st, p);
-                 if (h.length === 3) { P.generalUsed = true; log(st, `${GENERALS[P.general].name} se déclenche.`, 'reveal'); h.forEach(x => buff(st, x, 2)); } } },
+                 if (h.length === 3) { P.generalUsed = true; log(st, '{g} se déclenche.', 'reveal', { g: gn(P.general) }); h.forEach(x => buff(st, x, 2)); } } },
   snagg:     { name: 'Snagg, Maître de la Horde', fam: 'Gobelin', kind: 'Activable',
                text: 'Activable, une fois par partie : détruit votre Horde la plus faible et répartit sa puissance, plus 3, équitablement entre vos autres Hordes.',
                activate: (p, st) => { const h = hordes(st, p); if (h.length < 2) return; const w = weakest(st, h); const v = Math.max(0, power(st, w)) + 3;
@@ -545,7 +546,7 @@ export const GENERALS = {
   sylvaen:   { name: 'Sylvaën, Voix des Bois', fam: 'Elfe', kind: 'Fin de tour',
                text: 'Fin de tour : si une de vos créatures s\'est déplacée ce tour, une carte de votre main coûte 1 de moins.',
                onEndTurn: (p, st) => { if (!movedThisTurn(st, p).length) return; const h = st.p[p].hand.filter(c => (costOf(st, c) ?? 0) > 0);
-                 if (h.length) { const c = pick(h); c.discount = (c.discount || 0) - 1; log(st, `${who(st, p)} : une carte de la main coûte 1 de moins.`, 'up'); } } },
+                 if (h.length) { const c = pick(h); c.discount = (c.discount || 0) - 1; log(st, '⟦{p}⟧ : une carte de la main coûte 1 de moins.', 'up', { p }); } } },
   lirael:    { name: 'Lirael Pas-de-Vent', fam: 'Elfe', kind: 'Activable',
                text: 'Activable, une fois par partie : en fin de tour, chaque créature déplacée ce tour retourne à sa place si possible et déclenche ses effets de Déplacement.',
                activate: (p, st) => { st.p[p].returnMoves = st.turn; } },
@@ -556,7 +557,7 @@ export const GENERALS = {
                text: 'Fin de tour : si vous avez dépensé tous vos sceaux, un Dragon au hasard de votre main gagne +1 sceau et -1 puissance ; sinon -1 sceau et +1 puissance (coût minimum 1).',
                onEndTurn: (p, st) => { const P = st.p[p], spent = P.seals === 0, d = P.hand.filter(c => hasKw(c, 'Dragon')); if (!d.length) return;
                  const c = pick(d); c.costMod = (c.costMod || 0) + (spent ? 1 : -1); c.buff += spent ? -1 : 1;
-                 log(st, `${who(st, p)} : ${nm(c.id)} en main ${spent ? '+1 sceau, -1 puissance' : '-1 sceau, +1 puissance'}.`, spent ? 'down' : 'up'); } },
+                 log(st, spent ? '⟦{p}⟧ : {card} en main +1 sceau, -1 puissance.' : '⟦{p}⟧ : {card} en main -1 sceau, +1 puissance.', spent ? 'down' : 'up', { p, card: nm(c.id) }); } },
   cartographe:{ name: 'Le Cartographe', fam: null, kind: 'Début de partie', preview: true,
                text: 'Début de partie : vous voyez tous vos terrains, et où et quand ils seront révélés.' },
   erudit:    { name: 'L\'Érudit', fam: null, kind: 'Début de partie',
@@ -584,7 +585,7 @@ export const GENERALS = {
                  feast(st, p, zs.reduce((a, b) => margin(st, p, b) < margin(st, p, a) ? b : a), 1); } },
   ophaniel:  { set: 'set2', name: 'Ophaniel, Voix des Cieux', fam: 'Ange', kind: 'Persistant',
                text: 'Quand vous piochez un Ange en dehors de la pioche du début de tour, il gagne +1.',
-               onDraw: (p, st, c) => { if (hasKw(c, 'Ange') && isCreature(c)) { c.buff++; log(st, `${who(st, p)} : l'Ange pioché gagne +1.`, 'up'); } } },
+               onDraw: (p, st, c) => { if (hasKw(c, 'Ange') && isCreature(c)) { c.buff++; log(st, "⟦{p}⟧ : l'Ange pioché gagne +1.", 'up', { p }); } } },
   ysmera:    { set: 'set2', name: 'Ysmera, Mère des couvées', fam: 'Dragon', kind: 'Début de partie',
                text: 'Début de partie : un Œuf de braise rejoint votre main.',
                onStart: (p, st) => { const P = st.p[p]; if (P.hand.length < HAND_MAX) P.hand.push({ uid: st.nextUid++, id: 'oeuf_braise', owner: p, zone: -1, buff: 0, revealed: false }); } },
@@ -636,7 +637,7 @@ export const GENERALS = {
   courtier:  { set: 'set3', name: 'Le Courtier', fam: null, kind: 'Début de partie',
                text: 'Début de partie : la carte la plus chère de votre main coûte 1 de moins.',
                onStart: (p, st) => { const c = st.p[p].hand.filter(x => (costOf(st, x) ?? 0) > 0).sort((a, b) => costOf(st, b) - costOf(st, a))[0];
-                 if (c) { c.discount = (c.discount || 0) - 1; log(st, `${who(st, p)} : ${nm(c.id)} coûte 1 de moins.`, 'up'); } } },
+                 if (c) { c.discount = (c.discount || 0) - 1; log(st, '⟦{p}⟧ : {card} coûte 1 de moins.', 'up', { p, card: nm(c.id) }); } } },
 
   // ---- Boss mondiaux (boss.js) ----
   // Jamais en collection (boss: true, voir GENERAL_IDS). Le boss est le joueur 1, sans deck ni terrain, avec un Sbire dans chaque zone : à chaque tour, il joue
@@ -688,7 +689,7 @@ export const GENERALS = {
 export const bossStep = (st, p = 1) => GENERALS[st.p[p].general]?.script?.[st.turn - 1] || null;
 function bossAct(p, st, when) {
   const s = bossStep(st, p); if (!s || s.when !== when) return;
-  log(st, `${GENERALS[st.p[p].general].name} : ${s.name}, ${s.text}.`, 'reveal');
+  log(st, '{g} : {step}, {text}.', 'reveal', { g: gn(st.p[p].general), step: [s.name], text: [s.text] });
   s.act(st, 1 - p);
 }
 // Bonus de vos créatures contre le boss : famille et carte, cumulés.
@@ -702,27 +703,27 @@ function bossAura(p, c, st) { return c.owner === p ? 0 : bossBoost(st.p[p].gener
 function ashes(st, p, z) {
   if (free(st, p, z) <= 0) { const w = weakest(st, creaturesAt(st, p, z)); if (w) buff(st, w, -1); return; }
   st.p[p].board[z].push({ uid: st.nextUid++, id: 'cendres', owner: p, zone: z, buff: 0, revealed: true, order: st.order++ });
-  log(st, `Des Cendres d'éclipse tombent chez ${who(st, p)} (${ZONE_NAMES[z]}).`, 'down');
+  log(st, "Des Cendres d'éclipse tombent chez ⟦{p}⟧ ({z}).", 'down', { p, z: zn(z) });
 }
 // Souffle : la créature la plus puissante de la zone perd n ; zone vide, la zone perd n.
 function scorch(st, p, z, n) { const s = strongest(st, creaturesAt(st, p, z)); if (s) buff(st, s, -n); else addZone(st, p, z, -n); }
 function tempt(st, p, n) {
   st.p[p].hand.filter(c => costOf(st, c) !== null).sort((a, b) => costOf(st, b) - costOf(st, a)).slice(0, n)
-    .forEach(c => { c.costMod = (c.costMod || 0) + 1; log(st, `${nm(c.id)} coûte 1 de plus.`, 'down'); });
+    .forEach(c => { c.costMod = (c.costMod || 0) + 1; log(st, '{card} coûte 1 de plus.', 'down', { card: nm(c.id) }); });
 }
 function pact(st, p) { const h = st.p[p].hand; if (h.length) discardCard(st, p, pick(h)); }
 function whisper(st, p) {
   const h = st.p[p].hand.filter(isCreature); h.forEach(c => { c.buff -= 1; });
-  if (h.length) log(st, `Les créatures de la main de ${who(st, p)} perdent 1.`, 'down');
+  if (h.length) log(st, 'Les créatures de la main de ⟦{p}⟧ perdent 1.', 'down', { p });
 }
-function frost(st, p, n) { for (let i = 0; i < n; i++) plant(st, p, 'givre'); log(st, `${n} Éclats de givre rejoignent le deck de ${who(st, p)}.`, 'down'); }
+function frost(st, p, n) { for (let i = 0; i < n; i++) plant(st, p, 'givre'); log(st, '{n} Éclats de givre rejoignent le deck de ⟦{p}⟧.', 'down', { n, p }); }
 function numb(st, p) {
   const list = st.p[p].deck.filter(isCreature).slice(0, 2); list.forEach(c => { c.buff -= 2; });
-  if (list.length) log(st, `${list.length > 1 ? `${list.length} créatures` : 'Une créature'} du deck de ${who(st, p)} ${list.length > 1 ? 'perdent' : 'perd'} 2.`, 'down');
+  if (list.length) log(st, list.length > 1 ? '{n} créatures du deck de ⟦{p}⟧ perdent 2.' : 'Une créature du deck de ⟦{p}⟧ perd 2.', 'down', { n: list.length, p });
 }
 function mill(st, p, n) {
   const P = st.p[p], gone = P.deck.splice(0, n);
-  for (const c of gone) { if (!CARDS[c.id].token) P.discard.push(c); log(st, `${nm(c.id)} part du deck de ${who(st, p)} à la défausse.`, 'down'); }
+  for (const c of gone) { if (!CARDS[c.id].token) P.discard.push(c); log(st, '{card} part du deck de ⟦{p}⟧ à la défausse.', 'down', { card: nm(c.id), p }); }
 }
 
 // ---- Terrains ----
@@ -733,7 +734,7 @@ export const TERRAINS = {
                onEndTurn: (p, st, z) => { if (st.p[p].seals === 0) { const s = strongest(st, creaturesAt(st, 1 - p, z)); if (s) buff(st, s, -1); } } },
   charnier:  { name: 'Charnier', fam: 'Démon', text: 'Quand une de vos créatures est détruite ici, les Démons de votre main gagnent +1.',
                onAllyDestroyed: (p, st, dead, z, tz) => { if (z !== tz) return; const d = st.p[p].hand.filter(c => hasKw(c, 'Démon'));
-                 d.forEach(c => { c.buff++; }); if (d.length) log(st, `${who(st, p)} : Démons en main +1.`, 'up'); } },
+                 d.forEach(c => { c.buff++; }); if (d.length) log(st, '⟦{p}⟧ : Démons en main +1.', 'up', { p }); } },
   bergerie:  { name: 'Bergerie maudite', fam: 'Démon', text: 'Début de tour : si vous n\'avez aucune créature ici, créez une Chèvre ici. Chèvre (0/-1) : si elle est sacrifiée, +1 sceau au tour suivant.',
                onStartTurn: (p, st, z) => { if (!creaturesAt(st, p, z).length) summon(st, p, z, 'chevre'); } },
   terrier:   { name: 'Terrier', fam: 'Gobelin', text: 'Vos Gobelins ici ont +1.', aura: (p, t) => t.owner === p && hasKw(t, 'Gobelin') ? 1 : 0 },
@@ -741,7 +742,7 @@ export const TERRAINS = {
                onStartTurn: (p, st, z) => { const h = hordeAt(st, p, z); if (!h) return;
                  const to = [0, 1, 2].filter(x => x !== z && margin(st, p, x) < 0 && (free(st, p, x) > 0 || hordeAt(st, p, x))).sort((a, b) => margin(st, p, a) - margin(st, p, b))[0];
                  if (to === undefined) return; const other = hordeAt(st, p, to);
-                 if (other) { const v = Math.max(0, power(st, h)) + 2; removeToken(st, h); buff(st, other, v); log(st, `La Horde rejoint celle de la zone ${ZONE_NAMES[to]}.`); }
+                 if (other) { const v = Math.max(0, power(st, h)) + 2; removeToken(st, h); buff(st, other, v); log(st, 'La Horde rejoint celle de la zone {z}.', '', { z: zn(to) }); }
                  else if (move(st, h, to)) buff(st, h, 2); } },
   bois:      { name: 'Bois mouvant', fam: 'Elfe', text: 'Vos créatures ici sont Déplaçables.' },
   clairiere: { name: 'Clairière', fam: 'Elfe', text: 'Fin de tour : vos créatures arrivées ici par déplacement ce tour gagnent +1.',
@@ -775,7 +776,7 @@ export const TERRAINS = {
   cercle:    { set: 'set2', name: 'Cercle de pierres levées', fam: 'Elfe', text: 'Quand vous révélez un sort ici, la zone adverse ici perd 1.',
                onSpellHere: (p, st, z) => addZone(st, 1 - p, z, -1) },
   source:    { set: 'set2', name: 'Source de mana', fam: null, text: 'Fin de tour : si vous avez 3 créatures ou plus ici, +1 sceau au tour suivant.',
-               onEndTurn: (p, st, z) => { if (creaturesAt(st, p, z).length >= 3) { st.p[p].bonusSeals++; log(st, `${who(st, p)} : +1 sceau au tour suivant.`, 'up'); } } },
+               onEndTurn: (p, st, z) => { if (creaturesAt(st, p, z).length >= 3) { st.p[p].bonusSeals++; log(st, '⟦{p}⟧ : +1 sceau au tour suivant.', 'up', { p }); } } },
   guet:      { set: 'set2', name: 'Tour de guet', fam: null, text: 'Votre créature la plus puissante ici gagne +2.',
                aura: (p, t, st) => t.owner === p && t === topRaw(creaturesAt(st, p, t.zone)) ? 2 : 0 },
   // ---- Set 3 ----
@@ -801,7 +802,7 @@ export const TERRAINS = {
   parefeu:   { set: 'set3', name: 'Pare-feu', fam: null, text: 'Vos créatures ici ne peuvent pas être piratées.' },
   marche_noir:{ set: 'set3', name: 'Marché noir', fam: null, text: 'Fin de tour : si vous gardez au moins 1 sceau, une carte au hasard de votre main coûte 1 de moins.',
                onEndTurn: (p, st) => { if (st.p[p].seals <= 0) return; const h = st.p[p].hand.filter(x => (costOf(st, x) ?? 0) > 0);
-                 if (h.length) { const x = pick(h); x.discount = (x.discount || 0) - 1; log(st, `${who(st, p)} : une carte de la main coûte 1 de moins.`, 'up'); } } },
+                 if (h.length) { const x = pick(h); x.discount = (x.discount || 0) - 1; log(st, '⟦{p}⟧ : une carte de la main coûte 1 de moins.', 'up', { p }); } } },
 };
 
 // ---- Decks préconstruits : la construction est libre, ces listes servent à tester ----
@@ -882,12 +883,16 @@ function genHook(st, p, hook, ...args) {
   const n = st.log.length; f(p, st, ...args);
   if (st.log.length > n) st.p[p].genFired = (st.p[p].genFired || 0) + 1;
 }
-function log(st, msg, kind) { if (!st.sim) st.log.push({ turn: st.turn, msg, kind: kind || '' }); }
-const nm = id => CARDS[id].name;
-// Les messages du journal portent des marqueurs résolus par l'appli selon qui regarde :
-// ⟦p⟧ = nom du joueur p (ou « Vous »), ⟦p|il|vous⟧ = verbe conjugué.
-const who = (st, p) => `⟦${p}⟧`;
-const vb = (p, il, vous) => `⟦${p}|${il}|${vous}⟧`;
+function log(st, msg, kind, vars) { if (!st.sim) st.log.push({ turn: st.turn, msg, kind: kind || '', ...(vars ? { vars } : {}) }); }
+// Les messages du journal sont des modèles (traduits à l'affichage, voir renderLog) aux marqueurs résolus selon qui regarde :
+// ⟦{p}⟧ = nom du joueur p (ou « Vous »), ⟦{p}|il forme|vous formez⟧ = l'une ou l'autre forme ; noms de carte, de général,
+// de terrain et de zone par marqueur (nm, gn, tn, zn), dans la langue de celui qui lit.
+const nm = id => `⟪c:${id}⟫`;
+const gn = id => `⟪g:${id}⟫`;
+const tn = id => `⟪t:${id}⟫`;
+const zn = z => `⟪z:${z}⟫`;
+// Raison de fin de partie en variable du journal : toujours un [modèle, variables] pour être traduite (texte seul compris).
+const asMsg = r => (Array.isArray(r) ? r : [r]);
 
 // ---- État ----
 // opts.generals = [général du joueur 0, général du joueur 1] pour remplacer le général par défaut du deck.
@@ -994,9 +999,9 @@ function bestZone(st, p, from) {
 function draw(st, p, n, extra = false) {
   const P = st.p[p], got = [];
   for (let i = 0; i < n; i++) {
-    const c = P.deck.shift(); if (!c) { if (!GENERALS[P.general]?.boss) log(st, `${who(st, p)} : deck vide, pas de pioche.`); break; }
+    const c = P.deck.shift(); if (!c) { if (!GENERALS[P.general]?.boss) log(st, '⟦{p}⟧ : deck vide, pas de pioche.', '', { p }); break; }
     if (CARDS[c.id].malware) { runMalware(st, p, c); continue; }
-    if (P.hand.length >= HAND_MAX) { log(st, `${who(st, p)} : main pleine, ${nm(c.id)} part à la défausse.`); P.hand.push(c); discardCard(st, p, c, true); continue; }
+    if (P.hand.length >= HAND_MAX) { log(st, '⟦{p}⟧ : main pleine, {card} part à la défausse.', '', { p, card: nm(c.id) }); P.hand.push(c); discardCard(st, p, c, true); continue; }
     P.hand.push(c); got.push(c);
     if (!extra) continue;
     genHook(st, p, 'onDraw', c);
@@ -1004,8 +1009,8 @@ function draw(st, p, n, extra = false) {
   }
   return got;
 }
-function buff(st, c, n) { c.buff += n; log(st, `${nm(c.id)} ${n >= 0 ? '+' : ''}${n}.`, n >= 0 ? 'up' : 'down'); }
-function addZone(st, p, z, n) { st.p[p].zoneBonus[z] += n; log(st, `${who(st, p)} : zone ${ZONE_NAMES[z]} ${n >= 0 ? '+' : ''}${n}.`, n >= 0 ? 'up' : 'down'); }
+function buff(st, c, n) { c.buff += n; log(st, '{card} {n}.', n >= 0 ? 'up' : 'down', { card: nm(c.id), n: `${n >= 0 ? '+' : ''}${n}` }); }
+function addZone(st, p, z, n) { st.p[p].zoneBonus[z] += n; log(st, '⟦{p}⟧ : zone {z} {n}.', n >= 0 ? 'up' : 'down', { p, z: zn(z), n: `${n >= 0 ? '+' : ''}${n}` }); }
 // Carte qui revient en main ou en jeu depuis la défausse : elle repart de zéro.
 function fresh(c) {
   for (const k of ['pending', 'movedTurn', 'playerMoved', 'turnStartZone', 'mobile', 'xPaid', 'hatched', 'enteredTurn', 'discount', 'costMod', 'hacked', 'implants']) delete c[k];
@@ -1016,7 +1021,7 @@ function fresh(c) {
 function discardCard(st, p, c, silent) {
   const P = st.p[p]; const i = P.hand.indexOf(c); if (i < 0) return;
   P.hand.splice(i, 1); P.discard.push(c);
-  if (!silent) log(st, `${who(st, p)} ${vb(p, 'défausse', 'défaussez')} ${nm(c.id)}.`, 'down');
+  if (!silent) log(st, '⟦{p}⟧ ⟦{p}|défausse|défaussez⟧ {card}.', 'down', { p, card: nm(c.id) });
   genHook(st, p, 'onDiscard', c);
   if (CARDS[c.id].raise) raise(st, p, c);
 }
@@ -1034,7 +1039,7 @@ function raise(st, p, c) {
   const z = cim >= 0 ? cim : bestZone(st, p, -1);
   if (z === null || z === undefined) return;
   P.discard.splice(P.discard.indexOf(c), 1); fresh(c);
-  log(st, `${nm(c.id)} se relève.`, 'up');
+  log(st, '{card} se relève.', 'up', { card: nm(c.id) });
   c.buff = cim >= 0 ? 2 : 1;
   enter(st, c, z);
   if (P.terrains[z] === 'serveur' && stillThere(st, c)) implant(st, c, 1);
@@ -1046,7 +1051,7 @@ function exhume(st, p, z, maxCost = Infinity) {
   const c = P.discard.filter(x => isCreature(x) && CARDS[x.id].cost <= maxCost).sort((a, b) => CARDS[b.id].power - CARDS[a.id].power)[0];
   if (!c) return null;
   P.discard.splice(P.discard.indexOf(c), 1); fresh(c);
-  log(st, `${who(st, p)} ${vb(p, 'exhume', 'exhumez')} ${nm(c.id)}.`, 'up');
+  log(st, '⟦{p}⟧ ⟦{p}|exhume|exhumez⟧ {card}.', 'up', { p, card: nm(c.id) });
   enter(st, c, z); return c;
 }
 
@@ -1055,7 +1060,7 @@ function exhume(st, p, z, maxCost = Infinity) {
 function drain(st, src, target, n, where = 'board') {
   if (!target || n <= 0) return;
   if (where === 'board') buff(st, target, -n);
-  else { target.buff -= n; log(st, `Une carte ${where === 'hand' ? 'de la main' : 'du deck'} de ${who(st, target.owner)} perd ${n}.`, 'down'); }
+  else { target.buff -= n; log(st, where === 'hand' ? 'Une carte de la main de ⟦{p}⟧ perd {n}.' : 'Une carte du deck de ⟦{p}⟧ perd {n}.', 'down', { p: target.owner, n }); }
   if (src && stillThere(st, src)) { buff(st, src, n); st.p[src.owner].stolen += n; }
 }
 // Drain sur k créatures au hasard de la main adverse.
@@ -1075,18 +1080,18 @@ function feast(st, p, z, x) {
 function devour(st, g, f) {
   const v = Math.max(0, power(st, f)) + (g.id === 'goinfre' && !g.hacked ? 2 : 0);
   removeToken(st, f); st.p[g.owner].feasts++;
-  log(st, `${nm(g.id)} dévore le Festin.`, 'up'); buff(st, g, v);
+  log(st, '{card} dévore le Festin.', 'up', { card: nm(g.id) }); buff(st, g, v);
 }
 
 // Éclosion : l'Œuf laisse place à une créature au hasard du deck qui coûte 5 ou plus ; sinon il gagne +3.
 function hatch(st, egg) {
   const P = st.p[egg.owner]; if (!stillThere(st, egg) || egg.hatched) return;
   const pool = P.deck.filter(c => isCreature(c) && CARDS[c.id].cost >= 5);
-  if (!pool.length) { egg.hatched = true; log(st, `${nm(egg.id)} éclot, mais le deck n'a pas de créature à 5 sceaux ou plus.`); buff(st, egg, 3); return; }
+  if (!pool.length) { egg.hatched = true; log(st, "{card} éclot, mais le deck n'a pas de créature à 5 sceaux ou plus.", '', { card: nm(egg.id) }); buff(st, egg, 3); return; }
   const z = egg.zone, c = pick(pool);
   P.board[z] = P.board[z].filter(x => x !== egg); P.discard.push(egg);
   P.deck.splice(P.deck.indexOf(c), 1);
-  log(st, `${nm(egg.id)} éclot !`, 'reveal');
+  log(st, '{card} éclot !', 'reveal', { card: nm(egg.id) });
   c.hatched = true; enter(st, c, z);
 }
 
@@ -1100,7 +1105,7 @@ function swap(st, p, z, choose) {
   const P = st.p[p], F = st.p[1 - p];
   P.board[z] = P.board[z].filter(x => x !== give); F.board[z] = F.board[z].filter(x => x !== take);
   give.owner = 1 - p; take.owner = p; F.board[z].push(give); P.board[z].push(take);
-  log(st, `${who(st, p)} ${vb(p, 'échange', 'échangez')} ${nm(give.id)} contre ${nm(take.id)} (${ZONE_NAMES[z]}).`, 'reveal');
+  log(st, '⟦{p}⟧ ⟦{p}|échange|échangez⟧ {give} contre {take} ({z}).', 'reveal', { p, give: nm(give.id), take: nm(take.id), z: zn(z) });
   for (const c of [give, take]) { const d = fx(c); if (d.onSwitch) d.onSwitch(c, st); }
   return true;
 }
@@ -1115,24 +1120,24 @@ function plant(st, p, id) {
 function malware(st, p, n, kind = 'virus') {
   if (n <= 0) return;
   for (let i = 0; i < n; i++) plant(st, 1 - p, kind === 'mix' ? MALWARES[i % MALWARES.length] : kind);
-  log(st, `${who(st, p)} ${vb(p, 'injecte', 'injectez')} ${n > 1 ? `${n} Malwares` : 'un Malware'} dans le deck adverse.`, 'down');
+  log(st, n > 1 ? '⟦{p}⟧ ⟦{p}|injecte|injectez⟧ {n} Malwares dans le deck adverse.' : '⟦{p}⟧ ⟦{p}|injecte|injectez⟧ un Malware dans le deck adverse.', 'down', { p, n });
 }
 // Un Malware pioché s'exécute et disparaît, sans être remplacé.
 function runMalware(st, p, c) {
   st.p[p].malwareRun++;
-  log(st, `${who(st, p)} ${vb(p, 'pioche', 'piochez')} un ${nm(c.id)} : il s'exécute.`, 'down');
+  log(st, "⟦{p}⟧ ⟦{p}|pioche|piochez⟧ un {card} : il s'exécute.", 'down', { p, card: nm(c.id) });
   CARDS[c.id].malware(st, p);
   genHook(st, 1 - p, 'onMalware', c);
 }
 function virusHit(st, p) {
   const s = strongest(st, mine(st, p)); if (s) { buff(st, s, -1); return; }
-  if (st.p[p].seals > 0) { st.p[p].seals--; log(st, `${who(st, p)} : -1 sceau.`, 'down'); }
+  if (st.p[p].seals > 0) { st.p[p].seals--; log(st, '⟦{p}⟧ : -1 sceau.', 'down', { p }); }
 }
 // Piratage : la créature perd ses effets jusqu'à ce qu'elle quitte le jeu (Pare-feu : impossible).
 function hack(st, c) {
   if (!c || c.hacked || st.p[c.owner].terrains[c.zone] === 'parefeu'
       || creaturesAt(st, c.owner, c.zone).some(x => CARDS[x.id].firewall && !x.hacked)) return false;
-  c.hacked = true; log(st, `${nm(c.id)} est piratée : ses effets ne fonctionnent plus.`, 'down');
+  c.hacked = true; log(st, '{card} est piratée : ses effets ne fonctionnent plus.', 'down', { card: nm(c.id) });
   genHook(st, 1 - c.owner, 'onHack', c);
   return true;
 }
@@ -1140,13 +1145,13 @@ function hack(st, c) {
 function hackGeneral(st, p) {
   if (GENERALS[st.p[p].general].boss) return;
   st.p[p].genHacked = st.turn + 1;
-  log(st, `${GENERALS[st.p[p].general].name} est piraté jusqu'à la fin du tour suivant.`, 'down');
+  log(st, "{g} est piraté jusqu'à la fin du tour suivant.", 'down', { g: gn(st.p[p].general) });
 }
 // Implant N : la créature gagne +N et un Implant (compté par les Cyborgs).
 function implant(st, c, n) {
   if (!c || n <= 0) return;
   c.implants = (c.implants || 0) + 1; c.buff += n;
-  log(st, `${nm(c.id)} reçoit un Implant : +${n}.`, 'up');
+  log(st, '{card} reçoit un Implant : +{n}.', 'up', { card: nm(c.id), n });
 }
 // Surcharge N : à la révélation, s'il vous reste assez de sceaux, ils sont dépensés et l'effet Surcharge s'applique.
 function overload(st, c, n) {
@@ -1155,7 +1160,8 @@ function overload(st, c, n) {
   if (P.terrains[c.zone] === 'centrale') cost = Math.max(0, cost - 1);
   if (P.seals < cost) return false;
   P.seals -= cost; P.overloads++;
-  log(st, `${nm(c.id)} : Surcharge (${cost} sceau${cost > 1 ? 'x' : ''}).`, 'reveal');
+  if (cost) log(st, cost > 1 ? '{card} : Surcharge ({n} sceaux).' : '{card} : Surcharge ({n} sceau).', 'reveal', { card: nm(c.id), n: cost });
+  else log(st, '{card} : Surcharge (0 sceau).', 'reveal', { card: nm(c.id) });
   genHook(st, c.owner, 'onOverload', c.zone, c);
   if (P.terrains[c.zone] === 'decharge') { const w = weakest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (w) buff(st, w, -1); }
   return true;
@@ -1164,21 +1170,21 @@ function overload(st, c, n) {
 function summon(st, p, z, id) {
   if (free(st, p, z) <= 0) return null;
   const c = { uid: st.nextUid++, id, owner: p, zone: z, buff: 0, revealed: true, order: st.order++ };
-  st.p[p].board[z].push(c); log(st, `${who(st, p)} ${vb(p, 'crée', 'créez')} ${nm(id)} (${ZONE_NAMES[z]}).`); return c;
+  st.p[p].board[z].push(c); log(st, '⟦{p}⟧ ⟦{p}|crée|créez⟧ {card} ({z}).', '', { p, card: nm(id), z: zn(z) }); return c;
 }
 // Horde X : crée une Horde de puissance X ici, ou fait grandir celle qui y est déjà.
 function horde(st, p, z, x) {
   if (x <= 0) return;
   const h = hordeAt(st, p, z);
   if (h) { buff(st, h, x); return; }
-  const n = summon(st, p, z, 'horde'); if (n) { n.buff = x; log(st, `Horde ${x}.`, 'up'); }
+  const n = summon(st, p, z, 'horde'); if (n) { n.buff = x; log(st, 'Horde {n}.', 'up', { n: x }); }
 }
 function removeToken(st, c) { const P = st.p[c.owner]; P.board[c.zone] = P.board[c.zone].filter(x => x !== c); }
 // Fait entrer une carte en jeu face visible et résout son effet Révélation.
 function enter(st, c, z) {
   const P = st.p[c.owner];
   c.zone = z; c.revealed = true; c.pending = false; c.order = st.order++; c.enteredTurn = st.turn; P.board[z].push(c);
-  log(st, `${who(st, c.owner)} ${vb(c.owner, 'invoque', 'invoquez')} ${nm(c.id)} (${ZONE_NAMES[z]}).`, 'reveal');
+  log(st, '⟦{p}⟧ ⟦{p}|invoque|invoquez⟧ {card} ({z}).', 'reveal', { p: c.owner, card: nm(c.id), z: zn(z) });
   const d = CARDS[c.id]; if (d.onReveal) d.onReveal(c, st);
 }
 function callFromDeck(st, p, z) {
@@ -1192,7 +1198,7 @@ function move(st, c, to, room) {
   const P = st.p[c.owner]; if (to === c.zone || (room ?? free(st, c.owner, to)) <= 0 || !P.board[c.zone].includes(c)) return false;
   if (c.movedTurn !== st.turn) c.turnStartZone = c.zone;
   P.board[c.zone] = P.board[c.zone].filter(x => x !== c); c.zone = to; P.board[to].push(c); c.movedTurn = st.turn;
-  log(st, `${nm(c.id)} se déplace vers ${ZONE_NAMES[to]}.`);
+  log(st, '{card} se déplace vers {z}.', '', { card: nm(c.id), z: zn(to) });
   const d = fx(c); if (d.onMove) d.onMove(c, st);
   return true;
 }
@@ -1205,7 +1211,7 @@ function destroy(st, c, by) {
   if (!d.token) P.discard.push(c);
   P.lost++;
   const sacrificed = by === c.owner;
-  log(st, `${d.name} (${who(st, c.owner)}) ${sacrificed ? 'est sacrifiée' : 'est détruite'}.`, 'down');
+  log(st, sacrificed ? '{card} (⟦{p}⟧) est sacrifiée.' : '{card} (⟦{p}⟧) est détruite.', 'down', { card: nm(c.id), p: c.owner });
   if (d.onDestroyed && !c.hacked) d.onDestroyed(c, st, z, sacrificed);
   for (const x of ordered(st).filter(x => x.owner === c.owner && x !== c)) { const xd = fx(x); if (xd.onAllyDestroyed) xd.onAllyDestroyed(x, st, c, z); }
   genHook(st, c.owner, 'onAllyDestroyed', c, z);
@@ -1223,11 +1229,11 @@ const stillThere = (st, c) => st.p[c.owner].board[c.zone].includes(c);
 // ---- Tour ----
 export function startTurn(st) {
   st.turn++;
-  log(st, `— Tour ${st.turn} —`, 'turn');
+  log(st, '— Tour {n} —', 'turn', { n: st.turn });
   for (const p of [0, 1]) { const P = st.p[p]; P.seals = st.turn + P.bonusSeals; P.bonusSeals = 0; P.moves = []; draw(st, p, 1); }
   for (const p of [0, 1]) {
     const P = st.p[p]; const plan = P.terrainPlan.find(x => x.turn === st.turn); if (!plan) continue;
-    P.terrains[plan.z] = plan.t; log(st, `${who(st, p)} ${vb(p, 'révèle', 'révélez')} le terrain ${TERRAINS[plan.t].name} (${ZONE_NAMES[plan.z]}).`, 'terrain');
+    P.terrains[plan.z] = plan.t; log(st, '⟦{p}⟧ ⟦{p}|révèle|révélez⟧ le terrain {terrain} ({z}).', 'terrain', { p, terrain: tn(plan.t), z: zn(plan.z) });
     if (TERRAINS[plan.t].onReveal) TERRAINS[plan.t].onReveal(p, st, plan.z);
   }
   st.leader = computeLeader(st);
@@ -1265,8 +1271,8 @@ export function doStep(st, s) {
   const P = st.p[s.p];
   if (s.kind === 'general') {
     const g = GENERALS[P.general]; if (P.generalUsed || !g.activate) return null;
-    if (genHacked(st, s.p)) { log(st, `${g.name} est piraté : son pouvoir ne répond pas.`, 'down'); return null; }
-    P.generalUsed = true; log(st, `${who(st, s.p)} ${vb(s.p, 'active', 'activez')} ${g.name}${g.needsZone ? ` (${ZONE_NAMES[s.zone]})` : ''}.`, 'reveal'); g.activate(s.p, st, s.zone); return null;
+    if (genHacked(st, s.p)) { log(st, '{g} est piraté : son pouvoir ne répond pas.', 'down', { g: gn(P.general) }); return null; }
+    P.generalUsed = true; log(st, g.needsZone ? '⟦{p}⟧ ⟦{p}|active|activez⟧ {g} ({z}).' : '⟦{p}⟧ ⟦{p}|active|activez⟧ {g}.', 'reveal', { p: s.p, g: gn(P.general), z: zn(s.zone) }); g.activate(s.p, st, s.zone); return null;
   }
   if (s.kind === 'move') {
     const c = [0, 1, 2].flatMap(z => P.board[z]).find(x => x.uid === s.uid);
@@ -1278,10 +1284,10 @@ export function doStep(st, s) {
   const c = [0, 1, 2].flatMap(z => P.board[z]).find(x => x.uid === s.uid); if (!c) return null;
   c.pending = false; c.revealed = true; c.enteredTurn = st.turn; P.played.push(c.id);
   const d = CARDS[c.id];
-  log(st, `${who(st, s.p)} ${vb(s.p, 'révèle', 'révélez')} ${d.name} (${ZONE_NAMES[c.zone]}).`, 'reveal');
+  log(st, '⟦{p}⟧ ⟦{p}|révèle|révélez⟧ {card} ({z}).', 'reveal', { p: s.p, card: nm(c.id), z: zn(c.zone) });
   if (d.sacrifice) {
     const others = creaturesAt(st, s.p, c.zone).filter(x => x !== c);
-    if (others.length < d.sacrifice) { log(st, `Pas assez de créatures à sacrifier pour ${d.name}.`, 'down'); destroy(st, c, null); return c; }
+    if (others.length < d.sacrifice) { log(st, 'Pas assez de créatures à sacrifier pour {card}.', 'down', { card: nm(c.id) }); destroy(st, c, null); return c; }
     for (let i = 0; i < d.sacrifice; i++) { const w = weakest(st, creaturesAt(st, s.p, c.zone).filter(x => x !== c)); if (w) destroy(st, w, s.p); }
   }
   if (d.type === 'S') P.spells++;
@@ -1333,20 +1339,22 @@ function finish(st) {
   const w = [0, 0]; const zones = [0, 1, 2].map(z => zoneWinner(st, z)); zones.forEach(r => { if (r >= 0) w[r]++; });
   const tot = [0, 1].map(p => [0, 1, 2].reduce((s, z) => s + zonePower(st, p, z), 0));
   let winner = -1, reason;
-  if (w[0] >= 2) { winner = 0; reason = `${w[0]} zones sur 3`; }
-  else if (w[1] >= 2) { winner = 1; reason = `${w[1]} zones sur 3`; }
-  else if (tot[0] !== tot[1]) { winner = tot[0] > tot[1] ? 0 : 1; reason = `départage à la puissance totale (${tot[0]} contre ${tot[1]})`; }
-  else reason = 'zones et puissance totale à égalité';
+  if (w[0] >= 2) { winner = 0; reason = msg('{n} zones sur 3', { n: w[0] }); }
+  else if (w[1] >= 2) { winner = 1; reason = msg('{n} zones sur 3', { n: w[1] }); }
+  else if (tot[0] !== tot[1]) { winner = tot[0] > tot[1] ? 0 : 1; reason = msg('départage à la puissance totale ({a} contre {b})', { a: tot[0], b: tot[1] }); }
+  else reason = msg('zones et puissance totale à égalité');
   st.result = { winner, reason, zones, tot };
-  log(st, winner < 0 ? 'Match nul.' : `${who(st, winner)} ${vb(winner, 'gagne', 'gagnez')} : ${reason}.`, 'turn');
+  if (winner < 0) log(st, 'Match nul.', 'turn');
+  else log(st, '⟦{p}⟧ ⟦{p}|gagne|gagnez⟧ : {reason}.', 'turn', { p: winner, reason: asMsg(reason) });
 }
 // Forfait (joueur déconnecté trop longtemps) : la partie s'arrête aussitôt et l'autre joueur gagne. Les zones restent celles du plateau.
+// reason : texte français ou msg('modèle', { … }), gardé tel quel dans st.result.reason (traduit à l'affichage par renderLog).
 export function forfeitGame(st, loser, reason) {
   st.over = true; st.phase = 'over';
   const zones = [0, 1, 2].map(z => zoneWinner(st, z));
   const tot = [0, 1].map(p => [0, 1, 2].reduce((s, z) => s + zonePower(st, p, z), 0));
   st.result = { winner: 1 - loser, reason, zones, tot, forfeit: true };
-  log(st, `${who(st, loser)} ${vb(loser, 'perd', 'perdez')} : ${reason}.`, 'turn');
+  log(st, '⟦{p}⟧ ⟦{p}|perd|perdez⟧ : {reason}.', 'turn', { p: loser, reason: asMsg(reason) });
 }
 
 // Détail d'une partie terminée, pour l'historique des joueurs (pas de replay) : tours joués, puissance des zones à chaque fin de tour
@@ -1490,9 +1498,16 @@ export function viewFor(st, seat, extra = {}) {
   };
 }
 
-// Remplace les marqueurs du journal pour le joueur `seat`.
-export function renderLog(msg, seat, names) {
-  return msg
-    .replace(/⟦(\d)\|([^|⟧]*)\|([^⟧]*)⟧/g, (_, p, il, vous) => (+p === seat ? vous : il))
-    .replace(/⟦(\d)⟧/g, (_, p) => (+p === seat ? 'Vous' : names[+p]));
+// Texte d'une ligne du journal pour le joueur `seat`, dans la langue de l'appli.
+// Une ligne est { msg, vars } : msg est un modèle français traduit par i18n.js, puis les marqueurs sont résolus :
+// ⟦p⟧ = nom du joueur p (ou « Vous »), ⟦p|il|vous⟧ = l'une ou l'autre forme selon qui regarde (@ y vaut le nom du joueur p),
+// ⟪c:id⟫, ⟪g:id⟫, ⟪t:id⟫ = nom d'une carte, d'un général, d'un terrain ; ⟪z:n⟫ = nom d'une zone.
+// Une ligne d'avant (msg déjà rédigé, sans vars) passe aussi.
+const NAMED = { c: id => CARDS[id]?.name, g: id => GENERALS[id]?.name, t: id => TERRAINS[id]?.name, z: n => t(ZONE_NAMES[+n]) };
+export function renderLog(line, seat, names) {
+  const m = line && typeof line === 'object' && !Array.isArray(line) ? (line.vars ? [line.msg, line.vars] : line.msg) : line;
+  return tMsg(m)
+    .replace(/⟪([cgtz]):([^⟫]*)⟫/g, (_, k, id) => NAMED[k](id) ?? id)
+    .replace(/⟦(\d)\|([^|⟧]*)\|([^⟧]*)⟧/g, (_, p, il, vous) => (+p === seat ? vous : il).replace(/@/g, names[+p] ?? ''))
+    .replace(/⟦(\d)⟧/g, (_, p) => (+p === seat ? t('Vous') : names[+p]));
 }

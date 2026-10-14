@@ -10,6 +10,8 @@ import { TUTO_LESSONS, levelCost, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { createProgress } from './progress.js';
 import { createArts } from './arts.js';
 import { createActivity } from './activity.js';
+import { t, msg, tr, trMsg, pickLang } from '@jeu/engine/i18n';
+import { langOf, validLang, withLang, inLang } from './i18n.js';
 
 const MAX_SESSIONS = 10;
 // scrypt en asynchrone : le calcul (volontairement lent) ne bloque pas les parties en cours pendant une connexion.
@@ -108,7 +110,10 @@ export function createAccounts(store) {
   // Courrier (mail.js) : messages non lus ou récompenses à récupérer, pour la pastille de l'accueil.
   let mailCount = () => 0, bossTile = () => null, storyTile = () => null;
   // boss : résumé du boss mondial de la semaine pour l'accueil (boss.js, branché par setBossTile) ; storyTile : la quête d'histoire à suivre (story.js).
-  const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), boss: bossTile(a), storyTile: storyTile(a), tutoShards: progress.cfg().tutoShards });
+  // Textes composés par le moteur (missions, rangs…) : dans la langue du joueur (a.lang).
+  const me = a => inLang(a, () => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), boss: bossTile(a), storyTile: storyTile(a), tutoShards: progress.cfg().tutoShards }));
+  // Langue de l'appli du joueur (en-tête X-Lang) : rangée sur son compte pour ses notifications et ses textes ; enregistrée seulement quand elle change.
+  function setLang(a, lang) { if (!lang || langOf(a) === lang) return; a.lang = lang; store.put(a).catch(e => console.error('Langue non enregistrée :', e)); }
   // Les nouvelles cartes rapportent de l'XP et peuvent compléter une famille ou un set.
   const add = (a, ids) => { const got = addCards(a, ids, cfg().shardsPerDuplicate, progress.essenceRate(), progress.giveEssence); return { ...got, xp: progress.onCards(a, got.fresh) }; };
   // Arts retirés du jeu (RETIRED_ARTS) : l'art quitte le compte, ses Prismes arrivent dans la boîte de récompenses.
@@ -117,7 +122,7 @@ export function createAccounts(store) {
     for (const id of gone) {
       delete a.arts[id];
       for (const [card, sel] of Object.entries(a.artSel || {})) if (sel === id) delete a.artSel[card];
-      progress.grant(a, { kind: 'refund', label: `Art retiré du jeu : ${RETIRED_ARTS[id].name}, remboursé`, prisms: RETIRED_ARTS[id].prisms });
+      progress.grant(a, { kind: 'refund', label: `Art retiré du jeu : ${RETIRED_ARTS[id].name}, remboursé`, labelMsg: msg('Art retiré du jeu : {name}, remboursé', { name: [RETIRED_ARTS[id].name] }), prisms: RETIRED_ARTS[id].prisms });
     }
     return gone.length;
   }
@@ -140,23 +145,24 @@ export function createAccounts(store) {
     }
   }
 
-  async function login({ login, password }) {
+  async function login({ login, password }, lang = null) {
     const a = store.get(cleanLogin(login));
-    if (!a || !(await checkPass(String(password || ''), a.pass))) throw new HttpError(401, 'Identifiant ou mot de passe incorrect.');
-    if (a.disabled) throw new HttpError(403, 'Ce compte est désactivé.');
+    if (!a || !(await checkPass(String(password || ''), a.pass))) throw new HttpError(401, msg('Identifiant ou mot de passe incorrect.'));
+    if (a.disabled) throw new HttpError(403, msg('Ce compte est désactivé.'));
     const token = randomBytes(24).toString('hex');
     // Au-delà de MAX_SESSIONS, la plus ancienne session du compte est fermée.
     const all = [...(a.tokens || []), token];
     for (const t of all.slice(0, -MAX_SESSIONS)) sessions.delete(t);
     a.tokens = all.slice(-MAX_SESSIONS); sessions.set(token, a.login);
+    if (lang) a.lang = lang;
     await store.put(a);
     return { token, account: me(a) };
   }
   async function logout(a, token) { a.tokens = (a.tokens || []).filter(t => t !== token); sessions.delete(token); await store.put(a); return { ok: true }; }
 
   async function chooseStarter(a, { starter }) {
-    if (a.starter) throw new HttpError(409, 'Le deck de départ est déjà choisi.');
-    if (!STARTERS.includes(starter)) throw new HttpError(400, 'Deck de départ inconnu.');
+    if (a.starter) throw new HttpError(409, msg('Le deck de départ est déjà choisi.'));
+    if (!STARTERS.includes(starter)) throw new HttpError(400, msg('Deck de départ inconnu.'));
     const kit = starterKit(starter);
     const deck = { id: newDeckId(), ...kit.deck };
     Object.assign(a, { starter, cards: kit.cards, decks: [deck], active: deck.id });
@@ -165,15 +171,15 @@ export function createAccounts(store) {
     return { account: me(a) };
   }
   async function booster(a) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
-    if (a.lastBooster === today()) throw new HttpError(409, 'Booster du jour déjà ouvert. Revenez demain.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
+    if (a.lastBooster === today()) throw new HttpError(409, msg('Booster du jour déjà ouvert. Revenez demain.'));
     const cards = openBooster(a.cards);
     const got = add(a, cards);
     a.lastBooster = today();
     progress.onBooster(a);
     activity.count('boosterDaily');
     await store.put(a);
-    return { title: 'Booster du jour', cards, ...got, account: me(a) };
+    return { title: msg('Booster du jour'), cards, ...got, account: me(a) };
   }
 
   // Boutique : pour chaque set ouvert, des cartes du jour propres au joueur et un booster du set, payés en Éclats.
@@ -202,34 +208,34 @@ export function createAccounts(store) {
       offers: set.open ? shopDay(a, set).offers.map(id => ({ id, bought: shopDay(a, set).bought.includes(id), owned: !!a.cards[id] })) : [] })) };
   }
   function openSet(a, id) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
-    const set = setById(id); if (!set || !set.open || !setRevealed(set)) throw new HttpError(400, 'Ce set n\'est pas encore en vente.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
+    const set = setById(id); if (!set || !set.open || !setRevealed(set)) throw new HttpError(400, msg('Ce set n\'est pas encore en vente.'));
     return set;
   }
   function pay(a, price) {
-    if ((a.shards || 0) < price) throw new HttpError(409, `Il vous faut ${price} Éclats (vous en avez ${a.shards || 0}).`);
+    if ((a.shards || 0) < price) throw new HttpError(409, msg('Il vous faut {price} Éclats (vous en avez {have}).', { price, have: a.shards || 0 }));
     a.shards -= price;
   }
   async function shop(a) { const view = shopView(a); await store.put(a); return { shop: view, account: me(a) }; }
   async function buyCard(a, { set: setId, card }) {
     const set = openSet(a, setId), day = shopDay(a, set);
-    if (!day.offers.includes(card)) throw new HttpError(400, 'Cette carte n\'est plus en vente aujourd\'hui.');
-    if (day.bought.includes(card) || a.cards[card]) throw new HttpError(409, 'Vous possédez déjà cette carte.');
+    if (!day.offers.includes(card)) throw new HttpError(400, msg('Cette carte n\'est plus en vente aujourd\'hui.'));
+    if (day.bought.includes(card) || a.cards[card]) throw new HttpError(409, msg('Vous possédez déjà cette carte.'));
     pay(a, cfg().cardPrice);
     day.bought.push(card);
     activity.count('cardsBought');
     const got = add(a, [card]);
     await store.put(a);
-    return { title: 'Achat', cards: [card], ...got, shop: shopView(a), account: me(a) };
+    return { title: msg('Achat'), cards: [card], ...got, shop: shopView(a), account: me(a) };
   }
   // Doublon du jour : l'essence d'un doublon pour cette carte (sans les Éclats d'un doublon tiré), une fois par offre et par jour.
   // Ce qui dépasse le plafond de la carte devient de l'essence universelle.
   async function buyDup(a, { card }) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     const day = dupDay(a);
-    if (!day.offers.includes(card)) throw new HttpError(400, 'Ce doublon n\'est plus en vente aujourd\'hui.');
-    if (day.bought.includes(card)) throw new HttpError(409, 'Doublon déjà acheté aujourd\'hui.');
-    if (!canLevel(a)(card)) throw new HttpError(409, 'Cette carte a déjà toute l\'essence qu\'il lui faut jusqu\'au niveau maximum.');
+    if (!day.offers.includes(card)) throw new HttpError(400, msg('Ce doublon n\'est plus en vente aujourd\'hui.'));
+    if (day.bought.includes(card)) throw new HttpError(409, msg('Doublon déjà acheté aujourd\'hui.'));
+    if (!canLevel(a)(card)) throw new HttpError(409, msg('Cette carte a déjà toute l\'essence qu\'il lui faut jusqu\'au niveau maximum.'));
     pay(a, cfg().dupPrice);
     day.bought.push(card);
     const got = progress.giveEssence(a, card, progress.essenceRate());
@@ -239,18 +245,18 @@ export function createAccounts(store) {
   }
   // Rayon Essence : essence universelle contre l'essence d'une carte, ou contre un art de l'édition Essence.
   function payUni(a, price) {
-    if ((a.uniEssence || 0) < price) throw new HttpError(409, `Il vous faut ${price} essence universelle (vous en avez ${a.uniEssence || 0}).`);
+    if ((a.uniEssence || 0) < price) throw new HttpError(409, msg('Il vous faut {price} essence universelle (vous en avez {have}).', { price, have: a.uniEssence || 0 }));
     a.uniEssence = (a.uniEssence || 0) - price;
   }
   async function convertEssence(a, body) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     const got = progress.convertEssence(a, body || {});
     activity.count('essenceConverted');
     await store.put(a);
     return { ...got, shop: shopView(a), account: me(a) };
   }
   async function buyEssenceArt(a, body) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     const art = arts.buyEssence(a, body || {}, payUni);
     activity.count('artsBought');
     progress.check(a);
@@ -262,21 +268,21 @@ export function createAccounts(store) {
     const set = openSet(a, setId);
     const c = cfg();
     if (free) {
-      if (!(a.freeBoosters > 0)) throw new HttpError(409, 'Aucun booster offert à ouvrir.');
+      if (!(a.freeBoosters > 0)) throw new HttpError(409, msg('Aucun booster offert à ouvrir.'));
       a.freeBoosters--;
     } else pay(a, setBoosterPrice(set, c.boosterPrice));
     const cards = Array.from({ length: c.boosterSize }, () => pick(set.cards)), got = add(a, cards);
     activity.count(free ? 'boosterFree' : 'boosterBought');
     await store.put(a);
-    return { title: `${free ? 'Booster offert' : 'Booster'} ${set.name}`, cards, ...got, shop: shopView(a), account: me(a) };
+    return { title: `${free ? 'Booster offert' : 'Booster'} ${set.name}`, titleMsg: msg(free ? 'Booster offert {set}' : 'Booster {set}', { set: [set.name] }), cards, ...got, shop: shopView(a), account: me(a) };
   }
   // Arts alternatifs : achat d'un art du jour, coffre, choix de l'art d'une carte. Payés en Prismes.
   function payPrisms(a, price) {
-    if ((a.prisms || 0) < price) throw new HttpError(409, `Il vous faut ${price} Prismes (vous en avez ${a.prisms || 0}).`);
+    if ((a.prisms || 0) < price) throw new HttpError(409, msg('Il vous faut {price} Prismes (vous en avez {have}).', { price, have: a.prisms || 0 }));
     a.prisms = (a.prisms || 0) - price;
   }
   async function buyArt(a, body) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     const art = arts.buy(a, body || {}, payPrisms);
     activity.count('artsBought');
     progress.check(a);
@@ -285,7 +291,7 @@ export function createAccounts(store) {
   }
   // free : coffre offert (succès rares, dimanches du calendrier), sinon payé en Prismes.
   async function openChest(a, { free } = {}) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     const art = arts.chest(a, free ? useFreeChest : payPrisms);
     a.stats.chests = (a.stats.chests || 0) + 1;
     activity.count('chests');
@@ -294,15 +300,15 @@ export function createAccounts(store) {
     return { art: art.id, chest: true, shop: shopView(a), account: me(a) };
   }
   function useFreeChest(a) {
-    if (!(a.freeChests > 0)) throw new HttpError(409, 'Aucun coffre offert à ouvrir.');
+    if (!(a.freeChests > 0)) throw new HttpError(409, msg('Aucun coffre offert à ouvrir.'));
     a.freeChests--;
   }
   // Prismes changés en Éclats par offres fixes (exchangeOffers), au taux réglé dans /admin (prismShards ; 0 ferme le change). Jamais l'inverse.
   async function convertPrisms(a, { offer }) {
     const all = exchangeOffers(cfg().prismShards);
-    if (!all.length) throw new HttpError(409, 'Le change de Prismes est fermé pour le moment.');
+    if (!all.length) throw new HttpError(409, msg('Le change de Prismes est fermé pour le moment.'));
     const o = all.find(x => x.id === offer);
-    if (!o) throw new HttpError(400, 'Cette offre de change n\'existe pas.');
+    if (!o) throw new HttpError(400, msg('Cette offre de change n\'existe pas.'));
     payPrisms(a, o.prisms);
     a.shards = (a.shards || 0) + o.shards;
     activity.count('exchanges');
@@ -311,14 +317,14 @@ export function createAccounts(store) {
   }
   // Calendrier de connexion : récompense du jour.
   async function claimDay(a) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     const got = progress.claimDay(a);
     await store.put(a);
     return { got, account: me(a) };
   }
   // Bienvenue des nouveaux comptes : récompense suivante, une par jour de connexion distinct.
   async function claimWelcome(a) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     const got = progress.claimWelcome(a);
     await store.put(a);
     return { got, account: me(a) };
@@ -326,7 +332,7 @@ export function createAccounts(store) {
   // Passe de saison : écran du passe, achat du premium en Prismes.
   async function passView(a) { const r = progress.passView(a); await store.put(a); return r; }
   async function buyPass(a) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     progress.buyPass(a, payPrisms);
     await store.put(a);
     return { ...progress.passView(a), account: me(a) };
@@ -334,7 +340,7 @@ export function createAccounts(store) {
   // Récompense du courrier ou d'un code cadeau : monnaies, XP, boosters et coffres offerts, art, carte (un doublon devient des Éclats et de l'essence).
   // Renvoie ce que la carte a donné, ou null.
   function giveReward(a, r) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     const { card, ...rest } = r;
     progress.grant(a, rest, { silent: true });
     const got = card ? add(a, [card]) : null;
@@ -348,15 +354,15 @@ export function createAccounts(store) {
   // Decks : créer (sans id) ou enregistrer un deck, même incomplet ; seul un deck complet peut être joué.
   const deckName = (name, fallback) => String(name ?? '').trim().slice(0, 30) || fallback;
   function ownDeck(a, id) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
-    const d = (a.decks || []).find(x => x.id === id); if (!d) throw new HttpError(404, 'Deck introuvable.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
+    const d = (a.decks || []).find(x => x.id === id); if (!d) throw new HttpError(404, msg('Deck introuvable.'));
     return d;
   }
   async function saveDeck(a, body) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     const old = body?.id ? ownDeck(a, body.id) : null;
-    if (!old && a.decks.length >= MAX_DECKS) throw new HttpError(409, `${MAX_DECKS} decks au plus : supprimez-en un d'abord.`);
-    const d = { id: old ? old.id : newDeckId(), name: deckName(body?.name, old?.name || `Deck ${a.decks.length + 1}`),
+    if (!old && a.decks.length >= MAX_DECKS) throw new HttpError(409, msg('{n} decks au plus : supprimez-en un d\'abord.', { n: MAX_DECKS }));
+    const d = { id: old ? old.id : newDeckId(), name: deckName(body?.name, old?.name || t('Deck {n}', { n: a.decks.length + 1 })),
       general: body?.general || null, terrains: body?.terrains, cards: body?.cards };
     const err = draftError(d, a); if (err) throw new HttpError(400, err);
     const deck = cleanDeck(d);
@@ -376,7 +382,7 @@ export function createAccounts(store) {
   }
   async function playDeck(a, { id }) {
     const d = ownDeck(a, id), err = deckError(d, a);
-    if (err) throw new HttpError(409, `Ce deck n'est pas jouable : ${err}`);
+    if (err) throw new HttpError(409, msg('Ce deck n\'est pas jouable : {err}', { err }));
     a.active = d.id; await store.put(a); return { account: me(a) };
   }
   // Remet un deck à zéro : il garde son nom, sans général, terrain ni carte.
@@ -387,7 +393,7 @@ export function createAccounts(store) {
   }
   async function deleteDeck(a, { id }) {
     const d = ownDeck(a, id);
-    if (a.decks.length <= 1) throw new HttpError(409, 'Gardez au moins un deck : remettez-le à zéro plutôt.');
+    if (a.decks.length <= 1) throw new HttpError(409, msg('Gardez au moins un deck : remettez-le à zéro plutôt.'));
     a.decks = a.decks.filter(x => x !== d);
     if (a.active === d.id) a.active = (a.decks.find(x => !deckError(x, a)) || a.decks[0]).id;
     await store.put(a); return { account: me(a) };
@@ -404,11 +410,11 @@ export function createAccounts(store) {
   async function saveProfile(a, { name, avatar }) {
     if (name !== undefined) {
       const n = String(name).trim();
-      if (!n || n.length > 20) throw new HttpError(400, 'Pseudo : 1 à 20 caractères.');
+      if (!n || n.length > 20) throw new HttpError(400, msg('Pseudo : 1 à 20 caractères.'));
       a.name = n;
     }
     if (avatar !== undefined) {
-      if (avatar !== null && (typeof avatar !== 'string' || avatar.length > AVATAR_MAX || !AVATAR_RE.test(avatar))) throw new HttpError(400, 'Image de profil invalide ou trop lourde.');
+      if (avatar !== null && (typeof avatar !== 'string' || avatar.length > AVATAR_MAX || !AVATAR_RE.test(avatar))) throw new HttpError(400, msg('Image de profil invalide ou trop lourde.'));
       a.avatar = avatar || null;
     }
     await store.put(a);
@@ -425,13 +431,13 @@ export function createAccounts(store) {
   async function buyEmote(a, body) { const emote = progress.buyEmote(a, body || {}); await store.put(a); activity.count('emotesBought'); return { emote, account: me(a) }; }
   // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes le sont. Affiché par le panneau de fin (silent).
   async function lessonDone(a, { lesson } = {}) {
-    const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l) throw new HttpError(400, 'Leçon inconnue.');
+    const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l) throw new HttpError(400, msg('Leçon inconnue.'));
     progress.init(a);
     const done = a.tuto ||= [];
     if (done.includes(l.id)) return { reward: null, account: me(a) };
     done.push(l.id);
     const r = progress.cfg(), all = TUTO_LESSONS.every(x => done.includes(x.id));
-    const reward = { kind: 'tuto', label: `Leçon finie : ${l.name}`, shards: r.tutoShards, boosters: all ? r.tutoBoosters : 0, all };
+    const reward = { kind: 'tuto', label: `Leçon finie : ${l.name}`, labelMsg: msg('Leçon finie : {name}', { name: [l.name] }), shards: r.tutoShards, boosters: all ? r.tutoBoosters : 0, all };
     progress.grant(a, reward, { silent: true });
     await store.put(a);
     return { reward, account: me(a) };
@@ -439,9 +445,9 @@ export function createAccounts(store) {
   // Tutoriel « Améliorer une carte », une fois par compte : un doublon du général du deck joué (Éclats et essence du doublon),
   // plus les Éclats (et au besoin l'essence) du passage au niveau 2, pour que le joueur l'améliore aussitôt.
   async function tutoGift(a) {
-    if (a.tutoGift) throw new HttpError(409, 'Cadeau déjà reçu.');
+    if (a.tutoGift) throw new HttpError(409, msg('Cadeau déjà reçu.'));
     const card = activeDeck(a)?.general;
-    if (!card || !a.cards?.[card]) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!card || !a.cards?.[card]) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     progress.init(a);
     add(a, [card]);
     const cost = levelCost(2, progress.cfg());
@@ -566,7 +572,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminWelcome, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -574,13 +580,18 @@ export function createAccounts(store) {
     setCatalogVersion: v => { catalogVersion = v; } };
 }
 
-export class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
+// Erreur renvoyée au joueur : m est un texte français ou un msg(modèle, variables) (ou m et vars à part), traduit à l'envoi
+// dans la langue de la requête (en-tête X-Lang) ; message reste en français (journaux, appels internes).
+export class HttpError extends Error {
+  constructor(status, m, vars) { const x = vars ? [m, vars] : m; super(trMsg('fr', x)); this.status = status; this.msg = x; }
+  text(lang) { return trMsg(lang, this.msg); }
+}
 
 // Routeur de l'API. Renvoie false si l'adresse n'est pas une route de l'API.
 // extra : routes d'autres modules ; open : routes accessibles sans session.
 export function apiHandler(accounts, adminKey, extra = {}, open = []) {
   const routes = {
-    'POST /api/login': (_, body) => accounts.login(body),
+    'POST /api/login': (_, body, __, ___, lang) => accounts.login(body, lang),
     'GET /api/me': a => ({ account: accounts.me(a) }),
     'POST /api/logout': (a, _, token) => accounts.logout(a, token),
     'POST /api/starter': (a, body) => accounts.chooseStarter(a, body),
@@ -647,8 +658,10 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
       if (body.length > 2048 && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) { body = gzipSync(body); headers['content-encoding'] = 'gzip'; }
       res.writeHead(status, headers); res.end(body);
     };
+    // Langue des messages : en-tête X-Lang (français sans en-tête : /admin et anciennes versions de l'appli).
+    const lang = pickLang(req.headers['x-lang']), given = validLang(req.headers['x-lang']);
     try {
-      const route = routes[key]; if (!route) throw new HttpError(404, 'Route inconnue.');
+      const route = routes[key]; if (!route) throw new HttpError(404, msg('Route inconnue.'));
       const token = (req.headers.authorization || '').replace(/^Bearer /, '');
       let acc = null;
       if (url.pathname.startsWith('/api/admin/')) {
@@ -656,18 +669,20 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
         const given = Buffer.from(String(req.headers['x-admin-key'] || '')), want = Buffer.from(adminKey);
         if (given.length !== want.length || !timingSafeEqual(given, want)) throw new HttpError(401, 'Clé d\'administration incorrecte.');
       } else if (key !== 'POST /api/login' && !open.includes(key)) {
-        acc = accounts.byToken(token); if (!acc) throw new HttpError(401, 'Session expirée : reconnectez-vous.');
+        acc = accounts.byToken(token); if (!acc) throw new HttpError(401, msg('Session expirée : reconnectez-vous.'));
         accounts.activity.seen(acc);
+        accounts.setLang(acc, given);
       }
       let body = {};
       if (req.method !== 'GET') {
-        let raw = ''; for await (const chunk of req) { raw += chunk; if (raw.length > 100_000) throw new HttpError(413, 'Requête trop grande.'); }
-        try { body = raw ? JSON.parse(raw) : {}; } catch { throw new HttpError(400, 'JSON invalide.'); }
+        let raw = ''; for await (const chunk of req) { raw += chunk; if (raw.length > 100_000) throw new HttpError(413, msg('Requête trop grande.')); }
+        try { body = raw ? JSON.parse(raw) : {}; } catch { throw new HttpError(400, msg('JSON invalide.')); }
       }
-      json(200, await route(acc, body, token, url));
+      // Le début de la route (jusqu'à son premier await) tourne dans la langue de la requête : deckError… y sont traduits.
+      json(200, await withLang(lang, () => route(acc, body, token, url, given)));
     } catch (e) {
       if (!(e instanceof HttpError)) console.error(e);
-      json(e.status || 500, { error: e instanceof HttpError ? e.message : 'Erreur du serveur.' });
+      json(e.status || 500, { error: e instanceof HttpError ? e.text(lang) : tr(lang, 'Erreur du serveur.') });
     }
     return true;
   };

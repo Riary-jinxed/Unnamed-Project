@@ -5,15 +5,18 @@
 // Un joueur qui a l'appli ouverte (connexion de présence, friends.js) ne reçoit rien : l'appli le prévient déjà.
 import webpush from 'web-push';
 import { today } from '@jeu/engine/collection';
-import { seasonId, seasonName, seasonDaysLeft } from '@jeu/engine/ranked';
+import { seasonId, seasonDaysLeft } from '@jeu/engine/ranked';
 import { EVENT_EFFECTS, multLabel } from '@jeu/engine/events';
 import { HttpError } from './accounts.js';
+import { msg, tr, trMsg } from '@jeu/engine/i18n';
+import { langOf, withLang } from './i18n.js';
+import { seasonMsg } from './progress.js';
 
 export const PUSH_KINDS = {
-  daily: { label: 'Missions et récompenses du jour', hint: 'Un rappel en fin d\'après-midi si vous n\'êtes pas encore venu : nouvelles missions, récompense de connexion, coffres à ouvrir.' },
-  events: { label: 'Événements et Boss mondial', hint: 'Le début d\'un événement (double XP, bonus d\'Éclats…) ou l\'arrivée d\'un Boss mondial.' },
-  social: { label: 'Amis et clan', hint: 'Une demande d\'ami ou d\'entrée dans votre clan, une demande acceptée.' },
-  season: { label: 'Fin de saison', hint: 'Le dernier jour de la saison classée et du passe de saison.' },
+  daily: { label: msg('Missions et récompenses du jour'), hint: msg('Un rappel en fin d\'après-midi si vous n\'êtes pas encore venu : nouvelles missions, récompense de connexion, coffres à ouvrir.') },
+  events: { label: msg('Événements et Boss mondial'), hint: msg('Le début d\'un événement (double XP, bonus d\'Éclats…) ou l\'arrivée d\'un Boss mondial.') },
+  social: { label: msg('Amis et clan'), hint: msg('Une demande d\'ami ou d\'entrée dans votre clan, une demande acceptée.') },
+  season: { label: msg('Fin de saison'), hint: msg('Le dernier jour de la saison classée et du passe de saison.') },
 };
 // Heures (de Paris) des envois planifiés.
 const HOUR = { events: 10, season: 12, daily: 18 };
@@ -36,17 +39,20 @@ export function createPush(store, accounts, { isOnline = () => false, events } =
 
   const state = a => (a.push ||= { subs: [], off: [] });
   const wants = (a, kind) => !!a.push?.subs?.length && !a.push.off?.includes(kind) && !a.disabled;
-  const view = a => { const p = state(a);
-    return { publicKey: keys.publicKey, devices: p.subs.length, kinds: Object.entries(PUSH_KINDS).map(([id, k]) => ({ id, ...k, on: !p.off.includes(id) })) }; };
+  const view = a => { const p = state(a), lang = langOf(a);
+    return { publicKey: keys.publicKey, devices: p.subs.length, kinds: Object.entries(PUSH_KINDS).map(([id, k]) => ({ id, label: tr(lang, k.label), hint: tr(lang, k.hint), on: !p.off.includes(id) })) }; };
 
   // Envoie une notification à tous les appareils du joueur. Un appareil que le service dit disparu (404, 410) est oublié.
-  // msg = { title, body, tag, open } ; open : l'écran que l'appli ouvre quand on touche la notification.
-  async function send(login, kind, msg, { evenOnline = false } = {}) {
+  // note = { title, body, tag, open } ; open : l'écran que l'appli ouvre quand on touche la notification.
+  // title et body : textes français ou msg(modèle, variables), traduits dans la langue du joueur (a.lang). note peut aussi être
+  // une fonction (langue) => { … }, appelée pour chaque joueur dans sa langue (textes composés par le moteur).
+  async function send(login, kind, note, { evenOnline = false } = {}) {
     const a = store.get(login);
     if (!a || !wants(a, kind) || (!evenOnline && isOnline(login))) return 0;
-    const payload = JSON.stringify({ kind, ...msg });
+    const lang = langOf(a), m = typeof note === 'function' ? withLang(lang, () => note(lang)) : note;
+    const payload = JSON.stringify({ kind, ...m, title: trMsg(lang, m.title), body: trMsg(lang, m.body) });
     // Sujet : une notification en attente est remplacée par la suivante du même sujet (32 caractères au plus, lettres, chiffres, - et _).
-    const topic = String(msg.tag || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) || undefined;
+    const topic = String(m.tag || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) || undefined;
     let sent = 0, gone = false;
     await Promise.all(a.push.subs.map(s => webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, payload, { TTL: 12 * 3600, urgency: 'normal', topic })
       .then(() => { sent++; })
@@ -55,14 +61,14 @@ export function createPush(store, accounts, { isOnline = () => false, events } =
     if (sent && PUSH_KINDS[kind]) accounts.activity.count(`pushSent:${kind}`);
     return sent;
   }
-  const sendMany = (logins, kind, msg) => Promise.all([...new Set(logins)].map(l => send(l, kind, msg))).then(n => n.reduce((x, y) => x + y, 0));
+  const sendMany = (logins, kind, note) => Promise.all([...new Set(logins)].map(l => send(l, kind, note))).then(n => n.reduce((x, y) => x + y, 0));
   // Tous les joueurs qui ont activé cette sorte (début d'événement, Boss mondial, fin de saison).
-  const broadcast = (kind, msg) => sendMany(store.all().filter(a => wants(a, kind)).map(a => a.login), kind, msg);
+  const broadcast = (kind, note) => sendMany(store.all().filter(a => wants(a, kind)).map(a => a.login), kind, note);
 
   // ---- Routes ----
   async function subscribe(a, { sub }) {
     const endpoint = String(sub?.endpoint || ''), p256dh = String(sub?.keys?.p256dh || ''), auth = String(sub?.keys?.auth || '');
-    if (!/^https:\/\//.test(endpoint) || endpoint.length > 1000 || !p256dh || !auth || p256dh.length > 200 || auth.length > 100) throw new HttpError(400, 'Abonnement aux notifications invalide.');
+    if (!/^https:\/\//.test(endpoint) || endpoint.length > 1000 || !p256dh || !auth || p256dh.length > 200 || auth.length > 100) throw new HttpError(400, msg('Abonnement aux notifications invalide.'));
     // Un appareil ne sert qu'à un compte : celui qui s'y est connecté en dernier.
     for (const b of store.all()) if (b !== a && b.push?.subs?.some(s => s.endpoint === endpoint)) { b.push.subs = b.push.subs.filter(s => s.endpoint !== endpoint); await store.put(b); }
     const p = state(a);
@@ -77,17 +83,17 @@ export function createPush(store, accounts, { isOnline = () => false, events } =
     return view(a);
   }
   async function setKinds(a, { kinds }) {
-    if (!kinds || typeof kinds !== 'object') throw new HttpError(400, 'Réglages invalides.');
+    if (!kinds || typeof kinds !== 'object') throw new HttpError(400, msg('Réglages invalides.'));
     const p = state(a);
     p.off = Object.keys(PUSH_KINDS).filter(id => (id in kinds ? !kinds[id] : p.off.includes(id)));
     await store.put(a);
     return view(a);
   }
   async function test(a) {
-    if (!state(a).subs.length) throw new HttpError(409, 'Activez d\'abord les notifications sur cet appareil.');
-    const n = await send(a.login, 'test', { title: 'Notifications activées', body: 'Vous serez prévenu ici, même appli fermée.', tag: 'test', open: 'home' }, { evenOnline: true });
-    if (!n) throw new HttpError(502, 'La notification n\'est pas partie : réessayez dans un moment.');
-    return { ...view(a), msg: 'Notification envoyée.' };
+    if (!state(a).subs.length) throw new HttpError(409, msg('Activez d\'abord les notifications sur cet appareil.'));
+    const n = await send(a.login, 'test', { title: msg('Notifications activées'), body: msg('Vous serez prévenu ici, même appli fermée.'), tag: 'test', open: 'home' }, { evenOnline: true });
+    if (!n) throw new HttpError(502, msg('La notification n\'est pas partie : réessayez dans un moment.'));
+    return { ...view(a), msg: tr(langOf(a), 'Notification envoyée.') };
   }
 
   // ---- Envois planifiés ----
@@ -105,28 +111,31 @@ export function createPush(store, accounts, { isOnline = () => false, events } =
     const last = (a.activeDays || []).at(-1);
     if (!last || daysBetween(last, day) > DAILY_ACTIVE_DAYS) return null;
     const chests = a.freeChests || 0;
-    return { title: 'Vos récompenses du jour vous attendent', tag: 'daily', open: 'calendar',
-      body: `Nouvelles missions et récompense de connexion à récupérer${chests ? `, et ${chests} coffre${chests > 1 ? 's' : ''} d'arts à ouvrir` : ''}.` };
+    return { title: msg('Vos récompenses du jour vous attendent'), tag: 'daily', open: 'calendar',
+      body: chests ? msg(chests > 1 ? 'Nouvelles missions et récompense de connexion à récupérer, et {n} coffres d\'arts à ouvrir.' : 'Nouvelles missions et récompense de connexion à récupérer, et {n} coffre d\'arts à ouvrir.', { n: chests })
+        : msg('Nouvelles missions et récompense de connexion à récupérer.') };
   }
   async function tick(now = new Date()) {
     const day = today(now), hour = hourOf(now);
     if (events && hour >= HOUR.events) {
       for (const ev of events.view(day).live.filter(e => e.from === day))
-        await once(`ev-${ev.id}-${ev.from}`, () => broadcast('events', { title: `${ev.name[0].toUpperCase()}${ev.name.slice(1)} : c'est parti !`,
-          body: `${multLabel(ev.mult)} sur les ${EVENT_EFFECTS[ev.effect].what}, ${ev.period}.`, tag: `ev-${ev.id}`, open: 'home' }));
+        // Texte de chaque joueur dans sa langue : nom de l'événement, période et effet traduits (période composée par le moteur).
+        await once(`ev-${ev.id}-${ev.from}`, () => broadcast('events', lang => { const name = tr(lang, ev.name), o = events.view(day).live.find(e => e.id === ev.id) || ev;
+          return { title: msg('{name} : c\'est parti !', { name: `${name[0].toUpperCase()}${name.slice(1)}` }),
+            body: msg('{mult} sur les {what}, {period}.', { mult: tr(lang, multLabel(ev.mult)), what: tr(lang, EVENT_EFFECTS[ev.effect].what), period: o.period }), tag: `ev-${ev.id}`, open: 'home' }; }));
     }
     if (hour >= HOUR.season && seasonDaysLeft(now) === 1) {
       const s = seasonId(now);
-      await once(`saison-${s}`, () => broadcast('season', { title: `Dernier jour de la saison ${seasonName(s)}`,
-        body: 'Elle se termine ce soir à minuit : grimpez encore d\'un rang et finissez votre passe de saison.', tag: 'season', open: 'ranked' }));
+      await once(`saison-${s}`, () => broadcast('season', { title: msg('Dernier jour de la saison {season}', { season: seasonMsg(s) }),
+        body: msg('Elle se termine ce soir à minuit : grimpez encore d\'un rang et finissez votre passe de saison.'), tag: 'season', open: 'ranked' }));
     }
     if (hour >= HOUR.daily) {
       for (const a of store.all()) {
         if (!wants(a, 'daily') || a.push.daily === day || isOnline(a.login)) continue;
-        const msg = dailyMsg(a, day);
+        const note = dailyMsg(a, day);
         a.push.daily = day;
         await store.put(a);
-        if (msg) await send(a.login, 'daily', msg);
+        if (note) await send(a.login, 'daily', note);
       }
     }
   }

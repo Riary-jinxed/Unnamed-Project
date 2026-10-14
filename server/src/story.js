@@ -9,6 +9,7 @@
 import { today } from '@jeu/engine/collection';
 import { QUESTS, questById, isLimited, questCfg, questState, questDaysLeft, chapterReward, releasedStoryCards, DEFAULT_STORY, REWARD_KEYS, STORY_LIMITS } from '@jeu/engine/story';
 import { HttpError } from './accounts.js';
+import { msg } from '@jeu/engine/i18n';
 
 // Une quête limitée se montre « bientôt » quelques jours avant son début.
 const TEASE_DAYS = 7;
@@ -50,18 +51,18 @@ export function createStory(store, accounts, { onChange = () => {} } = {}) {
   // Chapitre gagné : la récompense la première fois (les chapitres déjà gagnés se rejouent sans récompense).
   async function win(a, body) {
     const q = questById(String(body.quest || '')), i = Number(body.chapter);
-    if (!q || !Number.isInteger(i) || i < 0 || i >= q.chapters.length) throw new HttpError(400, 'Chapitre inconnu.');
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!q || !Number.isInteger(i) || i < 0 || i >= q.chapters.length) throw new HttpError(400, msg('Chapitre inconnu.'));
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     const c = cfg(q.id);
     const state = questState(q, c, today());
-    if (state !== 'open' && state !== 'archive') throw new HttpError(409, state === 'soon' ? 'Cette quête n\'a pas encore commencé.' : state === 'over' ? 'Cette quête est terminée.' : 'Cette quête est fermée pour le moment.');
+    if (state !== 'open' && state !== 'archive') throw new HttpError(409, state === 'soon' ? msg('Cette quête n\'a pas encore commencé.') : state === 'over' ? msg('Cette quête est terminée.') : msg('Cette quête est fermée pour le moment.'));
     const n = won(a, q.id);
-    if (i > n) throw new HttpError(409, 'Gagnez d\'abord les chapitres précédents.');
+    if (i > n) throw new HttpError(409, msg('Gagnez d\'abord les chapitres précédents.'));
     if (!a.level) progress.init(a);
     if (i < n) return { reward: null, replay: true, story: view(a), account: accounts.me(a) };
     a.story = { ...(a.story || {}), [q.id]: n + 1 };
     const done = n + 1 === q.chapters.length;
-    const reward = { kind: 'story', label: `${q.name} : ${q.chapters[i].name}`, ...chapterReward(q, i, c, state === 'archive') };
+    const reward = { kind: 'story', label: `${q.name} : ${q.chapters[i].name}`, labelMsg: msg('{quest} : {chapter}', { quest: [q.name], chapter: [q.chapters[i].name] }), ...chapterReward(q, i, c, state === 'archive') };
     progress.grant(a, reward, { silent: true });
     progress.count(a, 'storyChapters');
     accounts.activity.count('storyChapters');

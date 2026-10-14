@@ -13,11 +13,14 @@ import { CLAN_PRICE, CLAN_NAME_MAX, CLAN_TAG_RE, CLAN_DESC_MAX, MAX_REQUESTS, MA
   CLAN_ICONS, CLAN_COLORS, CLAN_MISSION_KINDS, CLAN_DAILY, CLAN_WEEKLY, CLAN_MISSION_REWARDS, clanMissionLabel, clanTarget, clanShare, clanDay, clanWeek,
   DONATIONS, donationCoins, CLAN_ROLES, ROLE_RANK, CLAN_ROLE_MAX, CLAN_INACTIVE_DAYS, canDo, CLAN_PROJECTS, projectCost, CLAN_SHOP, clanItem, CLAN_LADDER_SIZE, CLAN_PLACES, clanPlaceOf } from '@jeu/engine/clans';
 import { HttpError } from './accounts.js';
+import { msg, trMsg } from '@jeu/engine/i18n';
+import { langOf, inLang } from './i18n.js';
+import { seasonMsg } from './progress.js';
 
 const LOG_MAX = 30;
 const now = () => new Date().toISOString();
 const avatarKey = a => (a.avatar ? createHash('sha1').update(a.avatar).digest('hex').slice(0, 12) : null);
-const plural = (n, w) => `${n} ${w}${n > 1 ? 's' : ''}`;
+const coinsMsg = n => msg(n > 1 ? '{n} Écus' : '{n} Écu', { n });
 
 // push : les notifications push (push.js), pour les demandes d'entrée et leur réponse.
 export function createClans(store, accounts, push = null) {
@@ -25,7 +28,9 @@ export function createClans(store, accounts, push = null) {
   const progress = accounts.progress;
   const save = () => store.putDoc('clans', clans).catch(e => console.error('Clans non enregistrés :', e));
   const put = a => store.put(a).catch(e => console.error('Compte non enregistré :', e));
-  const log = (c, text) => { c.log = [{ at: now(), text }, ...(c.log || [])].slice(0, LOG_MAX); };
+  // Journal du clan : m est un msg(modèle, variables) ; text garde le texte français, textMsg le modèle traduit à l'affichage.
+  // Les variables [texte] sont traduites par leur clé (noms de bannières, de projets, de rôles…).
+  const log = (c, m) => { c.log = [{ at: now(), text: trMsg('fr', m), ...(Array.isArray(m) ? { textMsg: m } : {}) }, ...(c.log || [])].slice(0, LOG_MAX); };
   const nameOf = login => store.get(login)?.name || login;
   const pushTo = (logins, msg) => push?.sendMany(logins, 'social', { tag: 'clan', open: 'clan', ...msg }).catch(e => console.error('Notification :', e));
   const level = c => clanLevelOf(c.xp || 0);
@@ -48,11 +53,11 @@ export function createClans(store, accounts, push = null) {
     if (a.clan) a.clan = null;
     return null;
   }
-  const mine = a => { const c = clanOf(a); if (!c) throw new HttpError(409, 'Vous n\'êtes dans aucun clan.'); return c; };
+  const mine = a => { const c = clanOf(a); if (!c) throw new HttpError(409, msg('Vous n\'êtes dans aucun clan.')); return c; };
   // Rôles : le Maître est c.leader ; les adjoints et sous-chefs sont dans c.roles ; les autres sont membres.
   const roleOf = (c, login) => (c.leader === login ? 'maitre' : c.roles?.[login] || 'membre');
-  const RIGHT_MSG = { requests: 'Seuls le Maître, les adjoints et les sous-chefs peuvent faire cela.', kick: 'Seuls le Maître, les adjoints et les sous-chefs peuvent exclure.',
-    roles: 'Seuls le Maître et les adjoints peuvent nommer.', edit: 'Seuls le Maître et les adjoints peuvent régler le clan.', treasury: 'Seuls le Maître et les adjoints peuvent dépenser le trésor.' };
+  const RIGHT_MSG = { requests: msg('Seuls le Maître, les adjoints et les sous-chefs peuvent faire cela.'), kick: msg('Seuls le Maître, les adjoints et les sous-chefs peuvent exclure.'),
+    roles: msg('Seuls le Maître et les adjoints peuvent nommer.'), edit: msg('Seuls le Maître et les adjoints peuvent régler le clan.'), treasury: msg('Seuls le Maître et les adjoints peuvent dépenser le trésor.') };
   const need = (a, right) => { const c = mine(a); if (!canDo(roleOf(c, a.login), right)) throw new HttpError(403, RIGHT_MSG[right]); return c; };
   // Qui prend la tête du clan quand le Maître part : l'adjoint le plus ancien, sinon le sous-chef le plus ancien, sinon le membre le plus ancien.
   function successor(c) {
@@ -97,21 +102,22 @@ export function createClans(store, accounts, push = null) {
     const R = CLAN_MISSION_REWARDS[scope], before = level(c);
     const r = { xp: Math.round(R.xp * (boostOn(c, 'etendard') ? CLAN_PROJECTS.etendard.xp : 1)), coins: Math.round(R.coins * (boostOn(c, 'festin') ? CLAN_PROJECTS.festin.coins : 1)) };
     m.done = true; c.xp = (c.xp || 0) + r.xp;
-    log(c, `Mission ${scope === 'daily' ? 'du jour' : 'de la semaine'} accomplie : ${clanMissionLabel(m)} (+${r.xp} XP de clan)`);
+    const what = { label: clanMissionLabel(m), xp: r.xp };
+    log(c, scope === 'daily' ? msg('Mission du jour accomplie : {label} (+{xp} XP de clan)', what) : msg('Mission de la semaine accomplie : {label} (+{xp} XP de clan)', what));
     const label = `Mission de clan accomplie : ${clanMissionLabel(m)}`;
     for (const login of Object.keys(m.by)) {
       if (!c.members.includes(login)) continue;
       const b = login === current?.login ? current : store.get(login); if (!b) continue;
-      progress.grant(b, { kind: 'clan', label, clanCoins: r.coins });
+      progress.grant(b, { kind: 'clan', label, labelMsg: msg('Mission de clan accomplie : {label}', { label: inLang(b, () => clanMissionLabel(m)) }), clanCoins: r.coins });
       progress.count(b, 'clanMissions');
       if (b !== current) put(b);
     }
     const after = level(c);
     if (after > before) {
-      log(c, `Le clan passe au niveau ${after} !`);
+      log(c, msg('Le clan passe au niveau {n} !', { n: after }));
       for (const login of c.members) {
         const b = login === current?.login ? current : store.get(login); if (!b) continue;
-        progress.grant(b, { kind: 'clan', label: `Votre clan ${c.name} passe au niveau ${after}` });
+        progress.grant(b, { kind: 'clan', label: `Votre clan ${c.name} passe au niveau ${after}`, labelMsg: msg('Votre clan {name} passe au niveau {n}', { name: c.name, n: after }) });
         progress.best(b, 'bestClanLevel', after);
         if (b !== current) put(b);
       }
@@ -159,10 +165,12 @@ export function createClans(store, accounts, push = null) {
     for (const x of top) {
       const p = CLAN_PLACES[clanPlaceOf(x.pos)], c = clans[x.id]; if (!p || !c) continue;
       (c.banners ||= []).push({ id: p.banner, name: p.bannerName, season, pos: x.pos });
-      log(c, `${seasonName(season)} : ${x.pos === 1 ? '1re' : `${x.pos}e`} place du classement des clans, ${p.bannerName.toLowerCase()} gagnée`);
+      log(c, msg(x.pos === 1 ? '{season} : 1re place du classement des clans, {banner} gagnée' : '{season} : {pos}e place du classement des clans, {banner} gagnée',
+        { season: seasonMsg(season), pos: x.pos, banner: [p.bannerName.toLowerCase()] }));
       for (const login of x.logins) {
         const b = store.get(login); if (!b || !b.level) continue;
         progress.grant(b, { kind: 'clan', label: `Classement des clans de ${seasonName(season)} : ${c.name}, ${x.pos === 1 ? '1re' : `${x.pos}e`} place`,
+          labelMsg: msg(x.pos === 1 ? 'Classement des clans de {season} : {name}, 1re place' : 'Classement des clans de {season} : {name}, {pos}e place', { season: seasonMsg(season), name: c.name, pos: x.pos }),
           prisms: p.prisms, clanCoins: p.coins, title: p.title });
         put(b);
       }
@@ -211,7 +219,9 @@ export function createClans(store, accounts, push = null) {
     const lv = c ? level(c) : 0;
     return CLAN_SHOP.filter(x => x.kind !== 'art' || artExists(x.id.slice(4))).map(x => ({ ...x, owned: owns(a, x), locked: lv < x.level }));
   }
-  function view(a) {
+  // Missions rédigées par le moteur : dans la langue du joueur (aussi après un await).
+  function view(a) { return inLang(a, () => viewIn(a)); }
+  function viewIn(a) {
     const c = clanOf(a);
     return { clan: c ? clanView(a, c) : null, coins: a.clanCoins || 0, price: CLAN_PRICE, donations: donView(a), shop: shopView(a, c),
       requested: (a.clanReq || []).map(id => clans[id]).filter(x => x && x.requests.includes(a.login)).map(short),
@@ -232,19 +242,20 @@ export function createClans(store, accounts, push = null) {
     for (const l of [...c.members, ...(canDo(roleOf(c, a.login), 'requests') ? c.requests : [])]) { const b = store.get(l); if (b?.avatar) out[l] = b.avatar; }
     return { avatars: out };
   }
-  const done = (a, msg) => ({ ...view(a), account: accounts.me(a), ...(msg ? { msg } : {}) });
+  // m : texte français ou msg(modèle, variables), traduit dans la langue du joueur.
+  const done = (a, m) => ({ ...view(a), account: accounts.me(a), ...(m ? { msg: trMsg(langOf(a), m) } : {}) });
 
   // ---- Création, adhésion, départ ----
   function cleanName(name) {
     const n = String(name || '').trim().replace(/\s+/g, ' ');
-    if (n.length < 3 || n.length > CLAN_NAME_MAX) throw new HttpError(400, `Le nom du clan fait de 3 à ${CLAN_NAME_MAX} caractères.`);
+    if (n.length < 3 || n.length > CLAN_NAME_MAX) throw new HttpError(400, msg('Le nom du clan fait de 3 à {n} caractères.', { n: CLAN_NAME_MAX }));
     return n;
   }
   function settings(c, { desc, open, icon, color }) {
-    if (desc !== undefined) { const d = String(desc || '').trim(); if (d.length > CLAN_DESC_MAX) throw new HttpError(400, `Description : ${CLAN_DESC_MAX} caractères au plus.`); c.desc = d; }
+    if (desc !== undefined) { const d = String(desc || '').trim(); if (d.length > CLAN_DESC_MAX) throw new HttpError(400, msg('Description : {n} caractères au plus.', { n: CLAN_DESC_MAX })); c.desc = d; }
     if (open !== undefined) c.open = !!open;
-    if (icon !== undefined) { if (!CLAN_ICONS[icon]) throw new HttpError(400, 'Symbole inconnu.'); c.icon = icon; }
-    if (color !== undefined) { if (!CLAN_COLORS[color]) throw new HttpError(400, 'Couleur inconnue.'); c.color = color; }
+    if (icon !== undefined) { if (!CLAN_ICONS[icon]) throw new HttpError(400, msg('Symbole inconnu.')); c.icon = icon; }
+    if (color !== undefined) { if (!CLAN_COLORS[color]) throw new HttpError(400, msg('Couleur inconnue.')); c.color = color; }
   }
   // Entrer dans un clan : les demandes envoyées ailleurs sont retirées.
   function enter(c, b) {
@@ -253,47 +264,47 @@ export function createClans(store, accounts, push = null) {
     if (!c.members.includes(b.login)) c.members.push(b.login);
     c.requests = c.requests.filter(l => l !== b.login);
     (c.joined ||= {})[b.login] = now();
-    log(c, `${b.name} rejoint le clan.`);
+    log(c, msg('{name} rejoint le clan.', { name: b.name }));
     progress.count(b, 'clanJoins'); progress.best(b, 'bestClanLevel', level(c));
   }
   async function create(a, body) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
-    if (clanOf(a)) throw new HttpError(409, 'Quittez d\'abord votre clan.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
+    if (clanOf(a)) throw new HttpError(409, msg('Quittez d\'abord votre clan.'));
     const name = cleanName(body.name), tag = String(body.tag || '').trim().toUpperCase();
-    if (!CLAN_TAG_RE.test(tag)) throw new HttpError(400, 'L\'étiquette du clan fait 2 à 4 lettres ou chiffres.');
+    if (!CLAN_TAG_RE.test(tag)) throw new HttpError(400, msg('L\'étiquette du clan fait 2 à 4 lettres ou chiffres.'));
     const all = Object.values(clans);
-    if (all.some(c => c.name.toLowerCase() === name.toLowerCase())) throw new HttpError(409, 'Un clan porte déjà ce nom.');
-    if (all.some(c => c.tag === tag)) throw new HttpError(409, 'Un clan porte déjà cette étiquette.');
-    if ((a.prisms || 0) < CLAN_PRICE) throw new HttpError(409, `Il vous faut ${CLAN_PRICE} Prismes pour créer un clan (vous en avez ${a.prisms || 0}).`);
+    if (all.some(c => c.name.toLowerCase() === name.toLowerCase())) throw new HttpError(409, msg('Un clan porte déjà ce nom.'));
+    if (all.some(c => c.tag === tag)) throw new HttpError(409, msg('Un clan porte déjà cette étiquette.'));
+    if ((a.prisms || 0) < CLAN_PRICE) throw new HttpError(409, msg('Il vous faut {price} Prismes pour créer un clan (vous en avez {have}).', { price: CLAN_PRICE, have: a.prisms || 0 }));
     const c = { id: randomBytes(5).toString('hex'), name, tag, icon: 'bouclier', color: 'azur', desc: '', open: true, leader: a.login, members: [], requests: [],
       joined: {}, xp: 0, created: now(), banners: [], log: [] };
     settings(c, { desc: body.desc, open: body.open ?? true, icon: body.icon || 'bouclier', color: body.color || 'azur' });
     a.prisms -= CLAN_PRICE;
     clans[c.id] = c;
-    enter(c, a); c.log = []; log(c, `${a.name} fonde le clan ${c.name}.`);
+    enter(c, a); c.log = []; log(c, msg('{name} fonde le clan {clan}.', { name: a.name, clan: c.name }));
     missions(c);
     await Promise.all([save(), store.put(a)]);
-    return done(a, `Clan ${c.name} créé !`);
+    return done(a, msg('Clan {name} créé !', { name: c.name }));
   }
   async function join(a, { id }) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
-    if (clanOf(a)) throw new HttpError(409, 'Quittez d\'abord votre clan.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
+    if (clanOf(a)) throw new HttpError(409, msg('Quittez d\'abord votre clan.'));
     const c = clans[String(id || '')] && prune(clans[String(id || '')]);
-    if (!c) throw new HttpError(404, 'Ce clan n\'existe plus.');
-    if (isFull(c)) throw new HttpError(409, `${c.name} est complet.`);
-    let msg;
-    if (c.open) { enter(c, a); msg = `Bienvenue dans ${c.name} !`; }
+    if (!c) throw new HttpError(404, msg('Ce clan n\'existe plus.'));
+    if (isFull(c)) throw new HttpError(409, msg('{name} est complet.', { name: c.name }));
+    let note;
+    if (c.open) { enter(c, a); note = msg('Bienvenue dans {name} !', { name: c.name }); }
     else {
-      if (c.requests.includes(a.login)) throw new HttpError(409, 'Demande déjà envoyée.');
+      if (c.requests.includes(a.login)) throw new HttpError(409, msg('Demande déjà envoyée.'));
       a.clanReq = (a.clanReq || []).filter(x => clans[x]?.requests.includes(a.login));
-      if (a.clanReq.length >= MAX_REQUESTS) throw new HttpError(409, `${MAX_REQUESTS} demandes en attente au plus : annulez-en une.`);
-      if (c.requests.length >= MAX_CLAN_REQUESTS) throw new HttpError(409, `${c.name} a déjà trop de demandes en attente.`);
+      if (a.clanReq.length >= MAX_REQUESTS) throw new HttpError(409, msg('{n} demandes en attente au plus : annulez-en une.', { n: MAX_REQUESTS }));
+      if (c.requests.length >= MAX_CLAN_REQUESTS) throw new HttpError(409, msg('{name} a déjà trop de demandes en attente.', { name: c.name }));
       c.requests.push(a.login); a.clanReq.push(c.id);
-      msg = `Demande envoyée à ${c.name}. Le Maître, un adjoint ou un sous-chef doit l'accepter.`;
-      pushTo(c.members.filter(l => canDo(roleOf(c, l), 'requests')), { title: `Demande d'entrée dans ${c.name}`, body: `${a.name} veut rejoindre votre clan.` });
+      note = msg('Demande envoyée à {name}. Le Maître, un adjoint ou un sous-chef doit l\'accepter.', { name: c.name });
+      pushTo(c.members.filter(l => canDo(roleOf(c, l), 'requests')), { title: msg('Demande d\'entrée dans {clan}', { clan: c.name }), body: msg('{name} veut rejoindre votre clan.', { name: a.name }) });
     }
     await Promise.all([save(), store.put(a)]);
-    return done(a, msg);
+    return done(a, note);
   }
   async function cancel(a, { id }) {
     const c = clans[String(id || '')];
@@ -312,29 +323,29 @@ export function createClans(store, accounts, push = null) {
     log(c, text);
     if (c.leader === b.login) {
       c.leader = successor(c); delete c.roles?.[c.leader];
-      log(c, `${nameOf(c.leader)} devient Maître du clan.`);
+      log(c, msg('{name} devient Maître du clan.', { name: nameOf(c.leader) }));
     }
   }
   async function leave(a) {
     const c = mine(a);
-    removeMember(c, a, `${a.name} quitte le clan.`);
+    removeMember(c, a, msg('{name} quitte le clan.', { name: a.name }));
     await Promise.all([save(), store.put(a)]);
-    return done(a, `Vous avez quitté ${c.name}.`);
+    return done(a, msg('Vous avez quitté {name}.', { name: c.name }));
   }
   const target = (c, login, where = 'members') => {
     const b = store.get(String(login || ''));
-    if (!b || !c[where].includes(b.login)) throw new HttpError(404, where === 'members' ? 'Ce joueur n\'est pas dans le clan.' : 'Cette demande n\'existe plus.');
+    if (!b || !c[where].includes(b.login)) throw new HttpError(404, where === 'members' ? msg('Ce joueur n\'est pas dans le clan.') : msg('Cette demande n\'existe plus.'));
     return b;
   };
   async function accept(a, { login }) {
     const c = need(a, 'requests'), b = target(c, login, 'requests');
-    if (clanOf(b)) { c.requests = c.requests.filter(l => l !== b.login); await save(); throw new HttpError(409, `${b.name} a déjà rejoint un autre clan.`); }
-    if (isFull(c)) throw new HttpError(409, 'Le clan est complet : montez de niveau pour accueillir plus de membres.');
+    if (clanOf(b)) { c.requests = c.requests.filter(l => l !== b.login); await save(); throw new HttpError(409, msg('{name} a déjà rejoint un autre clan.', { name: b.name })); }
+    if (isFull(c)) throw new HttpError(409, msg('Le clan est complet : montez de niveau pour accueillir plus de membres.'));
     enter(c, b);
-    progress.grant(b, { kind: 'clan', label: `Vous avez rejoint le clan ${c.name}` });
+    progress.grant(b, { kind: 'clan', label: `Vous avez rejoint le clan ${c.name}`, labelMsg: msg('Vous avez rejoint le clan {name}', { name: c.name }) });
     await Promise.all([save(), store.put(b)]);
-    pushTo([b.login], { title: `Bienvenue dans ${c.name} !`, body: `${a.name} a accepté votre demande d'entrée.` });
-    return done(a, `${b.name} a rejoint le clan.`);
+    pushTo([b.login], { title: msg('Bienvenue dans {name} !', { name: c.name }), body: msg('{name} a accepté votre demande d\'entrée.', { name: a.name }) });
+    return done(a, msg('{name} a rejoint le clan.', { name: b.name }));
   }
   async function refuse(a, { login }) {
     const c = need(a, 'requests'), b = target(c, login, 'requests');
@@ -344,101 +355,103 @@ export function createClans(store, accounts, push = null) {
   }
   async function kick(a, { login }) {
     const c = need(a, 'kick'), b = target(c, login);
-    if (b.login === a.login) throw new HttpError(400, 'Pour partir, quittez le clan.');
-    if (ROLE_RANK[roleOf(c, b.login)] >= ROLE_RANK[roleOf(c, a.login)]) throw new HttpError(403, `Vous ne pouvez exclure que des joueurs de rang inférieur au vôtre.`);
-    removeMember(c, b, `${b.name} est exclu du clan.`);
-    progress.grant(b, { kind: 'clan', label: `Vous ne faites plus partie du clan ${c.name}` });
+    if (b.login === a.login) throw new HttpError(400, msg('Pour partir, quittez le clan.'));
+    if (ROLE_RANK[roleOf(c, b.login)] >= ROLE_RANK[roleOf(c, a.login)]) throw new HttpError(403, msg('Vous ne pouvez exclure que des joueurs de rang inférieur au vôtre.'));
+    removeMember(c, b, msg('{name} est exclu du clan.', { name: b.name }));
+    progress.grant(b, { kind: 'clan', label: `Vous ne faites plus partie du clan ${c.name}`, labelMsg: msg('Vous ne faites plus partie du clan {name}', { name: c.name }) });
     await Promise.all([save(), store.put(b)]);
-    return done(a, `${b.name} ne fait plus partie du clan.`);
+    return done(a, msg('{name} ne fait plus partie du clan.', { name: b.name }));
   }
   // Confier le clan (Maître seulement) : l'ancien Maître devient adjoint.
   async function promote(a, { login }) {
     const c = mine(a);
-    if (c.leader !== a.login) throw new HttpError(403, 'Seul le Maître peut confier le clan.');
+    if (c.leader !== a.login) throw new HttpError(403, msg('Seul le Maître peut confier le clan.'));
     const b = target(c, login);
-    if (b.login === a.login) throw new HttpError(400, 'Vous êtes déjà Maître du clan.');
+    if (b.login === a.login) throw new HttpError(400, msg('Vous êtes déjà Maître du clan.'));
     delete (c.roles ||= {})[b.login]; c.leader = b.login; c.roles[a.login] = 'adjoint';
-    log(c, `${a.name} confie le clan à ${b.name}, nouveau Maître.`);
+    log(c, msg('{name} confie le clan à {to}, nouveau Maître.', { name: a.name, to: b.name }));
     await save();
-    return done(a, `${b.name} est maintenant Maître du clan.`);
+    return done(a, msg('{name} est maintenant Maître du clan.', { name: b.name }));
   }
   // Nommer un membre adjoint, sous-chef ou simple membre. Le Maître nomme tout le monde ; un adjoint, les sous-chefs et les membres.
   async function setRole(a, { login, role }) {
     const c = need(a, 'roles'), b = target(c, login), mineR = ROLE_RANK[roleOf(c, a.login)];
-    if (!['adjoint', 'souschef', 'membre'].includes(role)) throw new HttpError(400, 'Rôle inconnu.');
-    if (b.login === a.login) throw new HttpError(400, 'Vous ne pouvez pas changer votre propre rôle.');
+    if (!['adjoint', 'souschef', 'membre'].includes(role)) throw new HttpError(400, msg('Rôle inconnu.'));
+    if (b.login === a.login) throw new HttpError(400, msg('Vous ne pouvez pas changer votre propre rôle.'));
     const was = roleOf(c, b.login);
-    if (ROLE_RANK[was] >= mineR || ROLE_RANK[role] >= mineR) throw new HttpError(403, 'Seul le Maître peut nommer ou retirer un adjoint.');
+    if (ROLE_RANK[was] >= mineR || ROLE_RANK[role] >= mineR) throw new HttpError(403, msg('Seul le Maître peut nommer ou retirer un adjoint.'));
     if (was === role) return done(a);
     const max = CLAN_ROLE_MAX[role];
-    if (max && c.members.filter(l => roleOf(c, l) === role).length >= max) throw new HttpError(409, `${max} ${CLAN_ROLES[role].toLowerCase()}s au plus.`);
+    if (max && c.members.filter(l => roleOf(c, l) === role).length >= max) throw new HttpError(409, role === 'adjoint' ? msg('{n} adjoints au plus.', { n: max }) : msg('{n} sous-chefs au plus.', { n: max }));
     c.roles ||= {};
     if (role === 'membre') delete c.roles[b.login]; else c.roles[b.login] = role;
-    log(c, role === 'membre' ? `${b.name} redevient membre.` : `${a.name} nomme ${b.name} ${CLAN_ROLES[role].toLowerCase()}.`);
-    progress.grant(b, { kind: 'clan', label: role === 'membre' ? `Vous redevenez membre du clan ${c.name}` : `Vous êtes nommé ${CLAN_ROLES[role].toLowerCase()} du clan ${c.name}` });
+    const roleName = [CLAN_ROLES[role].toLowerCase()];
+    log(c, role === 'membre' ? msg('{name} redevient membre.', { name: b.name }) : msg('{name} nomme {to} {role}.', { name: a.name, to: b.name, role: roleName }));
+    progress.grant(b, { kind: 'clan', label: role === 'membre' ? `Vous redevenez membre du clan ${c.name}` : `Vous êtes nommé ${CLAN_ROLES[role].toLowerCase()} du clan ${c.name}`,
+      labelMsg: role === 'membre' ? msg('Vous redevenez membre du clan {name}', { name: c.name }) : msg('Vous êtes nommé {role} du clan {name}', { role: roleName, name: c.name }) });
     await Promise.all([save(), store.put(b)]);
-    return done(a, `${b.name} : ${CLAN_ROLES[role]}.`);
+    return done(a, msg('{name} : {role}.', { name: b.name, role: [CLAN_ROLES[role]] }));
   }
   // Prendre la tête du clan quand le Maître ne vient plus depuis CLAN_INACTIVE_DAYS jours : il devient adjoint.
   async function claim(a) {
     const c = mine(a);
-    if (!canClaim(c, a.login)) throw new HttpError(403, `Un adjoint peut prendre la tête du clan si le Maître n'est pas venu depuis ${CLAN_INACTIVE_DAYS} jours.`);
+    if (!canClaim(c, a.login)) throw new HttpError(403, msg('Un adjoint peut prendre la tête du clan si le Maître n\'est pas venu depuis {n} jours.', { n: CLAN_INACTIVE_DAYS }));
     const old = c.leader;
     c.roles ||= {}; delete c.roles[a.login]; c.leader = a.login; c.roles[old] = 'adjoint';
-    log(c, `${a.name} prend la tête du clan : ${nameOf(old)}, absent depuis ${daysAway(old)} jours, devient adjoint.`);
+    log(c, msg('{name} prend la tête du clan : {old}, absent depuis {n} jours, devient adjoint.', { name: a.name, old: nameOf(old), n: daysAway(old) }));
     const b = store.get(old);
-    if (b) { progress.grant(b, { kind: 'clan', label: `${a.name} a pris la tête du clan ${c.name} pendant votre absence` }); put(b); }
+    if (b) { progress.grant(b, { kind: 'clan', label: `${a.name} a pris la tête du clan ${c.name} pendant votre absence`, labelMsg: msg('{name} a pris la tête du clan {clan} pendant votre absence', { name: a.name, clan: c.name }) }); put(b); }
     await save();
-    return done(a, `Vous êtes maintenant Maître de ${c.name}.`);
+    return done(a, msg('Vous êtes maintenant Maître de {name}.', { name: c.name }));
   }
   // Financer un projet avec le trésor du clan.
   async function fund(a, { id }) {
     const c = need(a, 'treasury'), p = CLAN_PROJECTS[id];
-    if (!p) throw new HttpError(400, 'Projet inconnu.');
-    if (id === 'coffre' ? c.chest === clanWeek() : boostOn(c, id)) throw new HttpError(409, id === 'coffre' ? 'Le coffre du clan a déjà été ouvert cette semaine.' : `${p.name} est déjà en cours.`);
+    if (!p) throw new HttpError(400, msg('Projet inconnu.'));
+    if (id === 'coffre' ? c.chest === clanWeek() : boostOn(c, id)) throw new HttpError(409, id === 'coffre' ? msg('Le coffre du clan a déjà été ouvert cette semaine.') : msg('{name} est déjà en cours.', { name: [p.name] }));
     const cost = projectCost(id, c.members.length), bank = c.bank ||= {};
     const miss = Object.entries(cost).filter(([r, n]) => (bank[r] || 0) < n);
-    if (miss.length) throw new HttpError(409, `Le trésor manque de ${miss.map(([r, n]) => `${n - (bank[r] || 0)} ${DONATIONS[r].name}`).join(' et ')}.`);
+    if (miss.length) throw new HttpError(409, msg('Le trésor manque de {list}.', { list: miss.map(([r, n]) => msg('{n} {res}', { n: n - (bank[r] || 0), res: [DONATIONS[r].name] })).reduce((x, y) => msg('{a} et {b}', { a: x, b: y })) }));
     for (const [r, n] of Object.entries(cost)) bank[r] -= n;
     if (id === 'coffre') {
       c.chest = clanWeek();
       for (const login of c.members) {
         const b = login === a.login ? a : store.get(login); if (!b?.level) continue;
-        progress.grant(b, { kind: 'clan', label: `Coffre du clan ${c.name}`, boosters: p.boosters });
+        progress.grant(b, { kind: 'clan', label: `Coffre du clan ${c.name}`, labelMsg: msg('Coffre du clan {name}', { name: c.name }), boosters: p.boosters });
         await store.put(b);
       }
     } else (c.boosts ||= {})[id] = new Date(Date.now() + p.days * 86_400_000).toISOString();
-    log(c, `${a.name} finance ${p.name.toLowerCase()} avec le trésor du clan.`);
+    log(c, msg('{name} finance {project} avec le trésor du clan.', { name: a.name, project: [p.name.toLowerCase()] }));
     await save();
-    return done(a, `${p.name} : c'est parti !`);
+    return done(a, msg('{name} : c\'est parti !', { name: [p.name] }));
   }
   async function edit(a, body) {
     const c = need(a, 'edit');
     settings(c, body || {});
     await save();
-    return done(a, 'Clan mis à jour.');
+    return done(a, msg('Clan mis à jour.'));
   }
 
   // ---- Dons ----
   // Une ressource contre des Écus, dans la limite du jour. Les Écus des dons font avancer la mission de dons de la semaine.
   async function donate(a, { res, amount }) {
     const c = mine(a), d = DONATIONS[res];
-    if (!d) throw new HttpError(400, 'Ressource inconnue.');
+    if (!d) throw new HttpError(400, msg('Ressource inconnue.'));
     const n = Number(amount);
-    if (!Number.isInteger(n) || n < d.rate) throw new HttpError(400, `Donnez au moins ${d.rate} ${d.name}.`);
+    if (!Number.isInteger(n) || n < d.rate) throw new HttpError(400, msg('Donnez au moins {n} {res}.', { n: d.rate, res: [d.name] }));
     const day = clanDay(); if (a.clanDon?.date !== day) a.clanDon = { date: day };
     const left = d.cap - (a.clanDon[res] || 0), give = Math.min(n - (n % d.rate), left - (left % d.rate));
-    if (give <= 0) throw new HttpError(409, `Vous avez déjà donné ${d.cap} ${d.name} aujourd'hui.`);
-    if ((a[res] || 0) < give) throw new HttpError(409, `Il vous faut ${give} ${d.name} (vous en avez ${a[res] || 0}).`);
+    if (give <= 0) throw new HttpError(409, msg('Vous avez déjà donné {n} {res} aujourd\'hui.', { n: d.cap, res: [d.name] }));
+    if ((a[res] || 0) < give) throw new HttpError(409, msg('Il vous faut {price} {res} (vous en avez {have}).', { price: give, res: [d.name], have: a[res] || 0 }));
     const coins = donationCoins(res, give);
     a[res] -= give; a.clanDon[res] = (a.clanDon[res] || 0) + give; (c.bank ||= {})[res] = (c.bank[res] || 0) + give; a.clanCoins = (a.clanCoins || 0) + coins;
     missions(c);
     c.week.dons[a.login] = (c.week.dons[a.login] || 0) + coins;
-    log(c, `${a.name} donne ${give} ${give > 1 ? d.name : d.name.replace(/s$/, '')} (${plural(coins, 'Écu')}).`);
+    log(c, msg('{name} donne {n} {res} ({coins}).', { name: a.name, n: give, res: [give > 1 ? d.name : d.name.replace(/s$/, '')], coins: coinsMsg(coins) }));
     advance(c, a, { dons: coins });
     progress.count(a, 'clanDonated', coins);
     await Promise.all([save(), store.put(a)]);
-    return done(a, `Merci ! +${plural(coins, 'Écu')}.`);
+    return done(a, msg('Merci ! +{coins}.', { coins: coinsMsg(coins) }));
   }
 
   // ---- Magasin ----
@@ -450,19 +463,19 @@ export function createClans(store, accounts, push = null) {
   }
   async function buy(a, { item }) {
     const c = mine(a), x = clanItem(String(item || ''));
-    if (!x) throw new HttpError(400, 'Objet inconnu.');
-    if (level(c) < x.level) throw new HttpError(409, `Il faut un clan de niveau ${x.level}.`);
-    if (owns(a, x)) throw new HttpError(409, 'Vous l\'avez déjà.');
-    if ((a.clanCoins || 0) < x.price) throw new HttpError(409, `Il vous faut ${x.price} Écus (vous en avez ${a.clanCoins || 0}).`);
+    if (!x) throw new HttpError(400, msg('Objet inconnu.'));
+    if (level(c) < x.level) throw new HttpError(409, msg('Il faut un clan de niveau {n}.', { n: x.level }));
+    if (owns(a, x)) throw new HttpError(409, msg('Vous l\'avez déjà.'));
+    if ((a.clanCoins || 0) < x.price) throw new HttpError(409, msg('Il vous faut {price} Écus (vous en avez {have}).', { price: x.price, have: a.clanCoins || 0 }));
     const id = x.id.slice(x.kind.length + 1);
-    if (x.kind === 'art' && !artExists(id)) throw new HttpError(409, 'Cet art n\'est plus en vente.');
+    if (x.kind === 'art' && !artExists(id)) throw new HttpError(409, msg('Cet art n\'est plus en vente.'));
     if (!a.level) progress.init(a);
     a.clanCoins -= x.price;
     if (x.kind === 'art') a.arts = { ...(a.arts || {}), [id]: { at: now(), clan: true } };
     else progress.grant(a, { [x.kind]: id }, { silent: true });
     progress.check(a);
     await store.put(a);
-    return { ...done(a, `${x.name} : à vous !`), got: x.kind === 'art' ? { art: id } : { [x.kind]: id, label: { title: TITLES, frame: FRAMES, back: BACKS }[x.kind][id] } };
+    return { ...done(a, msg('{name} : à vous !', { name: [x.name] })), got: x.kind === 'art' ? { art: id } : { [x.kind]: id, label: { title: TITLES, frame: FRAMES, back: BACKS }[x.kind][id] } };
   }
 
   // Ce que montre le profil public d'un joueur.

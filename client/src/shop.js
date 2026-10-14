@@ -7,6 +7,7 @@
 import './shop.css';
 import { reduceMotion } from './fx.js';
 import { packSVG, chestSVG } from './opening.js';
+import { t } from '@jeu/engine/i18n';
 
 // items : [{ kind: 'pack' | 'chest', act, set, setName, n, tag, free, fresh, off, label }] ; fresh : ruban « Nouveau » (set le plus récent).
 // title : enseigne centrée au-dessus des objets ; info : action d'un bouton « i » dans le coin du comptoir (ce que contient le coffre,
@@ -14,11 +15,11 @@ import { packSVG, chestSVG } from './opening.js';
 export function stallHTML(items, { title = '', info = '', infoLabel = '' } = {}) {
   const item = (x, i) => `<button class="stall-item is-${x.kind} pk-${x.set || 'base'}${x.free ? ' free' : ''}" data-act="${x.act}"${x.set ? ` data-set="${x.set}"` : ''} ${x.off ? 'disabled' : ''} aria-label="${x.label}" style="--i:${i}">
       <span class="stall-obj" data-px>${x.kind === 'chest' ? chestSVG(`shc${i}`) : packSVG(x.setName, x.n, `shp${i}`)}</span>
-      ${x.free ? `<span class="stall-free num">Offert${x.free > 1 ? ` ×${x.free}` : ''}</span>` : ''}${x.fresh ? '<span class="stall-new">Nouveau</span>' : ''}
+      ${x.free ? `<span class="stall-free num">${t('Offert')}${x.free > 1 ? ` ×${x.free}` : ''}</span>` : ''}${x.fresh ? `<span class="stall-new">${t('Nouveau')}</span>` : ''}
       <span class="stall-tag">${x.tag}</span></button>`;
-  return `<div class="stall" aria-label="Étal"><div class="stall-wall"></div><div class="stall-awning"></div><div class="stall-shelf"></div>
+  return `<div class="stall" aria-label="${t('Étal')}"><div class="stall-wall"></div><div class="stall-awning"></div><div class="stall-shelf"></div>
     ${title ? `<span class="stall-sign">${title}</span>` : ''}
-    ${info ? `<button class="stall-info" data-act="${info}" aria-haspopup="dialog" aria-label="${infoLabel || `${title ? `${title} : ` : ''}ce qu'il contient`}">i</button>` : ''}
+    ${info ? `<button class="stall-info" data-act="${info}" aria-haspopup="dialog" aria-label="${infoLabel || (title ? t('{title} : ce qu\'il contient', { title }) : t('ce qu\'il contient'))}">i</button>` : ''}
     <div class="stall-items">${items.map(item).join('')}</div></div>`;
 }
 
@@ -29,15 +30,15 @@ export function stallHTML(items, { title = '', info = '', infoLabel = '' } = {})
 // Sans zoom, l'illustration ne s'agrandit pas (offres de change). timer : false pour une vitrine qui ne change pas à minuit.
 export function vitrineHTML({ title, sub, slots, timer = true, cls = '' }) {
   const slot = (x, i) => `<div class="vit-slot ${x.state}${x.cls ? ` ${x.cls}` : ''}" style="--i:${i};${x.style}">
-      ${x.zoom ? `<button class="vit-card" data-px data-zoom="${x.zoom}" aria-label="Voir ${x.name} en grand">` : '<div class="vit-card still" data-px>'}${x.art}
+      ${x.zoom ? `<button class="vit-card" data-px data-zoom="${x.zoom}" aria-label="${t('Voir {name} en grand', { name: x.name })}">` : '<div class="vit-card still" data-px>'}${x.art}
         ${x.cost != null ? `<span class="vit-cost num">${x.cost}</span>` : ''}${x.badge ? `<span class="vit-badge">${x.badge}</span>` : ''}
-        ${x.state === 'sold' ? '<span class="vit-stamp">Vendue</span>' : ''}${x.zoom ? '</button>' : '</div>'}
+        ${x.state === 'sold' ? `<span class="vit-stamp">${t('Vendue')}</span>` : ''}${x.zoom ? '</button>' : '</div>'}
       ${x.caption === false ? '' : `<span class="vit-name">${x.name}</span>`}${x.sub ? `<span class="vit-sub">${x.sub}</span>` : ''}
       ${x.state === 'sale' ? `<button class="vit-buy" data-act="${x.act}" data-id="${x.id}"${x.set ? ` data-set="${x.set}"` : ''} ${x.off ? 'disabled' : ''} aria-label="${x.label}">${x.price}</button>`
-        : `<span class="vit-done">${x.state === 'sold' ? 'Achetée' : x.done || 'Possédée'}</span>`}</div>`;
+        : `<span class="vit-done">${x.state === 'sold' ? t('Achetée') : x.done || t('Possédée')}</span>`}</div>`;
   return `<div class="vitrine${cls ? ` ${cls}` : ''}"><div class="vit-velvet"></div>
     <div class="vit-head"><div><span class="eyebrow">${sub}</span><h3 class="vit-title">${title}</h3></div>
-      ${timer ? `<span class="vit-timer" title="Nouvelle sélection à minuit"><i aria-hidden="true"></i><span data-reset>${resetIn()}</span></span>` : ''}</div>
+      ${timer ? `<span class="vit-timer" title="${t('Nouvelle sélection à minuit')}"><i aria-hidden="true"></i><span data-reset>${resetIn()}</span></span>` : ''}</div>
     <div class="vit-row">${slots.map(slot).join('')}</div></div>`;
 }
 // Bourse d'Éclats d'une offre de change : un tas de cristaux ambrés sur un coussin, plus haut à chaque offre (step : 0 à 3).
@@ -60,7 +61,7 @@ export function resetIn(now = new Date()) {
   const p = Object.fromEntries(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' })
     .formatToParts(now).map(x => [x.type, +x.value]));
   const left = Math.max(60, 86400 - (p.hour * 3600 + p.minute * 60 + p.second)), h = Math.floor(left / 3600), m = Math.floor(left % 3600 / 60);
-  return h ? `${h} h ${String(m).padStart(2, '0')}` : `${m} min`;
+  return h ? t('{h} h {m}', { h, m: String(m).padStart(2, '0') }) : t('{m} min', { m });
 }
 setInterval(() => { for (const el of document.querySelectorAll('[data-reset]')) el.textContent = resetIn(); }, 30000);
 

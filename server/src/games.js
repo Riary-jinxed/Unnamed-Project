@@ -1,8 +1,9 @@
 // Historique des parties et statistiques pour /admin.
 // JcJ : enregistré par le serveur en fin de partie. JcE : la partie tourne dans l'appli, qui envoie son résultat.
-import { CARDS, GENERALS, DECKS, TERRAINS, gameDetail } from '@jeu/engine';
+import { CARDS, GENERALS, DECKS, TERRAINS, gameDetail, renderLog } from '@jeu/engine';
 import { ARTS } from '@jeu/engine/arts';
 import { HttpError, activeDeck } from './accounts.js';
+import { t, msg } from '@jeu/engine/i18n';
 
 const MAX_CARDS = 40;
 // Historique des joueurs : parties renvoyées (les plus récentes), tours au plus d'une partie.
@@ -11,6 +12,18 @@ const gameId = () => Date.now().toString(36) + Math.random().toString(36).slice(
 // Cartes les plus jouées montrées sur un profil ; places du classement qui montrent l'image de profil.
 const TOP_CARDS = 5, LADDER_AVATARS = 10;
 // Une main de joueur telle qu'enregistrée : qui, avec quel deck, et les cartes jouées (révélées) pendant la partie.
+// Raison de fin envoyée par l'appli : un texte, ou [modèle, variables] du journal (variables : textes, nombres ou [texte]).
+// Rendue en français pour l'historique ; null si elle n'a pas la forme attendue.
+const short = v => (typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' ? v.slice(0, 120) : null);
+function cleanReason(r) {
+  if (typeof r === 'string') return r.slice(0, 120);
+  if (!Array.isArray(r) || typeof r[0] !== 'string' || r[0].length > 200) return '';
+  const vars = r[1] && typeof r[1] === 'object' && !Array.isArray(r[1]) ? Object.fromEntries(Object.entries(r[1]).slice(0, 10).map(([k, v]) =>
+    [String(k).slice(0, 20), Array.isArray(v) && typeof v[0] === 'string' && !v[1] ? [v[0].slice(0, 120)] : short(v)]).filter(([, v]) => v !== null)) : undefined;
+  return vars ? [r[0], vars] : r[0];
+}
+// Raison rangée avec la partie : texte français (/admin) et, si elle a des variables, le modèle (reasonMsg) pour l'afficher dans la langue du joueur.
+const reasonOf = (r, names) => ({ reason: renderLog(r, -1, names).slice(0, 160), ...(Array.isArray(r) ? { reasonMsg: r } : {}) });
 const sideOf = (P, login, deckCards) => ({ login: login || null, name: P.name, general: P.general, deck: P.deckName, cards: deckCards.slice(), played: P.played.slice() });
 // Détail d'une partie (gameDetail du moteur) : tours, puissance des zones à chaque fin de tour, et pour chaque joueur puissance finale,
 // terrains, découpage de ses cartes révélées par tour et compteurs. Celui d'une partie contre l'IA vient de l'appli : relu et borné.
@@ -45,7 +58,7 @@ export function createGames(store, accounts) {
   // (siège sans compte) ; ranked : partie classée.
   // kind : « salon » (code), « defi » (défi entre amis), « defi-classe », « classe-ia » ; ms : durée ; rewards : gains de chaque siège.
   function recordPvp(st, logins, decks, { mode = 'pvp', ranked = false, kind = 'salon', ms = 0, rewards = [] } = {}) {
-    return store.addGame(withDetail({ mode, ...(ranked ? { ranked: true } : {}), at: new Date().toISOString(), winner: st.result.winner, reason: st.result.reason,
+    return store.addGame(withDetail({ mode, ...(ranked ? { ranked: true } : {}), at: new Date().toISOString(), winner: st.result.winner, ...reasonOf(st.result.reason, st.p.map(P => P.name)),
       players: [0, 1].map(p => sideOf(st.p[p], logins[p], decks[p])) }, gameDetail(st), { kind, ms, rewards, result: st.result }))
       .catch(e => console.error('Partie non enregistrée :', e));
   }
@@ -54,12 +67,12 @@ export function createGames(store, accounts) {
     const ids = v => (Array.isArray(v) ? v.slice(0, MAX_CARDS).filter(id => typeof id === 'string' && CARDS[id]) : []);
     const winner = [0, 1, -1].includes(body?.winner) ? body.winner : null;
     const deck = activeDeck(a);
-    if (winner === null || !deck) throw new HttpError(400, 'Résultat invalide.');
+    if (winner === null || !deck) throw new HttpError(400, msg('Résultat invalide.'));
     const ai = DECKS[body.ai?.deckKey] ? body.ai.deckKey : null;
     const zones = Array.isArray(body.zones) && body.zones.length === 3 ? body.zones.filter(z => z === 0).length : 0;
     const reward = await accounts.recordGame(a, { mode: 'pve', result: winner === 0 ? 'win' : winner < 0 ? 'draw' : 'loss', played: ids(body.played), general: deck.general,
       sweep: winner === 0 && zones === 3, zones });
-    await store.addGame(withDetail({ mode: 'pve', at: new Date().toISOString(), winner, reason: String(body.reason || '').slice(0, 120), players: [
+    await store.addGame(withDetail({ mode: 'pve', at: new Date().toISOString(), winner, ...reasonOf(cleanReason(body.reason), [a.name, 'IA']), players: [
       { login: a.login, name: a.name, general: deck.general, deck: deck.name, cards: deck.cards.slice(), played: ids(body.played) },
       { login: null, name: 'IA', general: GENERALS[body.ai?.general] ? body.ai.general : (ai && DECKS[ai].general), deck: ai ? DECKS[ai].name : 'IA',
         cards: ai ? DECKS[ai].cards.slice() : [], played: ids(body.ai?.played) },
@@ -111,7 +124,7 @@ export function createGames(store, accounts) {
       const k = g.winner === i ? 'wins' : g.winner < 0 ? 'draws' : 'losses', P = g.players[i], foe = g.players[1 - i];
       for (const r of [out[g.mode], out.all, P.general && (gens[P.general] ||= { id: P.general, name: GENERALS[P.general]?.name || P.general, ...rec() })]) if (r) { r.games++; r[k]++; }
       for (const id of P.played) if (CARDS[id] && !CARDS[id].token) cards[id] = (cards[id] || 0) + 1;
-      recent.push({ at: g.at, mode: g.mode, result: k, deck: P.deck, foe: g.mode === 'pve' ? 'IA' : (accounts.nameOf(foe.login) || foe.name) });
+      recent.push({ at: g.at, mode: g.mode, result: k, deck: P.deck, foe: g.mode === 'pve' ? t('IA') : (accounts.nameOf(foe.login) || foe.name) });
     }
     const rate = r => ({ ...r, rate: r.games ? Math.round(100 * (r.wins + r.draws / 2) / r.games) : null });
     return { pvp: rate(out.pvp), pve: rate(out.pve), all: rate(out.all),
@@ -145,7 +158,7 @@ export function createGames(store, accounts) {
     }
     const rate = r => ({ ...r, rate: r.games ? Math.round(100 * (r.wins + r.draws / 2) / r.games) : null });
     const games = mine.slice(-HISTORY_GAMES).reverse().map(([g, i]) => ({
-      id: g.id || `${g.at}-${i}`, at: g.at, kind: kindOf(g), mode: g.mode, ranked: !!g.ranked, result: resOf(g, i), reason: g.reason || '',
+      id: g.id || `${g.at}-${i}`, at: g.at, kind: kindOf(g), mode: g.mode, ranked: !!g.ranked, result: resOf(g, i), reason: g.reason || '', ...(g.reasonMsg ? { reasonMsg: g.reasonMsg } : {}),
       ...(g.forfeit ? { forfeit: true } : {}), ...(g.ms ? { ms: g.ms } : {}), ...(g.turns ? { turns: g.turns } : {}),
       // Zones et trace vues du joueur : « me », « foe » ou « tie » ; puissance [à moi, à l'adversaire].
       ...(Array.isArray(g.zones) ? { zones: g.zones.map(z => (z === i ? 'me' : z < 0 ? 'tie' : 'foe')) } : {}),
@@ -167,7 +180,7 @@ export function createGames(store, accounts) {
   // (« me », « friend », « out » : demande envoyée, « in » : il vous a demandé, null).
   function publicProfile(me, login) {
     const b = store.get(String(login || '').trim().toLowerCase());
-    if (!b || b.disabled) throw new HttpError(404, 'Joueur introuvable.');
+    if (!b || b.disabled) throw new HttpError(404, msg('Joueur introuvable.'));
     const st = playerStats(b), gen = st.generals[0] || null, L = accounts.progress.ladder().find(x => x.login === b.login);
     // Niveau et art choisi de ses cartes les plus jouées et de son général, comme les voit un adversaire.
     const badge = accounts.progress.badge(b, { cards: st.cards.map(c => c.id), general: gen?.id }), look = id => ({ level: badge.looks[id] || 1, border: badge.borders[id] || badge.looks[id] || 1, art: badge.arts[id] || null });

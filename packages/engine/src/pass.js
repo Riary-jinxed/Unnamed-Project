@@ -6,25 +6,27 @@
 // Partagé par le serveur (qui fait foi) et l'appli (qui affiche). Les nombres se règlent dans l'onglet Récompenses de /admin
 // (réglages « pass… » de DEFAULT_REWARDS dans rewards.js, plus passPool et passMissions).
 
+import { t } from './i18n.js';
+
 export const PASS_TIERS = 40;
 
 // ---- Missions ----
 // Sortes de mission et ce qui les fait avancer (voir onPass dans server/src/progress.js).
 // daily, weekly : objectif dans les missions du jour et de la semaine (null : jamais tirée là). Réglables dans /admin.
-const s = n => (n === 1 ? '' : 's');
+// Singulier pour 1 seulement (0 au pluriel), comme en anglais : t(n === 1 ? singulier : pluriel).
 export const PASS_KINDS = {
-  play:      { label: n => `Jouer ${n} partie${s(n)}`, daily: 3, weekly: 15 },
-  win:       { label: n => `Gagner ${n} partie${s(n)}`, daily: 2, weekly: 8 },
-  ranked:    { label: n => `Jouer ${n} partie${s(n)} classée${s(n)}`, daily: 2, weekly: 8 },
-  pvp:       { label: n => `Gagner ${n === 1 ? 'une partie' : `${n} parties`} en ligne`, daily: null, weekly: null },
-  spells:    { label: n => `Jouer ${n} sort${s(n)}`, daily: 4, weekly: 15 },
-  creatures: { label: n => `Jouer ${n} créature${s(n)}`, daily: 10, weekly: 40 },
-  fam:       { label: (n, f) => `Jouer ${n} carte${s(n)} ${f}`, daily: 8, weekly: 30 },
-  sweep:     { label: n => `Gagner ${n === 1 ? 'une partie' : `${n} parties`} en remportant les 3 zones`, daily: 1, weekly: 3 },
-  booster:   { label: () => 'Ouvrir le booster du jour', daily: 1, weekly: null },
-  missions:  { label: n => `Accomplir ${n} mission${s(n)} du jour`, daily: 2, weekly: 10 },
-  login:     { label: n => `Récupérer ${n} récompense${s(n)} du calendrier`, daily: null, weekly: 5 },
-  season:    { label: n => `Jouer ${n === 1 ? 'une fois' : `${n} fois`} une carte de la saison`, daily: null, weekly: null },
+  play:      { label: n => t(n === 1 ? 'Jouer {n} partie' : 'Jouer {n} parties', { n }), daily: 3, weekly: 15 },
+  win:       { label: n => t(n === 1 ? 'Gagner {n} partie' : 'Gagner {n} parties', { n }), daily: 2, weekly: 8 },
+  ranked:    { label: n => t(n === 1 ? 'Jouer {n} partie classée' : 'Jouer {n} parties classées', { n }), daily: 2, weekly: 8 },
+  pvp:       { label: n => t(n === 1 ? 'Gagner une partie en ligne' : 'Gagner {n} parties en ligne', { n }), daily: null, weekly: null },
+  spells:    { label: n => t(n === 1 ? 'Jouer {n} sort' : 'Jouer {n} sorts', { n }), daily: 4, weekly: 15 },
+  creatures: { label: n => t(n === 1 ? 'Jouer {n} créature' : 'Jouer {n} créatures', { n }), daily: 10, weekly: 40 },
+  fam:       { label: (n, f) => t(n === 1 ? 'Jouer {n} carte {f}' : 'Jouer {n} cartes {f}', { n, f: t(f) }), daily: 8, weekly: 30 },
+  sweep:     { label: n => t(n === 1 ? 'Gagner une partie en remportant les 3 zones' : 'Gagner {n} parties en remportant les 3 zones', { n }), daily: 1, weekly: 3 },
+  booster:   { label: () => t('Ouvrir le booster du jour'), daily: 1, weekly: null },
+  missions:  { label: n => t(n === 1 ? 'Accomplir {n} mission du jour' : 'Accomplir {n} missions du jour', { n }), daily: 2, weekly: 10 },
+  login:     { label: n => t(n === 1 ? 'Récupérer {n} récompense du calendrier' : 'Récupérer {n} récompenses du calendrier', { n }), daily: null, weekly: 5 },
+  season:    { label: n => t(n === 1 ? 'Jouer une fois une carte de la saison' : 'Jouer {n} fois une carte de la saison', { n }), daily: null, weekly: null },
 };
 export const passMissionLabel = m => PASS_KINDS[m.kind]?.label(m.target, m.fam) || m.kind;
 

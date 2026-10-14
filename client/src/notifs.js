@@ -3,6 +3,7 @@
 // Sur iPhone et iPad, elles ne marchent que dans l'appli ajoutée à l'écran d'accueil (iOS 16.4 ou plus).
 import { api } from './api.js';
 import { esc } from './common.js';
+import { t, tp, tField } from '@jeu/engine/i18n';
 
 const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 const isIos = () => /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -26,7 +27,7 @@ export function createNotifs(app) {
   // Abonnement de cet appareil, envoyé au serveur. Un ancien abonnement fait avec une autre clé est remplacé.
   async function subscribe(publicKey) {
     const reg = await registration();
-    if (!reg) throw new Error('Les notifications ne sont pas disponibles ici.');
+    if (!reg) throw new Error(t('Les notifications ne sont pas disponibles ici.'));
     const opts = { userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) };
     let sub;
     try { sub = await reg.pushManager.subscribe(opts); }
@@ -37,12 +38,12 @@ export function createNotifs(app) {
     n.note = '';
     const perm = await Notification.requestPermission();
     if (perm !== 'granted') {
-      n.note = perm === 'denied' ? 'Les notifications sont bloquées pour ce site : autorisez-les dans les réglages du navigateur, puis réessayez.' : 'Notifications non autorisées.';
+      n.note = perm === 'denied' ? t('Les notifications sont bloquées pour ce site : autorisez-les dans les réglages du navigateur, puis réessayez.') : t('Notifications non autorisées.');
       app.render(); return;
     }
     ui.busy = true; app.render();
-    try { n.info = await subscribe(n.info.publicKey); n.here = true; n.note = 'Notifications activées sur cet appareil.'; }
-    catch (e) { ui.error = e.message || 'Impossible d\'activer les notifications.'; }
+    try { n.info = await subscribe(n.info.publicKey); n.here = true; n.note = t('Notifications activées sur cet appareil.'); }
+    catch (e) { ui.error = e.message || t('Impossible d\'activer les notifications.'); }
     ui.busy = false; app.render();
   }
   async function disable() {
@@ -50,7 +51,7 @@ export function createNotifs(app) {
     const sub = await currentSub().catch(() => null);
     try {
       if (sub) { n.info = await api('POST', '/api/push/unsubscribe', { endpoint: sub.endpoint }, ui.auth); await sub.unsubscribe(); }
-      n.here = false; n.note = 'Notifications coupées sur cet appareil.';
+      n.here = false; n.note = t('Notifications coupées sur cet appareil.');
     } catch (e) { ui.error = e.message; }
     ui.busy = false; app.render();
   }
@@ -60,7 +61,7 @@ export function createNotifs(app) {
   }
   async function test() {
     const r = await app.call('POST', '/api/push/test');
-    if (r) { n.info = r; n.note = r.msg; app.render(); }
+    if (r) { n.info = r; n.note = tField(r, 'msg'); app.render(); }
   }
 
   // À la connexion : l'abonnement de cet appareil est renvoyé au serveur (il a pu changer, ou servir à un autre compte avant).
@@ -91,21 +92,21 @@ export function createNotifs(app) {
   }
 
   function html() {
-    const box = body => `<div class="card-box notifs"><div><span class="eyebrow">Réglages</span><h2 style="font-size:22px">Notifications</h2></div>${body}</div>`;
+    const box = body => `<div class="card-box notifs"><div><span class="eyebrow">${t('Réglages')}</span><h2 style="font-size:22px">${t('Notifications')}</h2></div>${body}</div>`;
     if (!supported()) return box(`<p class="hint" style="margin:0">${isIos()
-      ? 'Sur iPhone et iPad, ajoutez d\'abord l\'appli à l\'écran d\'accueil (bouton Partager, puis « Sur l\'écran d\'accueil »), et ouvrez-la depuis son icône : les notifications se règlent alors ici.'
-      : 'Ce navigateur ne sait pas recevoir de notifications.'}</p>`);
-    if (!n.info) return box('<p class="wait">Chargement…</p>');
+      ? t('Sur iPhone et iPad, ajoutez d\'abord l\'appli à l\'écran d\'accueil (bouton Partager, puis « Sur l\'écran d\'accueil »), et ouvrez-la depuis son icône : les notifications se règlent alors ici.')
+      : t('Ce navigateur ne sait pas recevoir de notifications.')}</p>`);
+    if (!n.info) return box(`<p class="wait">${t('Chargement…')}</p>`);
     const blocked = Notification.permission === 'denied', others = n.info.devices - (n.here ? 1 : 0);
-    const status = n.here ? 'Activées sur cet appareil.' : blocked ? 'Bloquées par le navigateur pour ce site : autorisez-les dans ses réglages.' : 'Désactivées sur cet appareil.';
+    const status = n.here ? t('Activées sur cet appareil.') : blocked ? t('Bloquées par le navigateur pour ce site : autorisez-les dans ses réglages.') : t('Désactivées sur cet appareil.');
     return box(`
-      <p class="hint" style="margin:0" role="status">${status}${others > 0 ? ` Aussi activées sur ${others} autre${others > 1 ? 's' : ''} appareil${others > 1 ? 's' : ''}.` : ''}</p>
+      <p class="hint" style="margin:0" role="status">${status}${others > 0 ? ` ${tp(others, 'Aussi activées sur {n} autre appareil.', 'Aussi activées sur {n} autres appareils.')}` : ''}</p>
       <div class="row">${n.here
-        ? `<button class="btn" data-act="notif-off" ${ui.busy ? 'disabled' : ''}>Désactiver sur cet appareil</button><button class="btn" data-act="notif-test" ${ui.busy ? 'disabled' : ''}>M'envoyer un essai</button>`
-        : `<button class="btn primary" data-act="notif-on" ${ui.busy || blocked ? 'disabled' : ''}>Activer sur cet appareil</button>`}</div>
+        ? `<button class="btn" data-act="notif-off" ${ui.busy ? 'disabled' : ''}>${t('Désactiver sur cet appareil')}</button><button class="btn" data-act="notif-test" ${ui.busy ? 'disabled' : ''}>${t('M\'envoyer un essai')}</button>`
+        : `<button class="btn primary" data-act="notif-on" ${ui.busy || blocked ? 'disabled' : ''}>${t('Activer sur cet appareil')}</button>`}</div>
       ${n.note ? `<p class="hint" style="margin:0">${esc(n.note)}</p>` : ''}
       <div class="notif-kinds">${n.info.kinds.map(k => `<label class="check notif-kind"><input type="checkbox" data-notif="${esc(k.id)}" ${k.on ? 'checked' : ''} ${ui.busy ? 'disabled' : ''}>
-        <span><b>${esc(k.label)}</b><small class="hint">${esc(k.hint)}</small></span></label>`).join('')}</div>`);
+        <span><b>${esc(t(k.label))}</b><small class="hint">${esc(t(k.hint))}</small></span></label>`).join('')}</div>`);
   }
 
   return {
