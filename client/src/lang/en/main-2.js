@@ -235,6 +235,7 @@ export default {
   "Cosmétique": "Cosmetic",
   "Une icône et une phrase courte pour saluer, féliciter ou taquiner votre adversaire : en partie, touchez votre portrait pour en envoyer une. Chacun peut couper les émotes de l'autre en touchant son portrait.": "An icon and a short phrase to greet, congratulate, or tease your opponent: during a match, tap your portrait to send one. Either player can mute the other's emotes by tapping their portrait.",
   "À gagner avec les succès": "Earned through achievements",
+  "À l'effigie des cartes": "Card portraits",
   "Offertes à tous": "Free for everyone",
   "Choisissez les {n} émotes de votre sélecteur dans votre profil, rubrique Personnalisation.": "Choose the {n} emotes in your picker from your profile, under Customization.",
   "Émote « {text} » obtenue, déjà dans votre sélecteur.": "“{text}” emote unlocked, already in your picker.",

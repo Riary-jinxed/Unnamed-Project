@@ -38,7 +38,7 @@ import { openPack, openChest } from './opening.js';
 import { setHome } from './lobby.js';
 import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL, FAMILY_REWARDS, SET_REWARDS, ACHIEVEMENTS } from '@jeu/engine/rewards';
-import { EMOTES, EMOTE_SLOTS, EMOTE_COOLDOWN_MS, EMOTE_SHOW_MS, SHOP_EMOTES, FREE_EMOTES } from '@jeu/engine/emotes';
+import { EMOTES, EMOTE_SLOTS, EMOTE_COOLDOWN_MS, EMOTE_SHOW_MS, SHOP_EMOTES, CARD_EMOTES, FREE_EMOTES } from '@jeu/engine/emotes';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { EVENT_EFFECTS, multLabel } from '@jeu/engine/events';
 import { SEASONS, PASS_TIERS, SEASON_THEMES, seasonOfCard, seasonStarted, seasonStart, currentSeason, releaseMonth } from '@jeu/engine/pass';
@@ -1061,7 +1061,10 @@ function pbar(side, isMe, connected, canGen = false) {
 // ---- Émotes en partie ----
 const EMO_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>';
 const MUTED_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="currentColor" stroke="none" opacity=".35"/><path d="M3 3l18 18"/></svg>';
-const emoteBody = id => `<span class="ei" aria-hidden="true">${EMOTES[id].icon}</span><span class="et">${esc(t(EMOTES[id].text))}</span>`;
+// Émotes de cartes : le portrait (emotes/<id>.webp) à la place de l'icône, dès que l'image est là.
+const EMOTE_ART = Object.fromEntries(Object.entries(import.meta.glob('./emotes/*.webp', { eager: true, query: '?url', import: 'default' }))
+  .map(([path, url]) => [path.match(/([^/]+)\.webp$/)[1], url]));
+const emoteBody = id => `${EMOTE_ART[id] ? `<img class="ei eimg" src="${EMOTE_ART[id]}" alt="" aria-hidden="true" draggable="false">` : `<span class="ei" aria-hidden="true">${EMOTES[id].icon}</span>`}<span class="et">${esc(t(EMOTES[id].text))}</span>`;
 // Bulle d'une émote à côté du joueur. Son animation (pop, puis fondu) reprend où elle en était quand la partie se redessine.
 function bubbleHTML(seat, isMe) {
   const b = ui.bubbles[seat], el = b ? Date.now() - b.at : 0;
@@ -1476,6 +1479,8 @@ function emoteShopHTML() {
     <p class="hint" style="margin:0">${t('Une icône et une phrase courte pour saluer, féliciter ou taquiner votre adversaire : en partie, touchez votre portrait pour en envoyer une. Chacun peut couper les émotes de l\'autre en touchant son portrait.')}</p>
     ${ui.msg && !ui.sheet ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
     <ul class="emolist">${SHOP_EMOTES.map(sale).join('')}</ul>
+    <div class="gal-h">${t('À l\'effigie des cartes')}</div>
+    <ul class="emolist">${CARD_EMOTES.map(sale).join('')}</ul>
     <div class="gal-h">${t('À gagner avec les succès')}</div>
     <ul class="emolist">${won}</ul>
     <div class="gal-h">${t('Offertes à tous')}</div>
