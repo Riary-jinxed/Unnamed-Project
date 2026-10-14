@@ -9,8 +9,10 @@ import { OWNABLE, today } from '@jeu/engine/collection';
 import { CARDS, GENERALS } from '@jeu/engine';
 import { ARTS } from '@jeu/engine/arts';
 import { HttpError } from './accounts.js';
+import { msg, tr } from '@jeu/engine/i18n';
+import { langOf, inLang } from './i18n.js';
 
-const KINDS = { news: 'Annonce', event: 'Événement', gift: 'Cadeau' };
+const KINDS = { news: msg('Annonce'), event: msg('Événement'), gift: msg('Cadeau') };
 // Ce qu'une récompense peut donner, avec le plafond accepté par /admin.
 const AMOUNTS = { shards: 1_000_000, prisms: 100_000, xp: 1_000_000, boosters: 100, chests: 100 };
 const MAX_MESSAGES = 200, MAX_CODES = 500;
@@ -58,10 +60,13 @@ export function createMail(store, accounts, { notify = () => {} } = {}) {
   const pending = (a, m) => !!m.reward && !box(a).got.includes(m.id);
   const count = a => (a.starter ? mine(a).filter(m => !box(a).read.includes(m.id) || pending(a, m)).length : 0);
   accounts.setMailCount(count);
-  const view = a => mine(a).map(m => ({ id: m.id, at: m.at, kind: m.kind, kindName: KINDS[m.kind], title: m.title, body: m.body, reward: m.reward, until: m.until,
-    read: box(a).read.includes(m.id), got: box(a).got.includes(m.id) }));
+  // Messages du jeu (événements) : titleMsg et bodyMsg traduits par l'appli (tField) ; notes de mise à jour traduites par leur texte.
+  // Les messages écrits depuis /admin restent tels quels. Rédigés dans la langue du joueur (période des événements).
+  const view = a => inLang(a, () => mine(a).map(m => ({ id: m.id, at: m.at, kind: m.kind, kindName: tr(langOf(a), KINDS[m.kind]), title: m.title, body: m.body,
+    ...(m.titleMsg ? { titleMsg: m.titleMsg } : {}), ...(m.bodyMsg ? { bodyMsg: m.bodyMsg } : {}), reward: m.reward, until: m.until,
+    read: box(a).read.includes(m.id), got: box(a).got.includes(m.id) })));
   const reply = (a, extra = {}) => ({ ...extra, mail: view(a), account: accounts.me(a) });
-  const find = (a, id) => { const m = mine(a).find(x => x.id === id); if (!m) throw new HttpError(404, 'Ce message n\'existe plus.'); return m; };
+  const find = (a, id) => { const m = mine(a).find(x => x.id === id); if (!m) throw new HttpError(404, msg('Ce message n\'existe plus.')); return m; };
 
   async function read(a, { id }) {
     const m = find(a, id);
@@ -73,19 +78,19 @@ export function createMail(store, accounts, { notify = () => {} } = {}) {
     const card = accounts.giveReward(a, m.reward);
     box(a).got.push(m.id);
     if (!box(a).read.includes(m.id)) box(a).read.push(m.id);
-    return { label: m.title, ...m.reward, ...(card ? { cardShards: card.shards, cardFresh: card.fresh[0] } : {}) };
+    return { label: m.title, ...(m.titleMsg ? { labelMsg: m.titleMsg } : {}), ...m.reward, ...(card ? { cardShards: card.shards, cardFresh: card.fresh[0] } : {}) };
   }
   async function claim(a, { id }) {
     const m = find(a, id);
-    if (!m.reward) throw new HttpError(400, 'Ce message n\'a pas de récompense.');
-    if (!pending(a, m)) throw new HttpError(409, 'Récompense déjà récupérée.');
+    if (!m.reward) throw new HttpError(400, msg('Ce message n\'a pas de récompense.'));
+    if (!pending(a, m)) throw new HttpError(409, msg('Récompense déjà récupérée.'));
     const got = [take(a, m)];
     await store.put(a);
     return reply(a, { got });
   }
   async function claimAll(a) {
     const list = mine(a).filter(m => pending(a, m));
-    if (!list.length) throw new HttpError(409, 'Aucune récompense à récupérer.');
+    if (!list.length) throw new HttpError(409, msg('Aucune récompense à récupérer.'));
     const got = list.map(m => take(a, m));
     await store.put(a);
     return reply(a, { got });
@@ -93,7 +98,7 @@ export function createMail(store, accounts, { notify = () => {} } = {}) {
   // Supprimer un message de sa boîte : seulement une fois sa récompense récupérée.
   async function hide(a, { id }) {
     const m = find(a, id);
-    if (pending(a, m)) throw new HttpError(409, 'Récupérez d\'abord la récompense de ce message.');
+    if (pending(a, m)) throw new HttpError(409, msg('Récupérez d\'abord la récompense de ce message.'));
     box(a).hidden.push(m.id);
     await store.put(a);
     return reply(a);
@@ -102,22 +107,22 @@ export function createMail(store, accounts, { notify = () => {} } = {}) {
   // ---- Codes cadeaux ----
   const tries = new Map(); // identifiant → dates des codes faux de la dernière heure
   async function redeem(a, { code }) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     const now = Date.now(), recent = (tries.get(a.login) || []).filter(t => now - t < TRY_WINDOW_MS);
-    if (recent.length >= MAX_TRIES) throw new HttpError(429, 'Trop de codes incorrects : réessayez dans une heure.');
+    if (recent.length >= MAX_TRIES) throw new HttpError(429, msg('Trop de codes incorrects : réessayez dans une heure.'));
     const c = cleanCode(code), all = codes(), x = all.find(k => k.code === c);
-    const wrong = msg => { tries.set(a.login, [...recent, now]); return new HttpError(404, msg); };
-    if (!c) throw new HttpError(400, 'Entrez un code.');
-    if (!x || x.off) throw wrong('Ce code n\'existe pas.');
-    if (!live(x)) throw wrong('Ce code a expiré.');
-    if ((a.redeemed || []).includes(x.code)) throw new HttpError(409, 'Vous avez déjà utilisé ce code.');
-    if (x.max && x.uses >= x.max) throw new HttpError(409, 'Ce code a déjà été utilisé autant de fois que prévu.');
+    const wrong = m => { tries.set(a.login, [...recent, now]); return new HttpError(404, m); };
+    if (!c) throw new HttpError(400, msg('Entrez un code.'));
+    if (!x || x.off) throw wrong(msg('Ce code n\'existe pas.'));
+    if (!live(x)) throw wrong(msg('Ce code a expiré.'));
+    if ((a.redeemed || []).includes(x.code)) throw new HttpError(409, msg('Vous avez déjà utilisé ce code.'));
+    if (x.max && x.uses >= x.max) throw new HttpError(409, msg('Ce code a déjà été utilisé autant de fois que prévu.'));
     const card = accounts.giveReward(a, x.reward);
     a.redeemed = [...(a.redeemed || []), x.code];
     x.uses = (x.uses || 0) + 1;
     await store.putDoc('codes', { codes: all });
     await store.put(a);
-    return { got: { label: x.label || `Code ${x.code}`, ...x.reward, ...(card ? { cardShards: card.shards, cardFresh: card.fresh[0] } : {}) }, account: accounts.me(a) };
+    return { got: { label: x.label || `Code ${x.code}`, ...(x.label ? {} : { labelMsg: msg('Code {code}', { code: x.code }) }), ...x.reward, ...(card ? { cardShards: card.shards, cardFresh: card.fresh[0] } : {}) }, account: accounts.me(a) };
   }
 
   // ---- Administration ----

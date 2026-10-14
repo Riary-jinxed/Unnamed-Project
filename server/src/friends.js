@@ -4,13 +4,16 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { deckError } from '@jeu/engine/collection';
 import { HttpError } from './accounts.js';
+import { msg, tr, trMsg } from '@jeu/engine/i18n';
+import { langOf } from './i18n.js';
 
 const MAX_FRIENDS = 100;
 const CHALLENGE_TTL_MS = 2 * 60 * 1000;
 const STATUS_ORDER = { online: 0, game: 1, off: 2 };
 const list = (a, k) => (a[k] ||= []);
 const drop = (arr, x) => { const i = arr.indexOf(x); if (i >= 0) arr.splice(i, 1); };
-const send = (ws, msg) => { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); };
+// Le texte d'un message (champ msg : texte français ou msg(modèle, variables)) est traduit dans la langue de la connexion (ws.lang).
+const send = (ws, m) => { if (ws.readyState === 1) ws.send(JSON.stringify(m.msg ? { ...m, msg: trMsg(ws.lang || 'fr', m.msg) } : m)); };
 
 // rooms : ce que index.js offre des salons. playing(login) : assis dans un salon et connecté ;
 // inviteRoom(logins, { ranked }) : crée un salon réservé à ces deux joueurs (partie classée si ranked) et renvoie son code ; abortInvite(code, login) : l'annule.
@@ -42,44 +45,44 @@ export function createFriends(store, accounts, rooms) {
   // Un ami se trouve par son identifiant ou par son pseudo (s'il n'est porté que par un joueur).
   function find(me, query) {
     const q = String(query || '').trim().toLowerCase();
-    if (!q) throw new HttpError(400, 'Entrez le pseudo ou l\'identifiant de votre ami.');
+    if (!q) throw new HttpError(400, msg('Entrez le pseudo ou l\'identifiant de votre ami.'));
     let b = store.get(q);
     if (!b) {
       const same = store.all().filter(x => !x.disabled && String(x.name || '').trim().toLowerCase() === q);
-      if (same.length > 1) throw new HttpError(409, 'Plusieurs joueurs portent ce pseudo : demandez-lui son identifiant.');
+      if (same.length > 1) throw new HttpError(409, msg('Plusieurs joueurs portent ce pseudo : demandez-lui son identifiant.'));
       b = same[0];
     }
-    if (!b || b.disabled) throw new HttpError(404, 'Aucun joueur avec ce pseudo ou cet identifiant.');
-    if (b.login === me.login) throw new HttpError(400, 'C\'est votre propre compte.');
+    if (!b || b.disabled) throw new HttpError(404, msg('Aucun joueur avec ce pseudo ou cet identifiant.'));
+    if (b.login === me.login) throw new HttpError(400, msg('C\'est votre propre compte.'));
     return b;
   }
   async function save(...accs) { await Promise.all(accs.filter(Boolean).map(x => store.put(x))); }
 
   async function add(a, { name }) {
     const b = find(a, name);
-    if (list(a, 'friends').includes(b.login)) throw new HttpError(409, `${b.name} est déjà dans vos amis.`);
-    if (list(a, 'friendsOut').includes(b.login)) throw new HttpError(409, `Demande déjà envoyée à ${b.name}.`);
+    if (list(a, 'friends').includes(b.login)) throw new HttpError(409, msg('{name} est déjà dans vos amis.', { name: b.name }));
+    if (list(a, 'friendsOut').includes(b.login)) throw new HttpError(409, msg('Demande déjà envoyée à {name}.', { name: b.name }));
     // Il vous avait déjà demandé : vous devenez amis.
     if (list(a, 'friendsIn').includes(b.login)) return accept(a, { login: b.login });
-    if (a.friends.length + a.friendsOut.length >= MAX_FRIENDS) throw new HttpError(409, `${MAX_FRIENDS} amis au plus.`);
+    if (a.friends.length + a.friendsOut.length >= MAX_FRIENDS) throw new HttpError(409, msg('{n} amis au plus.', { n: MAX_FRIENDS }));
     a.friendsOut.push(b.login); list(b, 'friendsIn').push(a.login);
     await save(a, b);
-    notify(b.login, { t: 'friends', msg: `${a.name} vous demande en ami.` });
-    pushTo(b.login, { title: 'Demande d\'ami', body: `${a.name} vous demande en ami.` });
-    return { ...view(a), msg: `Demande envoyée à ${b.name}.` };
+    notify(b.login, { t: 'friends', msg: msg('{name} vous demande en ami.', { name: a.name }) });
+    pushTo(b.login, { title: msg('Demande d\'ami'), body: msg('{name} vous demande en ami.', { name: a.name }) });
+    return { ...view(a), msg: tr(langOf(a), 'Demande envoyée à {name}.', { name: b.name }) };
   }
   async function accept(a, { login }) {
     const b = store.get(String(login || ''));
-    if (!b || !list(a, 'friendsIn').includes(b.login)) throw new HttpError(404, 'Cette demande n\'existe plus.');
+    if (!b || !list(a, 'friendsIn').includes(b.login)) throw new HttpError(404, msg('Cette demande n\'existe plus.'));
     for (const [x, y] of [[a, b], [b, a]]) {
       drop(list(x, 'friendsIn'), y.login); drop(list(x, 'friendsOut'), y.login);
       if (!list(x, 'friends').includes(y.login)) x.friends.push(y.login);
       accounts.progress.check(x);
     }
     await save(a, b);
-    notify(b.login, { t: 'friends', msg: `${a.name} a accepté votre demande d'ami.` });
-    pushTo(b.login, { title: 'Nouvel ami', body: `${a.name} a accepté votre demande d'ami.` });
-    return { ...view(a), msg: `${b.name} est maintenant votre ami.` };
+    notify(b.login, { t: 'friends', msg: msg('{name} a accepté votre demande d\'ami.', { name: a.name }) });
+    pushTo(b.login, { title: msg('Nouvel ami'), body: msg('{name} a accepté votre demande d\'ami.', { name: a.name }) });
+    return { ...view(a), msg: tr(langOf(a), '{name} est maintenant votre ami.', { name: b.name }) };
   }
   // Refuser une demande, annuler la sienne ou retirer un ami : le lien disparaît des deux côtés.
   async function remove(a, { login }) {
@@ -106,6 +109,8 @@ export function createFriends(store, accounts, rooms) {
     if (!a) { send(ws, { t: 'bye' }); return; }
     if (ws.presence) return;
     ws.presence = a.login;
+    // Langue de la connexion (champ lang du message, index.js), sinon celle du compte ; rangée sur le compte pour ses notifications.
+    if (ws.lang) accounts.setLang(a, ws.lang); else ws.lang = langOf(a);
     let set = online.get(a.login);
     if (!set) { online.set(a.login, set = new Set()); changed(a.login); }
     set.add(ws);
@@ -130,13 +135,13 @@ export function createFriends(store, accounts, rooms) {
   function challenge(ws, to, ranked) {
     const a = store.get(ws.presence); if (!a) return;
     const b = store.get(String(to || '')), pending = [...challenges.values()];
-    const err = !b || !list(a, 'friends').includes(b.login) ? 'Ce joueur n\'est pas dans vos amis.'
-      : rooms.playing(a.login) ? 'Vous êtes déjà dans une partie.'
-      : !hasPlayableDeck(a) ? 'Aucun de vos decks n\'est jouable.'
-      : !online.has(b.login) ? `${b.name} n'est pas connecté.`
-      : rooms.playing(b.login) ? `${b.name} est déjà en partie.`
-      : pending.some(c => c.from === a.login) ? 'Vous avez déjà lancé un défi : attendez la réponse ou annulez-le.'
-      : pending.some(c => c.to === b.login || c.from === b.login) ? `${b.name} a déjà un défi en cours.`
+    const err = !b || !list(a, 'friends').includes(b.login) ? msg('Ce joueur n\'est pas dans vos amis.')
+      : rooms.playing(a.login) ? msg('Vous êtes déjà dans une partie.')
+      : !hasPlayableDeck(a) ? msg('Aucun de vos decks n\'est jouable.')
+      : !online.has(b.login) ? msg('{name} n\'est pas connecté.', { name: b.name })
+      : rooms.playing(b.login) ? msg('{name} est déjà en partie.', { name: b.name })
+      : pending.some(c => c.from === a.login) ? msg('Vous avez déjà lancé un défi : attendez la réponse ou annulez-le.')
+      : pending.some(c => c.to === b.login || c.from === b.login) ? msg('{name} a déjà un défi en cours.', { name: b.name })
       : null;
     if (err) { send(ws, { t: 'challenge-error', msg: err }); return; }
     const c = { id: randomBytes(6).toString('hex'), from: a.login, to: b.login, at: Date.now(), ranked: !!ranked };
@@ -146,11 +151,11 @@ export function createFriends(store, accounts, rooms) {
   }
   function answer(ws, { id, accept: yes }) {
     const c = challenges.get(id);
-    if (!c || c.to !== ws.presence) { send(ws, { t: 'challenge-gone', id, msg: 'Ce défi n\'est plus valable.' }); return; }
+    if (!c || c.to !== ws.presence) { send(ws, { t: 'challenge-gone', id, msg: msg('Ce défi n\'est plus valable.') }); return; }
     const a = store.get(c.from), b = store.get(c.to);
-    if (!yes) { endChallenge(c, `${nameOf(c.to)} a refusé votre défi.`); return; }
-    if (!a || !online.has(c.from) || rooms.playing(c.from)) { endChallenge(c, null, `${nameOf(c.from)} n'est plus disponible.`); return; }
-    if (!hasPlayableDeck(b)) { send(ws, { t: 'challenge-error', msg: 'Aucun de vos decks n\'est jouable : complétez-en un d\'abord.' }); return; }
+    if (!yes) { endChallenge(c, msg('{name} a refusé votre défi.', { name: nameOf(c.to) })); return; }
+    if (!a || !online.has(c.from) || rooms.playing(c.from)) { endChallenge(c, null, msg('{name} n\'est plus disponible.', { name: nameOf(c.from) })); return; }
+    if (!hasPlayableDeck(b)) { send(ws, { t: 'challenge-error', msg: msg('Aucun de vos decks n\'est jouable : complétez-en un d\'abord.') }); return; }
     challenges.delete(c.id);
     const room = rooms.inviteRoom([c.from, c.to], { ranked: c.ranked });
     notify(c.from, { t: 'challenge-ready', id: c.id, room, foe: b.name, ranked: c.ranked });
@@ -158,11 +163,11 @@ export function createFriends(store, accounts, rooms) {
   }
   function cancel(ws, { id }) {
     const c = challenges.get(id);
-    if (c && c.from === ws.presence) endChallenge(c, null, `${nameOf(c.from)} a annulé son défi.`);
+    if (c && c.from === ws.presence) endChallenge(c, null, msg('{name} a annulé son défi.', { name: nameOf(c.from) }));
   }
   setInterval(() => {
     const now = Date.now();
-    for (const c of challenges.values()) if (now - c.at > CHALLENGE_TTL_MS) endChallenge(c, `${nameOf(c.to)} n'a pas répondu à votre défi.`, 'Le défi a expiré.');
+    for (const c of challenges.values()) if (now - c.at > CHALLENGE_TTL_MS) endChallenge(c, msg('{name} n\'a pas répondu à votre défi.', { name: nameOf(c.to) }), msg('Le défi a expiré.'));
   }, 10_000).unref();
 
   // Messages WebSocket de présence et de défi. Renvoie true si le message a été traité ici.

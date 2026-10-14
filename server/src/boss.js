@@ -12,6 +12,8 @@ import { TITLES, FRAMES, BACKS } from '@jeu/engine/rewards';
 import { DEFAULT_BOSS, BOSS_IDS, BOSS_SHOP, BOSS_LIMITS, isBoss, bossInfo, bossWeek, addWeeks, weekLast, weekDaysLeft, bossOfWeek, bossScore,
   tiersReached, rankBracket, bossItem, itemPrice, itemLimit } from '@jeu/engine/boss';
 import { HttpError } from './accounts.js';
+import { t, tr, msg } from '@jeu/engine/i18n';
+import { langOf } from './i18n.js';
 
 const LADDER_SIZE = 50, HISTORY = 10;
 const now = () => new Date().toISOString();
@@ -45,10 +47,10 @@ export function createBoss(store, accounts) {
   // Une tentative commence (index.js) : le boss de la semaine, si le mode est ouvert et qu'il reste des tentatives aujourd'hui.
   function start(a) {
     const c = cfg(), id = weekBoss();
-    if (!c.on || !id) throw new HttpError(409, 'Le boss mondial est fermé pour le moment.');
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    if (!c.on || !id) throw new HttpError(409, msg('Le boss mondial est fermé pour le moment.'));
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     const B = state(a);
-    if (B.used >= c.attempts) throw new HttpError(409, `Plus de tentative aujourd'hui (${c.attempts} par jour) : revenez demain !`);
+    if (B.used >= c.attempts) throw new HttpError(409, msg('Plus de tentative aujourd\'hui ({n} par jour) : revenez demain !', { n: c.attempts }));
     B.used++; B.boss = id;
     put(a);
     return id;
@@ -92,7 +94,8 @@ export function createBoss(store, accounts) {
       const a = store.get(x.login), r = rankBracket(x.pos, L.length, c.ranks); if (!a || !r) continue;
       if (!a.level) progress.init(a);
       if (x.pos <= 10) a.stats.bossTop10 = (a.stats.bossTop10 || 0) + 1;
-      progress.grant(a, { kind: 'boss', label: `${name} : ${nth(x.pos)} place sur ${L.length} (${r.name})`, bossCoins: r.coins || 0, prisms: r.prisms || 0, shards: r.shards || 0,
+      progress.grant(a, { kind: 'boss', label: `${name} : ${nth(x.pos)} place sur ${L.length} (${r.name})`,
+        labelMsg: msg(x.pos === 1 ? '{boss} : 1re place sur {n} ({rank})' : '{boss} : {pos}e place sur {n} ({rank})', { boss: [name], pos: x.pos, n: L.length, rank: [r.name] }), bossCoins: r.coins || 0, prisms: r.prisms || 0, shards: r.shards || 0,
         ...(r.title && TITLES[r.title] ? { title: r.title } : {}) });
       progress.check(a);
       put(a);
@@ -122,13 +125,13 @@ export function createBoss(store, accounts) {
   }
   async function buy(a, { item }) {
     const c = cfg(), x = bossItem(String(item || ''));
-    if (!x) throw new HttpError(400, 'Objet inconnu.');
+    if (!x) throw new HttpError(400, msg('Objet inconnu.'));
     const price = itemPrice(x, c), n = buys(a);
-    if (isCosmetic(x)) { if (owns(a, x)) throw new HttpError(409, 'Vous l\'avez déjà.'); }
-    else if ((n[x.id] || 0) >= itemLimit(x, c)) throw new HttpError(409, itemLimit(x, c) ? `Déjà acheté ${itemLimit(x, c)} fois cette semaine : revenez lundi.` : 'Pas en vente pour le moment.');
-    if ((a.bossCoins || 0) < price) throw new HttpError(409, `Il vous faut ${price} Insignes (vous en avez ${a.bossCoins || 0}).`);
+    if (isCosmetic(x)) { if (owns(a, x)) throw new HttpError(409, msg('Vous l\'avez déjà.')); }
+    else if ((n[x.id] || 0) >= itemLimit(x, c)) throw new HttpError(409, itemLimit(x, c) ? msg('Déjà acheté {n} fois cette semaine : revenez lundi.', { n: itemLimit(x, c) }) : msg('Pas en vente pour le moment.'));
+    if ((a.bossCoins || 0) < price) throw new HttpError(409, msg('Il vous faut {price} Insignes (vous en avez {have}).', { price, have: a.bossCoins || 0 }));
     const id = x.id.slice(x.kind.length + 1);
-    if (x.kind === 'art' && !artExists(id)) throw new HttpError(409, 'Cet art n\'est plus en vente.');
+    if (x.kind === 'art' && !artExists(id)) throw new HttpError(409, msg('Cet art n\'est plus en vente.'));
     if (!a.level) progress.init(a);
     a.bossCoins -= price; n[x.id] = (n[x.id] || 0) + 1;
     if (x.kind === 'art') a.arts = { ...(a.arts || {}), [id]: { at: now(), boss: true } };
@@ -137,7 +140,7 @@ export function createBoss(store, accounts) {
     else progress.grant(a, { [x.kind]: x.n }, { silent: true });
     progress.check(a);
     await store.put(a);
-    return { ...view(a), account: accounts.me(a), msg: `${x.name} : à vous !`,
+    return { ...view(a), account: accounts.me(a), msg: tr(langOf(a), '{name} : à vous !', { name: tr(langOf(a), x.name) }),
       got: x.kind === 'art' ? { art: id } : isCosmetic(x) ? { [x.kind]: id, label: { title: TITLES, frame: FRAMES, back: BACKS }[x.kind][id] } : null };
   }
 
@@ -148,26 +151,27 @@ export function createBoss(store, accounts) {
     const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: 'numeric', hourCycle: 'h23' }).formatToParts(now).find(p => p.type === 'hour').value);
     if (!cfg().on || !id || hour < 10 || store.doc('boss-annonce')?.week === week) return;
     store.putDoc('boss-annonce', { week }).catch(e => console.error('Annonce du boss non enregistrée :', e));
-    Promise.resolve(push.broadcast('events', { title: `Boss mondial : ${GENERALS[id].name}`, tag: 'boss', open: 'boss',
-      body: `Le boss de la semaine est arrivé : ${cfg().attempts} tentatives par jour pour grimper au classement, jusqu'à dimanche.` }))
+    Promise.resolve(push.broadcast('events', { title: msg('Boss mondial : {name}', { name: [GENERALS[id].name] }), tag: 'boss', open: 'boss',
+      body: msg('Le boss de la semaine est arrivé : {n} tentatives par jour pour grimper au classement, jusqu\'à dimanche.', { n: cfg().attempts }) }))
       .catch(e => console.error('Annonce du boss non envoyée :', e));
   }
 
   // ---- Decks contre les boss ----
   // Un deck par boss, préparé dans l'onglet Boss mondial des decks ; complet, il est joué à la place du deck joué contre ce boss.
-  const cleanDeck = (id, d) => ({ id, name: String(d.name ?? '').trim().slice(0, 30) || `Contre ${GENERALS[id].name.split(/,\s*/)[0]}`,
+  // Nom par défaut dans la langue de la requête (appelé avant le premier await de la route, voir apiHandler).
+  const cleanDeck = (id, d) => ({ id, name: String(d.name ?? '').trim().slice(0, 30) || t('Contre {name}', { name: t(GENERALS[id].name).split(/,\s*/)[0] }),
     general: d.general || null, terrains: (d.terrains || []).slice(), cards: (d.cards || []).slice() });
   function deckFor(a, id) { const d = a.bossDecks?.[id]; return d && !deckError(d, a) ? d : null; }
   async function saveDeck(a, body) {
-    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
-    const id = String(body.boss || ''); if (!isBoss(id)) throw new HttpError(400, 'Boss inconnu.');
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
+    const id = String(body.boss || ''); if (!isBoss(id)) throw new HttpError(400, msg('Boss inconnu.'));
     const d = cleanDeck(id, body), err = draftError(d, a); if (err) throw new HttpError(400, err);
     a.bossDecks = { ...(a.bossDecks || {}), [id]: d };
     await store.put(a);
     return { account: accounts.me(a) };
   }
   async function resetDeck(a, body) {
-    const id = String(body.boss || ''); if (!isBoss(id)) throw new HttpError(400, 'Boss inconnu.');
+    const id = String(body.boss || ''); if (!isBoss(id)) throw new HttpError(400, msg('Boss inconnu.'));
     if (a.bossDecks) delete a.bossDecks[id];
     await store.put(a);
     return { account: accounts.me(a) };
