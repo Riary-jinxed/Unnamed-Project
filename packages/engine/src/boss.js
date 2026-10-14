@@ -87,6 +87,9 @@ export const BOSS_SHOP = [
   S('title:boss:chasseur', 'title', 'Titre « Chasseur de boss »', 250, 0),
   S('back:boss_trophee', 'back', 'Dos du trophée', 500, 0),
   S('frame:boss_crocs', 'frame', 'Cadre des crocs', 700, 0),
+  // Cadres animés (client/src/frames-anim.css).
+  S('frame:boss_comete', 'frame', 'Cadre de la comète', 900, 0),
+  S('frame:boss_brasier', 'frame', 'Cadre du brasier', 900, 0),
   S('art:chevalier_boss', 'art', 'Chevalier, tueur de boss', 500, 0),
   S('art:vaelthar_trophee', 'art', 'Vael\'Thar, trophée du glacier', 800, 0),
   S('art:vorgoth_trophee', 'art', 'Vorgoth, trophée du cercle', 800, 0),
@@ -98,7 +101,7 @@ export const itemPrice = (x, cfg = DEFAULT_BOSS) => cfg.shop?.[x.id]?.price ?? x
 export const itemLimit = (x, cfg = DEFAULT_BOSS) => cfg.shop?.[x.id]?.limit ?? x.limit;
 // Cosmétiques du boss mondial, ajoutés aux listes de rewards.js.
 export const BOSS_TITLES = [['boss:chasseur', 'Chasseur de boss'], ['boss:top1', 'Fléau des boss'], ['boss:top3', 'Terreur des boss'], ['boss:top10', 'Chasseur d\'élite']];
-export const BOSS_FRAMES = [['boss_crocs', 'Cadre des crocs']];
+export const BOSS_FRAMES = [['boss_crocs', 'Cadre des crocs'], ['boss_comete', 'Cadre de la comète'], ['boss_brasier', 'Cadre du brasier']];
 export const BOSS_BACKS = [['boss_trophee', 'Dos du trophée']];
 
 // Paliers atteints par un score (indices dans tiers).

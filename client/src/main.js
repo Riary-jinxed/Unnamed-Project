@@ -9,6 +9,7 @@ import './halloween.css';
 import './clan.css';
 import './boss.css';
 import './story.css';
+import './frames-anim.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog, bossBoost } from '@jeu/engine';
 import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, setById, setOf, setRevealed, unrevealed, allowedGenerals, allowedTerrains, starterGenerals, deckError, deckCode, readDeckCode, fitDeck, recipeKeys, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder, today } from '@jeu/engine/collection';
 import { api } from './api.js';
@@ -37,7 +38,7 @@ import { TABS, screenDir, slides, ghostScreen, ghostSheet } from './transition.j
 import { openPack, openChest } from './opening.js';
 import { setHome } from './lobby.js';
 import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
-import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL, FAMILY_REWARDS, SET_REWARDS, ACHIEVEMENTS } from '@jeu/engine/rewards';
+import { FRAMES, BACKS, TITLES, ANIMATED_FRAMES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL, FAMILY_REWARDS, SET_REWARDS, ACHIEVEMENTS } from '@jeu/engine/rewards';
 import { EMOTES, EMOTE_SLOTS, EMOTE_COOLDOWN_MS, EMOTE_SHOW_MS, SHOP_EMOTES, FREE_EMOTES } from '@jeu/engine/emotes';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { EVENT_EFFECTS, multLabel } from '@jeu/engine/events';
@@ -481,7 +482,10 @@ async function pickAvatar(file) {
 const initials = name => (String(name || '?').trim().match(/\S/g) || ['?'])[0].toUpperCase();
 const avatarBare = (a, cls = '') => (a.avatar ? `<img class="avatar ${cls}" src="${esc(a.avatar)}" alt="">` : `<span class="avatar initials ${cls}" aria-hidden="true">${esc(initials(a.name))}</span>`);
 // Le cadre choisi entoure l'image de profil.
-const avatarHTML = (a, cls = '', frame = a.progress?.frame) => (frame ? `<span class="frame frame-${frame} ${cls}">${avatarBare(a, cls)}</span>` : avatarBare(a, cls));
+// Cadre animé : un calque en plus (.ffx, frames-anim.css) porte le mouvement par-dessus ou derrière l'anneau.
+const avatarHTML = (a, cls = '', frame = a.progress?.frame) => (frame ? ANIMATED_FRAMES.has(frame)
+  ? `<span class="frame frame-${frame} fanim ${cls}">${avatarBare(a, cls)}<i class="ffx" aria-hidden="true"></i></span>`
+  : `<span class="frame frame-${frame} ${cls}">${avatarBare(a, cls)}</span>` : avatarBare(a, cls));
 // Bilan de victoires d'un mode (Mon profil et profil public).
 const winTile = (label, r) => `<div class="stat"><span class="eyebrow">${label}</span><b class="num">${r.rate === null ? '–' : t('{n} %', { n: r.rate })}</b>
   <small class="hint num">${tp(r.games, '{n} partie', '{n} parties')} · ${t('{w} V · {l} D', { w: r.wins, l: r.losses })}${r.draws ? ` · ${t('{n} N', { n: r.draws })}` : ''}</small></div>`;
@@ -1452,7 +1456,22 @@ function essenceShopHTML(E) {
     ${ui.msg && !ui.sheet ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
     ${vit}
     <p class="hint" style="margin:0">${t('Toujours en vente ici, jamais au coffre ni dans les arts du jour. Réunissez-les tous pour compléter la famille d\'arts Astrale et gagner son titre.')}</p>
+    ${essFrameHTML(E.frame, have)}
   </section>`;
+}
+// Cadre de la nébuleuse (animé), vendu seulement au rayon Essence : montré sur l'image de profil du joueur.
+function essFrameHTML(f, have) {
+  if (!f) return '';
+  const name = esc(t(FRAMES[f.id] || f.id));
+  return `<div class="essframe">${avatarHTML(ui.account, 'big', f.id)}
+    <div><b>${name}</b><small class="hint">${t('Cadre animé, vendu seulement ici.')}</small></div>
+    ${f.owned ? `<span class="chip ok">${t('Déjà à vous')}</span>` : `<button class="btn primary" data-act="buy-ess-frame" ${have < f.price || ui.busy ? 'disabled' : ''} aria-label="${t('Acheter le {name} pour {price} essence universelle', { name, price: f.price })}">${ico('essence')}${f.price}</button>`}</div>`;
+}
+async function buyEssenceFrame() {
+  const r = await call('POST', '/api/shop/essence-frame', {}, true);
+  if (!r) return;
+  ui.shop = r.shop; ui.msg = t('{name} : à vous ! Portez-le depuis la Personnalisation.', { name: t(FRAMES[r.frame] || r.frame) });
+  play('reveal'); render();
 }
 // Art de l'édition Essence acheté : montré en grand, prêt à être choisi pour sa carte (comme un art du jour).
 async function buyEssenceArt(id) { await buyArt('/api/shop/essence-art', { art: id }); }
@@ -2508,6 +2527,7 @@ app.addEventListener('click', e => {
     else if (a === 'exchange' && !ui.busy) exchange(ds.id);
     else if (a === 'buy-dup' && !ui.busy) { const go = () => buyDup(ds.id); if (!lacksShards(ui.shop?.prices.dupPrice, t('acheter'), go)) go(); }
     else if (a === 'buy-ess-art' && !ui.busy) buyEssenceArt(ds.id);
+    else if (a === 'buy-ess-frame' && !ui.busy) buyEssenceFrame();
     else if (a === 'uni-convert' && !ui.busy) convertEssence(ds.id, +ds.n);
     else if (a === 'shop-essence') { ui.sheet = null; ui.zoom = null; ui.msg = ''; openShop('essence'); }
     else if (a === 'shop-change') { ui.need = null; ui.sheet = null; ui.zoom = null; openShop('change'); }
