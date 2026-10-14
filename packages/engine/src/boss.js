@@ -7,6 +7,7 @@
 import { GENERALS, CARDS, newGame, zonePower, SLOTS } from './engine.js';
 import { today } from './collection.js';
 import { weekOf } from './pass.js';
+import { t } from './i18n.js';
 
 export const BOSS_IDS = Object.keys(GENERALS).filter(g => GENERALS[g].boss);
 export const isBoss = id => !!GENERALS[id]?.boss;
@@ -16,7 +17,7 @@ export function bossInfo(id) {
   return { id, name: g.name, fam: g.fam, art: g.art, text: g.text, boost: g.boost,
     script: g.script.map((s, i) => ({ turn: i + 1, when: s.when, name: s.name, text: s.text })) };
 }
-export const bossBoostLabel = b => [...Object.entries(b.fams).map(([f, n]) => `${f} +${n}`), ...Object.entries(b.cards).map(([id, n]) => `${CARDS[id]?.name || id} +${n}`)];
+export const bossBoostLabel = b => [...Object.entries(b.fams).map(([f, n]) => `${t(f)} +${n}`), ...Object.entries(b.cards).map(([id, n]) => `${CARDS[id]?.name || id} +${n}`)];
 
 // ---- Semaine et rotation ----
 // La semaine du jeu : son lundi (AAAA-MM-JJ). Le boss d'une semaine : la rotation, à partir de la semaine de référence.

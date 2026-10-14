@@ -5,6 +5,7 @@
 // de leurs membres cumulés) reçoivent des récompenses et une bannière.
 import { today } from './collection.js';
 import { weekOf } from './pass.js';
+import { t } from './i18n.js';
 
 export const CLAN_PRICE = 50; // Prismes
 export const CLAN_NAME_MAX = 24, CLAN_TAG_RE = /^[A-Z0-9]{2,4}$/, CLAN_DESC_MAX = 140;
@@ -38,13 +39,13 @@ export const CLAN_COLORS = { pourpre: '#7a2a8c', azur: '#2a5fa8', sinople: '#2f7
 // un membre ne peut pas faire plus de CLAN_SHARE fois sa part (objectif ÷ membres) : à 10, il faut au moins 4 joueurs.
 // Chaque mission accomplie donne son XP au clan et ses Écus à chaque membre qui y a contribué.
 export const CLAN_MISSION_KINDS = {
-  games: { label: n => `Jouer ${n} parties`, daily: 3, weekly: 15 },
-  wins: { label: n => `Gagner ${n} parties`, daily: 2, weekly: 8 },
-  cards: { label: n => `Jouer ${n} cartes`, daily: 15, weekly: 75 },
-  spells: { label: n => `Jouer ${n} sorts`, daily: 4, weekly: 20 },
-  creatures: { label: n => `Jouer ${n} créatures`, daily: 8, weekly: 40 },
-  ranked: { label: n => `Jouer ${n} parties classées`, weekly: 6 },
-  dons: { label: n => `Gagner ${n} Écus en dons`, weekly: 25 },
+  games: { label: n => t('Jouer {n} parties', { n }), daily: 3, weekly: 15 },
+  wins: { label: n => t('Gagner {n} parties', { n }), daily: 2, weekly: 8 },
+  cards: { label: n => t('Jouer {n} cartes', { n }), daily: 15, weekly: 75 },
+  spells: { label: n => t('Jouer {n} sorts', { n }), daily: 4, weekly: 20 },
+  creatures: { label: n => t('Jouer {n} créatures', { n }), daily: 8, weekly: 40 },
+  ranked: { label: n => t('Jouer {n} parties classées', { n }), weekly: 6 },
+  dons: { label: n => t('Gagner {n} Écus en dons', { n }), weekly: 25 },
 };
 export const CLAN_DAILY = 3, CLAN_WEEKLY = 3, CLAN_MIN_MEMBERS = 5, CLAN_SHARE = 2.5;
 export const CLAN_MISSION_REWARDS = { daily: { xp: 25, coins: 10 }, weekly: { xp: 100, coins: 40 } };
