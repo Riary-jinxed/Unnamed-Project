@@ -110,7 +110,6 @@ export function createClans(store, accounts, push = null) {
       const b = login === current?.login ? current : store.get(login); if (!b) continue;
       progress.grant(b, { kind: 'clan', label, labelMsg: msg('Mission de clan accomplie : {label}', { label: inLang(b, () => clanMissionLabel(m)) }), clanCoins: r.coins });
       progress.count(b, 'clanMissions');
-      progress.act(b, 'clanMission');
       if (b !== current) put(b);
     }
     const after = level(c);

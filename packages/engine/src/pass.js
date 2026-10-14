@@ -13,7 +13,7 @@ export const PASS_TIERS = 40;
 // ---- Missions ----
 // Sortes de mission et ce qui les fait avancer (voir onPass dans server/src/progress.js).
 // daily, weekly : objectif dans les missions du jour et de la semaine (null : jamais tirée là). Réglables dans /admin.
-// need, needTarget : comme pour les missions hors passe (rewards.js), la sorte n'est tirée que pour un joueur qui a accès au mode.
+// need : comme pour les missions hors passe (rewards.js), la sorte n'est tirée que pour un joueur qui a accès au mode.
 // Singulier pour 1 seulement (0 au pluriel), comme en anglais : t(n === 1 ? singulier : pluriel).
 export const PASS_KINDS = {
   play:      { label: n => t(n === 1 ? 'Jouer {n} partie' : 'Jouer {n} parties', { n }), daily: 3, weekly: 15 },
@@ -28,11 +28,7 @@ export const PASS_KINDS = {
   missions:  { label: n => t(n === 1 ? 'Accomplir {n} mission du jour' : 'Accomplir {n} missions du jour', { n }), daily: 2, weekly: 10 },
   login:     { label: n => t(n === 1 ? 'Récupérer {n} récompense du calendrier' : 'Récupérer {n} récompenses du calendrier', { n }), daily: null, weekly: 5 },
   season:    { label: n => t(n === 1 ? 'Jouer une fois une carte de la saison' : 'Jouer {n} fois une carte de la saison', { n }), daily: null, weekly: null },
-  friend:    { label: n => t(n === 1 ? 'Jouer {n} partie contre un ami' : 'Jouer {n} parties contre un ami', { n }), daily: null, weekly: 2, need: 'friends' },
   boss:      { label: n => t(n === 1 ? 'Affronter le boss mondial' : 'Affronter le boss mondial {n} fois', { n }), daily: 1, weekly: 4, need: 'boss' },
-  story:     { label: n => t(n === 1 ? 'Gagner {n} chapitre de quête d\'histoire' : 'Gagner {n} chapitres de quête d\'histoire', { n }), daily: null, weekly: 2, need: 'story', needTarget: true },
-  emote:     { label: n => t(n === 1 ? 'Envoyer {n} émote en partie' : 'Envoyer {n} émotes en partie', { n }), daily: 3, weekly: null },
-  clanMission: { label: n => t(n === 1 ? 'Contribuer à {n} mission de clan accomplie' : 'Contribuer à {n} missions de clan accomplies', { n }), daily: null, weekly: 3, need: 'clan' },
 };
 export const passMissionLabel = m => PASS_KINDS[m.kind]?.label(m.target, m.fam) || m.kind;
 

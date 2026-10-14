@@ -176,9 +176,9 @@ export function createProgress(store) {
     return a.weekly;
   }
   // Modes auxquels le joueur n'a pas forcément accès (champ need des missions) : de combien il dispose (0 : pas d'accès).
-  // Le boss mondial et les quêtes d'histoire donnent le leur au démarrage (setNeed, boss.js et story.js).
-  const needs = { clan: a => (a.clan ? 1 : 0), friends: a => (a.friends || []).length };
-  const canDo = (a, def, target) => !def.need || Number(needs[def.need]?.(a) || 0) >= (def.needTarget ? target : 1);
+  // Le boss mondial donne le sien au démarrage (setNeed, boss.js).
+  const needs = { clan: a => (a.clan ? 1 : 0) };
+  const canDo = (a, def) => !def.need || Number(needs[def.need]?.(a) || 0) > 0;
   // n missions au hasard parmi ids, sans celles que le joueur ne peut pas faire avec sa collection ou ses modes
   // ni deux d'un même groupe (en comptant celles de keep, déjà là).
   function draw(a, ids, n, keep = []) {
@@ -193,7 +193,7 @@ export function createProgress(store) {
   // Famille ou carte demandée : tirée parmi les cartes du joueur (pick, rewards.js) ; null s'il n'en a pas assez ou n'a pas accès au mode.
   function newMission(a, id) {
     const m = cfg().missions[id], def = ALL_MISSIONS[id];
-    if (!canDo(a, def, m.target)) return null;
+    if (!canDo(a, def)) return null;
     const pick = def.pick ? def.pick(a) : {};
     if (!pick) return null;
     return { id, target: m.target, xp: m.xp, shards: m.shards, n: 0, done: false, ...pick };
@@ -263,13 +263,13 @@ export function createProgress(store) {
     const shards = rewarded ? boost(win ? (pvp ? c.shardsPvpWin : c.shardsPveWin) : c.shardsLoss, shardMult) : 0;
     a.shards = (a.shards || 0) + shards;
     const doneOf = () => [...missions(a).list, ...weekly(a).list].filter(m => m.done).length, doneBefore = doneOf();
-    const stats = { play: 1, win: win ? 1 : 0, win_pvp: win && pvp ? 1 : 0, win_pve: win && !pvp ? 1 : 0, ranked: ranked ? 1 : 0, friend: friend ? 1 : 0, sweep: win && sweep ? 1 : 0, zones };
+    const stats = { play: 1, win: win ? 1 : 0, win_pvp: win && pvp ? 1 : 0, win_pve: win && !pvp ? 1 : 0, ranked: ranked ? 1 : 0, sweep: win && sweep ? 1 : 0, zones };
     advance(a, m => { const def = ALL_MISSIONS[m.id]; return def?.count ? def.count(m, played) : def?.on ? 0 : stats[def?.stat || m.id] || 0; });
     addXp(a, xp);
     const P = pass(a);
     if (P && rewarded) gainPassXp(a, boost(win ? c.passXpWin : c.passXpLoss, passMult));
     passAdvance(a, m => ({
-      play: 1, win: win ? 1 : 0, pvp: win && pvp ? 1 : 0, ranked: ranked ? 1 : 0, friend: friend ? 1 : 0, sweep: win && sweep ? 1 : 0,
+      play: 1, win: win ? 1 : 0, pvp: win && pvp ? 1 : 0, ranked: ranked ? 1 : 0, sweep: win && sweep ? 1 : 0,
       spells: played.filter(id => CARDS[id]?.type === 'S').length, creatures: played.filter(id => CARDS[id]?.type === 'C').length,
       fam: played.filter(id => CARDS[id] && familyOf(id) === m.fam).length, season: played.filter(id => P && SEASON_CARDS[id] === P.season).length,
     }[m.kind] || 0));
@@ -447,7 +447,7 @@ export function createProgress(store) {
   // Missions du jour ou de la semaine : n sortes différentes, tirées parmi celles qui ont un objectif à cette échelle
   // (et, pour celles d'un mode, auquel le joueur a accès).
   function drawPass(a, season, scale, n, c) {
-    const kinds = shuffle(Object.keys(PASS_KINDS).filter(k => c.passPool[k][scale] > 0 && canDo(a, PASS_KINDS[k], c.passPool[k][scale]))).slice(0, n);
+    const kinds = shuffle(Object.keys(PASS_KINDS).filter(k => c.passPool[k][scale] > 0 && canDo(a, PASS_KINDS[k]))).slice(0, n);
     const xp = scale === 'daily' ? c.passXpDaily : c.passXpWeekly;
     return kinds.map(kind => ({ kind, target: c.passPool[kind][scale], xp, n: 0, done: false, ...(kind === 'fam' ? { fam: shuffle(season.fams.slice())[0] } : {}) }));
   }

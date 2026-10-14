@@ -6,7 +6,7 @@ import { TIERS, PLACES, seasonShardsKey, seasonPrismsKey, placeShardsKey, placeP
 import { PASS_KINDS, PASS_TIERS, SEASONS, passMissionLabel, refundTier } from '@jeu/engine/pass';
 
 // Modes demandés par certaines missions (champ need) : tirées seulement pour les joueurs qui y ont accès.
-const NEEDS = { clan: 'membres d\'un clan', friends: 'joueurs avec des amis', boss: 'boss mondial ouvert', story: 'chapitres d\'histoire à gagner' };
+const NEEDS = { clan: 'membres d\'un clan', boss: 'boss mondial ouvert' };
 const GROUPS = [
   ['Niveau du compte', 'XP pour passer du niveau n au suivant : le plus petit entre « plafond » et « base + pas × (n − 1) ».', [
     ['xpBase', 'XP du niveau 1 au 2'], ['xpStep', 'XP de plus à chaque niveau'], ['xpCap', 'Plafond d\'XP par niveau'],
@@ -100,7 +100,7 @@ export function rewardsTab({ call, render, say, esc, notice }) {
       <p class="hint" style="margin:0">Décochez une mission pour ne plus la tirer. Elles sont tirées au hasard chaque jour parmi celles cochées.</p>
       <div class="scroll"><table class="admin"><thead><tr><th>Mission</th><th>Objectif</th><th>XP</th><th>Éclats</th></tr></thead><tbody>${missions}</tbody></table></div>
       <h2 style="font-size:20px">Missions de la semaine</h2>
-      <p class="hint" style="margin:0">Hors passe : tirées chaque lundi parmi celles cochées, avec le bonus réglé plus haut quand elles sont toutes accomplies. Une mission d'un mode (clan, amis, boss mondial, quêtes d'histoire) n'est tirée que pour les joueurs qui y ont accès, ici comme pour les missions du jour et du passe.</p>
+      <p class="hint" style="margin:0">Hors passe : tirées chaque lundi parmi celles cochées, avec le bonus réglé plus haut quand elles sont toutes accomplies. Une mission d'un mode (clan, boss mondial) n'est tirée que pour les joueurs qui y ont accès, ici comme pour les missions du jour et du passe.</p>
       <div class="scroll"><table class="admin"><thead><tr><th>Mission</th><th>Objectif</th><th>XP</th><th>Éclats</th></tr></thead><tbody>${weekly}</tbody></table></div>
       <h2 style="font-size:20px">Missions du passe de saison</h2>
       <p class="hint" style="margin:0">Objectif de chaque sorte de mission quand elle est tirée pour le jour ou pour la semaine (0 : jamais tirée). Les missions de saison ont leur propre objectif et leur XP, par saison.</p>

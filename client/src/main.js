@@ -253,7 +253,7 @@ async function call(method, path, body) {
   finally { ui.busy = false; render(); }
 }
 // Signale au serveur un geste qu'il ne voit pas passer (onglet Suivi de /admin) : code de deck copié, émote contre l'IA, notification touchée.
-const track = (what, id) => { if (ui.auth) api('POST', '/api/track', { what, id }, ui.auth).then(r => { if (r?.account) { setAccount(r.account); render(); } }).catch(() => {}); };
+const track = (what, id) => { if (ui.auth) api('POST', '/api/track', { what, id }, ui.auth).catch(() => {}); };
 // Cartes et sets publiés depuis /admin : appliqués au moteur pour l'affichage et la partie contre l'IA.
 let catalogVersion = 0;
 async function loadCatalog() {

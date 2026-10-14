@@ -20,12 +20,6 @@ export function createStory(store, accounts, { onChange = () => {} } = {}) {
   const doc = () => store.doc('quetes') || {};
   const cfg = id => questCfg(id, doc());
   const won = (a, id) => a.story?.[id] || 0;
-  // Missions « quêtes d'histoire » : chapitres que le joueur peut encore gagner pour la première fois.
-  progress.setNeed('story', a => {
-    if (!a.starter) return 0;
-    const day = today();
-    return QUESTS.reduce((n, q) => { const s = questState(q, cfg(q.id), day); return s === 'open' || s === 'archive' ? n + Math.max(0, q.chapters.length - won(a, q.id)) : n; }, 0);
-  });
 
   // ---- Vue du joueur ----
   // Les quêtes jouables (ouvertes ou archivées), et les quêtes limitées qui commencent bientôt (nom et date seulement).
@@ -71,7 +65,6 @@ export function createStory(store, accounts, { onChange = () => {} } = {}) {
     const reward = { kind: 'story', label: `${q.name} : ${q.chapters[i].name}`, labelMsg: msg('{quest} : {chapter}', { quest: [q.name], chapter: [q.chapters[i].name] }), ...chapterReward(q, i, c, state === 'archive') };
     progress.grant(a, reward, { silent: true });
     progress.count(a, 'storyChapters');
-    progress.act(a, 'story');
     accounts.activity.count('storyChapters');
     // Une quête d'événement rejouée dans l'histoire principale ne compte plus pour les succès de quête.
     if (done && state === 'open') progress.count(a, isLimited(q) ? 'storyLimited' : 'storyCampaigns');
