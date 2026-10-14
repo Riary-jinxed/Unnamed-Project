@@ -158,12 +158,15 @@ function startMatch(room) {
   if (room.boss) room.seats[1].badge = { boss: true, arts: { [room.boss]: GENERALS[room.boss].art }, looks: {}, borders: {} };
   broadcast(room);
 }
+// Une erreur pendant le tour ou l'enregistrement est notée sans arrêter le serveur (toutes les parties en cours tomberaient avec lui).
 async function resolve(room) {
   room.busy = true;
   const plans = room.plans; room.plans = [null, null];
-  await runTurn(room.st, plans, flash => broadcast(room, flash), ms => new Promise(r => setTimeout(r, ms)));
+  try {
+    await runTurn(room.st, plans, flash => broadcast(room, flash), ms => new Promise(r => setTimeout(r, ms)));
+  } catch (e) { console.error('Tour en erreur :', e); }
   room.busy = false;
-  await endMatch(room);
+  await endMatch(room).catch(e => console.error('Fin de partie en erreur :', e));
 }
 // Partie terminée (fin du dernier tour ou forfait) : enregistrée une seule fois, avec les récompenses de chacun, puis diffusée.
 async function endMatch(room) {

@@ -58,8 +58,8 @@ export function createGames(store, accounts) {
   // (siège sans compte) ; ranked : partie classée.
   // kind : « salon » (code), « defi » (défi entre amis), « defi-classe », « classe-ia » ; ms : durée ; rewards : gains de chaque siège.
   function recordPvp(st, logins, decks, { mode = 'pvp', ranked = false, kind = 'salon', ms = 0, rewards = [] } = {}) {
-    return store.addGame(withDetail({ mode, ...(ranked ? { ranked: true } : {}), at: new Date().toISOString(), winner: st.result.winner, ...reasonOf(st.result.reason, st.p.map(P => P.name)),
-      players: [0, 1].map(p => sideOf(st.p[p], logins[p], decks[p])) }, gameDetail(st), { kind, ms, rewards, result: st.result }))
+    return Promise.resolve().then(() => store.addGame(withDetail({ mode, ...(ranked ? { ranked: true } : {}), at: new Date().toISOString(), winner: st.result.winner, ...reasonOf(st.result.reason, st.p.map(P => P.name)),
+      players: [0, 1].map(p => sideOf(st.p[p], logins[p], decks[p])) }, gameDetail(st), { kind, ms, rewards, result: st.result })))
       .catch(e => console.error('Partie non enregistrée :', e));
   }
   // Partie contre l'IA terminée dans l'appli. Le joueur joue toujours le deck enregistré sur son compte.

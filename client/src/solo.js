@@ -14,7 +14,9 @@ const TRIES = 250, SLICE = 10;
 export function startSolo(handlers, { name, deck, foe = null, foeName = t('IA'), tries = TRIES, setup = null, badges = null, onOver = null }) {
   const names = [name, foeName];
   let st, ready = false, stopped = false, think = null, startedAt = 0;
-  const emit = flash => !stopped && handlers.onView(viewFor(st, 0, { flash, ready: { me: ready, foe: true }, names, connected: [true, true], ...(badges ? { badges } : {}) }));
+  // Un affichage qui plante ne doit pas arrêter la partie : elle continue jusqu'à sa fin (et son envoi à l'historique).
+  const emit = flash => { if (stopped) return;
+    try { handlers.onView(viewFor(st, 0, { flash, ready: { me: ready, foe: true }, names, connected: [true, true], ...(badges ? { badges } : {}) })); } catch (e) { console.error('Affichage de la partie en erreur :', e); } };
   // Réflexion de l'IA pour le tour en cours. La partie ne change pas pendant la préparation : le plan reste valable.
   function startThinking() {
     const job = think = { plan: null, value: -Infinity, left: tries };
