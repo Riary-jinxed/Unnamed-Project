@@ -20,11 +20,12 @@ export const BOOSTER_POOL = OWNABLE.filter(id => setOf(id) === 'base');
 // Généraux donnés par le deck de départ : les 2 de sa famille et les neutres du Set de base.
 const famOf = starter => (DECKS[starter] ? DECKS[starter].fam : undefined);
 export const starterGenerals = starter => GENERAL_IDS.filter(k => setOf(k) === 'base' && (GENERALS[k].fam === null || GENERALS[k].fam === famOf(starter)));
-// Généraux jouables : ceux de la collection. Terrains jouables : les neutres et ceux des familles dont on possède un général.
+// Généraux jouables : ceux de la collection. Terrains jouables : les neutres et ceux des familles dont on possède un général,
+// sauf ceux d'un set pas encore sorti (un général d'une famille existante ne doit pas les dévoiler).
 export const allowedGenerals = ({ cards = {} } = {}) => GENERAL_IDS.filter(k => cards[k]);
 export function allowedTerrains(account) {
   const fams = new Set(allowedGenerals(account).map(k => GENERALS[k].fam).filter(Boolean));
-  return Object.keys(TERRAINS).filter(k => (TERRAINS[k].fam === null && !unrevealed(k)) || fams.has(TERRAINS[k].fam));
+  return Object.keys(TERRAINS).filter(k => !unrevealed(k) && (TERRAINS[k].fam === null || fams.has(TERRAINS[k].fam)));
 }
 // Ajoute à un compte les généraux de son deck de départ qui lui manquent. Renvoie true si le compte a changé.
 export function grantStarterGenerals(a) {
@@ -69,7 +70,8 @@ export function deckError(deck, account) {
   }
   if (deck.terrains.length !== DECK_TERRAINS || new Set(deck.terrains).size !== DECK_TERRAINS) return `Choisissez ${DECK_TERRAINS} terrains différents.`;
   if (!allowedGenerals(account).includes(deck.general)) return 'Vous ne possédez pas ce général.';
-  const terrains = allowedTerrains(account);
+  const terrains = allowedTerrains(account), early = deck.terrains.find(t => unrevealed(t));
+  if (early) return `Le terrain ${TERRAINS[early].name} n'est pas encore sorti : remplacez-le.`;
   if (deck.terrains.some(t => !terrains.includes(t))) return 'Ce terrain demande un général de sa famille dans votre collection.';
   return null;
 }
@@ -87,10 +89,51 @@ export function draftError(deck, account) {
     if (!owned[id]) return `Vous ne possédez pas ${CARDS[id].name}.`;
   }
   if (deck.terrains.length > DECK_TERRAINS || new Set(deck.terrains).size !== deck.terrains.length) return `Choisissez ${DECK_TERRAINS} terrains différents au plus.`;
+  if (deck.terrains.some(t => unrevealed(t))) return 'Ce terrain n\'est pas encore sorti.';
   if (deck.terrains.some(t => !allowedTerrains(account).includes(t))) return 'Ce terrain demande un général de sa famille dans votre collection.';
   if (deck.general !== null && deck.general !== undefined && !allowedGenerals(account).includes(deck.general)) return 'Vous ne possédez pas ce général.';
   return null;
 }
+
+// ---- Codes de deck et recettes ----
+// Un code de deck se copie et se colle pour partager un deck : « DK1- » puis le nom, le général, les terrains et les cartes
+// (leurs identifiants), en base64url. Il ne dépend pas de la collection : chacun l'importe avec ce qu'il possède.
+const DECK_CODE = 'DK1-';
+const b64 = s => btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64 = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)));
+export const deckCode = d => DECK_CODE + b64([String(d.name || '').replace(/\|/g, ' ').trim().slice(0, 30), d.general || '', (d.terrains || []).join(','), (d.cards || []).join(',')].join('|'));
+// Renvoie { name, general, terrains, cards }, ou null si le code est illisible. Les identifiants ne sont pas vérifiés ici (fitDeck le fait).
+export function readDeckCode(code) {
+  const m = String(code || '').trim().match(/^DK1-([A-Za-z0-9_-]{1,3000})$/); if (!m) return null;
+  let parts; try { parts = unb64(m[1]).split('|'); } catch { return null; }
+  if (parts.length !== 4) return null;
+  const ids = s => (s ? s.split(',') : []).filter(id => /^[a-z0-9_]{1,30}$/.test(id));
+  return { name: parts[0].trim().slice(0, 30), general: /^[a-z0-9_]{1,30}$/.test(parts[1]) ? parts[1] : null, terrains: ids(parts[2]).slice(0, DECK_TERRAINS), cards: ids(parts[3]).slice(0, DECK_SIZE) };
+}
+// Deck (code importé ou recette) ramené à une collection : ce que le joueur peut mettre dans un deck, et ce qui lui manque.
+// Les cartes, généraux et terrains d'un set pas encore sorti, ou inconnus, sont comptés à part (« unknown ») sans être nommés.
+export function fitDeck(d, account) {
+  const own = account.cards || {}, gens = allowedGenerals(account), known = id => (CARDS[id] || GENERALS[id] || TERRAINS[id]) && !unrevealed(id);
+  const missing = { general: null, terrains: [], cards: [], unknown: 0 };
+  let general = null;
+  if (d.general && known(d.general) && GENERALS[d.general]) { if (gens.includes(d.general)) general = d.general; else missing.general = d.general; }
+  else if (d.general) missing.unknown++;
+  // Terrains : ceux qu'autorisent les généraux possédés.
+  const allowed = allowedTerrains(account), terrains = [];
+  for (const t of new Set(d.terrains)) {
+    if (!TERRAINS[t] || !known(t)) missing.unknown++;
+    else if (allowed.includes(t)) terrains.push(t); else missing.terrains.push(t);
+  }
+  const cards = [];
+  for (const id of new Set(d.cards)) {
+    if (!COLLECTIBLE.includes(id) || !known(id)) missing.unknown++;
+    else if (own[id]) cards.push(id); else missing.cards.push(id);
+  }
+  return { deck: { name: d.name, general, terrains: terrains.slice(0, DECK_TERRAINS), cards: cards.slice(0, DECK_SIZE) }, missing,
+    complete: !!general && terrains.length === DECK_TERRAINS && cards.length === DECK_SIZE };
+}
+// Recettes : les decks préconstruits des sets sortis, à reconstruire avec sa collection.
+export const recipeKeys = (day = today()) => aiDeckKeys(day).filter(k => DECKS[k].cards?.length === DECK_SIZE && DECKS[k].terrains?.length === DECK_TERRAINS && !DECKS[k].boss);
 
 // ---- Doublons, sets et boutique ----
 // Un deck ne prend qu'un exemplaire de chaque carte : chaque doublon obtenu devient des Éclats.
