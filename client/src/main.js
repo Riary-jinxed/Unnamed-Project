@@ -1359,8 +1359,8 @@ function renderShop() {
   const open = sh.sets.filter(x => x.open);
   const stall = stallHTML(open.map((set, i) => { const price = set.boosterPrice ?? P.boosterPrice, fresh = i === 0 && open.length > 1;
     return sh.freeBoosters
-      ? { kind: 'pack', act: 'free-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, free: sh.freeBoosters, fresh, tag: t('Ouvrir'), off: ui.busy, label: t('Ouvrir un booster {set} offert', { set: esc(set.name) }) }
-      : { kind: 'pack', act: 'buy-booster', set: set.id, setName: esc(set.name), n: P.boosterSize, fresh, tag: `${ico('shard')}${price}`, off: !canPay(price) || ui.busy, label: t('Acheter un booster {set} pour {price} Éclats', { set: esc(set.name), price }) }; }),
+      ? { kind: 'pack', act: 'free-booster', set: set.id, setName: esc(t(set.name)), n: P.boosterSize, free: sh.freeBoosters, fresh, tag: t('Ouvrir'), off: ui.busy, label: t('Ouvrir un booster {set} offert', { set: esc(t(set.name)) }) }
+      : { kind: 'pack', act: 'buy-booster', set: set.id, setName: esc(t(set.name)), n: P.boosterSize, fresh, tag: `${ico('shard')}${price}`, off: !canPay(price) || ui.busy, label: t('Acheter un booster {set} pour {price} Éclats', { set: esc(t(set.name)), price }) }; }),
     { info: 'booster-info', infoLabel: t('Ce que contiennent les boosters') });
   // Sélection du jour en vitrine (shop.js) : illustration, coût, « Nouvelle » si le joueur ne l'a pas, prix ou « Vendue ».
   const offers = set => vitrineHTML({ title: t('Sélection du jour'), sub: t('Cartes à l\'unité'), slots: set.offers.map(o => {
@@ -1371,14 +1371,14 @@ function renderShop() {
       price: `${ico('shard')}${P.cardPrice}`, label: t('Acheter {name} pour {price} Éclats', { name, price: P.cardPrice }) }; }) });
   const section = (set, i) => { const price = set.boosterPrice ?? P.boosterPrice, fresh = set.open && i === 0 && open.length > 1;
     return set.open ? `<section class="card-box shopset${fresh ? ' fresh' : ''} pk-${set.id}">
-      <div><span class="eyebrow">${fresh ? `<span class="newset">${t('Nouveau set')}</span> · ` : ''}${t('{n} cartes', { n: set.size })}</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
+      <div><span class="eyebrow">${fresh ? `<span class="newset">${t('Nouveau set')}</span> · ` : ''}${t('{n} cartes', { n: set.size })}</span><h2 style="font-size:22px">${esc(t(set.name))}</h2></div>
       ${offers(set)}
       <p class="hint" style="margin:0">${set.offers.length > 1 ? t('{n} cartes choisies pour vous, en priorité parmi celles qui vous manquent, renouvelées chaque jour à minuit.', { n: set.offers.length }) : t('Une carte choisie pour vous, en priorité parmi celles qui vous manquent, renouvelées chaque jour à minuit.')}</p>
       <div class="row boosterrow"><span class="gal-h">${t('Booster du set')}</span>
-        <button class="stall-info infobtn" data-act="booster-info" aria-haspopup="dialog" aria-label="${t('Ce que contient un booster {set}', { set: esc(set.name) })}">i</button>
+        <button class="stall-info infobtn" data-act="booster-info" aria-haspopup="dialog" aria-label="${t('Ce que contient un booster {set}', { set: esc(t(set.name)) })}">i</button>
         <button class="btn primary" data-act="buy-booster" data-set="${set.id}" ${!canPay(price) || ui.busy ? 'disabled' : ''}>${t('Acheter · {price} Éclats', { price })}</button>
         ${sh.freeBoosters ? `<button class="btn primary" data-act="free-booster" data-set="${set.id}" ${ui.busy ? 'disabled' : ''}>${t('Ouvrir un booster offert ({n})', { n: sh.freeBoosters })}</button>` : ''}</div>
-    </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">${t('Bientôt disponible')}</span><h2 style="font-size:22px">${esc(set.name)}</h2></div>
+    </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">${t('Bientôt disponible')}</span><h2 style="font-size:22px">${esc(t(set.name))}</h2></div>
       <p class="hint" style="margin:0">${esc(t(set.teaser))}</p></section>`; };
   return `${top}${stall}${errLine()}${dupsHTML(sh)}${sh.sets.map(section).join('')}${mail.codeForm()}`;
 }
@@ -1470,7 +1470,7 @@ function artStall(A) {
 function boosterInfo(sh) {
   if (!sh) return '';
   const P = sh.prices, open = sh.sets.filter(x => x.open);
-  const sets = open.map(set => `<li><b>${esc(set.name)}</b><span class="hint num">${t('{n} cartes', { n: set.size })} · ${ico('shard')}${set.boosterPrice ?? P.boosterPrice}</span></li>`).join('');
+  const sets = open.map(set => `<li><b>${esc(t(set.name))}</b><span class="hint num">${t('{n} cartes', { n: set.size })} · ${ico('shard')}${set.boosterPrice ?? P.boosterPrice}</span></li>`).join('');
   return `<div class="sheet" data-act="close"><div class="panel infobox" id="booster-info" role="dialog" aria-label="${t('Boosters')}" data-stop="1">
     <div class="ph"><h2>${t('Boosters')}</h2><button class="btn closex" data-act="close" aria-label="${t('Fermer')}">×</button></div>
     <p style="margin:0">${t('Un booster donne {n} cartes au hasard parmi celles de son set, toutes avec la même chance, généraux compris.', { n: P.boosterSize })}</p>
