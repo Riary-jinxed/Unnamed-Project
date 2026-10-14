@@ -25,7 +25,7 @@ self.addEventListener('push', e => {
   let msg = {};
   try { msg = e.data ? e.data.json() : {}; } catch { msg = { body: e.data ? e.data.text() : '' }; }
   e.waitUntil(self.registration.showNotification(msg.title || 'Jeu de cartes', { body: msg.body || '', tag: msg.tag, renotify: !!msg.tag,
-    icon: '/icon-192.png', badge: '/badge-96.png', lang: 'fr', data: { open: msg.open || 'home' } }));
+    icon: '/icon-192.png', badge: '/badge-96.png', lang: 'fr', data: { open: msg.open || 'home', kind: msg.kind || null } }));
 });
 // Toucher la notification : l'appli déjà ouverte passe au premier plan et va à l'écran voulu ; sinon elle s'ouvre directement dessus.
 self.addEventListener('notificationclick', e => {
@@ -33,7 +33,8 @@ self.addEventListener('notificationclick', e => {
   const open = e.notification.data?.open || 'home';
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
     const win = list.find(c => new URL(c.url).origin === location.origin);
-    if (win) { win.postMessage({ t: 'notif-open', open }); return win.focus(); }
-    return self.clients.openWindow(`/?ouvrir=${encodeURIComponent(open)}`);
+    const kind = e.notification.data?.kind || '';
+    if (win) { win.postMessage({ t: 'notif-open', open, kind }); return win.focus(); }
+    return self.clients.openWindow(`/?ouvrir=${encodeURIComponent(open)}${kind ? `&notif=${encodeURIComponent(kind)}` : ''}`);
   }));
 });
