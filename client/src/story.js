@@ -10,6 +10,7 @@ import { ARTS } from '@jeu/engine/arts';
 import { TITLES } from '@jeu/engine/rewards';
 import { LORE, NARRATOR, CARD_SHARDS, questById, isLimited, questTab, chapterDeck, foeDeck, castArt, castName, lineScene } from '@jeu/engine/story';
 
+const ROMAN = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V' };
 const plural = (n, w) => `${n} ${w}${n > 1 ? 's' : ''}`;
 const frDate = d => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 // Force de l'IA en étoiles (essais de plans : 25 au premier chapitre, 220 au dernier).
@@ -19,7 +20,7 @@ const starsHTML = tries => `<span class="sstars" aria-label="Difficulté ${stars
 // app : ce que main.js prête à l'écran (état ui, render, call, errLine, ico, play, anyCard, zoomKey, rewardItem, go : lance un chapitre).
 export function createStory(app) {
   const { ui } = app;
-  const S = ui.storyScreen = { data: null, sel: null, ch: null, talk: null, run: null, result: null, lore: false, tab: 'main' };
+  const S = ui.storyScreen = { data: null, sel: null, ch: null, talk: null, run: null, result: null, tab: 'main' };
   const ico = k => app.ico(k);
   const info = id => S.data?.quests.find(x => x.id === id) || null;
 
@@ -151,10 +152,9 @@ export function createStory(app) {
     const body = S.tab === 'event'
       ? `<p class="hint" style="margin:0">Des quêtes à durée limitée, avec leurs récompenses à elles : carte de quête, art Promo et titre. Celles qui font avancer l'histoire rejoignent l'histoire principale à la fin de l'événement, sans l'art Promo.</p>
         ${events.length ? `<div class="squests">${events.map(questCard).join('')}</div>` : '<p class="wait">Pas d\'événement en ce moment. Revenez bientôt !</p>'}`
-      : `<section class="card-box slore"><span class="eyebrow">Le monde d'Éclats</span><h2>${esc(LORE.title)}</h2>
-          ${(S.lore ? LORE.text : LORE.text.slice(0, 1)).map(p => `<p>${esc(p)}</p>`).join('')}
-          <button class="linkbtn" data-act="story-lore">${S.lore ? 'Réduire' : 'Lire la suite'}</button></section>
-        <div class="gal-h">Campagnes</div><p class="hint" style="margin:0">Une campagne par deck de départ. Vous jouez le deck du héros : pas besoin d'avoir ses cartes.</p>
+      : `<section class="card-box slore"><span class="eyebrow">Avant de commencer</span><h2>${esc(LORE.title)}</h2>
+          ${LORE.text.map(p => `<p>${esc(p)}</p>`).join('')}</section>
+        <div class="gal-h">Campagnes</div><p class="hint" style="margin:0">Trois livres, à jouer dans l'ordre : chacun suit un héros et reprend là où le précédent s'arrête. Vous jouez le deck du héros, pas besoin d'avoir ses cartes.</p>
         <div class="squests">${camps.map(questCard).join('')}</div>
         ${suite.length ? `<div class="gal-h">La suite de l'histoire</div><p class="hint" style="margin:0">Les événements passés qui ont changé les Terres d'Aube, à rejouer quand vous voulez.</p>
           <div class="squests">${suite.map(questCard).join('')}</div>` : ''}`;
@@ -164,7 +164,7 @@ export function createStory(app) {
   function eyebrow(q, I, long = false) {
     if (I.state === 'archive') return `Suite de l'histoire · ${esc(q.fam)}`;
     if (isLimited(q)) return long ? `Événement · jusqu'au ${esc(frDate(I.to))}` : `Événement · encore ${plural(I.daysLeft, 'jour')}`;
-    return `Campagne · ${esc(q.fam)}`;
+    return `Livre ${ROMAN[q.book] || q.book} · ${esc(q.fam)}`;
   }
 
   // ---- Écran : une quête ----
@@ -174,6 +174,7 @@ export function createStory(app) {
     const deck = chapterDeck(q, i), joined = q.chapters.slice(0, i).filter(c => c.join).map(c => CARDS[c.join.card].name);
     return `<div class="card-box schap" style="${famStyle(GENERALS[ch.foe.general]?.fam)}">
       <span class="eyebrow">Chapitre ${i + 1} sur ${q.chapters.length} · ${esc(ch.place)}</span><h2>${esc(ch.name)}</h2>
+      <p class="sgoal"><b>Enjeu</b>${esc(ch.goal)}</p>
       <div class="sfoe">${face(q, ch.foe.general, ch)}<div><small class="hint">Adversaire</small><b>${esc(ch.foe.name)}</b>
         <small class="hint">${starsHTML(ch.foe.tries)}${ch.foe.bonus ? ' · ses zones commencent avec +1' : ''}</small></div></div>
       <div class="srew"><small class="hint">${won ? 'Récompense obtenue ✓' : 'Récompense de la première victoire'}</small><div class="srew-row ${won ? 'got' : ''}">${rewardChips(r) || '<span class="hint">Aucune</span>'}</div></div>
@@ -219,6 +220,7 @@ export function createStory(app) {
       ${sceneBox(q, ch, line)}
       <span class="eyebrow">Chapitre ${T.i + 1} · ${esc(ch.name)}</span>
       <div class="stalk-body">${narr ? '' : face(q, who, ch, 'stalk-face')}<div class="stalk-tx">${narr ? '' : `<b>${esc(castName(who))}</b>`}<p>${esc(text)}</p></div></div>
+      ${last ? `<p class="stalk-goal"><b>Enjeu</b>${esc(ch.goal)}${ch.foe.bonus ? ' Ses trois zones commencent avec +1.' : ''}</p>` : ''}
       <div class="stalk-dots" aria-hidden="true">${T.lines.map((_, k) => `<i class="${k <= T.n ? 'on' : ''}"></i>`).join('')}</div>
       <div class="row"><button class="btn" data-act="story-skip">Passer</button><button class="btn primary" data-act="story-talk">${last ? 'Au combat !' : 'Suivant'}</button></div></div></div>`;
   }
@@ -243,8 +245,15 @@ export function createStory(app) {
       <p style="margin:0">${reason}.</p><div class="zs">${zs}</div>
       <div class="soutros">${lines}</div>
       ${ch.join && res?.reward ? `<p style="margin:0">Nouvel allié : <b>${esc(CARDS[ch.join.card].name)}</b> rejoint votre deck.</p>` : ''}
-      ${gain}${done ? `<p class="sdone"><b>Quête terminée !</b> ${isLimited(q) ? 'Ses récompenses sont à vous pour de bon.' : 'Les autres campagnes racontent la même histoire, vue d\'ailleurs.'}</p>` : ''}
+      ${gain}${done ? `<p class="sdone"><b>Quête terminée !</b> ${nextLine(q)}</p>` : ''}
       <div class="row"><button class="btn primary" data-act="story-map" ${res ? '' : 'disabled'}>${next ? 'Chapitre suivant' : 'Retour à la carte'}</button><button class="btn" data-act="log">Voir le journal</button></div></div></div>`;
+  }
+
+  // Après la dernière victoire : où lire la suite, si elle est déjà ouverte (une quête d'événement peut ne pas l'être encore).
+  function nextLine(q) {
+    const n = q.next && questById(q.next), I = n && info(n.id);
+    if (n && I && I.state !== 'off') return `La suite de l'histoire : <b>${esc(n.name)}</b>${n.book ? ` (Livre ${ROMAN[n.book]})` : I.state === 'soon' ? `, à partir du ${esc(frDate(I.from))}` : ''}.`;
+    return isLimited(q) ? 'Ses récompenses sont à vous pour de bon.' : 'La suite arrive bientôt.';
   }
 
   // ---- Partie ----
@@ -284,7 +293,6 @@ export function createStory(app) {
     if (a === 'story') { app.leaveGame?.(); ui.screen = 'story'; ui.sheet = null; ui.error = ''; if (ds.quest) { S.sel = ds.quest; S.ch = null; S.tab = ds.tab || 'main'; } load(); app.render(); }
     else if (a === 'story-open') open(ds.quest);
     else if (a === 'story-back') { S.sel = null; S.ch = null; app.render(); }
-    else if (a === 'story-lore') { S.lore = !S.lore; app.render(); }
     else if (a === 'story-tab') { S.tab = ds.tab === 'event' ? 'event' : 'main'; app.play('pick'); app.render(); }
     else if (a === 'story-ch') { S.ch = Number(ds.i); app.play('pick'); app.render(); }
     else if (a === 'story-fight' && !ui.busy) fight(Number(ds.i));
