@@ -25,7 +25,8 @@ const shape = (w, h, draw) => { const c = document.createElement('canvas'); c.wi
 
 async function makeApp() {
   const a = new Application();
-  await a.init({ backgroundAlpha: 0, resizeTo: window, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 2), preference: 'webgl' });
+  // Arrêtée tant qu'aucune ouverture n'est en cours : mount() la lance, unmount() l'arrête.
+  await a.init({ backgroundAlpha: 0, resizeTo: window, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 2), preference: 'webgl', autoStart: false });
   Object.assign(a.canvas.style, { position: 'fixed', inset: '0', width: '100vw', height: '100vh', pointerEvents: 'none' });
   a.canvas.setAttribute('aria-hidden', 'true'); a.canvas.className = 'opstage';
   return a;
@@ -49,6 +50,13 @@ async function init() {
     }
   };
   front.ticker.add(step);
+  // Une image hors écran avec un sprite, pour compiler les shaders maintenant plutôt qu'au premier geste de l'ouverture.
+  for (const a of [back, front]) { const s = new Sprite(glowTex); a.stage.addChild(s); a.render(); s.destroy(); }
+}
+// Préparé à l'avance (boutique au repos, opening.js) : la première ouverture n'attend plus la création des deux toiles.
+export function warm() {
+  ready ||= init().then(() => true, err => { console.warn('Effets PixiJS de l\'ouverture indisponibles', err); return false; });
+  return ready;
 }
 function spawn(app, tex, x, y, o = {}) {
   const s = new Sprite(tex); s.anchor.set(0.5); s.position.set(x, y); s.tint = o.tint ?? 0xffffff; s.blendMode = o.blend ?? 'add';
@@ -83,8 +91,7 @@ function rays(x, y, tint, { size = 0, alpha = 0.5, speed = 0.004 } = {}) {
 // ---- API utilisée par opening.js ----
 // Pose les deux toiles dans le calque (derrière et devant son contenu). Renvoie false sans WebGL.
 export function mount(root) {
-  ready ||= init().then(() => true, err => { console.warn('Effets PixiJS de l\'ouverture indisponibles', err); return false; });
-  return ready.then(ok => {
+  return warm().then(ok => {
     if (!ok || !root.isConnected) return false;
     back.canvas.style.zIndex = '0'; front.canvas.style.zIndex = '60';
     root.prepend(back.canvas); root.append(front.canvas); back.start(); front.start();

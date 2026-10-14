@@ -246,11 +246,16 @@ function signedOut(msg = '') {
   store.set('auth', null); ui.auth = null; ui.account = null; ui.screen = 'login'; ui.error = msg; ui.busy = false;
 }
 // Appel à l'API avec la session du joueur ; une session expirée renvoie à l'écran de connexion.
-async function call(method, path, body) {
-  ui.busy = true; ui.error = ''; render();
-  try { const r = await api(method, path, body, ui.auth); if (r.account) setAccount(r.account); return r; }
+// quiet : achats de la boutique, où l'appelant redessine aussitôt (récapitulatif, ouverture, message) ; pendant l'appel, l'écran
+// est seulement rendu inerte au lieu d'être redessiné deux fois (boutons grisés puis rétablis), et il ne l'est qu'en cas d'erreur.
+// Chaque rendu refaisait toute la page (vitrines, étal, images) : trois par achat sur téléphone, c'était sensible.
+async function call(method, path, body, quiet = false) {
+  ui.busy = true; ui.error = '';
+  if (quiet) app.inert = true; else render();
+  let ok = false;
+  try { const r = await api(method, path, body, ui.auth); if (r.account) setAccount(r.account); ok = true; return r; }
   catch (e) { if (e.status === 401) signedOut(e.message); else ui.error = e.message; return null; }
-  finally { ui.busy = false; render(); }
+  finally { ui.busy = false; app.inert = false; if (!quiet || !ok) render(); }
 }
 // Signale au serveur un geste qu'il ne voit pas passer (onglet Suivi de /admin) : code de deck copié, émote contre l'IA, notification touchée.
 const track = (what, id) => { if (ui.auth) api('POST', '/api/track', { what, id }, ui.auth).catch(() => {}); };
@@ -299,7 +304,7 @@ function showCards(r, set = 'base') {
       tag: r.fresh[i] ? (GENERALS[id] ? t('Nouveau général !') : t('Nouvelle carte !')) : dupTag(id) })) }, summary);
 }
 async function openBoosterNow() {
-  const r = await call('POST', '/api/booster');
+  const r = await call('POST', '/api/booster', undefined, true);
   if (r) showCards(r, SETS.find(x => x.daily)?.id);
 }
 async function openShop(tab = ui.shopTab || 'sets') {
@@ -308,12 +313,12 @@ async function openShop(tab = ui.shopTab || 'sets') {
   if (r) { ui.shop = r.shop; render(); }
 }
 async function buy(path, body) {
-  const r = await call('POST', path, body);
+  const r = await call('POST', path, body, true);
   if (r) { ui.shop = r.shop; showCards(r, body.set); }
 }
 // Art alternatif acheté ou sorti du coffre : montré en grand, prêt à être choisi pour sa carte.
 async function buyArt(path, body) {
-  const r = await call('POST', path, body);
+  const r = await call('POST', path, body, true);
   if (!r) return;
   ui.shop = r.shop; ui.msg = '';
   const art = ARTS[r.art], show = () => { ui.gotArt = { id: r.art, chest: !!r.chest }; ui.sheet = 'art'; render(); };
@@ -688,7 +693,9 @@ function nextPassLine() {
   return x ? t('Le passe « {name} » se dévoile le {date}. Revenez vite !', { name: esc(t(x.name)), date: esc(frDate(seasonStart(x))) }) : t('Pas de passe de saison ce mois-ci. Revenez le mois prochain !');
 }
 // Cosmétiques et cartes des saisons pas encore commencées : cachés tant qu'on ne les a pas.
-const futureSeasons = () => SEASONS.filter(x => !seasonStarted(x.id, today()));
+// Gardé une minute : la personnalisation le demande pour chaque cadre et chaque dos, et today() formate une date à chaque appel.
+let futureAt = 0, futureList = [];
+const futureSeasons = () => { const now = Date.now(); if (now - futureAt > 60000) { const d = today(); futureList = SEASONS.filter(x => !seasonStarted(x.id, d)); futureAt = now; } return futureList; };
 // Sets pas encore sortis (date de sortie à venir) : leurs cartes, familles, récompenses et cosmétiques restent cachés.
 const setHidden = id => !!id && !setRevealed(setById(id));
 const futureCosmetic = id => futureSeasons().some(x => [x.frame[0], x.framePremium[0], x.back[0], x.backPremium[0]].includes(id))
@@ -780,7 +787,21 @@ function endReel() {
   const w = ui.view.result.winner;
   return { key: JSON.stringify(r), reward: r, result: w === ui.view.seat ? 'win' : w < 0 ? 'tie' : 'lose' };
 }
-async function equip(body, okMsg) { if (await call('PUT', '/api/cosmetics', body)) { ui.msg = okMsg; render(); } }
+// Cosmétiques (thème, titre, cadre, dos, arts préférés, émotes) : le choix s'affiche tout de suite, en un seul rendu, puis part
+// au serveur (dans l'ordre, s'il y en a plusieurs). Avant, chaque toucher attendait le serveur et redessinait trois fois toute
+// la personnalisation. Le compte renvoyé n'est repris qu'après la dernière réponse (pas de retour en arrière entre deux touchers) ;
+// refusé, le compte est relu et l'erreur affichée.
+let equipQ = Promise.resolve(), equipping = 0;
+function equip(body, okMsg) {
+  Object.assign(prog(), body); ui.msg = okMsg; ui.error = ''; render();
+  equipping++;
+  equipQ = equipQ.then(() => api('PUT', '/api/cosmetics', body, ui.auth)).then(r => { if (--equipping === 0 && r.account) { setAccount(r.account); render(); } },
+    async e => { equipping--;
+      if (e.status === 401) { signedOut(e.message); render(); return; }
+      const me = await api('GET', '/api/me', undefined, ui.auth).catch(() => null);
+      if (me?.account) setAccount(me.account);
+      ui.msg = ''; ui.error = e.message; render(); });
+}
 
 // ---- Niveaux de carte (cosmétiques) ----
 // Chaque doublon donne de l'essence de la carte ; essence et Éclats la font monter de niveau : bordure, puis effet de mise en jeu.
@@ -1371,7 +1392,7 @@ function renderShop() {
       : { kind: 'pack', act: 'buy-booster', set: set.id, setName: esc(t(set.name)), n: P.boosterSize, fresh, tag: `${ico('shard')}${price}`, off: !canPay(price) || ui.busy, label: t('Acheter un booster {set} pour {price} Éclats', { set: esc(t(set.name)), price }) }; }),
     { info: 'booster-info', infoLabel: t('Ce que contiennent les boosters') });
   // Sélection du jour en vitrine (shop.js) : illustration, coût, « Nouvelle » si le joueur ne l'a pas, prix ou « Vendue ».
-  const offers = set => vitrineHTML({ title: t('Sélection du jour'), sub: t('Cartes à l\'unité'), slots: set.offers.map(o => {
+  const offers = set => vitrineHTML({ title: t('Sélection du jour'), sub: t('Cartes à l\'unité'), key: `set-${set.id}`, slots: set.offers.map(o => {
     const d = CARDS[o.id], gen = GENERALS[o.id], name = esc(nameOf(o.id));
     return { art: artHTML(o.id, nameOf(o.id)), zoom: zoomKey(o.id), name, caption: false, sub: gen ? t('Général · {kind}', { kind: esc(t(gen.kind)) }) : `${typeName(d)} · ${kwLine(d)}`, cost: gen ? null : d.x ? 'X' : d.cost,
       style: `${famVar(gen ? [gen.fam] : d.kw)};--glow:var(--fam)`, badge: o.owned || o.bought ? '' : t('Nouvelle'),
@@ -1428,7 +1449,7 @@ function essenceShopHTML(E) {
 // Art de l'édition Essence acheté : montré en grand, prêt à être choisi pour sa carte (comme un art du jour).
 async function buyEssenceArt(id) { await buyArt('/api/shop/essence-art', { art: id }); }
 async function buyDup(id) {
-  const r = await call('POST', '/api/shop/dup', { card: id });
+  const r = await call('POST', '/api/shop/dup', { card: id }, true);
   if (!r) return;
   ui.shop = r.shop;
   ui.msg = `${r.universal ? t('+{n} essence de {card} et {uni} essence universelle.', { n: r.essence, card: nameOf(id), uni: r.universal }) : t('+{n} essence de {card}.', { n: r.essence, card: nameOf(id) })}${myLevel(id) < MAX_CARD_LEVEL && missingEssence(id) === 0 ? ` ${t('Elle peut monter de niveau dans la collection.')}` : ''}`;
@@ -1457,7 +1478,7 @@ function emoteShopHTML() {
   </section>`;
 }
 async function buyEmote(id) {
-  const r = await call('POST', '/api/shop/emote', { emote: id });
+  const r = await call('POST', '/api/shop/emote', { emote: id }, true);
   if (!r) return;
   ui.msg = prog().emotes?.includes(id) ? t('Émote « {text} » obtenue, déjà dans votre sélecteur.', { text: t(EMOTES[id].text) }) : t('Émote « {text} » obtenue : ajoutez-la à votre sélecteur depuis votre profil.', { text: t(EMOTES[id].text) });
   play('reveal'); render();
