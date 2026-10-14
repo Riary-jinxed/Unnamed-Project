@@ -43,6 +43,7 @@ export const ART_THEMES = {
   bannieres: { name: 'Bannières', style: 'héraldique, étendards et blasons de clan, rouge, bleu et or', title: 'Seigneur des bannières' },
   chasse: { name: 'Chasse aux boss', style: 'trophées de chasse, crocs, braises et givre, lumière de forge', title: 'Tueur de boss' },
   chroniques: { name: 'Chroniques', style: 'enluminure de manuscrit, parchemin, encre et feuille d\'or', title: 'Enlumineur' },
+  bal: { name: 'Bal masqué', style: 'bal masqué vénitien, masques, velours pourpre et soieries', title: 'Maître du bal' },
 };
 export const THEME_IDS = Object.keys(ART_THEMES);
 
@@ -79,6 +80,18 @@ export const ARTS = Object.fromEntries([
   // Neutres
   A('barde_taverne', 'barde', 'Barde de la taverne', 'rare', { theme: 'taverne' }),
   A('wyrm_or', 'wyrm_tresor', 'Wyrm sur la montagne d\'or', 'epique', { theme: 'tresors' }),
+  // Set 2
+  A('liche_eclipse', 'liche', 'Liche de l\'éclipse', 'epique', { theme: 'eclipse' }),
+  A('comtesse_eclipse', 'comtesse', 'Comtesse au soleil noir', 'rare', { theme: 'eclipse' }),
+  A('chevalier_mort_eclipse', 'chevalier_mort', 'Chevalier de la mort, soleil noir', 'rare', { theme: 'eclipse' }),
+  A('oeuf_or_tresor', 'oeuf_or', 'Œuf doré du trésor', 'rare', { theme: 'tresors' }),
+  A('pilleur_tresor', 'pilleur', 'Pilleur et son butin', 'rare', { theme: 'tresors' }),
+  A('roi_glouton_tresor', 'roi_glouton', 'Roi glouton sur son or', 'epique', { theme: 'tresors' }),
+  A('noble_bal', 'noble', 'Noble vampire au bal', 'rare', { theme: 'bal' }),
+  A('tentateur_bal', 'tentateur', 'Tentateur masqué', 'rare', { theme: 'bal' }),
+  A('muse_bal', 'muse', 'Muse du bal', 'rare', { theme: 'bal' }),
+  A('prince_nuit_bal', 'prince_nuit', 'Prince de la nuit, maître du bal', 'epique', { theme: 'bal' }),
+  A('carmilla_bal', 'carmilla', 'Carmilla, reine du bal masqué', 'legendaire', { theme: 'bal' }),
   // Édition Essence (famille Astrale) : seulement au rayon Essence de la boutique, contre de l'essence universelle.
   A('seraphin_constellation', 'seraphin', 'Séraphin des constellations', 'rare', { edition: 'essence', theme: 'astral' }),
   A('eclaireur_etoiles', 'eclaireur', 'Éclaireur, voleur d\'étoiles', 'rare', { edition: 'essence', theme: 'astral' }),
@@ -96,7 +109,7 @@ export const ARTS = Object.fromEntries([
   A('chevalier_boss', 'chevalier', 'Chevalier, tueur de boss', 'rare', { edition: 'boss', theme: 'chasse' }),
   A('vaelthar_trophee', 'vaelthar', 'Vael\'Thar, trophée du glacier', 'epique', { edition: 'boss', theme: 'chasse' }),
   A('vorgoth_trophee', 'vorgoth', 'Vorgoth, trophée du cercle', 'epique', { edition: 'boss', theme: 'chasse' }),
-  A('ignaroth_trophee', 'ignaroth', 'Ignaroth, trophée de l\'éclipse', 'legendaire', { edition: 'boss', theme: 'chasse' }),
+  A('ignaroth_trophee', 'ignaroth', 'Ignaroth, vaincu sous l\'éclipse', 'legendaire', { edition: 'boss', theme: 'chasse' }),
   // Promo des passes de saison (pass.js) : season = mois de la saison ; cachés dans l'appli avant le début de leur saison.
   A('morgrath_citrouilles', 'morgrath', 'Morgrath, nuit des citrouilles', 'epique', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : palier 18.' }),
   A('grisk_farce', 'grisk', 'Grisk, farce ou friandise', 'legendaire', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : palier 38.' }),
