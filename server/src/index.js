@@ -125,7 +125,7 @@ function lobby(room) {
 function startMatch(room) {
   if (room.ranked === 'ai') { const acc = accounts.byToken(room.seats[0].auth); if (acc) room.seats[1] = aiSeat(acc); }
   const decks = room.seats.map(s => { if (s.boss) return null; if (s.ai) return pick(aiDeckKeys());
-    const acc = accounts.byToken(s.auth), d = acc && deckOf(acc, s.deckId); return d && !deckError(d, acc) ? d : s.deck; });
+    const acc = accounts.byToken(s.auth), d = acc && ((room.boss && boss.deckFor(acc, room.boss)) || deckOf(acc, s.deckId)); return d && !deckError(d, acc) ? d : s.deck; });
   room.decks = decks.map(d => (!d ? [] : typeof d === 'string' ? DECKS[d].cards : d.cards));
   room.st = room.boss ? newBossGame(decks[0], room.boss, room.seats[0].name)
     : newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => (typeof d === 'string' ? null : d.general)) });
@@ -224,10 +224,11 @@ function startAway(room, i) {
 }
 // Un joueur entre dans un salon avec son compte et le deck demandé (msg.deck), ou à défaut son deck joué.
 const deckOf = (acc, id) => (id && (acc.decks || []).find(d => d.id === id)) || activeDeck(acc);
-function seatFor(ws, msg) {
+// Contre le boss mondial : son deck préparé s'il est complet (boss.deckFor), sinon le deck joué.
+function seatFor(ws, msg, bossId = null) {
   const acc = accounts.byToken(msg.auth);
   if (!acc) { send(ws, { t: 'error', msg: 'Session expirée : reconnectez-vous.' }); return null; }
-  const deck = deckOf(acc, msg.deck);
+  const deck = (bossId && boss.deckFor(acc, bossId)) || deckOf(acc, msg.deck);
   const err = deck ? deckError(deck, acc) : 'Choisissez d\'abord votre deck de départ.';
   if (err) { send(ws, { t: 'error', msg: err }); return null; }
   return { name: acc.name, login: acc.login, auth: msg.auth, deck, deckId: deck.id, token: randomBytes(12).toString('hex'), ws };
@@ -273,7 +274,7 @@ function handle(ws, msg) {
   }
   // Boss mondial : une tentative contre le boss de la semaine, comptée dès que la partie commence.
   if (msg.t === 'boss') {
-    const seat = seatFor(ws, msg); if (!seat) return;
+    const seat = seatFor(ws, msg, boss.weekBoss()); if (!seat) return;
     const acc = accounts.byToken(msg.auth);
     let id; try { id = boss.start(acc); } catch (e) { return send(ws, { t: 'error', msg: e.message }); }
     const room = { code: newCode(), seats: [seat, { ai: true, boss: true, name: GENERALS[id].name, login: null }], plans: [null, null], st: null, busy: false, lastActive: Date.now(), boss: id };

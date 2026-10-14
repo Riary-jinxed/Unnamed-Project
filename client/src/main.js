@@ -5,7 +5,7 @@ import './cyber.css';
 import './halloween.css';
 import './clan.css';
 import './boss.css';
-import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
+import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog, bossBoost } from '@jeu/engine';
 import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, setById, setRevealed, unrevealed, allowedGenerals, allowedTerrains, starterGenerals, deckError, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder, today } from '@jeu/engine/collection';
 import { api } from './api.js';
 import { connectOnline } from './net.js';
@@ -64,7 +64,7 @@ const mail = createMail({ ui, render: () => render(), call: (...x) => call(...x)
 const clan = createClan({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), avatarHTML: (...x) => avatarHTML(...x), ico: k => ico(k), play: (...x) => play(...x) });
 // Boss mondial (boss.js) : boss de la semaine, tentatives, classement et magasin du boss ; à la table, son bandeau et la fin de tentative.
 const boss = createBoss({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), avatarHTML: (...x) => avatarHTML(...x), ico: k => ico(k), play: (...x) => play(...x),
-  go: () => goBoss(), gotArt: id => { ui.gotArt = { id }; ui.sheet = 'art'; render(); }, leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
+  go: () => goBoss(), editBossDeck: id => { editBossDeck(id); render(); }, gotArt: id => { ui.gotArt = { id }; ui.sheet = 'art'; render(); }, leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
 
 // ---- Contrôleurs (en ligne / IA) ----
 const handlers = {
@@ -138,7 +138,7 @@ function goRanked() {
 }
 // Boss mondial : une tentative contre le boss de la semaine, jouée par le serveur. Elle compte dès que la partie commence.
 function goBoss() {
-  if (!deckReady()) return;
+  if (!boss.bossDeck(ui.account.boss?.id) && !deckReady()) return;
   toTable('Le boss se dresse devant vous…', () => {
     ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = false; ui.bossRun = true; ui.sheet = null; ui.lastTurn = 0;
     ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'boss', auth: ui.auth });
@@ -325,9 +325,17 @@ function editDeck(id = ui.account.active, back = 'home') {
   ui.deckStep = [0, 1, 2].filter(i => stepOpen(ui.edit, i)).pop();
   ui.screen = 'deck'; ui.error = ''; ui.msg = '';
 }
+// Deck préparé contre un boss mondial (boss.js) : le sien, sinon une copie du deck joué à ajuster.
+function editBossDeck(boss) {
+  const d = ui.account.bossDecks?.[boss] || ui.account.deck;
+  ui.edit = { boss, id: null, name: ui.account.bossDecks?.[boss]?.name || `Contre ${GENERALS[boss].name.split(/,\s*/)[0]}`,
+    cards: d ? d.cards.slice() : [], terrains: d ? d.terrains.slice() : [], general: d?.general || null, back: 'decks' };
+  ui.deckStep = [0, 1, 2].filter(i => stepOpen(ui.edit, i)).pop();
+  ui.screen = 'deck'; ui.error = ''; ui.msg = '';
+}
 async function saveDeck() {
-  const e = ui.edit;
-  const r = await call('PUT', '/api/decks', { id: e.id, name: e.name, general: e.general, terrains: e.terrains, cards: e.cards });
+  const e = ui.edit, body = { name: e.name, general: e.general, terrains: e.terrains, cards: e.cards };
+  const r = e.boss ? await call('PUT', '/api/boss/deck', { boss: e.boss, ...body }) : await call('PUT', '/api/decks', { id: e.id, ...body });
   if (r) { ui.screen = e.back; ui.edit = null; ui.msg = ''; render(); }
 }
 function openDecks() { ui.screen = 'decks'; ui.error = ''; ui.msg = ''; render(); }
@@ -1320,8 +1328,12 @@ function exchangeHTML(A) {
 }
 
 // Liste des decks du joueur : jouer, modifier, renommer, remettre à zéro, supprimer, créer.
+// Onglets de l'écran des decks : les decks du joueur, et ceux préparés contre les boss mondiaux (boss.js).
+const decksTabs = cur => `<div class="seg btabs" role="tablist" aria-label="Decks">${[['mine', 'Mes decks'], ['boss', 'Boss mondial']].map(([id, label]) =>
+  `<button role="tab" data-act="decks-tab" data-tab="${id}" class="${cur === id ? 'on' : ''}" aria-selected="${cur === id}">${label}</button>`).join('')}</div>`;
 function renderDecks() {
   const a = ui.account, full = a.decks.length >= maxDecks();
+  if (ui.decksTab === 'boss') return `<div class="top"><span class="title">Decks contre les boss</span></div>${decksTabs('boss')}${boss.decksHTML()}`;
   const item = d => {
     const err = deckError(d, a), g = GENERALS[d.general], on = d.id === a.active;
     return `<div class="card-box deckitem ${on ? 'active' : ''}" style="${famVar([g?.fam])}">
@@ -1337,6 +1349,7 @@ function renderDecks() {
       </div></div>`;
   };
   return `<div class="top"><span class="title">Mes decks</span><span class="chip num">${a.decks.length}/${maxDecks()}</span></div>
+  ${decksTabs('mine')}
   <p class="hint" style="margin:0">Jusqu'à ${maxDecks()} decks. Le deck joué sert en ligne et contre l'IA ; un deck incomplet est gardé mais ne peut pas être joué.</p>
   ${errLine()}
   ${a.decks.map(item).join('')}
@@ -1359,15 +1372,15 @@ function renderDeck() {
     help = `Choisissez ${DECK_TERRAINS} terrains différents : les neutres et ceux des familles de vos généraux.`;
     body = `<div class="gallery">${allowedTerrains(a).map(k => `<button class="ccard pickcard ${e.terrains.includes(k) ? 'on' : ''}" data-tpick="${k}" aria-pressed="${e.terrains.includes(k)}">${terrainCard(k)}</button>`).join('')}</div>`;
   } else {
-    help = `Choisissez ${DECK_SIZE} cartes différentes de votre collection.`;
+    help = `Choisissez ${DECK_SIZE} cartes différentes de votre collection.${e.boss ? ' Les cartes marquées +N sont renforcées contre ce boss.' : ''}`;
     const row = (id, on) => { const d = CARDS[id];
       return `<button class="pickrow ${on ? 'on' : ''}" data-pick="${id}" style="${famVar(d.kw)}" aria-pressed="${on}">
         <span class="seal">${d.x ? 'X' : d.cost}</span><span class="pn"><b>${esc(d.name)}</b><small>${kwLine(d)} · ${d.text ? rich(d.text) : 'Pas d\'effet.'}</small></span>
-        ${d.type === 'C' ? `<span class="p num">${d.power}</span>` : '<span class="p sm">Sort</span>'}</button>`; };
+        ${d.type === 'C' ? `<span class="p num">${d.power}</span>` : '<span class="p sm">Sort</span>'}${e.boss && bossBoost(e.boss, id) ? `<span class="bboost-tag num" title="Renforcée contre ce boss">+${bossBoost(e.boss, id)}</span>` : ''}</button>`; };
     body = `<div class="picklist">${COLLECTIBLE.filter(owned).sort(byFamCost).map(id => row(id, e.cards.includes(id))).join('')}</div>`;
   }
   const next = step < 2 && stepOpen(e, step + 1);
-  return `<div class="top"><span class="title">${e.id ? 'Modifier le deck' : 'Nouveau deck'}</span><button class="btn" data-act="deck-cancel">Annuler</button>
+  return `<div class="top"><span class="title">${e.boss ? `Contre ${esc(GENERALS[e.boss].name.split(/,\s*/)[0])}` : e.id ? 'Modifier le deck' : 'Nouveau deck'}</span><button class="btn" data-act="deck-cancel">Annuler</button>
     <button class="btn primary" data-act="save-deck" ${ui.busy ? 'disabled' : ''}>Enregistrer</button></div>
   <div class="field"><label class="eyebrow" for="deck-name">Nom du deck</label><input id="deck-name" maxlength="30" value="${esc(e.name)}"></div>
   <div class="deckbar steps" role="group" aria-label="Étapes">${stepper}</div>
@@ -2184,6 +2197,7 @@ app.addEventListener('click', e => {
     else if (a === 'edit') { editDeck(ui.account.active, ui.screen === 'collection' ? 'collection' : 'home'); render(); }
     else if (a === 'home') { ui.screen = 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
     else if (a === 'decks') openDecks();
+    else if (a === 'decks-tab') { ui.decksTab = ds.tab; ui.error = ''; render(); }
     else if (a === 'deck-new') { if (ui.account.decks.length < maxDecks()) { editDeck(null, 'decks'); render(); } }
     else if (a.startsWith('deck-') && a !== 'deck-cancel' && !ui.busy) deckAction(a, ds.id);
     else if (a === 'deck-cancel') { ui.screen = ui.edit?.back || 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }

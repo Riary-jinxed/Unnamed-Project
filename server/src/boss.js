@@ -6,7 +6,7 @@
 // bossCoins (Insignes), bossBuys ({ week, n: { objet: achats } }). Statistiques des succès : bossRuns, bossBest, bossKinds, bossTop10.
 import { createHash } from 'node:crypto';
 import { GENERALS } from '@jeu/engine';
-import { today } from '@jeu/engine/collection';
+import { today, draftError, deckError } from '@jeu/engine/collection';
 import { artExists } from '@jeu/engine/arts';
 import { TITLES, FRAMES, BACKS } from '@jeu/engine/rewards';
 import { DEFAULT_BOSS, BOSS_IDS, BOSS_SHOP, BOSS_LIMITS, isBoss, bossInfo, bossWeek, addWeeks, weekLast, weekDaysLeft, bossOfWeek, bossScore,
@@ -141,6 +141,26 @@ export function createBoss(store, accounts) {
       got: x.kind === 'art' ? { art: id } : isCosmetic(x) ? { [x.kind]: id, label: { title: TITLES, frame: FRAMES, back: BACKS }[x.kind][id] } : null };
   }
 
+  // ---- Decks contre les boss ----
+  // Un deck par boss, préparé dans l'onglet Boss mondial des decks ; complet, il est joué à la place du deck joué contre ce boss.
+  const cleanDeck = (id, d) => ({ id, name: String(d.name ?? '').trim().slice(0, 30) || `Contre ${GENERALS[id].name.split(/,\s*/)[0]}`,
+    general: d.general || null, terrains: (d.terrains || []).slice(), cards: (d.cards || []).slice() });
+  function deckFor(a, id) { const d = a.bossDecks?.[id]; return d && !deckError(d, a) ? d : null; }
+  async function saveDeck(a, body) {
+    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    const id = String(body.boss || ''); if (!isBoss(id)) throw new HttpError(400, 'Boss inconnu.');
+    const d = cleanDeck(id, body), err = draftError(d, a); if (err) throw new HttpError(400, err);
+    a.bossDecks = { ...(a.bossDecks || {}), [id]: d };
+    await store.put(a);
+    return { account: accounts.me(a) };
+  }
+  async function resetDeck(a, body) {
+    const id = String(body.boss || ''); if (!isBoss(id)) throw new HttpError(400, 'Boss inconnu.');
+    if (a.bossDecks) delete a.bossDecks[id];
+    await store.put(a);
+    return { account: accounts.me(a) };
+  }
+
   // ---- Vues ----
   function view(a) {
     const c = cfg(), week = bossWeek(), id = weekBoss(week), B = state(a), L = ladder(week), mine = L.find(x => x.login === a.login);
@@ -207,12 +227,14 @@ export function createBoss(store, accounts) {
   }
 
   return {
-    start, finish, closeWeek, tile, cfg, weekBoss,
+    start, finish, closeWeek, tile, cfg, weekBoss, deckFor,
     routes: {
       'GET /api/boss': a => view(a),
       'GET /api/boss/ladder': a => ladderView(a),
       'GET /api/boss/avatars': () => avatars(),
       'POST /api/boss/buy': (a, body) => buy(a, body || {}),
+      'PUT /api/boss/deck': (a, body) => saveDeck(a, body || {}),
+      'POST /api/boss/deck/reset': (a, body) => resetDeck(a, body || {}),
       'GET /api/admin/boss': () => adminView(),
       'POST /api/admin/boss': (_, body) => save(body || {}),
     },

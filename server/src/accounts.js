@@ -68,7 +68,9 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   // Clan (clans.js) : identifiant du clan, Écus (monnaie du clan).
   clan: a.clan || null, clanCoins: a.clanCoins || 0,
   // Boss mondial (boss.js) : Insignes, la monnaie de son magasin.
-  bossCoins: a.bossCoins || 0 });
+  bossCoins: a.bossCoins || 0,
+  // Decks préparés contre chaque boss ({ [boss]: deck }) : joués à sa place pendant les tentatives contre lui.
+  bossDecks: Object.fromEntries(Object.entries(a.bossDecks || {}).map(([k, d]) => [k, cleanDeck(d)])) });
 // Champs de progression remis à zéro avec le compte.
 const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift', 'uniEssence', 'dupShop', 'lvLook', 'clanCoins', 'clanDon', 'boss', 'bossCoins', 'bossBuys'];
 
@@ -499,13 +501,14 @@ export function createAccounts(store) {
     a.starter = starter; a.cards = { ...a.cards, ...kit.cards };
     a.decks = cur ? a.decks.map(d => (d === cur ? deck : d)) : [deck];
     for (const d of a.decks) if (draftError(d, a)) Object.assign(d, { general: null, terrains: [], cards: [] });
+    for (const [k, d] of Object.entries(a.bossDecks || {})) if (draftError(d, a)) delete a.bossDecks[k];
     a.active = deck.id;
     return done(a);
   }
   // Remet le compte comme neuf (collection, Éclats, deck, boutique) ; l'identifiant et le mot de passe restent.
   async function adminReset({ login }) {
     const a = target(login);
-    Object.assign(a, { starter: null, cards: {}, shards: 0, decks: [], active: null, lastBooster: null, shop: {} });
+    Object.assign(a, { starter: null, cards: {}, shards: 0, decks: [], active: null, lastBooster: null, shop: {}, bossDecks: {} });
     for (const k of PROGRESS_FIELDS) delete a[k];
     progress.init(a);
     return done(a);

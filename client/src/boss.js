@@ -6,7 +6,8 @@ import { esc, famStyle } from './common.js';
 import { artHTML, heroHTML, portraitHTML } from './art.js';
 import { CARDS, GENERALS, ZONE_NAMES, bossBoost } from '@jeu/engine';
 import { ARTS, rarityName } from '@jeu/engine/arts';
-import { bossBoostLabel } from '@jeu/engine/boss';
+import { BOSS_IDS, bossInfo, bossBoostLabel } from '@jeu/engine/boss';
+import { DECK_SIZE, DECK_TERRAINS, deckError } from '@jeu/engine/collection';
 import { TITLES } from '@jeu/engine/rewards';
 
 const TABS = [['boss', 'Boss'], ['classement', 'Classement'], ['magasin', 'Magasin']];
@@ -50,8 +51,10 @@ export function createBoss(app) {
   function tabs() {
     return `<div class="seg btabs" role="tablist" aria-label="Boss mondial">${TABS.map(([id, label]) => `<button role="tab" class="${B.tab === id ? 'on' : ''}" aria-selected="${B.tab === id}" data-act="boss-tab" data-tab="${id}">${label}</button>`).join('')}</div>`;
   }
+  // Deck joué contre un boss : celui préparé pour lui s'il est complet, sinon le deck joué.
+  const bossDeck = id => { const d = ui.account.bossDecks?.[id]; return d && !deckError(d, ui.account) ? d : null; };
   function heroBlock(D) {
-    const b = D.boss, out = D.left <= 0;
+    const b = D.boss, out = D.left <= 0, prepared = bossDeck(b.id), deck = prepared || ui.account.deck;
     return `<section class="bhero" style="${famStyle(b.fam)}">
       <div class="bhero-art">${bossArt(b)}</div>
       <div class="bhero-tx"><span class="eyebrow">Boss de la semaine · jusqu'au ${dayName(D.ends)}</span><h2>${esc(b.name)}</h2>
@@ -60,7 +63,9 @@ export function createBoss(app) {
           <span><b>${D.pos ? nth(D.pos) : '–'}</b><small>${D.n ? `sur ${D.n} joueur${D.n > 1 ? 's' : ''}` : 'pas encore classé'}</small></span></div>
         <button class="playbtn bplay" data-act="boss-play" ${out || ui.busy ? 'disabled' : ''}><span>${out ? 'Revenez demain' : 'Affronter'}</span>
           <small class="num">${out ? `${D.attempts} nouvelles tentatives à minuit` : `${D.left} tentative${D.left > 1 ? 's' : ''} sur ${D.attempts} aujourd'hui`}</small></button>
-        <p class="hint" style="margin:0">La partie se joue avec votre deck joué. Une tentative commencée compte, même abandonnée.</p></div></section>`;
+        <div class="bdeckline"><span><small class="hint">${prepared ? 'Deck préparé contre lui' : 'Votre deck joué'}</small><b>${esc(deck?.name || 'Aucun deck')}</b></span>
+          <button class="btn sm" data-act="boss-decks">${prepared ? 'Modifier' : 'Préparer un deck'}</button></div>
+        <p class="hint" style="margin:0">Une tentative commencée compte, même abandonnée.</p></div></section>`;
   }
   function scriptBlock(b) {
     return block('Ses 7 tours', `<ol class="bscript">${b.script.map(s => `<li><span class="bturn num">${s.turn}</span><div><b>${esc(s.name)}</b>
@@ -148,6 +153,29 @@ export function createBoss(app) {
     return `${head()}${app.errLine()}${note()}${tabs()}${body}`;
   }
 
+  // ---- Decks contre les boss (onglet Boss mondial de l'écran des decks) ----
+  // Un deck par boss, pour s'y préparer ; complet, il est joué à la place du deck joué contre ce boss. Le boss de la semaine en premier.
+  function decksHTML() {
+    const a = ui.account, week = a.boss?.id;
+    const ids = [...BOSS_IDS].sort((x, y) => (y === week) - (x === week));
+    const item = id => {
+      const b = bossInfo(id), d = a.bossDecks?.[id], err = d && deckError(d, a), g = d && GENERALS[d.general];
+      const state = !d ? '<p class="hint" style="margin:0">Pas de deck préparé : votre deck joué servira contre lui.</p>'
+        : err ? `<p class="hint" style="margin:0">Pas encore jouable : ${esc(err)} Votre deck joué servira tant qu'il n'est pas fini.</p>`
+          : '<p class="ok" style="margin:0">Prêt : il remplace votre deck joué contre ce boss.</p>';
+      return `<div class="card-box bdeck ${id === week ? 'now' : ''}" style="${famStyle(b.fam)}">
+        <div class="bdeck-head"><span class="gport">${portraitHTML(id, b.art) || `<span class="gport-init">${esc(b.name[0])}</span>`}</span>
+          <div><span class="eyebrow">${id === week ? 'Boss de cette semaine' : 'Boss mondial'}</span><h2>${esc(b.name)}</h2><small class="hint">${esc(b.text)}</small></div></div>
+        <div><small class="hint">Renforcées contre lui</small>${boostChips(b)}</div>
+        ${d ? `<p style="margin:0"><b>${esc(d.name)}</b> · ${g ? esc(g.name) : 'Pas de général'} · <span class="num">${d.terrains.length}/${DECK_TERRAINS}</span> terrains · <span class="num">${d.cards.length}/${DECK_SIZE}</span> cartes</p>` : ''}
+        ${state}
+        <div class="row"><button class="btn ${d ? '' : 'primary'}" data-act="bdeck-edit" data-boss="${id}">${d ? 'Modifier' : 'Préparer un deck'}</button>
+          ${d ? `<button class="btn" data-act="bdeck-reset" data-boss="${id}" ${ui.busy ? 'disabled' : ''}>Supprimer</button>` : ''}</div></div>`;
+    };
+    return `<p class="hint" style="margin:0">Préparez un deck contre chaque boss, avec les cartes qu'il renforce. Il part de votre deck joué et ne prend pas de place parmi vos decks.</p>
+      ${app.errLine()}${ids.map(item).join('')}`;
+  }
+
   // ---- À la table ----
   // Bandeau du boss au-dessus du plateau : son action de ce tour (avant ou après votre révélation) et votre score du moment.
   function tableHTML(v) {
@@ -183,6 +211,9 @@ export function createBoss(app) {
     else if (a === 'boss-tab') { B.tab = ds.tab; B.note = ''; ui.error = ''; if (ds.tab === 'classement') ladder(); if (ds.tab === 'magasin' && !B.data) load(); app.render(); }
     else if (a === 'boss-play' && !ui.busy) app.go();
     else if (a === 'boss-buy' && !ui.busy) buy(ds.item);
+    else if (a === 'boss-decks') { ui.decksTab = 'boss'; ui.screen = 'decks'; ui.error = ''; app.render(); }
+    else if (a === 'bdeck-edit') app.editBossDeck(ds.boss);
+    else if (a === 'bdeck-reset' && !ui.busy) { if (confirm(`Supprimer le deck préparé contre ${bossInfo(ds.boss).name} ? Votre deck joué servira contre lui.`)) app.call('POST', '/api/boss/deck/reset', { boss: ds.boss }); }
     else return false;
     return true;
   }
@@ -194,7 +225,7 @@ export function createBoss(app) {
   }
 
   return {
-    screen, click, tableHTML, handChip, endHTML,
+    screen, click, tableHTML, handChip, endHTML, decksHTML, bossDeck,
     // Onglet Boss de la boutique : le magasin du boss (chargé au besoin).
     shopTab() {
       if (!B.data) { load(); return '<p class="wait">Chargement…</p>'; }
