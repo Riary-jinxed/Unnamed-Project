@@ -7,7 +7,8 @@ export const DECK_SIZE = 15, DECK_TERRAINS = 5, MAX_COPIES = 1, BOOSTER_SIZE = 3
 // Cartes à collectionner (hors jetons). Le catalogue publié depuis /admin peut en ajouter : ces tableaux sont mis à jour sur place.
 export const COLLECTIBLE = Object.keys(CARDS).filter(k => !CARDS[k].token);
 // Les généraux se collectionnent comme les cartes : même collection, mêmes boosters, mêmes doublons.
-export const GENERAL_IDS = Object.keys(GENERALS);
+// Les boss mondiaux (boss: true) n'en font pas partie.
+export const GENERAL_IDS = Object.keys(GENERALS).filter(g => !GENERALS[g].boss);
 export const isGeneral = id => !!GENERALS[id];
 // Tout ce qui peut sortir d'un booster : cartes et généraux.
 export const OWNABLE = [...COLLECTIBLE, ...GENERAL_IDS];
