@@ -85,6 +85,7 @@ export function createProgress(store) {
     if (r.shards) a.shards = (a.shards || 0) + r.shards;
     if (r.prisms) a.prisms = (a.prisms || 0) + r.prisms;
     if (r.clanCoins) a.clanCoins = (a.clanCoins || 0) + r.clanCoins;
+    if (r.bossCoins) a.bossCoins = (a.bossCoins || 0) + r.bossCoins;
     if (r.chests) a.freeChests = (a.freeChests || 0) + r.chests;
     if (r.boosters) a.freeBoosters = (a.freeBoosters || 0) + r.boosters;
     if (r.card && !a.cards[r.card]) a.cards[r.card] = 1;

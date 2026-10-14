@@ -6,6 +6,7 @@ import { SEASON_TITLES, SEASON_FRAMES, SEASON_BACKS } from './pass.js';
 import { ARTS, ART_THEMES, MAX_FAV_ARTS } from './arts.js';
 import { CLAN_TITLES, CLAN_FRAMES, CLAN_BACKS, CLAN_LEVELS } from './clans.js';
 import { DEFAULT_SETS, setOf } from './collection.js';
+import { BOSS_TITLES, BOSS_FRAMES, BOSS_BACKS } from './boss.js';
 
 // ---- Réglages chiffrés ----
 // Les valeurs par défaut sont justifiées dans la proposition d'économie (recompenses/economie.md).
@@ -143,6 +144,8 @@ export const FRAMES = {
   // Cadres du magasin de clan (clans.js).
   ...Object.fromEntries(CLAN_FRAMES),
   // Cadres des paliers des familles d'arts : ajoutés plus bas (ART_THEME_FRAMES).
+  // Cadres du magasin du boss mondial (boss.js).
+  ...Object.fromEntries(BOSS_FRAMES),
 };
 const FAM_KEY = { 'Ange': 'ange', 'Démon': 'demon', 'Gobelin': 'gobelin', 'Elfe': 'elfe', 'Dragon': 'dragon', 'Mort-vivant': 'mortvivant', 'Vampire': 'vampire', 'Hacker': 'hacker', 'Cyborg': 'cyborg' };
 export const famKey = fam => FAM_KEY[fam] || 'neutre';
@@ -153,7 +156,7 @@ export const BACKS = { classique: 'Dos classique', ange: 'Dos céleste', demon: 
   dragon_set2: 'Dos des couvées',
   hacker: 'Dos du réseau', cyborg: 'Dos chromé', ange_set3: 'Dos de la Grille', demon_set3: 'Dos des daemons', gobelin_set3: 'Dos survolté',
   elfe_set3: 'Dos technomancien', dragon_set3: 'Dos corporatiste', mortvivant_set3: 'Dos fantôme', vampire_set3: 'Dos néon rouge',
-  ...Object.fromEntries(SEASON_BACKS), ...Object.fromEntries(CLAN_BACKS) };
+  ...Object.fromEntries(SEASON_BACKS), ...Object.fromEntries(CLAN_BACKS), ...Object.fromEntries(BOSS_BACKS) };
 
 // ---- Niveaux de carte ----
 // Purement cosmétiques : la carte joue pareil à tous les niveaux. Chaque doublon donne de l'essence propre à la carte (ou au général) ;
@@ -301,6 +304,14 @@ export const ACHIEVEMENTS = [
   A('friend5', 'Amis', 'Avoir 5 amis', 'friends', 5, 150, { prisms: 3, title: 'Âme de la taverne' }),
   A('friendWin', 'Amis', 'Gagner un défi contre un ami', 'friendWins', 1, 100, { prisms: 2 }),
   A('friendWin25', 'Amis', 'Gagner 25 défis contre des amis', 'friendWins', 25, 400, { prisms: 10, title: 'Rival redouté' }),
+  // Boss mondial (boss.js) : tentatives, meilleur score d'une tentative, boss différents affrontés, top 10 d'une semaine.
+  A('boss1', 'Boss mondial', 'Affronter un boss mondial', 'bossRuns', 1, 50, { prisms: 2 }),
+  A('boss25', 'Boss mondial', 'Faire 25 tentatives contre les boss mondiaux', 'bossRuns', 25, 300, { prisms: 10, title: 'Traqueur' }),
+  A('boss100', 'Boss mondial', 'Faire 100 tentatives contre les boss mondiaux', 'bossRuns', 100, 800, { prisms: 20, chests: 1 }),
+  A('bossKinds', 'Boss mondial', 'Affronter 3 boss mondiaux différents', 'bossKinds', 3, 200, { prisms: 5 }),
+  A('boss650', 'Boss mondial', 'Marquer 650 points en une tentative', 'bossBest', 650, 200, { prisms: 5 }),
+  A('boss1000', 'Boss mondial', 'Marquer 1000 points en une tentative', 'bossBest', 1000, 500, { prisms: 15, title: 'Briseur de boss' }),
+  A('bossTop10', 'Boss mondial', 'Finir une semaine dans le top 10 d\'un boss mondial', 'bossTop10', 1, 500, { prisms: 15, chests: 1 }),
   A('login7', 'Connexion', 'Se connecter 7 jours', 'loginDays', 7, 100, { prisms: 2 }),
   A('login30', 'Connexion', 'Se connecter 30 jours', 'loginDays', 30, 300, { prisms: 10, title: 'Habitué' }),
   A('login100', 'Connexion', 'Se connecter 100 jours', 'loginDays', 100, 800, { prisms: 20, chests: 1 }),
@@ -339,6 +350,7 @@ export const TITLES = Object.fromEntries([
   ...PLACES.map(p => [`rang:${p.id}`, p.title]),
   ...SEASON_TITLES,
   ...CLAN_TITLES,
+  ...BOSS_TITLES,
   [WELCOME_TITLE, 'Recrue prometteuse'],
 ]);
 

@@ -20,9 +20,10 @@ export const RARITY_IDS = Object.keys(ART_RARITIES);
 // Édition Promo : jamais en vente ; donnée par un code, un événement, un succès (aujourd'hui, depuis /admin). Garde sa rareté.
 // Édition Essence : vendue seulement au rayon Essence de la boutique, contre de l'essence universelle (jamais au coffre ni en arts du jour).
 // Édition Clan : vendue seulement au magasin de clan, contre des Écus (clans.js, CLAN_SHOP).
+// Édition Boss : vendue seulement au magasin du boss mondial, contre des Insignes (boss.js, BOSS_SHOP).
 export function rarityName(art) {
   const name = ART_RARITIES[art.rarity]?.name || art.rarity;
-  return art.edition === 'promo' ? `Promo ${name.toLowerCase()}` : art.edition === 'essence' ? `Essence ${name.toLowerCase()}` : art.edition === 'clan' ? `Clan ${name.toLowerCase()}` : name;
+  return art.edition === 'promo' ? `Promo ${name.toLowerCase()}` : art.edition === 'essence' ? `Essence ${name.toLowerCase()}` : art.edition === 'clan' ? `Clan ${name.toLowerCase()}` : art.edition === 'boss' ? `Boss ${name.toLowerCase()}` : name;
 }
 // Prix par défaut des arts de l'édition Essence, en essence universelle, selon la rareté (réglables dans /admin : essArtPrice_<rareté>).
 export const ESSENCE_ART_PRICES = { rare: 150, epique: 300, legendaire: 600 };
@@ -39,6 +40,7 @@ export const ART_THEMES = {
   taverne: { name: 'La taverne', style: 'scène de fête, lumière de taverne', title: 'Roi de la fête' },
   astral: { name: 'Astrale', style: 'constellations, nébuleuses et poussière d\'étoiles, bleu nuit et or', title: 'Tisseur d\'étoiles' },
   bannieres: { name: 'Bannières', style: 'héraldique, étendards et blasons de clan, rouge, bleu et or', title: 'Seigneur des bannières' },
+  chasse: { name: 'Chasse aux boss', style: 'trophées de chasse, crocs, braises et givre, lumière de forge', title: 'Tueur de boss' },
 };
 export const THEME_IDS = Object.keys(ART_THEMES);
 
@@ -88,6 +90,11 @@ export const ARTS = Object.fromEntries([
   A('mercenaire_clan', 'mercenaire', 'Mercenaire sous serment', 'epique', { edition: 'clan', theme: 'bannieres' }),
   A('seigneur_guerre_clan', 'seigneur_guerre', 'Seigneur de guerre, la grande bannière', 'epique', { edition: 'clan', theme: 'bannieres' }),
   A('cartographe_clan', 'cartographe', 'Cartographe des conquêtes', 'legendaire', { edition: 'clan', theme: 'bannieres' }),
+  // Édition Boss (famille Chasse aux boss) : seulement au magasin du boss mondial, contre des Insignes (boss.js).
+  A('chevalier_boss', 'chevalier', 'Chevalier, tueur de boss', 'rare', { edition: 'boss', theme: 'chasse' }),
+  A('vaelthar_trophee', 'vaelthar', 'Vael\'Thar, trophée du glacier', 'epique', { edition: 'boss', theme: 'chasse' }),
+  A('vorgoth_trophee', 'vorgoth', 'Vorgoth, trophée du cercle', 'epique', { edition: 'boss', theme: 'chasse' }),
+  A('ignaroth_trophee', 'ignaroth', 'Ignaroth, trophée de l\'éclipse', 'legendaire', { edition: 'boss', theme: 'chasse' }),
   // Promo des passes de saison (pass.js) : season = mois de la saison ; cachés dans l'appli avant le début de leur saison.
   A('morgrath_citrouilles', 'morgrath', 'Morgrath, nuit des citrouilles', 'epique', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : palier 18.' }),
   A('grisk_farce', 'grisk', 'Grisk, farce ou friandise', 'legendaire', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : palier 38.' }),
