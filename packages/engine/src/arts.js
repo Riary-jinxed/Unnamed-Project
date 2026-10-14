@@ -5,6 +5,7 @@
 // l'appli affiche un art provisoire, et l'art reste vendable.
 import { CARDS, GENERALS } from './engine.js';
 import { today } from './collection.js';
+import { t } from './i18n.js';
 
 // Arts préférés qu'un joueur montre sur son profil public (Profil, Personnalisation).
 export const MAX_FAV_ARTS = 3;
@@ -22,8 +23,8 @@ export const RARITY_IDS = Object.keys(ART_RARITIES);
 // Édition Clan : vendue seulement au magasin de clan, contre des Écus (clans.js, CLAN_SHOP).
 // Édition Boss : vendue seulement au magasin du boss mondial, contre des Insignes (boss.js, BOSS_SHOP).
 export function rarityName(art) {
-  const name = ART_RARITIES[art.rarity]?.name || art.rarity;
-  return art.edition === 'promo' ? `Promo ${name.toLowerCase()}` : art.edition === 'essence' ? `Essence ${name.toLowerCase()}` : art.edition === 'clan' ? `Clan ${name.toLowerCase()}` : art.edition === 'boss' ? `Boss ${name.toLowerCase()}` : name;
+  const name = t(ART_RARITIES[art.rarity]?.name || art.rarity), r = (name || '').toLowerCase();
+  return art.edition === 'promo' ? t('Promo {r}', { r }) : art.edition === 'essence' ? t('Essence {r}', { r }) : art.edition === 'clan' ? t('Clan {r}', { r }) : art.edition === 'boss' ? t('Boss {r}', { r }) : name;
 }
 // Prix par défaut des arts de l'édition Essence, en essence universelle, selon la rareté (réglables dans /admin : essArtPrice_<rareté>).
 export const ESSENCE_ART_PRICES = { rare: 150, epique: 300, legendaire: 600 };

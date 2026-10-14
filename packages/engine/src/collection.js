@@ -1,6 +1,7 @@
 // Collection d'un joueur : deck de départ, booster quotidien et règles de construction de deck.
 // Partagé par le serveur (qui fait foi) et l'appli (qui affiche et prévient avant d'envoyer).
 import { CARDS, GENERALS, TERRAINS, DECKS, pick, shuffle } from './engine.js';
+import { t, tp } from './i18n.js';
 
 export const STARTERS = ['gobelin', 'elfe', 'demon'];
 export const DECK_SIZE = 15, DECK_TERRAINS = 5, MAX_COPIES = 1, BOOSTER_SIZE = 3;
@@ -60,21 +61,21 @@ export const today = (d = new Date()) => PARIS_DAY.format(d);
 // Renvoie un message d'erreur, ou null si le deck est jouable avec cette collection.
 export function deckError(deck, account) {
   const owned = account.cards || {};
-  if (!deck || !Array.isArray(deck.cards) || !Array.isArray(deck.terrains)) return 'Deck invalide.';
-  if (!deck.general) return 'Choisissez un général.';
-  if (deck.cards.length !== DECK_SIZE) return `Le deck doit contenir ${DECK_SIZE} cartes (il en a ${deck.cards.length}).`;
+  if (!deck || !Array.isArray(deck.cards) || !Array.isArray(deck.terrains)) return t('Deck invalide.');
+  if (!deck.general) return t('Choisissez un général.');
+  if (deck.cards.length !== DECK_SIZE) return t('Le deck doit contenir {n} cartes (il en a {have}).', { n: DECK_SIZE, have: deck.cards.length });
   const count = {};
   for (const id of deck.cards) {
-    if (!COLLECTIBLE.includes(id)) return 'Carte inconnue dans le deck.';
+    if (!COLLECTIBLE.includes(id)) return t('Carte inconnue dans le deck.');
     count[id] = (count[id] || 0) + 1;
-    if (count[id] > MAX_COPIES) return `${CARDS[id].name} ne peut être qu'en ${MAX_COPIES} exemplaire.`;
-    if (count[id] > (owned[id] || 0)) return `Vous ne possédez pas ${CARDS[id].name}.`;
+    if (count[id] > MAX_COPIES) return tp(MAX_COPIES, '{card} ne peut être qu\'en {n} exemplaire.', '{card} ne peut être qu\'en {n} exemplaires.', { card: CARDS[id].name });
+    if (count[id] > (owned[id] || 0)) return t('Vous ne possédez pas {card}.', { card: CARDS[id].name });
   }
-  if (deck.terrains.length !== DECK_TERRAINS || new Set(deck.terrains).size !== DECK_TERRAINS) return `Choisissez ${DECK_TERRAINS} terrains différents.`;
-  if (!allowedGenerals(account).includes(deck.general)) return 'Vous ne possédez pas ce général.';
+  if (deck.terrains.length !== DECK_TERRAINS || new Set(deck.terrains).size !== DECK_TERRAINS) return t('Choisissez {n} terrains différents.', { n: DECK_TERRAINS });
+  if (!allowedGenerals(account).includes(deck.general)) return t('Vous ne possédez pas ce général.');
   const terrains = allowedTerrains(account), early = deck.terrains.find(t => unrevealed(t));
-  if (early) return `Le terrain ${TERRAINS[early].name} n'est pas encore sorti : remplacez-le.`;
-  if (deck.terrains.some(t => !terrains.includes(t))) return 'Ce terrain demande un général de sa famille dans votre collection.';
+  if (early) return t('Le terrain {name} n\'est pas encore sorti : remplacez-le.', { name: TERRAINS[early].name });
+  if (deck.terrains.some(t => !terrains.includes(t))) return t('Ce terrain demande un général de sa famille dans votre collection.');
   return null;
 }
 
@@ -83,17 +84,17 @@ export const MAX_DECKS = 10;
 // Renvoie un message d'erreur, ou null si ce deck (complet ou non) respecte la collection et les règles.
 export function draftError(deck, account) {
   const owned = account.cards || {};
-  if (!deck || !Array.isArray(deck.cards) || !Array.isArray(deck.terrains)) return 'Deck invalide.';
-  if (deck.cards.length > DECK_SIZE) return `Le deck contient ${DECK_SIZE} cartes au plus.`;
-  if (new Set(deck.cards).size !== deck.cards.length) return 'Une carte ne peut être qu\'en un exemplaire.';
+  if (!deck || !Array.isArray(deck.cards) || !Array.isArray(deck.terrains)) return t('Deck invalide.');
+  if (deck.cards.length > DECK_SIZE) return t('Le deck contient {n} cartes au plus.', { n: DECK_SIZE });
+  if (new Set(deck.cards).size !== deck.cards.length) return t('Une carte ne peut être qu\'en un exemplaire.');
   for (const id of deck.cards) {
-    if (!COLLECTIBLE.includes(id)) return 'Carte inconnue dans le deck.';
-    if (!owned[id]) return `Vous ne possédez pas ${CARDS[id].name}.`;
+    if (!COLLECTIBLE.includes(id)) return t('Carte inconnue dans le deck.');
+    if (!owned[id]) return t('Vous ne possédez pas {card}.', { card: CARDS[id].name });
   }
-  if (deck.terrains.length > DECK_TERRAINS || new Set(deck.terrains).size !== deck.terrains.length) return `Choisissez ${DECK_TERRAINS} terrains différents au plus.`;
-  if (deck.terrains.some(t => unrevealed(t))) return 'Ce terrain n\'est pas encore sorti.';
-  if (deck.terrains.some(t => !allowedTerrains(account).includes(t))) return 'Ce terrain demande un général de sa famille dans votre collection.';
-  if (deck.general !== null && deck.general !== undefined && !allowedGenerals(account).includes(deck.general)) return 'Vous ne possédez pas ce général.';
+  if (deck.terrains.length > DECK_TERRAINS || new Set(deck.terrains).size !== deck.terrains.length) return t('Choisissez {n} terrains différents au plus.', { n: DECK_TERRAINS });
+  if (deck.terrains.some(t => unrevealed(t))) return t('Ce terrain n\'est pas encore sorti.');
+  if (deck.terrains.some(t => !allowedTerrains(account).includes(t))) return t('Ce terrain demande un général de sa famille dans votre collection.');
+  if (deck.general !== null && deck.general !== undefined && !allowedGenerals(account).includes(deck.general)) return t('Vous ne possédez pas ce général.');
   return null;
 }
 

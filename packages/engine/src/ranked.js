@@ -2,6 +2,7 @@
 // Partagé par le serveur (qui fait foi) et l'appli (qui affiche). Le rang d'un joueur tient en un nombre d'étoiles `r` :
 // 3 étoiles par division, 3 divisions par palier (III, II puis I), puis Maître où les étoiles deviennent des points sans plafond.
 import { today } from './collection.js';
+import { t, tp } from './i18n.js';
 
 // ai : essais de l'IA pour chercher son plan (aiPlan) ; plus il y en a, mieux elle joue. Hors classé, l'IA en fait 250.
 // title, frame : récompenses de fin de saison quand ce palier est le meilleur atteint (avec celles des paliers en dessous).
@@ -22,10 +23,10 @@ export const STREAK_BONUS = 3, STREAK_BONUS_BELOW = (TIERS.length - 2) * TIER_ST
 // Palier, division et étoiles d'un rang. floor : on ne descend jamais sous le début de son palier.
 export function rankOf(r = 0) {
   r = Math.max(0, Math.floor(r) || 0);
-  if (r >= MASTER) { const t = TIERS.length - 1;
-    return { r, tier: t, id: TIERS[t].id, name: TIERS[t].name, division: null, stars: r - MASTER, max: null, floor: MASTER, label: `${TIERS[t].name} · ${r - MASTER} pt${r - MASTER > 1 ? 's' : ''}` }; }
-  const t = Math.floor(r / TIER_STARS), d = Math.floor((r % TIER_STARS) / STARS);
-  return { r, tier: t, id: TIERS[t].id, name: TIERS[t].name, division: ROMAN[d], stars: r % STARS, max: STARS, floor: t * TIER_STARS, label: `${TIERS[t].name} ${ROMAN[d]}` };
+  if (r >= MASTER) { const ti = TIERS.length - 1;
+    return { r, tier: ti, id: TIERS[ti].id, name: TIERS[ti].name, division: null, stars: r - MASTER, max: null, floor: MASTER, label: tp(r - MASTER, '{tier} · {n} pt', '{tier} · {n} pts', { tier: t(TIERS[ti].name) }) }; }
+  const ti = Math.floor(r / TIER_STARS), d = Math.floor((r % TIER_STARS) / STARS);
+  return { r, tier: ti, id: TIERS[ti].id, name: TIERS[ti].name, division: ROMAN[d], stars: r % STARS, max: STARS, floor: ti * TIER_STARS, label: `${t(TIERS[ti].name)} ${ROMAN[d]}` };
 }
 export const tierOf = r => TIERS[rankOf(r).tier];
 
@@ -45,8 +46,9 @@ export function applyResult(r, { result, streak = 0, foeR = null, mult = 1 }) {
 // ---- Saisons ----
 // Une saison par mois (heure de Paris, comme les journées du jeu). En fin de saison : récompenses du meilleur palier atteint, puis on redescend d'un palier.
 export const seasonId = (d = new Date()) => today(d).slice(0, 7);
-const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-export const seasonName = id => { const [y, m] = id.split('-').map(Number); return `${MONTHS[m - 1]} ${y}`; };
+// Noms traduits à l'appel (le serveur change de langue par requête).
+const MONTHS = () => [t('janvier'), t('février'), t('mars'), t('avril'), t('mai'), t('juin'), t('juillet'), t('août'), t('septembre'), t('octobre'), t('novembre'), t('décembre')];
+export const seasonName = id => { const [y, m] = id.split('-').map(Number); return t('{month} {y}', { month: MONTHS()[m - 1], y }); };
 // Jours avant la fin de la saison en cours, aujourd'hui compris.
 export function seasonDaysLeft(d = new Date()) {
   const [y, m, day] = today(d).split('-').map(Number);
