@@ -188,4 +188,7 @@ export default {
   'Premium ✓': 'Premium ✓',
   'Voir le passe': 'View the pass',
   'Semaine': 'Week',
+  'Nouveautés': "What's new",
+  '{n} à lire': '{n} to read',
+  'Annonces': 'Announcements',
 };
