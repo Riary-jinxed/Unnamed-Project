@@ -114,6 +114,13 @@ export function artHTML(id, name, lvl = 1, cls = '', artId = null) {
 // pour 300 px de large et Chrome télécharge alors l'original de chaque carte de l'écran quitté (5 Mo en quittant la collection).
 const img = (c, a, layer, cls) => { const thumb = !/\b(zoomart|grand)\b/.test(cls) && a[`${layer}Thumb`];
   return `<img class="${c}" src="${a[layer]}"${thumb ? ` srcset="${thumb} 640w, ${a[layer]} 960w" sizes="(max-width: 520px) 50vw, 380px"` : ''} alt="" loading="lazy" decoding="async">`; };
+// Cartes de la galerie de la collection (style.css, .gallery.vignettes, content-visibility) : quand le navigateur se remet à
+// dessiner une carte qui approche de l'écran, ses images sont chargées tout de suite. Laissé au chargement différé seul,
+// Chrome oubliait parfois de les charger : l'illustration restait noire jusqu'à ce qu'on survole ou touche la carte
+// (les cartes holo, que holo.js surveille, s'affichaient, elles). Hors de cette galerie, le chargement différé reste tel quel.
+addEventListener('contentvisibilityautostatechange', e => {
+  if (!e.skipped) for (const i of e.target.querySelectorAll?.('img[loading="lazy"]') || []) i.loading = 'eager';
+}, true);
 // Personnage qui sort du cadre : la partie hors de la fenêtre est redessinée par-dessus le contour de la carte (style.css, .perso-out),
 // avec son propre reflet découpé à la silhouette du personnage (holo.css, .perso-foil, --perso) et l'ombre du bandeau du nom (.name-shade).
 // Seule la vue en grand (« zoomart ») fait déborder le personnage : en vignette, ses calques de débordement ne serviraient à rien
