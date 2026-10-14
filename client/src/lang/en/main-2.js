@@ -364,4 +364,8 @@ export default {
   "{n} coffres d'arts": "{n} art chests",
   "titre « {title} »": "title “{title}”",
   "émote {icon} « {text} »": "emote {icon} “{text}”",
+  "Acheter le {name} pour {price} essence universelle": "Buy the {name} for {price} universal essence",
+  "Cadre animé, vendu seulement ici.": "Animated frame, only sold here.",
+  "Déjà à vous": "Already yours",
+  "{name} : à vous ! Portez-le depuis la Personnalisation.": "{name}: it's yours! Wear it from Customization.",
 };

@@ -1,28 +1,29 @@
-/* Cadres animés : un calque ::before posé sur le cadre (l'anneau fixe vient de cosmetics-art.js, ou du dégradé ci-dessous sans WebGL).
-   Seuls transform et opacity bougent : le navigateur anime le calque sur la carte graphique, sans redessiner la page,
+/* Cadres animés (ANIMATED_FRAMES, rewards.js). L'anneau fixe vient de cosmetics-art.js (ou de son dégradé de style.css
+   sans WebGL) ; avatarHTML (main.js) ajoute au cadre un calque .ffx, dont ::before et ::after portent le mouvement.
+   Seuls transform et opacity bougent : le navigateur anime les calques sur la carte graphique, sans redessiner la page,
    ce qui reste léger sur téléphone même avec plusieurs cadres à l'écran (classements, membres du clan).
-   Le calque déborde de 14 % comme l'image du cadre : dans son masque (closest-side), le trou du portrait s'arrête à 66 %
-   et l'anneau à 82 %. Rien ne bouge dans les petites pastilles (.swatch) ni avec « réduire les animations ». */
-.frame.frame-boss_comete, .frame.frame-boss_brasier { position: relative; isolation: isolate; }
-.frame.frame-boss_comete::before, .frame.frame-boss_brasier::before { content: ""; position: absolute; inset: -14%; border-radius: 50%; pointer-events: none; }
-.frame.swatch::before { display: none; }
+   Le calque déborde de 14 % comme l'image du cadre : en closest-side, le trou du portrait s'arrête à 66 % et l'anneau
+   à 82 %. z-index 1 : par-dessus l'anneau ; -1 : derrière lui (lueurs). Rien ne bouge avec « réduire les animations ». */
+.frame.fanim { position: relative; isolation: isolate; }
+.fanim > .ffx { position: absolute; inset: -14%; pointer-events: none; }
+.fanim > .ffx::before, .fanim > .ffx::after { content: ""; position: absolute; inset: 0; border-radius: 50%; }
+.fanim > .ffx { --ring: radial-gradient(closest-side, transparent 62%, #000 67%, #000 81%, transparent 86%); }
+.frame-boss_comete > .ffx::before, .frame-essence_astral > .ffx::before, .frame-cyber_p > .ffx::before, .frame-cyber_p > .ffx::after,
+.frame-maitre > .ffx::before, .frame-legende > .ffx::before, .frame-legende > .ffx::after { -webkit-mask: var(--ring); mask: var(--ring); }
 
-/* Comète : une tête claire et sa traîne font le tour de l'anneau, par-dessus. */
+/* Comète (magasin du boss) : une tête claire et sa traîne font le tour de l'anneau ; halo bleu qui respire. */
 .frame-boss_comete { background: radial-gradient(circle, #fff 0 1px, transparent 2px) 0 0 / 6px 6px, linear-gradient(135deg, #141c44, #2a3a7a 50%, #6a7ad0); box-shadow: 0 0 9px rgb(106 138 255 / .6); }
-.frame.frame-boss_comete::before {
-  z-index: 1;
-  background:
-    radial-gradient(4.5% 4.5% at 50% 13.1%, #fff 0 30%, rgb(255 240 190 / .9) 55%, transparent),
-    conic-gradient(transparent 0 55%, rgb(120 150 255 / .05) 62%, rgb(170 200 255 / .4) 88%, rgb(255 244 210 / .95) 99.6%, transparent 99.7%);
-  -webkit-mask: radial-gradient(closest-side, transparent 62%, #000 67%, #000 81%, transparent 86%);
-  mask: radial-gradient(closest-side, transparent 62%, #000 67%, #000 81%, transparent 86%);
-  animation: frame-orbit 3.6s linear infinite;
-}
+.frame-boss_comete > .ffx::before { z-index: 1; animation: ffx-spin 3.6s linear infinite;
+  background: radial-gradient(4.5% 4.5% at 50% 13.1%, #fff 0 30%, rgb(255 240 190 / .9) 55%, transparent),
+    conic-gradient(transparent 0 55%, rgb(120 150 255 / .05) 62%, rgb(170 200 255 / .4) 88%, rgb(255 244 210 / .95) 99.6%, transparent 99.7%); }
+.frame-boss_comete > .ffx::after { z-index: -1; animation: ffx-breathe 3.6s ease-in-out infinite;
+  background: radial-gradient(closest-side, transparent 76%, rgb(110 140 255 / .6) 86%, transparent); }
 
-/* Brasier : derrière l'anneau, une lueur qui vacille et des braises qui tourbillonnent autour. */
+/* Brasier (magasin du boss) : derrière l'anneau, une lueur qui vacille et des braises qui tourbillonnent. */
 .frame-boss_brasier { background: conic-gradient(from 180deg, #ffcf4a, #f06a1f, #4a3a34, #f06a1f, #ffcf4a); box-shadow: 0 0 10px rgb(255 90 26 / .65); }
-.frame.frame-boss_brasier::before {
-  z-index: -1;
+.frame-boss_brasier > .ffx::before { z-index: -1; animation: ffx-flicker 1.7s steps(1, end) infinite;
+  background: radial-gradient(closest-side, transparent 76%, rgb(255 130 30 / .9) 85%, rgb(255 80 20 / .45) 93%, transparent); }
+.frame-boss_brasier > .ffx::after { z-index: -1; animation: ffx-spin 9s linear infinite, ffx-twinkle 2.3s ease-in-out infinite;
   background:
     radial-gradient(3.4% 3.4% at 65.4% 7.7%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
     radial-gradient(2.8% 2.8% at 95.9% 37.7%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
@@ -30,12 +31,75 @@
     radial-gradient(2.7% 2.7% at 41.8% 96.3%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
     radial-gradient(3.6% 3.6% at 9.2% 69.0%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
     radial-gradient(2.9% 2.9% at 8.4% 26.0%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
-    radial-gradient(2.6% 2.6% at 34.3% 6.8%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
-    radial-gradient(closest-side, transparent 76%, rgb(255 130 30 / .9) 85%, rgb(255 80 20 / .45) 93%, transparent);
-  animation: frame-orbit 9s linear infinite, frame-flicker 1.7s steps(1, end) infinite;
-}
+    radial-gradient(2.6% 2.6% at 34.3% 6.8%, #fff2b0 0 30%, #ff9a2a 60%, transparent); }
 
-@keyframes frame-orbit { to { transform: rotate(1turn); } }
-@keyframes frame-flicker { 0% { opacity: 1; } 18% { opacity: .72; } 30% { opacity: .95; } 47% { opacity: .6; } 60% { opacity: .9; } 78% { opacity: .7; } 88% { opacity: 1; } }
+/* Astral (rayon Essence) : une nébuleuse violette, turquoise et rose glisse sur l'anneau, et des étoiles scintillent autour. */
+.frame-essence_astral { background: conic-gradient(#a585e6, #4fbcad, #ff8ad2, #a585e6); box-shadow: 0 0 10px rgb(165 133 230 / .7); }
+.frame-essence_astral > .ffx::before { z-index: 1; animation: ffx-spin 12s linear infinite;
+  background: conic-gradient(transparent, rgb(185 150 255 / .6) 12%, transparent 28%, rgb(90 220 200 / .5) 46%, transparent 62%, rgb(255 140 210 / .55) 80%, transparent); }
+.frame-essence_astral > .ffx::after { z-index: 1; animation: ffx-spin 40s linear infinite reverse, ffx-twinkle 2.8s ease-in-out infinite;
+  background:
+    radial-gradient(2.6% 2.6% at 56.4% 13.6%, #fff 0 30%, rgb(200 220 255 / .8) 60%, transparent),
+    radial-gradient(2.0% 2.0% at 86.9% 24.2%, #fff 0 30%, rgb(200 220 255 / .8) 60%, transparent),
+    radial-gradient(2.4% 2.4% at 85.5% 56.3%, #fff 0 30%, rgb(200 220 255 / .8) 60%, transparent),
+    radial-gradient(1.8% 1.8% at 73.2% 90.3%, #fff 0 30%, rgb(200 220 255 / .8) 60%, transparent),
+    radial-gradient(2.6% 2.6% at 37.2% 85.2%, #fff 0 30%, rgb(200 220 255 / .8) 60%, transparent),
+    radial-gradient(2.0% 2.0% at 6.8% 65.7%, #fff 0 30%, rgb(200 220 255 / .8) 60%, transparent),
+    radial-gradient(2.2% 2.2% at 16.9% 34.6%, #fff 0 30%, rgb(200 220 255 / .8) 60%, transparent),
+    radial-gradient(1.8% 1.8% at 26.2% 8.9%, #fff 0 30%, rgb(200 220 255 / .8) 60%, transparent); }
 
-@media (prefers-reduced-motion: reduce) { .frame.frame-boss_comete::before, .frame.frame-boss_brasier::before { animation: none; } }
+/* Couronne du Crépuscule (set 2 complété) : la lune de sang respire derrière l'anneau, des lucioles pâles tournent autour. */
+.frame-set2 > .ffx::before { z-index: -1; animation: ffx-breathe 4.5s ease-in-out infinite;
+  background: radial-gradient(closest-side, transparent 74%, rgb(170 30 80 / .8) 85%, rgb(90 20 70 / .4) 93%, transparent); }
+.frame-set2 > .ffx::after { z-index: 1; animation: ffx-spin 16s linear infinite, ffx-twinkle 3.2s ease-in-out infinite;
+  background:
+    radial-gradient(2.4% 2.4% at 72.5% 11.0%, #fff0f4 0 30%, rgb(214 120 170 / .8) 60%, transparent),
+    radial-gradient(2.0% 2.0% at 86.9% 53.2%, #fff0f4 0 30%, rgb(214 120 170 / .8) 60%, transparent),
+    radial-gradient(2.6% 2.6% at 65.7% 93.2%, #fff0f4 0 30%, rgb(214 120 170 / .8) 60%, transparent),
+    radial-gradient(2.0% 2.0% at 26.5% 78.0%, #fff0f4 0 30%, rgb(214 120 170 / .8) 60%, transparent),
+    radial-gradient(2.4% 2.4% at 5.2% 42.1%, #fff0f4 0 30%, rgb(214 120 170 / .8) 60%, transparent),
+    radial-gradient(1.8% 1.8% at 33.9% 15.6%, #fff0f4 0 30%, rgb(214 120 170 / .8) 60%, transparent); }
+
+/* Sabbat (passe premium d'octobre) : feu de sorcière vert qui vacille derrière, étincelles qui tournent à rebours. */
+.frame-halloween_p > .ffx::before { z-index: -1; animation: ffx-flicker 1.9s steps(1, end) infinite;
+  background: radial-gradient(closest-side, transparent 74%, rgb(124 255 106 / .75) 85%, rgb(90 40 140 / .45) 93%, transparent); }
+.frame-halloween_p > .ffx::after { z-index: 1; animation: ffx-spin 7s linear infinite reverse, ffx-twinkle 1.6s ease-in-out infinite;
+  background:
+    radial-gradient(2.6% 2.6% at 50.0% 3.5%, #eaffd8 0 30%, rgb(124 255 106 / .85) 60%, transparent),
+    radial-gradient(2.0% 2.0% at 89.0% 27.5%, #eaffd8 0 30%, rgb(124 255 106 / .85) 60%, transparent),
+    radial-gradient(2.4% 2.4% at 91.1% 73.7%, #eaffd8 0 30%, rgb(124 255 106 / .85) 60%, transparent),
+    radial-gradient(2.0% 2.0% at 50.0% 95.0%, #eaffd8 0 30%, rgb(124 255 106 / .85) 60%, transparent),
+    radial-gradient(2.6% 2.6% at 9.3% 73.5%, #eaffd8 0 30%, rgb(124 255 106 / .85) 60%, transparent),
+    radial-gradient(2.0% 2.0% at 10.6% 27.2%, #eaffd8 0 30%, rgb(124 255 106 / .85) 60%, transparent); }
+
+/* Holographique (passe premium de novembre) : un reflet arc-en-ciel tourne sur les facettes, un éclat blanc le croise. */
+.frame-cyber_p > .ffx::before { z-index: 1; animation: ffx-spin 6s linear infinite;
+  background: conic-gradient(rgb(124 255 255 / .45), rgb(160 180 255 / .1), rgb(224 138 255 / .45), rgb(255 154 216 / .1), rgb(255 240 154 / .45), rgb(154 255 200 / .1), rgb(124 255 255 / .45)); }
+.frame-cyber_p > .ffx::after { z-index: 1; animation: ffx-spin 2.4s linear infinite reverse;
+  background: conic-gradient(transparent 0 92%, rgb(255 255 255 / .9) 97%, transparent 99%); }
+
+/* Grand maître (classé) : un éclat d'or balaie l'anneau de temps en temps ; halo violet qui respire. */
+.frame-maitre > .ffx::before { z-index: 1; animation: ffx-glint 5s ease-in-out infinite;
+  background: conic-gradient(transparent 0 88%, rgb(255 230 150 / .3) 93%, rgb(255 250 220 / .95) 97.5%, transparent 99%); }
+.frame-maitre > .ffx::after { z-index: -1; animation: ffx-breathe 3s ease-in-out infinite;
+  background: radial-gradient(closest-side, transparent 76%, rgb(192 96 224 / .7) 86%, transparent); }
+
+/* Légende (niveau 50) : un voile de prisme tourne lentement sur les gemmes, un éclat blanc passe de temps en temps. */
+.frame-legende > .ffx::before { z-index: 1; animation: ffx-spin 10s linear infinite;
+  background: conic-gradient(rgb(208 84 127 / .35), rgb(226 185 62 / .35), rgb(79 188 173 / .35), rgb(119 163 230 / .35), rgb(165 133 230 / .35), rgb(208 84 127 / .35)); }
+.frame-legende > .ffx::after { z-index: 1; animation: ffx-glint 6s ease-in-out infinite reverse;
+  background: conic-gradient(transparent 0 90%, rgb(255 255 255 / .9) 97%, transparent 99%); }
+
+@keyframes ffx-spin { to { transform: rotate(1turn); } }
+@keyframes ffx-breathe { 0%, 100% { opacity: .45; transform: scale(.97); } 50% { opacity: 1; transform: scale(1.03); } }
+@keyframes ffx-flicker { 0% { opacity: 1; } 18% { opacity: .72; } 30% { opacity: .95; } 47% { opacity: .6; } 60% { opacity: .9; } 78% { opacity: .7; } 88% { opacity: 1; } }
+@keyframes ffx-twinkle { 0%, 100% { opacity: 1; } 30% { opacity: .4; } 60% { opacity: .9; } 80% { opacity: .55; } }
+/* Un tour en 40 % du temps, puis l'éclat s'efface jusqu'au suivant. */
+@keyframes ffx-glint { 0% { transform: rotate(0); opacity: 1; } 40% { transform: rotate(1turn); opacity: 1; } 46%, 100% { transform: rotate(1turn); opacity: 0; } }
+
+/* Rayon Essence : le cadre astral, en vente sur l'image de profil du joueur. */
+.essframe { display: flex; align-items: center; gap: 18px; padding: 14px 16px; border-radius: var(--r); border: 1px solid color-mix(in srgb, #a585e6 50%, var(--line)); }
+.essframe > div { display: grid; gap: 2px; flex: 1; }
+.essframe > .frame { margin: 8px; }
+
+@media (prefers-reduced-motion: reduce) { .fanim > .ffx::before, .fanim > .ffx::after { animation: none; } }
