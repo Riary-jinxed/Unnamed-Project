@@ -1,21 +1,40 @@
 // Effets visuels de la partie posés par-dessus la table (bandeaux, nombres, lueurs, confettis).
-// Ils vivent dans <body>, hors de #app : le rendu suivant (une vue toutes les 600 ms pendant la révélation) ne les coupe pas.
+// Ils vivent dans <body>, hors de #app : le rendu suivant (une vue toutes les 850 ms pendant la révélation) ne les coupe pas.
 import './fx.css';
 
 export const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// Plateau PixiJS (stage.js) : chargé à la première partie, seulement avec WebGL et sans « réduire les animations ».
+// Plateau PixiJS (stage.js) : chargé au premier écran, seulement avec WebGL et sans « réduire les animations ».
 // Tant qu'il n'est pas prêt, ou s'il ne peut pas l'être, chaque effet garde sa version en CSS ci-dessous.
-let stage = null, inGame = false;
+let stage = null, gens = null, coach = null, coachWant = null, scene = null, entering = Promise.resolve(false);
 const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
 const staged = () => stage?.active() ? stage : null;
-// Appelé à chaque rendu : la table PixiJS apparaît en partie et disparaît dans les menus.
+// Appelé à chaque rendu : la table PixiJS en partie, le décor animé (brume, braises, étincelles, chauves-souris à Halloween) dans les menus.
+// Dans les menus, le chargement attend que la page soit affichée et au repos, pour ne pas retarder l'ouverture de l'appli.
 export function setInGame(app, on) {
-  if (on === inGame) return; inGame = on;
-  if (!on) { stage?.leave(); return; }
-  if (reduceMotion() || !webgl()) return;
-  import('./stage.js').then(m => m.enter(app).then(ok => { if (!ok) return; stage = m; if (!inGame) m.leave(); })).catch(err => console.warn('Plateau PixiJS indisponible', err));
+  const want = on ? 'game' : 'menu';
+  if (want === scene) return; scene = want;
+  if (reduceMotion() || !webgl()) { stage?.leave(); return; }
+  const go = () => {
+    if (scene !== want) return;
+    // Les généraux (portrait vivant, effet de pouvoir propre à chacun), les effets des cartes et le décor des menus viennent avec le plateau.
+    entering = Promise.all([import('./stage.js'), import('./stage-generals.js'), import('./stage-menu.js'), import('./stage-cards.js'), import('./stage-coach.js')])
+      .then(([m, g, mm, mc, co]) => m.enter(app, scene).then(ok => { if (!ok) return; stage = m; gens = g; coach = co; g.start(); mm.start(); mc.start(); if (scene !== want) m.enter(app, scene); coachGuide(coachWant); }))
+      .catch(err => { console.warn('Plateau PixiJS indisponible', err); return false; });
+  };
+  if (stage || on) go(); else (window.requestIdleCallback || (f => setTimeout(f, 1200)))(go, { timeout: 2500 });
 }
+// Guide du tutoriel (stage-coach.js) : { hl, drag, tap, text } de tutorial.js, ou null. Appelé après chaque rendu.
+// En partie comme dans les menus (guide « Améliorer une carte »). Sans PixiJS, rien : le contour CSS des cibles (.coach-hl)
+// reste seul ; avec, il laisse la place au liseré PixiJS.
+export function coachGuide(c) {
+  coachWant = c;
+  const on = !!(c && stage?.scene() && coach);
+  coach?.set(on ? c : null);
+  document.body.classList.toggle('coached', on);
+}
+// Le plateau de la scène demandée est-il prêt ? Le voile d'entrée en partie (veil.js) l'attend avant de s'effacer.
+export const stageReady = () => entering;
 const famOf = el => el && getComputedStyle(el).getPropertyValue('--fam').trim();
 
 // Calque fixe posé sur un rectangle de l'écran, retiré après `ms`.
@@ -53,10 +72,10 @@ export function zoneGlow(el, side, delay = 0, strong = false) {
   if (delay) d.style.animationDelay = `${delay}ms`;
 }
 
-// Le général entre en action : anneau et éclat à la couleur de sa famille.
+// Le général entre en action : sur PixiJS, l'effet propre à ce général ; sinon anneau et éclat à la couleur de sa famille.
 export function generalFire(el) {
   if (!el || reduceMotion()) return;
-  const st = staged(); if (st) { st.general(el, famOf(el)); return; }
+  const st = staged(); if (st) { if (gens) gens.power(el); else st.general(el, famOf(el)); return; }
   const r = el.getBoundingClientRect(), s = Math.max(r.width, r.height);
   const d = layer(r, 'fxgen', '<i></i><i></i>', 1100);
   d.style.setProperty('--s', `${s}px`);
@@ -104,3 +123,25 @@ export function shards(rect) { const st = staged(); if (st && rect) st.shatter(r
 export function trail(x, y) { if (Math.random() < 0.5) staged()?.trail(x, y); }
 export function ending(result) { staged()?.ending(result); }
 export function clearEnding() { staged()?.clearEnding(); }
+
+// Récompenses de fin de partie qui défilent sur PixiJS (end-stage.js), dans le panneau de fin, à la place du bloc HTML
+// (gardé pour les lecteurs d'écran). Sans WebGL ou avec « réduire les animations », le bloc HTML reste affiché.
+// w : { key, reward, result } quand le panneau de fin montre des récompenses, sinon null. Appelé après chaque rendu.
+let endMod = null, endSince = null, endLoading = false, endWant = null, endGl = null;
+export function setEnd(app, w) {
+  // Les lignes arrivent une fois le grand titre posé (stage.js, ending), 1,5 s après l'ouverture du panneau.
+  const panel = app.querySelector('.panel.end'), host = w && !reduceMotion() && (endGl ??= webgl()) && panel?.querySelector('.endreward');
+  endSince = panel ? endSince ?? performance.now() : null;
+  endWant = host ? { ...w, key: `${endSince}|${w.key}`, host: reelHost(host), delay: Math.max(150, endSince + 1500 - performance.now()) } : null;
+  if (endMod) { endWant ? endMod.show(endWant) : endMod.hide(); return; }
+  if (!endWant || endLoading) return;
+  endLoading = true;
+  import('./end-stage.js').then(m => { endMod = m; if (endWant?.host.isConnected) m.show(endWant); })
+    .catch(err => console.warn('Écran de fin animé indisponible', err));
+}
+// Place de la toile : juste avant le bloc des récompenses.
+function reelHost(block) {
+  let h = block.previousElementSibling;
+  if (!h?.classList.contains('endreel')) { h = document.createElement('div'); h.className = 'endreel'; h.setAttribute('aria-hidden', 'true'); block.before(h); }
+  return h;
+}

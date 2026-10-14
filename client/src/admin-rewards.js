@@ -2,7 +2,7 @@
 // Tout est enregistré dans le document « recompenses » ; les valeurs vides reprennent les valeurs par défaut.
 import { MISSIONS, ACHIEVEMENTS, FAMILY_REWARDS, SET_REWARDS, FRAMES, CARD_LEVELS, xpToNext } from '@jeu/engine/rewards';
 import { CARDS } from '@jeu/engine';
-import { TIERS, seasonShardsKey, seasonPrismsKey } from '@jeu/engine/ranked';
+import { TIERS, PLACES, seasonShardsKey, seasonPrismsKey, placeShardsKey, placePrismsKey } from '@jeu/engine/ranked';
 import { PASS_KINDS, PASS_TIERS, SEASONS, passMissionLabel, refundTier } from '@jeu/engine/pass';
 
 const GROUPS = [
@@ -19,15 +19,25 @@ const GROUPS = [
     ['missionsPerDay', 'Missions par jour', 'Entre 0 et 6.'], ['missionRerolls', 'Missions qu\'on peut changer par jour'],
     ['familyShards', 'Éclats : famille complétée dans un set'],
     ['setShards', 'Éclats : set complété'], ['setBoosters', 'Boosters offerts : set complété'],
+    ['tutoShards', 'Éclats : leçon du tutoriel finie (une fois par leçon)'], ['tutoBoosters', 'Boosters offerts : toutes les leçons finies'],
   ]],
-  ['Niveaux de carte', 'Purement cosmétiques. Chaque doublon donne de l\'essence de la carte (en plus des Éclats par doublon de l\'onglet Boutique) ; essence et Éclats font monter la carte : bronze, argent, or, puis astral avec un effet de mise en jeu.', [
+  ['Niveaux de carte', 'Purement cosmétiques. Chaque doublon donne de l\'essence de la carte (en plus des Éclats par doublon de l\'onglet Boutique) ; essence et Éclats font monter la carte : bronze, argent, or, puis astral avec un effet de mise en jeu. Une fois l\'essence d\'une carte au plafond (de quoi la monter au niveau 5), ses doublons donnent de l\'essence universelle.', [
     ['essencePerDuplicate', 'Essence par doublon'],
+    ['uniPerDuplicate', 'Essence universelle par doublon d\'une carte au plafond', 'Une carte est au plafond quand son essence suffit à la monter jusqu\'au niveau 5, montée ou non : l\'essence de ses doublons au-delà devient de l\'essence universelle (ce nombre pour « Essence par doublon »).'],
+    ['uniPerEssence', 'Essence universelle pour 1 essence d\'une autre carte', 'Taux du rayon Essence de la boutique (au moins 1). Les prix des arts de l\'édition Essence se règlent dans l\'onglet Boutique.'],
     ...[2, 3, 4, 5].flatMap(n => [[`lvl${n}Essence`, `Niveau ${n} (${CARD_LEVELS[n].name}) : essence`], [`lvl${n}Shards`, `Niveau ${n} (${CARD_LEVELS[n].name}) : Éclats`]]),
   ]],
-  ['Mode classé', 'Éclats et Prismes (monnaie des arts alternatifs) reçus à la fin de chaque saison (un mois) selon le meilleur palier atteint. Les titres et cadres des paliers sont fixes.',
-    TIERS.flatMap((t, i) => [[seasonShardsKey(i), `Éclats : saison finie en ${t.name}`], [seasonPrismsKey(i), `Prismes : saison finie en ${t.name}`]])],
+  ['Mode classé', 'Éclats et Prismes (monnaie des arts alternatifs) reçus à la fin de chaque saison (un mois) selon le meilleur palier atteint, puis en plus selon la place au classement final (figé à la fin du mois). Les titres et cadres sont fixes.',
+    [...TIERS.flatMap((t, i) => [[seasonShardsKey(i), `Éclats : saison finie en ${t.name}`], [seasonPrismsKey(i), `Prismes : saison finie en ${t.name}`]]),
+      ...PLACES.flatMap((p, i) => [[placeShardsKey(i), `Éclats en plus : classement final, ${p.name}`], [placePrismsKey(i), `Prismes en plus : classement final, ${p.name}`]]),
+      ['rankPlaceGames', 'Parties classées dans la saison pour avoir une place au classement final']]],
   ['Calendrier du mois', 'Une récompense par jour de connexion, à récupérer le jour même ; tout repart le 1er du mois. Dimanche : des coffres d\'arts offerts, plus des Prismes les 2e et 4e dimanches.', [
     ['loginShards', 'Éclats : jour de semaine'], ['loginChests', 'Coffres d\'arts : dimanche'], ['loginPrisms', 'Prismes : 2e et 4e dimanches'],
+  ]],
+  ['Bienvenue des nouveaux comptes', 'Sept cadeaux, un par jour de connexion distinct (pas forcément consécutifs), à récupérer avant la fin du délai compté depuis la création du compte. Seuls les comptes créés depuis cette fonction y ont droit (ou ceux à qui la fiche du compte l\'offre). Le 7e jour donne aussi le cadre et le titre de bienvenue.', [
+    ['welcomeWindow', 'Délai en jours (jour de création compris)', 'Entre 7 et 90.'],
+    ['welcomeShards1', 'Jour 1 : Éclats'], ['welcomeBoosters2', 'Jour 2 : boosters offerts'], ['welcomePrisms3', 'Jour 3 : Prismes'], ['welcomeChests4', 'Jour 4 : coffres d\'arts'],
+    ['welcomeShards5', 'Jour 5 : Éclats'], ['welcomeBoosters6', 'Jour 6 : boosters offerts'], ['welcomePrisms7', 'Jour 7 : Prismes (avec le cadre et le titre)'],
   ]],
   ['Passe de saison', `Une saison par mois, ${PASS_TIERS} paliers. Les missions donnent l'XP de saison. Piste gratuite : des Éclats à chaque palier, des Prismes aux paliers 15 et 35, un coffre d'arts aux paliers 20 et 40, plus les cartes uniques et les cosmétiques. Piste premium : des Prismes à chaque palier, un coffre tous les 10 paliers, plus ses cosmétiques.`, [
     ['passTierXp', 'XP de saison par palier'], ['passXpWin', 'XP de saison : victoire'], ['passXpLoss', 'XP de saison : défaite ou nul'], ['passDaily', 'Missions du passe par jour', 'Entre 0 et 6.'], ['passWeekly', 'Missions du passe par semaine', 'Entre 0 et 10.'],
@@ -62,7 +72,7 @@ export function rewardsTab({ call, render, say, esc, notice }) {
     const r = S.data.rewards, d = S.data.defaults;
     const field = ([k, label, hint = '']) => `<div class="field"><label class="eyebrow" for="r-${k}">${label}</label>
       <input id="r-${k}" type="number" min="0" step="1" value="${r[k]}"><small class="hint">${hint} Par défaut : ${d[k]}.</small></div>`;
-    const missions = Object.entries(MISSIONS).map(([id, m]) => { const v = r.missions[id], label = m.label(v.target, 'd\'une famille', 'une carte de sa collection');
+    const missions = Object.entries(MISSIONS).filter(([, m]) => !m.retired).map(([id, m]) => { const v = r.missions[id], label = m.label(v.target, 'd\'une famille', 'une carte de sa collection');
       return `<tr><td><label class="check"><input type="checkbox" id="m-${id}-on" ${v.on ? 'checked' : ''}>${esc(label)}</label></td>
         ${['target', 'xp', 'shards'].map(k => `<td><input id="m-${id}-${k}" type="number" min="0" step="1" value="${v[k]}" style="width:80px" aria-label="${k}"></td>`).join('')}</tr>`; }).join('');
     const achievements = ACHIEVEMENTS.map(x => `<tr><td>${esc(x.label)}</td><td class="hint">${[x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? esc(FRAMES[x.frame]) : ''].filter(Boolean).join(' · ')}</td>
@@ -106,7 +116,7 @@ export function rewardsTab({ call, render, say, esc, notice }) {
     if (id !== 'rewards') return false;
     const v = k => document.getElementById(k);
     const body = Object.fromEntries(GROUPS.flatMap(g => g[2]).map(([k]) => [k, Number(v(`r-${k}`).value)]));
-    body.missions = Object.fromEntries(Object.keys(MISSIONS).map(mid => [mid, { on: v(`m-${mid}-on`).checked,
+    body.missions = Object.fromEntries(Object.keys(MISSIONS).filter(mid => !MISSIONS[mid].retired).map(mid => [mid, { on: v(`m-${mid}-on`).checked,
       ...Object.fromEntries(['target', 'xp', 'shards'].map(k => [k, Number(v(`m-${mid}-${k}`).value)])) }]));
     body.passPool = Object.fromEntries(Object.keys(PASS_KINDS).map(k => [k, { daily: Number(v(`pp-${k}-daily`).value), weekly: Number(v(`pp-${k}-weekly`).value) }]));
     body.passMissions = Object.fromEntries(SEASONS.flatMap(x => x.missions).map(m => [m.id, { target: Number(v(`pm-${m.id}-target`).value), xp: Number(v(`pm-${m.id}-xp`).value) }]));

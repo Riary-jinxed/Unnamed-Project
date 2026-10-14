@@ -1,0 +1,73 @@
+/* Voile de chargement (veil.js) : cuir sombre, braises qui montent, dos de carte dont le sceau d'or tourne,
+   barre dorée et astuce en bas. Chargé par index.html pour s'afficher avant le script, puis repris par veil.js. */
+.veil { position: fixed; inset: 0; z-index: 60; display: grid; grid-template-rows: 1fr auto; place-items: center;
+  padding: 24px 16px calc(28px + env(safe-area-inset-bottom, 0px)); overflow: hidden; color: #f1e6cf; font-family: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  background: radial-gradient(ellipse 80% 55% at 50% 42%, #3a2a1c, #120d0a 72%), #120d0a;
+  opacity: 0; visibility: hidden; transition: opacity .44s ease, visibility 0s linear .44s; }
+.veil.on { opacity: 1; visibility: visible; transition: opacity .22s ease, visibility 0s; }
+.veil.off { display: none; }
+.veil:not(.on) { pointer-events: none; }
+body[data-season="halloween"] .veil { background: radial-gradient(ellipse 80% 55% at 50% 42%, #2e1f30, #120c16 72%), #120c16; }
+body[data-season="cyber"] .veil { background: radial-gradient(ellipse 80% 55% at 50% 42%, #0e1a33, #05070f 72%), #05070f; }
+
+.veil-in { display: grid; justify-items: center; gap: 14px; width: min(320px, 100%); transition: transform .44s cubic-bezier(.4,0,.2,1); }
+.veil:not(.on) .veil-in { transform: scale(1.04); }
+
+/* Dos de carte : cadre d'or, sceau qui tourne, carte qui oscille doucement comme posée sur un souffle. */
+.veil-emblem { position: relative; width: 92px; aspect-ratio: 240 / 336; border-radius: 9px; border: 3px solid #d6a440;
+  background: radial-gradient(circle at 50% 50%, #2a2117 0 30%, #1a1510 70%); box-shadow: 0 0 0 1px #000, 0 12px 28px rgb(0 0 0 / .6), 0 0 34px -6px rgb(227 181 82 / .55);
+  animation: veilsway 3.2s ease-in-out infinite; }
+.veil-emblem::before { content: ''; position: absolute; inset: 6px; border: 1px solid rgb(227 181 82 / .35); border-radius: 5px; }
+.veil-emblem i { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px; border-radius: 50%;
+  background: conic-gradient(from 0deg, #fff3cf, #e3b552 25%, #8f5f1c 50%, #e3b552 75%, #fff3cf);
+  -webkit-mask: radial-gradient(circle, transparent 13px, #000 14px); mask: radial-gradient(circle, transparent 13px, #000 14px);
+  animation: veilspin 2.4s linear infinite; filter: drop-shadow(0 0 6px rgb(227 181 82 / .7)); }
+.veil-emblem::after { content: ''; position: absolute; inset: 0; border-radius: 6px; background: linear-gradient(115deg, transparent 35%, rgb(255 243 207 / .28) 50%, transparent 65%) 0 0 / 300% 100%;
+  animation: veilshine 2.8s ease-in-out infinite; }
+@keyframes veilsway { 0%, 100% { transform: perspective(500px) rotateY(-12deg) translateY(0); } 50% { transform: perspective(500px) rotateY(12deg) translateY(-6px); } }
+@keyframes veilspin { to { transform: rotate(360deg); } }
+@keyframes veilshine { 0%, 40% { background-position: 100% 0; } 100% { background-position: -50% 0; } }
+
+.veil-title { font-family: "Cinzel", "Alegreya SC", Georgia, serif; font-weight: 700; font-size: 24px; letter-spacing: .08em; color: #fff3cf;
+  text-shadow: 0 2px 0 #000, 0 0 16px rgb(227 181 82 / .45); text-align: center; }
+
+/* Barre d'or : avance par étapes au démarrage, ondule sans fin quand on ne sait pas combien de temps ça prendra. */
+.veil-bar { width: 100%; height: 6px; border-radius: 99px; background: #0d0907; box-shadow: inset 0 0 0 1px #5a4530, 0 0 0 1px #000; overflow: hidden; }
+.veil-bar i { display: block; height: 100%; width: 4%; border-radius: inherit; background: linear-gradient(90deg, #8f5f1c, #e3b552 60%, #fff3cf);
+  box-shadow: 0 0 10px rgb(227 181 82 / .7); transition: width .5s cubic-bezier(.2,.8,.2,1); }
+.veil-bar.busy i { width: 38% !important; animation: veilbusy 1.3s ease-in-out infinite; }
+@keyframes veilbusy { from { transform: translateX(-105%); } to { transform: translateX(270%); } }
+.veil-label { margin: 0; min-height: 1.4em; font-size: 14px; color: #b29f80; letter-spacing: .02em; }
+
+/* Astuce : une à la fois, fondu entre deux ; la couleur de la famille quand elle en parle. */
+.veil-tip { --fam: #e3b552; width: min(520px, 100%); box-sizing: border-box; padding: 10px 14px 12px; border-radius: 8px;
+  background: linear-gradient(180deg, rgb(44 32 23 / .85), rgb(28 20 14 / .85)); border: 1px solid #7a5a2c; border-left: 3px solid var(--fam);
+  box-shadow: inset 0 0 0 1px #000, 0 6px 18px rgb(0 0 0 / .5); opacity: 0; transform: translateY(6px); transition: opacity .26s ease, transform .26s ease; }
+.veil-tip.shown { opacity: 1; transform: none; }
+.veil-tip .eyebrow { display: block; font-family: "Cinzel", Georgia, serif; font-weight: 700; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--fam); margin-bottom: 3px; }
+.veil-tip p { margin: 0; font-size: 15px; line-height: 1.4; text-wrap: pretty; }
+.veil-tip .kw { color: #fff3cf; }
+
+/* Braises qui montent du bas de l'écran, comme derrière les menus. */
+.veil-embers { position: absolute; inset: 0; pointer-events: none; }
+.veil-embers i { position: absolute; bottom: -10px; width: 4px; height: 4px; border-radius: 50%; background: #ffb347; box-shadow: 0 0 8px 2px rgb(255 140 40 / .6);
+  opacity: 0; animation: veilember 6s linear infinite; }
+.veil-embers i:nth-child(1) { left: 8%; animation-delay: 0s; } .veil-embers i:nth-child(2) { left: 17%; animation-delay: 2.1s; animation-duration: 7s; }
+.veil-embers i:nth-child(3) { left: 26%; animation-delay: 4.3s; } .veil-embers i:nth-child(4) { left: 35%; animation-delay: 1.2s; animation-duration: 5.4s; }
+.veil-embers i:nth-child(5) { left: 44%; animation-delay: 3.4s; } .veil-embers i:nth-child(6) { left: 53%; animation-delay: .6s; animation-duration: 6.8s; }
+.veil-embers i:nth-child(7) { left: 62%; animation-delay: 2.7s; } .veil-embers i:nth-child(8) { left: 71%; animation-delay: 5s; animation-duration: 5.8s; }
+.veil-embers i:nth-child(9) { left: 80%; animation-delay: 1.7s; } .veil-embers i:nth-child(10) { left: 89%; animation-delay: 3.9s; animation-duration: 7.4s; }
+.veil-embers i:nth-child(11) { left: 12%; animation-delay: 4.8s; animation-duration: 6.4s; } .veil-embers i:nth-child(12) { left: 67%; animation-delay: .2s; animation-duration: 5.2s; }
+@keyframes veilember { 0% { opacity: 0; transform: translate(0, 0) scale(1); } 10% { opacity: .9; } 50% { transform: translate(14px, -50vh) scale(.8); }
+  100% { opacity: 0; transform: translate(-10px, -100vh) scale(.4); } }
+body[data-season="halloween"] .veil-embers i:nth-child(3n) { background: #b77cff; box-shadow: 0 0 8px 2px rgb(150 80 255 / .6); }
+body[data-season="halloween"] .veil-embers i:nth-child(3n+1) { background: #8fff7a; box-shadow: 0 0 8px 2px rgb(90 220 80 / .5); }
+body[data-season="cyber"] .veil-embers i { background: #19c8e6; box-shadow: 0 0 8px 2px rgb(25 200 230 / .6); }
+body[data-season="cyber"] .veil-embers i:nth-child(3n) { background: #ff4ad8; box-shadow: 0 0 8px 2px rgb(255 74 216 / .6); }
+
+@media (prefers-reduced-motion: reduce) {
+  .veil, .veil.on, .veil-in, .veil-tip { transition: none; }
+  .veil-emblem, .veil-emblem::after, .veil-embers i { animation: none; }
+  .veil-emblem i { animation-duration: 6s; }
+  .veil-bar.busy i { animation: none; transform: none; width: 100% !important; opacity: .6; }
+}

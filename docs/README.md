@@ -28,9 +28,10 @@ Ce dossier explique comment le jeu est construit, pour pouvoir le modifier sans 
 | Terrain | 5 par deck ; 3 sont révélés aux tours 1 à 3, un par zone (`TERRAINS`, `terrainPlan`). |
 | Jeton | Créature créée par un effet (Horde, Chèvre, Magot, Festin) : `token: true`, jamais dans une collection. |
 | Éclats | Monnaie de la boutique (`account.shards`). Chaque doublon obtenu est converti en Éclats. |
-| Prismes | Monnaie rare des arts alternatifs (`account.prisms`) : fin de saison classée, succès, calendrier du mois. Se change en Éclats (`prismShards` par Prisme), jamais l'inverse. |
+| Prismes | Monnaie rare des arts alternatifs (`account.prisms`) : fin de saison classée, succès, calendrier du mois. Se change en Éclats par offres fixes (`exchangeOffers` : 10, 30, 60 ou 120 Prismes à `prismShards` Éclats l'unité, avec 0, 10, 20 ou 30 % de bonus), jamais l'inverse. |
 | Coffre offert | Coffre d'arts ouvert sans Prismes (`account.freeChests`) : succès rares (`chests` dans `ACHIEVEMENTS`), dimanches du calendrier. |
 | Calendrier | Récompenses de connexion du mois (`account.calendar = { month, days }`, `loginReward`) : un jour manqué est perdu, remis à zéro chaque mois. |
-| Essence, niveau de carte | Chaque doublon donne aussi de l'essence de cette carte (`account.essence`) ; essence et Éclats font monter la carte de niveau (`account.cardLevels`, 1 à 5), purement cosmétique : bordure, puis effet de mise en jeu. |
+| Bienvenue | Sept cadeaux des nouveaux comptes (`account.welcome = { start, days }`, `welcomeReward`) : un par jour de connexion distinct, pas forcément consécutif, dans les `welcomeWindow` jours qui suivent la création ; le 7e donne le Cadre de bienvenue et le titre « Recrue prometteuse ». Les comptes créés avant n'y ont pas droit (sauf si /admin l'offre). |
+| Essence, niveau de carte | Chaque doublon donne aussi de l'essence de cette carte (`account.essence`) ; essence et Éclats font monter la carte de niveau (`account.cardLevels`, 1 à 5), purement cosmétique : bordure, puis effet de mise en jeu. Le niveau vaut pour tous les arts de la carte ; sa bordure se choisit parmi celles des niveaux atteints (`account.lvLook`). |
 | Catalogue | Retouches de cartes et sets publiés depuis `/admin`, appliqués au moteur sur le serveur et dans l'appli. |
 | JcJ / JcE | Partie en ligne (`pvp`) / contre l'IA (`pve`). |

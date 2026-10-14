@@ -12,6 +12,7 @@
     "pixi.js": "^8.13.2"
   },
   "devDependencies": {
+    "sharp": "^0.34.5",
     "vite": "^5.4.0"
   }
 }

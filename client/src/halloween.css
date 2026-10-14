@@ -1,0 +1,107 @@
+/* Thème « Nuit des citrouilles » (body[data-season="halloween"], écrit par main.js) : Halloween espiègle plutôt qu'effrayant.
+   Nuit violette sous une pleine lune étoilée, citrouilles qui luisent, toiles d'araignée dans les coins des panneaux,
+   bave de sorcière verte qui coule du bouton Jouer, titres en Creepster et lueurs de bougie qui vacillent.
+   Ne touche qu'à l'apparence, comme habillage.css ; chaque règle commence par body[data-season="halloween"] pour passer devant lui. */
+body[data-season="halloween"] {
+  --bg: #0e0814; --surface: #1e1226; --sunk: #08040c; --ink: #f4e8ff; --muted: #b49ac8; --line: #4a2a5a;
+  --accent: #ff8a2a; --accent-ink: #1a0a02;
+  --gold-hi: #ffe2b0; --gold: #ff9a3a; --gold-lo: #8a3a08; --leather: #241430; --leather-lo: #140a1c; --rim: #5a3070;
+  --pumpkin: #ff8a2a; --witch: #8a3cff; --slime: #7dff6a; --bone: #f1e6d0;
+  --spooky: "Creepster", "Alegreya SC", serif;
+  background:
+    radial-gradient(circle at 84% 9%, #fff6d8 0 34px, rgb(255 230 160 / .45) 36px, rgb(255 210 120 / .12) 70px, transparent 140px),
+    radial-gradient(1px 1px at 12% 18%, #fff 50%, transparent), radial-gradient(1px 1px at 32% 8%, #fff 50%, transparent),
+    radial-gradient(1.5px 1.5px at 54% 22%, #fff 50%, transparent), radial-gradient(1px 1px at 70% 30%, #fff 50%, transparent),
+    radial-gradient(1px 1px at 22% 36%, #fff 50%, transparent), radial-gradient(1.5px 1.5px at 92% 40%, #fff 50%, transparent),
+    radial-gradient(ellipse at 50% 120%, rgb(255 110 20 / .28), transparent 60%),
+    radial-gradient(ellipse at 10% 100%, rgb(90 220 80 / .1), transparent 45%),
+    linear-gradient(#1c0e2c, #0e0814 55%, #0a0610);
+  background-attachment: fixed; }
+
+/* titres : lettres dégoulinantes couleur citrouille, lueur de bougie qui vacille */
+body[data-season="halloween"] h2 { font-family: var(--spooky); font-weight: 400; letter-spacing: .05em; background: none; color: var(--pumpkin);
+  -webkit-background-clip: border-box; background-clip: border-box; text-shadow: 0 2px 0 #2a0a00, 0 0 14px rgb(255 138 42 / .55); }
+body[data-season="halloween"] .top .title { font-family: var(--spooky); font-weight: 400; font-size: 24px; letter-spacing: .06em; color: var(--pumpkin);
+  text-shadow: 0 2px 0 #000, 0 0 14px rgb(255 138 42 / .6); animation: candle 3.2s ease-in-out infinite; }
+body[data-season="halloween"] .eyebrow { color: #b8f0a0; text-shadow: 0 0 8px rgb(125 255 106 / .35); }
+@keyframes candle { 0%, 100% { text-shadow: 0 2px 0 #000, 0 0 14px rgb(255 138 42 / .6); } 20% { text-shadow: 0 2px 0 #000, 0 0 6px rgb(255 138 42 / .35); }
+  45% { text-shadow: 0 2px 0 #000, 0 0 18px rgb(255 160 60 / .75); } 70% { text-shadow: 0 2px 0 #000, 0 0 10px rgb(160 80 255 / .55); } }
+
+/* panneaux : velours d'aubergine, liseré violet, toile d'araignée dans le coin en haut à gauche */
+body[data-season="halloween"] .card-box, body[data-season="halloween"] .sheet .panel, body[data-season="halloween"] .pbar, body[data-season="halloween"] .deckopt {
+  background: linear-gradient(180deg, #2a1838, #150b1e); border-color: var(--rim); --lvfill: linear-gradient(180deg, #2a1838, #150b1e);
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px rgb(255 138 42 / .12), inset 0 -30px 40px -30px rgb(125 255 106 / .12), 0 6px 18px rgb(0 0 0 / .6); }
+body[data-season="halloween"] .card-box::before { border-color: rgb(255 138 42 / .2); }
+body[data-season="halloween"] .card-box::after, body[data-season="halloween"] .sheet .panel::after { content: ''; position: absolute; top: 0; left: 0; width: 64px; height: 64px; pointer-events: none;
+  background: repeating-radial-gradient(circle at 0 0, transparent 0 9px, rgb(240 230 255 / .2) 9px 10px),
+    repeating-conic-gradient(from 90deg at 0 0, transparent 0 11deg, rgb(240 230 255 / .22) 11deg 12.5deg);
+  -webkit-mask: radial-gradient(circle at 0 0, #000 30%, transparent 70%); mask: radial-gradient(circle at 0 0, #000 30%, transparent 70%); }
+body[data-season="halloween"] .sheet .panel { position: relative; }
+body[data-season="halloween"] .card-box.booster.ready, body[data-season="halloween"] .deckopt.sel { border-color: var(--pumpkin); box-shadow: 0 0 0 1px #000, 0 0 22px -4px var(--pumpkin), inset 0 0 30px -10px rgb(255 138 42 / .4); }
+body[data-season="halloween"] .sheet { background: rgb(10 4 16 / .78); }
+
+/* boutons : plaques de bois hanté violet ; le principal est une citrouille qui luit, avec de la bave verte qui coule */
+body[data-season="halloween"] .btn { background: linear-gradient(180deg, #3e2450, #22132e); border-color: #6a3a82; color: var(--ink);
+  box-shadow: inset 0 1px 0 rgb(220 180 255 / .25), inset 0 -2px 0 rgb(0 0 0 / .45), 0 2px 0 #000; }
+body[data-season="halloween"] .btn.on, body[data-season="halloween"] .seg button.on { border-color: var(--pumpkin); box-shadow: inset 0 0 0 1px var(--pumpkin), inset 0 0 14px -4px var(--pumpkin); }
+body[data-season="halloween"] .btn.primary, body[data-season="halloween"] .playbtn { background: radial-gradient(ellipse 70% 90% at 50% 60%, #ffd070, #ff8a2a 45%, #c24f0a 80%, #7a2a04);
+  color: #1a0a02; border-color: #2a0a00; text-shadow: 0 1px 0 rgb(255 230 180 / .6);
+  box-shadow: inset 0 2px 0 #ffe0a0, inset 0 -4px 0 rgb(80 20 0 / .55), 0 0 0 1px #000, 0 0 24px -4px rgb(255 138 42 / .7); }
+body[data-season="halloween"] .playbtn { animation: playglow-hw 2.8s ease-in-out infinite; }
+body[data-season="halloween"] .playbtn > span { font-family: var(--spooky); font-weight: 400; letter-spacing: .08em; }
+body[data-season="halloween"] .playbtn::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 22px; z-index: 1; pointer-events: none;
+  background: radial-gradient(7px 11px at 9% 0, var(--slime) 98%, transparent), radial-gradient(5px 16px at 23% 0, var(--slime) 98%, transparent),
+    radial-gradient(8px 9px at 41% 0, var(--slime) 98%, transparent), radial-gradient(5px 19px at 58% 0, var(--slime) 98%, transparent),
+    radial-gradient(7px 12px at 76% 0, var(--slime) 98%, transparent), radial-gradient(5px 15px at 91% 0, var(--slime) 98%, transparent),
+    linear-gradient(var(--slime), var(--slime)) 0 0 / 100% 4px no-repeat;
+  filter: drop-shadow(0 1px 0 #2a6a20); opacity: .92; }
+@keyframes playglow-hw { 0%, 100% { box-shadow: inset 0 2px 0 #ffe0a0, inset 0 -4px 0 rgb(80 20 0 / .55), 0 0 0 1px #000, 0 0 26px -4px rgb(255 120 30 / .7); }
+  50% { box-shadow: inset 0 2px 0 #ffe0a0, inset 0 -4px 0 rgb(80 20 0 / .55), 0 0 0 1px #000, 0 0 44px 0 rgb(160 80 255 / .75); } }
+body[data-season="halloween"] .seg { border-color: var(--rim); }
+body[data-season="halloween"] .seg button { background: linear-gradient(180deg, #3e2450, #22132e); }
+body[data-season="halloween"] .seg button.on { background: linear-gradient(180deg, #ffb060, #e0661a); color: #1a0a02; }
+body[data-season="halloween"] .chip { background: #170c20; border-color: #5a3070; }
+body[data-season="halloween"] input, body[data-season="halloween"] textarea, body[data-season="halloween"] .field select { background: #0c0612; border-color: #5a3070; }
+
+/* tuiles de l'accueil et vitrine */
+body[data-season="halloween"] .tile { background: linear-gradient(180deg, #2a1838, #150b1e); border-color: var(--rim); }
+body[data-season="halloween"] .tile b { font-family: var(--spooky); font-weight: 400; letter-spacing: .04em; color: var(--bone); }
+body[data-season="halloween"] .tile.todo { border-color: var(--pumpkin); box-shadow: 0 0 0 1px #000, 0 0 16px -4px var(--pumpkin), inset 0 0 20px -8px rgb(160 80 255 / .5); }
+body[data-season="halloween"] .showcase { border-color: #6a3a82; box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6), 0 0 26px -6px rgb(138 60 255 / .75), inset 0 0 0 2px rgb(255 160 80 / .18); }
+body[data-season="halloween"] .showcase::before { border-color: rgb(255 140 40 / .45); }
+body[data-season="halloween"] .showcase::after { background: linear-gradient(rgb(50 15 90 / .4), rgb(50 15 90 / .12) 35%, transparent 45%, rgb(0 0 0 / .85)), radial-gradient(ellipse 120% 30% at 50% 105%, rgb(125 255 106 / .18), transparent 70%); }
+body[data-season="halloween"] .sc-change { background: linear-gradient(180deg, #3e2450, #22132e); border-color: var(--pumpkin); color: var(--gold-hi); }
+
+/* barre d'onglets : socle violet, l'onglet actif s'allume comme une lanterne citrouille */
+body[data-season="halloween"] .tabbar { background: linear-gradient(180deg, #24142e, #0e0814); border-top-color: #6a3a82; }
+body[data-season="halloween"] .tabbar button { color: #a88cbc; }
+body[data-season="halloween"] .tabbar button.on { color: var(--gold-hi); background: radial-gradient(ellipse at 50% 30%, rgb(255 130 40 / .32), transparent 70%); text-shadow: 0 0 10px rgb(255 130 40 / .6); }
+body[data-season="halloween"] .tabbar.slid::before { background: radial-gradient(ellipse at 50% 30%, rgb(255 130 40 / .3), transparent 70%); box-shadow: inset 0 2px 0 rgb(255 130 40); }
+body[data-season="halloween"] .tabbar button.on svg { filter: drop-shadow(0 0 6px rgb(255 130 40 / .85)); }
+
+/* jauges : potion verte qui bouillonne dans une fiole violette */
+body[data-season="halloween"] .bar { background: #0c0612; border-color: #5a3070; }
+body[data-season="halloween"] .bar > span { background: radial-gradient(circle at 20% 50%, rgb(255 255 255 / .5) 0 1.5px, transparent 2px) 0 0 / 14px 100%,
+  linear-gradient(90deg, #2a8a20, var(--slime)); box-shadow: 0 0 8px rgb(125 255 106 / .5); }
+
+/* en partie : zones de pierre tombale violette, cartes cerclées de violet, sceau citrouille, médaillon violet */
+body[data-season="halloween"]:has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, #2e1f30, #120c16 70%), #120c16; }
+body.staged[data-season="halloween"]:has(#app.ingame) { background: #120c16; }
+body[data-season="halloween"] .zone { background: linear-gradient(180deg, rgb(16 8 22 / .86), rgb(34 18 40 / .86)); border-color: #4a2a5a;
+  box-shadow: inset 0 0 22px #000, inset 0 -26px 30px -18px rgb(125 255 106 / .16), inset 0 0 30px -12px rgb(138 60 255 / .45), 0 0 0 1px #000; }
+body[data-season="halloween"] .terrain.set { background: linear-gradient(180deg, #3a1e48, #1a0e22); border-color: var(--pumpkin); color: var(--gold-hi); }
+body[data-season="halloween"] .score .v { font-family: var(--spooky); font-weight: 400; }
+body[data-season="halloween"] .score .v.lead { text-shadow: 0 0 10px currentColor; }
+body[data-season="halloween"] .hc, body[data-season="halloween"] .mc { border-color: #6a3a7a; box-shadow: 0 0 0 1px #000, 0 4px 10px rgb(0 0 0 / .55), 0 0 10px -3px rgb(255 138 42 / .45); }
+body[data-season="halloween"] .hc .seal { background: radial-gradient(circle at 35% 30%, #ffe0a0, #ff8a2a 45%, #8a3a08); }
+body[data-season="halloween"] .hc .p { color: var(--gold-hi); background: radial-gradient(circle at 40% 30%, #4a2060, #12081a 75%); box-shadow: 0 0 0 2px var(--witch), 0 2px 4px #000; }
+body[data-season="halloween"] .hc.sel { border-color: var(--pumpkin); box-shadow: 0 0 0 2px var(--pumpkin), 0 0 18px 2px rgb(255 138 42 / .55); }
+body[data-season="halloween"] .dock { background: linear-gradient(180deg, rgb(26 12 32 / .6), #0e0612); border-top-color: #6a3a7a; }
+body[data-season="halloween"] .tturn b, body[data-season="halloween"] .tseals b { color: var(--pumpkin); }
+
+/* ouverture des boosters et coffres : chaudron qui bouillonne */
+body[data-season="halloween"] .op { background: radial-gradient(circle at 50% 70%, rgb(125 255 106 / .18) 0, transparent 35%), radial-gradient(circle at 50% 42%, #3a1a50 0, #170a20 55%, #060208 100%); }
+body[data-season="halloween"] .op .op-skip { background: linear-gradient(180deg, #3e2450, #22132e); border-color: var(--pumpkin); }
+
+@media (prefers-reduced-motion: reduce) { body[data-season="halloween"] .top .title, body[data-season="halloween"] .playbtn { animation: none; } }
+.theme-halloween.theme-swatch { background: radial-gradient(circle at 75% 30%, #fff6d8 0 4px, transparent 5px), radial-gradient(circle at 35% 75%, #ff8a2a 0 7px, transparent 8px), linear-gradient(#3a1a50, #0e0814); }

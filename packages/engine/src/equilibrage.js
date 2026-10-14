@@ -88,7 +88,7 @@ if (!isMainThread) {
 
   if (mode === 'generaux' || mode === 'tout') {
     const combos = [];
-    for (const g of Object.keys(GENERALS)) for (const k of keys) if (!GENERALS[g].fam || GENERALS[g].fam === DECKS[k].fam) combos.push([g, k]);
+    for (const g of Object.keys(GENERALS).filter(x => !GENERALS[x].boss)) for (const k of keys) if (!GENERALS[g].fam || GENERALS[g].fam === DECKS[k].fam) combos.push([g, k]);
     for (const k of keys) if (!combos.some(([g, kk]) => g === 'cartographe' && kk === k)) combos.push(['cartographe', k]);
     const jobs = [];
     for (const [g, k] of combos) for (const b of keys) if (b !== k) jobs.push({ a: deckObj(k, null, null, g), b, n: Math.ceil(N / 2) * 2, key: [g, k] });

@@ -2,9 +2,11 @@
 // API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, boutique, administration.
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
-import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, dailyOffers } from '@jeu/engine/collection';
+import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, setRevealed, dailyOffers, dupOffers, exchangeOffers, setBoosterPrice, shopOrder } from '@jeu/engine/collection';
 import { pick, CARDS, GENERALS } from '@jeu/engine';
-import { ART_RARITIES, RARITY_IDS } from '@jeu/engine/arts';
+import { ART_RARITIES, RARITY_IDS, ESSENCE_ART_PRICES, RETIRED_ARTS } from '@jeu/engine/arts';
+import { SEASON_THEMES } from '@jeu/engine/pass';
+import { TUTO_LESSONS, levelCost, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
 import { createProgress } from './progress.js';
 import { createArts } from './arts.js';
 import { createActivity } from './activity.js';
@@ -19,10 +21,16 @@ const LOGIN_RE = /^[a-z0-9._-]{2,24}$/;
 
 // Réglages de la boutique modifiables depuis /admin. « rotation » change à chaque renouvellement forcé des offres du jour.
 // Arts alternatifs : nombre d'offres du jour, prix du coffre et prix de chaque rareté (artPrice_<rareté>), en Prismes.
+// Doublons du jour : nombre d'offres (dupOffers, 0 les retire) et prix d'un doublon en Éclats (dupPrice).
+// Rayon Essence : prix des arts de l'édition Essence selon leur rareté (essArtPrice_<rareté>), en essence universelle.
 export const DEFAULT_SETTINGS = { cardPrice: SHOP.cardPrice, boosterPrice: SHOP.boosterPrice, dailyCards: SHOP.dailyCards, boosterSize: SHOP.boosterSize, shardsPerDuplicate: SHARDS_PER_DUPLICATE,
-  artOffers: 3, chestPrice: 60, ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, ART_RARITIES[r].price])), prismShards: 10, rotation: 0 };
+  dupOffers: 3, dupPrice: 100,
+  artOffers: 3, chestPrice: 60, ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, ART_RARITIES[r].price])), prismShards: 10,
+  ...Object.fromEntries(RARITY_IDS.map(r => [`essArtPrice_${r}`, ESSENCE_ART_PRICES[r]])), rotation: 0 };
 const SETTING_LIMITS = { cardPrice: [0, 100000], boosterPrice: [0, 100000], dailyCards: [1, 10], boosterSize: [1, 10], shardsPerDuplicate: [0, 10000],
-  artOffers: [0, 12], chestPrice: [0, 10000], ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, [0, 100000]])), prismShards: [0, 10000] };
+  dupOffers: [0, 10], dupPrice: [0, 100000],
+  artOffers: [0, 12], chestPrice: [0, 10000], ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, [0, 100000]])), prismShards: [0, 10000],
+  ...Object.fromEntries(RARITY_IDS.map(r => [`essArtPrice_${r}`, [0, 1000000]])) };
 
 // Decks du joueur : jusqu'à MAX_DECKS, chacun avec un identifiant ; « active » désigne celui qui est joué.
 const newDeckId = () => randomBytes(4).toString('hex');
@@ -43,24 +51,43 @@ const AVATAR_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, AVATAR
 export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, name: a.name, avatar: a.avatar || null, starter: a.starter, cards: a.cards, shards: a.shards || 0,
   deck: activeDeck(a), decks: (a.decks || []).map(cleanDeck), active: activeDeck(a)?.id || null, maxDecks: MAX_DECKS,
   boosterReady: a.starter !== null && a.lastBooster !== today(), shardRate: cfg.shardsPerDuplicate,
-  // Niveaux de carte (cosmétiques) : essence de chaque carte et niveau atteint (1 si absent).
-  essence: a.essence || {}, cardLevels: a.cardLevels || {},
+  // Éclats pour 1 Prisme au change (offres fixes, exchangeOffers du moteur ; 0 : change fermé).
+  prismShards: cfg.prismShards,
+  // Niveaux de carte (cosmétiques) : essence de chaque carte et niveau atteint (1 si absent), essence universelle.
+  essence: a.essence || {}, cardLevels: a.cardLevels || {}, uniEssence: a.uniEssence || 0,
+  // Bordure choisie parmi celles des niveaux atteints, quand ce n'est pas celle du niveau (progress.js, chooseBorder).
+  lvLook: a.lvLook || {},
   // Prismes (monnaie rare des arts alternatifs), arts possédés et art choisi pour chaque carte.
-  prisms: a.prisms || 0, arts: a.arts || {}, artSel: a.artSel || {} });
+  prisms: a.prisms || 0, arts: a.arts || {}, artSel: a.artSel || {},
+  // Cartes dont le reflet holographique est coupé.
+  holoOff: a.holoOff || {},
+  // Cartes dont le débordement du personnage est coupé.
+  popOff: a.popOff || {},
+  // Leçons du tutoriel déjà finies (récompensées).
+  tuto: a.tuto || [], tutoGift: !!a.tutoGift,
+  // Clan (clans.js) : identifiant du clan, Écus (monnaie du clan).
+  clan: a.clan || null, clanCoins: a.clanCoins || 0,
+  // Boss mondial (boss.js) : Insignes, la monnaie de son magasin.
+  bossCoins: a.bossCoins || 0,
+  // Quêtes d'histoire (story.js) : chapitres gagnés de chaque quête.
+  story: a.story || {},
+  // Decks préparés contre chaque boss ({ [boss]: deck }) : joués à sa place pendant les tentatives contre lui.
+  bossDecks: Object.fromEntries(Object.entries(a.bossDecks || {}).map(([k, d]) => [k, cleanDeck(d)])) });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift', 'uniEssence', 'dupShop', 'lvLook', 'clanCoins', 'clanDon', 'boss', 'bossCoins', 'bossBuys', 'emoteSet', 'story'];
 
-// Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte.
-function addCards(a, ids, rate, essenceRate) {
-  let shards = 0, essence = 0;
+// Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte
+// (giveEssence : au-delà du plafond, de quoi monter la carte jusqu'au niveau maximum, de l'essence universelle).
+function addCards(a, ids, rate, essenceRate, giveEssence) {
+  let shards = 0, essence = 0, universal = 0;
   const fresh = ids.map(id => {
     if (!a.cards[id]) { a.cards[id] = 1; return true; }
-    shards += rate; essence += essenceRate;
-    if (essenceRate) { a.essence = a.essence || {}; a.essence[id] = (a.essence[id] || 0) + essenceRate; }
+    shards += rate;
+    if (essenceRate) { const got = giveEssence(a, id, essenceRate); essence += got.essence; universal += got.universal; }
     return false;
   });
   a.shards = (a.shards || 0) + shards;
-  return { fresh, shards, essence };
+  return { fresh, shards, essence, universal };
 }
 // Convertit en Éclats les doublons gardés avant la boutique. Renvoie true si le compte a changé.
 function convertDuplicates(a, rate) {
@@ -79,17 +106,30 @@ export function createAccounts(store) {
   // Version du catalogue de cartes publié : l'appli recharge les cartes quand elle change.
   let catalogVersion = 0;
   // Courrier (mail.js) : messages non lus ou récompenses à récupérer, pour la pastille de l'accueil.
-  let mailCount = () => 0;
-  const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a) });
+  let mailCount = () => 0, bossTile = () => null, storyTile = () => null;
+  // boss : résumé du boss mondial de la semaine pour l'accueil (boss.js, branché par setBossTile) ; storyTile : la quête d'histoire à suivre (story.js).
+  const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), boss: bossTile(a), storyTile: storyTile(a), tutoShards: progress.cfg().tutoShards });
   // Les nouvelles cartes rapportent de l'XP et peuvent compléter une famille ou un set.
-  const add = (a, ids) => { const got = addCards(a, ids, cfg().shardsPerDuplicate, progress.essenceRate()); return { ...got, xp: progress.onCards(a, got.fresh) }; };
+  const add = (a, ids) => { const got = addCards(a, ids, cfg().shardsPerDuplicate, progress.essenceRate(), progress.giveEssence); return { ...got, xp: progress.onCards(a, got.fresh) }; };
+  // Arts retirés du jeu (RETIRED_ARTS) : l'art quitte le compte, ses Prismes arrivent dans la boîte de récompenses.
+  function retireArts(a) {
+    const gone = Object.keys(a.arts || {}).filter(id => RETIRED_ARTS[id]);
+    for (const id of gone) {
+      delete a.arts[id];
+      for (const [card, sel] of Object.entries(a.artSel || {})) if (sel === id) delete a.artSel[card];
+      progress.grant(a, { kind: 'refund', label: `Art retiré du jeu : ${RETIRED_ARTS[id].name}, remboursé`, prisms: RETIRED_ARTS[id].prisms });
+    }
+    return gone.length;
+  }
   const ready = Promise.all(store.all().filter(a => {
-    const dup = convertDuplicates(a, cfg().shardsPerDuplicate), decks = migrateDecks(a), gens = grantStarterGenerals(a), prog = progress.init(a);
+    const dup = convertDuplicates(a, cfg().shardsPerDuplicate), decks = migrateDecks(a), gens = grantStarterGenerals(a), prog = progress.init(a), uni = progress.settleCapped(a), retired = retireArts(a);
     if (dup) console.log(`Doublons de ${a.login} convertis en Éclats.`);
+    if (uni) console.log(`Essence au-delà du plafond de ${a.login} changée en ${uni} essence universelle.`);
     if (decks) console.log(`Deck de ${a.login} rangé dans ses decks.`);
     if (gens) console.log(`Généraux du deck de départ ajoutés à la collection de ${a.login}.`);
     if (prog) console.log(`Progression de ${a.login} créée (niveau ${a.level}).`);
-    return dup || decks || gens || prog;
+    if (retired) console.log(`${retired} art(s) retiré(s) remboursé(s) à ${a.login}.`);
+    return dup || decks || gens || prog || uni || retired;
   }).map(a => store.put(a)));
   // Une fois le catalogue appliqué : familles et sets déjà complétés, succès déjà atteints.
   async function syncAll() {
@@ -137,6 +177,7 @@ export function createAccounts(store) {
   }
 
   // Boutique : pour chaque set ouvert, des cartes du jour propres au joueur et un booster du set, payés en Éclats.
+  // Les sets en vente vont du plus récent au plus ancien ; le booster d'un set coûte le prix réglé plus son supplément (boosterExtra).
   // Les offres changent chaque jour, ou plus tôt quand l'administrateur les renouvelle (rotation).
   function shopDay(a, set) {
     a.shop = a.shop || {};
@@ -144,15 +185,25 @@ export function createAccounts(store) {
     if (day && day.date === today() && (day.rotation || 0) === c.rotation && day.offers.every(id => set.cards.includes(id))) return day;
     return (a.shop[set.id] = { date: today(), rotation: c.rotation, offers: dailyOffers(set, a.cards, c.dailyCards), bought: [] });
   }
+  // Doublons du jour : des cartes possédées qui ne sont pas au plafond d'essence, renouvelées comme les cartes du jour.
+  const canLevel = a => id => progress.essenceRoom(a, id) > 0;
+  function dupDay(a) {
+    const day = a.dupShop, c = cfg();
+    if (day && day.date === today() && (day.rotation || 0) === c.rotation && day.n === c.dupOffers && day.offers.every(id => a.cards[id])) return day;
+    return (a.dupShop = { date: today(), rotation: c.rotation, n: c.dupOffers, offers: dupOffers(a, c.dupOffers, canLevel(a)), bought: [] });
+  }
   function shopView(a) {
     const c = cfg();
-    return { shards: a.shards || 0, freeBoosters: a.freeBoosters || 0, prices: { dailyCards: c.dailyCards, cardPrice: c.cardPrice, boosterPrice: c.boosterPrice, boosterSize: c.boosterSize, shardsPerDuplicate: c.shardsPerDuplicate },
-      arts: a.starter ? arts.view(a) : null, sets: SETS.map(set => ({ id: set.id, name: set.name, open: set.open, teaser: set.teaser || '', size: set.cards.length,
+    return { shards: a.shards || 0, freeBoosters: a.freeBoosters || 0, prices: { dailyCards: c.dailyCards, cardPrice: c.cardPrice, boosterPrice: c.boosterPrice, boosterSize: c.boosterSize, shardsPerDuplicate: c.shardsPerDuplicate, dupPrice: c.dupPrice },
+      dups: a.starter ? dupDay(a).offers.map(id => ({ id, bought: dupDay(a).bought.includes(id), capped: !canLevel(a)(id) })) : [],
+      // Rayon Essence : essence universelle du joueur et arts de l'édition Essence.
+      essence: a.starter ? { universal: a.uniEssence || 0, arts: arts.essenceView(a) } : null,
+      arts: a.starter ? arts.view(a) : null, sets: shopOrder(SETS.filter(s => setRevealed(s))).map(set => ({ id: set.id, name: set.name, open: set.open, teaser: set.teaser || '', size: set.cards.length, boosterPrice: setBoosterPrice(set, c.boosterPrice),
       offers: set.open ? shopDay(a, set).offers.map(id => ({ id, bought: shopDay(a, set).bought.includes(id), owned: !!a.cards[id] })) : [] })) };
   }
   function openSet(a, id) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
-    const set = setById(id); if (!set || !set.open) throw new HttpError(400, 'Ce set n\'est pas encore en vente.');
+    const set = setById(id); if (!set || !set.open || !setRevealed(set)) throw new HttpError(400, 'Ce set n\'est pas encore en vente.');
     return set;
   }
   function pay(a, price) {
@@ -171,6 +222,41 @@ export function createAccounts(store) {
     await store.put(a);
     return { title: 'Achat', cards: [card], ...got, shop: shopView(a), account: me(a) };
   }
+  // Doublon du jour : l'essence d'un doublon pour cette carte (sans les Éclats d'un doublon tiré), une fois par offre et par jour.
+  // Ce qui dépasse le plafond de la carte devient de l'essence universelle.
+  async function buyDup(a, { card }) {
+    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    const day = dupDay(a);
+    if (!day.offers.includes(card)) throw new HttpError(400, 'Ce doublon n\'est plus en vente aujourd\'hui.');
+    if (day.bought.includes(card)) throw new HttpError(409, 'Doublon déjà acheté aujourd\'hui.');
+    if (!canLevel(a)(card)) throw new HttpError(409, 'Cette carte a déjà toute l\'essence qu\'il lui faut jusqu\'au niveau maximum.');
+    pay(a, cfg().dupPrice);
+    day.bought.push(card);
+    const got = progress.giveEssence(a, card, progress.essenceRate());
+    activity.count('dupsBought');
+    await store.put(a);
+    return { card, ...got, shop: shopView(a), account: me(a) };
+  }
+  // Rayon Essence : essence universelle contre l'essence d'une carte, ou contre un art de l'édition Essence.
+  function payUni(a, price) {
+    if ((a.uniEssence || 0) < price) throw new HttpError(409, `Il vous faut ${price} essence universelle (vous en avez ${a.uniEssence || 0}).`);
+    a.uniEssence = (a.uniEssence || 0) - price;
+  }
+  async function convertEssence(a, body) {
+    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    const got = progress.convertEssence(a, body || {});
+    activity.count('essenceConverted');
+    await store.put(a);
+    return { ...got, shop: shopView(a), account: me(a) };
+  }
+  async function buyEssenceArt(a, body) {
+    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    const art = arts.buyEssence(a, body || {}, payUni);
+    activity.count('artsBought');
+    progress.check(a);
+    await store.put(a);
+    return { art: art.id, shop: shopView(a), account: me(a) };
+  }
   // free : booster offert (niveau, set complété), ouvert dans le set choisi.
   async function buyBooster(a, { set: setId, free }) {
     const set = openSet(a, setId);
@@ -178,7 +264,7 @@ export function createAccounts(store) {
     if (free) {
       if (!(a.freeBoosters > 0)) throw new HttpError(409, 'Aucun booster offert à ouvrir.');
       a.freeBoosters--;
-    } else pay(a, c.boosterPrice);
+    } else pay(a, setBoosterPrice(set, c.boosterPrice));
     const cards = Array.from({ length: c.boosterSize }, () => pick(set.cards)), got = add(a, cards);
     activity.count(free ? 'boosterFree' : 'boosterBought');
     await store.put(a);
@@ -211,20 +297,29 @@ export function createAccounts(store) {
     if (!(a.freeChests > 0)) throw new HttpError(409, 'Aucun coffre offert à ouvrir.');
     a.freeChests--;
   }
-  // Prismes changés en Éclats, à un taux réglé dans /admin (prismShards ; 0 ferme le change). Jamais l'inverse.
-  async function convertPrisms(a, { prisms }) {
-    const rate = cfg().prismShards, n = Number(prisms);
-    if (!rate) throw new HttpError(409, 'Le change de Prismes est fermé pour le moment.');
-    if (!Number.isInteger(n) || n < 1) throw new HttpError(400, 'Indiquez un nombre entier de Prismes.');
-    payPrisms(a, n);
-    a.shards = (a.shards || 0) + n * rate;
+  // Prismes changés en Éclats par offres fixes (exchangeOffers), au taux réglé dans /admin (prismShards ; 0 ferme le change). Jamais l'inverse.
+  async function convertPrisms(a, { offer }) {
+    const all = exchangeOffers(cfg().prismShards);
+    if (!all.length) throw new HttpError(409, 'Le change de Prismes est fermé pour le moment.');
+    const o = all.find(x => x.id === offer);
+    if (!o) throw new HttpError(400, 'Cette offre de change n\'existe pas.');
+    payPrisms(a, o.prisms);
+    a.shards = (a.shards || 0) + o.shards;
+    activity.count('exchanges');
     await store.put(a);
-    return { shards: n * rate, shop: shopView(a), account: me(a) };
+    return { shards: o.shards, shop: shopView(a), account: me(a) };
   }
   // Calendrier de connexion : récompense du jour.
   async function claimDay(a) {
     if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
     const got = progress.claimDay(a);
+    await store.put(a);
+    return { got, account: me(a) };
+  }
+  // Bienvenue des nouveaux comptes : récompense suivante, une par jour de connexion distinct.
+  async function claimWelcome(a) {
+    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    const got = progress.claimWelcome(a);
     await store.put(a);
     return { got, account: me(a) };
   }
@@ -247,6 +342,8 @@ export function createAccounts(store) {
     return got;
   }
   async function selectArt(a, body) { arts.select(a, body || {}); await store.put(a); return { account: me(a) }; }
+  async function holoArt(a, body) { arts.holo(a, body || {}); await store.put(a); return { account: me(a) }; }
+  async function popArt(a, body) { arts.pop(a, body || {}); await store.put(a); return { account: me(a) }; }
 
   // Decks : créer (sans id) ou enregistrer un deck, même incomplet ; seul un deck complet peut être joué.
   const deckName = (name, fallback) => String(name ?? '').trim().slice(0, 30) || fallback;
@@ -317,11 +414,43 @@ export function createAccounts(store) {
   }
 
   // Progression : partie terminée, missions, boîte de récompenses, titre, cadre et dos de carte.
-  async function recordGame(a, info) { const reward = progress.onGame(a, info); await store.put(a); return reward; }
+  // Fin de partie : progression du compte, puis missions de son clan (clans.js, branché par setGameHook).
+  let gameHook = () => {};
+  async function recordGame(a, info) { const reward = progress.onGame(a, info); gameHook(a, info); await store.put(a); return reward; }
   async function reroll(a, body) { await progress.reroll(a, body); await store.put(a); return { account: me(a) }; }
   async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
-  async function equip(a, body) { await progress.equip(a, body || {}); await store.put(a); return { account: me(a) }; }
+  async function equip(a, body) { await progress.equip(a, body || {}); progress.check(a); await store.put(a); return { account: me(a) }; }
+  async function buyEmote(a, body) { const emote = progress.buyEmote(a, body || {}); await store.put(a); return { emote, account: me(a) }; }
+  // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes le sont. Affiché par le panneau de fin (silent).
+  async function lessonDone(a, { lesson } = {}) {
+    const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l) throw new HttpError(400, 'Leçon inconnue.');
+    progress.init(a);
+    const done = a.tuto ||= [];
+    if (done.includes(l.id)) return { reward: null, account: me(a) };
+    done.push(l.id);
+    const r = progress.cfg(), all = TUTO_LESSONS.every(x => done.includes(x.id));
+    const reward = { kind: 'tuto', label: `Leçon finie : ${l.name}`, shards: r.tutoShards, boosters: all ? r.tutoBoosters : 0, all };
+    progress.grant(a, reward, { silent: true });
+    await store.put(a);
+    return { reward, account: me(a) };
+  }
+  // Tutoriel « Améliorer une carte », une fois par compte : un doublon du général du deck joué (Éclats et essence du doublon),
+  // plus les Éclats (et au besoin l'essence) du passage au niveau 2, pour que le joueur l'améliore aussitôt.
+  async function tutoGift(a) {
+    if (a.tutoGift) throw new HttpError(409, 'Cadeau déjà reçu.');
+    const card = activeDeck(a)?.general;
+    if (!card || !a.cards?.[card]) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    progress.init(a);
+    add(a, [card]);
+    const cost = levelCost(2, progress.cfg());
+    a.shards = (a.shards || 0) + cost.shards;
+    if ((a.cardLevels?.[card] || 1) < MAX_CARD_LEVEL) a.essence = { ...(a.essence || {}), [card]: Math.max(a.essence?.[card] || 0, cost.essence) };
+    a.tutoGift = true;
+    await store.put(a);
+    return { card, shards: cost.shards, account: me(a) };
+  }
   async function upgradeCard(a, body) { const level = await progress.upgradeCard(a, body || {}); progress.check(a); await store.put(a); return { level, account: me(a) }; }
+  async function borderCard(a, body) { progress.chooseBorder(a, body || {}); progress.check(a); await store.put(a); return { account: me(a) }; }
 
   // Administration : créer un compte, ou changer le mot de passe d'un compte existant.
   async function adminUpsert({ login, password, name, create }) {
@@ -331,30 +460,33 @@ export function createAccounts(store) {
     const old = store.get(login);
     if (old && create) throw new HttpError(409, 'Cet identifiant existe déjà : ouvrez le compte pour changer son mot de passe.');
     const a = old || { login, name: '', starter: null, cards: {}, shards: 0, decks: [], active: null, lastBooster: null, tokens: [], created: new Date().toISOString() };
+    // Bienvenue des 7 jours : seulement pour les comptes créés à partir de maintenant.
+    if (!old) progress.startWelcome(a);
     a.name = String(name || a.name || login).trim().slice(0, 20) || login;
     a.pass = await hashPass(String(password));
     if (old) { for (const t of a.tokens || []) sessions.delete(t); a.tokens = []; }
     await store.put(a);
     return { created: !old, account: adminView(a) };
   }
-  const adminView = a => ({ login: a.login, name: a.name, starter: a.starter, cards: Object.values(a.cards).reduce((s, n) => s + n, 0), shards: a.shards || 0, prisms: a.prisms || 0, level: a.level || 1,
+  const adminView = a => ({ login: a.login, name: a.name, starter: a.starter, cards: Object.values(a.cards).reduce((s, n) => s + n, 0), shards: a.shards || 0, prisms: a.prisms || 0, uniEssence: a.uniEssence || 0, level: a.level || 1,
     xp: a.xp || 0, freeBoosters: a.freeBoosters || 0, freeChests: a.freeChests || 0,
     lastBooster: a.lastBooster, created: a.created, disabled: !!a.disabled, sessions: (a.tokens || []).length, deckName: activeDeck(a)?.name || null });
   // inDecks : cartes présentes dans au moins un deck du joueur (elles ne peuvent pas être retirées de sa collection).
   const adminDetail = a => ({ ...adminView(a), owned: Object.keys(a.cards).filter(id => a.cards[id]), deck: activeDeck(a), decks: (a.decks || []).length,
     inDecks: [...new Set((a.decks || []).flatMap(d => [...d.cards, d.general].filter(Boolean)))],
-    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? deckError(activeDeck(a), a) : null, arts: a.arts || {} });
+    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? deckError(activeDeck(a), a) : null, arts: a.arts || {}, themes: a.cosmetics?.themes || [], welcome: a.welcome ? progress.welcomeView(a) : null });
   const target = login => { const a = store.get(cleanLogin(login)); if (!a) throw new HttpError(404, 'Compte introuvable.'); return a; };
   const closeSessions = a => { for (const t of a.tokens || []) sessions.delete(t); a.tokens = []; };
   const done = async a => { await store.put(a); return { account: adminDetail(a) }; };
 
   // Modifie un compte : pseudo, Éclats, désactivation. Seuls les champs présents changent.
-  async function adminUpdate({ login, name, shards, prisms, level, freeBoosters, freeChests, disabled }) {
+  async function adminUpdate({ login, name, shards, prisms, uniEssence, level, freeBoosters, freeChests, disabled }) {
     const a = target(login);
     if (name !== undefined) a.name = String(name).trim().slice(0, 20) || a.login;
     const int = (v, max, label) => { const n = Number(v); if (!Number.isInteger(n) || n < 0 || n > max) throw new HttpError(400, `${label} : un nombre entier positif.`); return n; };
     if (shards !== undefined) a.shards = int(shards, 10_000_000, 'Éclats');
     if (prisms !== undefined) a.prisms = int(prisms, 1_000_000, 'Prismes');
+    if (uniEssence !== undefined) a.uniEssence = int(uniEssence, 10_000_000, 'Essence universelle');
     if (freeBoosters !== undefined) a.freeBoosters = int(freeBoosters, 1000, 'Boosters offerts');
     if (freeChests !== undefined) a.freeChests = int(freeChests, 1000, 'Coffres d\'arts offerts');
     // Changer le niveau ne donne pas les récompenses des niveaux sautés ; les succès de niveau, si.
@@ -381,21 +513,36 @@ export function createAccounts(store) {
     a.starter = starter; a.cards = { ...a.cards, ...kit.cards };
     a.decks = cur ? a.decks.map(d => (d === cur ? deck : d)) : [deck];
     for (const d of a.decks) if (draftError(d, a)) Object.assign(d, { general: null, terrains: [], cards: [] });
+    for (const [k, d] of Object.entries(a.bossDecks || {})) if (draftError(d, a)) delete a.bossDecks[k];
     a.active = deck.id;
     return done(a);
   }
   // Remet le compte comme neuf (collection, Éclats, deck, boutique) ; l'identifiant et le mot de passe restent.
   async function adminReset({ login }) {
     const a = target(login);
-    Object.assign(a, { starter: null, cards: {}, shards: 0, decks: [], active: null, lastBooster: null, shop: {} });
+    Object.assign(a, { starter: null, cards: {}, shards: 0, decks: [], active: null, lastBooster: null, shop: {}, bossDecks: {} });
     for (const k of PROGRESS_FIELDS) delete a[k];
+    // La bienvenue repart du premier jour, avec le même délai depuis la création.
+    if (a.welcome) a.welcome.days = [];
     progress.init(a);
     return done(a);
   }
+  // Offre (ou relance) la bienvenue des 7 jours : le délai repart d'aujourd'hui, aucune récompense prise.
+  async function adminWelcome({ login }) { const a = target(login); progress.startWelcome(a); return done(a); }
   async function adminBooster({ login }) { const a = target(login); a.lastBooster = null; return done(a); }
-  async function adminShopReset({ login }) { const a = target(login); a.shop = {}; delete a.artShop; return done(a); }
+  async function adminShopReset({ login }) { const a = target(login); a.shop = {}; delete a.artShop; delete a.dupShop; return done(a); }
   // Donner (Promo) ou retirer un art alternatif.
   async function adminArt({ login, art, give }) { const a = target(login); arts.adminGive(a, { art, give }); progress.check(a); return done(a); }
+  // Donne ou retire un thème de saison (tests, geste commercial). Retiré, le joueur revient au thème du moment s'il l'avait choisi.
+  async function adminTheme({ login, theme, give }) {
+    const a = target(login);
+    if (!SEASON_THEMES[theme]) throw new HttpError(400, 'Thème inconnu.');
+    progress.init(a);
+    const list = (a.cosmetics.themes ||= []);
+    if (give && !list.includes(theme)) list.push(theme);
+    if (!give) { a.cosmetics.themes = list.filter(t => t !== theme); if (a.uiTheme === theme) a.uiTheme = null; }
+    return done(a);
+  }
   async function adminLogout({ login }) { const a = target(login); closeSessions(a); return done(a); }
   async function adminDelete({ login }) {
     const a = target(login); closeSessions(a);
@@ -417,9 +564,9 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, passView, buyPass, buyArt, openChest, convertPrisms, claimDay, selectArt, adminArt, recordGame, reroll, seen, equip, upgradeCard, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
-    adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
+    adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminWelcome, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
     nameOf: login => store.get(login)?.name, ownersOf: id => store.all().filter(a => a.cards[id]).map(a => a.login),
     setCatalogVersion: v => { catalogVersion = v; } };
@@ -449,14 +596,24 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/shop/art': (a, body) => accounts.buyArt(a, body),
     'POST /api/shop/chest': (a, body) => accounts.openChest(a, body || {}),
     'POST /api/shop/convert': (a, body) => accounts.convertPrisms(a, body || {}),
+    'POST /api/shop/dup': (a, body) => accounts.buyDup(a, body || {}),
+    'POST /api/shop/essence-art': (a, body) => accounts.buyEssenceArt(a, body),
+    'POST /api/shop/emote': (a, body) => accounts.buyEmote(a, body),
+    'POST /api/essence/convert': (a, body) => accounts.convertEssence(a, body),
     'POST /api/calendar/claim': a => accounts.claimDay(a),
+    'POST /api/welcome/claim': a => accounts.claimWelcome(a),
     'GET /api/pass': a => accounts.passView(a),
     'POST /api/pass/premium': a => accounts.buyPass(a),
     'PUT /api/arts/select': (a, body) => accounts.selectArt(a, body),
+    'PUT /api/arts/holo': (a, body) => accounts.holoArt(a, body),
+    'PUT /api/arts/pop': (a, body) => accounts.popArt(a, body),
     'POST /api/missions/reroll': (a, body) => accounts.reroll(a, body),
+    'POST /api/tuto': (a, body) => accounts.lessonDone(a, body),
+    'POST /api/tuto/gift': a => accounts.tutoGift(a),
     'POST /api/rewards/seen': a => accounts.seen(a),
     'PUT /api/cosmetics': (a, body) => accounts.equip(a, body),
     'POST /api/cards/upgrade': (a, body) => accounts.upgradeCard(a, body),
+    'PUT /api/cards/border': (a, body) => accounts.borderCard(a, body),
     'GET /api/admin/accounts': () => ({ accounts: accounts.adminList() }),
     'POST /api/admin/accounts': (_, body) => accounts.adminUpsert(body),
     'GET /api/admin/account': (_, __, ___, url) => accounts.adminGet(url.searchParams.get('login')),
@@ -465,10 +622,12 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/admin/account/starter': (_, body) => accounts.adminStarter(body),
     'POST /api/admin/account/reset': (_, body) => accounts.adminReset(body),
     'POST /api/admin/account/booster': (_, body) => accounts.adminBooster(body),
+    'POST /api/admin/account/welcome': (_, body) => accounts.adminWelcome(body),
     'POST /api/admin/account/shop': (_, body) => accounts.adminShopReset(body),
     'POST /api/admin/account/logout': (_, body) => accounts.adminLogout(body),
     'POST /api/admin/account/delete': (_, body) => accounts.adminDelete(body),
     'POST /api/admin/account/art': (_, body) => accounts.adminArt(body),
+    'POST /api/admin/account/theme': (_, body) => accounts.adminTheme(body),
     'GET /api/admin/arts': () => accounts.adminArts(),
     'GET /api/admin/settings': () => accounts.settings(),
     'POST /api/admin/settings': (_, body) => accounts.adminSettings(body),

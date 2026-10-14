@@ -1,6 +1,6 @@
 # Musiques d'ambiance
 
-La musique tourne en boucle selon l'écran : `menu` partout hors partie, `partie` sur le plateau. Pendant une saison du passe, la version de la saison passe avant (`menu-halloween`, `partie-halloween`…, d'après le `theme` de la saison dans `packages/engine/src/pass.js`). Un fichier absent est ignoré : la version normale prend le relais, et sans aucun fichier c'est le silence.
+La musique tourne en boucle selon l'écran : `menu` partout hors partie, `partie` sur le plateau. Avec un thème de saison affiché (celui de la saison en cours, ou celui choisi dans la personnalisation), sa version passe avant (`menu-halloween`, `partie-halloween`…, d'après le `theme` de la saison dans `packages/engine/src/pass.js`). Un fichier absent est ignoré : la version normale prend le relais, et sans aucun fichier c'est le silence.
 
 ## Ajouter un morceau
 
@@ -11,7 +11,7 @@ La musique tourne en boucle selon l'écran : `menu` partout hors partie, `partie
    | `menu.mp3` | Accueil, collection, boutique, decks, profil… |
    | `partie.mp3` | Pendant une partie (tutoriel compris) |
    | `menu-halloween.mp3`, `partie-halloween.mp3` | Pareil, pendant la saison Nuit des citrouilles (octobre) |
-   | `menu-cyber.mp3`, `partie-cyber.mp3` | Pareil, pendant la saison Néon 2099 (novembre) |
+   | `menu-cyber.mp3`, `partie-cyber.mp3` | Pareil, pendant la saison Néon 2099 (novembre) : « Neon City Menu » et « Protocol Breach » |
 
 2. Compiler et déployer comme d'habitude. Une saison future n'a besoin que de ses deux fichiers nommés d'après son `theme`.
 

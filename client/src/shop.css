@@ -1,0 +1,152 @@
+/* Étal de la boutique (shop.js) : boosters ou coffre posés sur un comptoir, sous un auvent. En CSS tant que PixiJS
+   (shop-stage.js) n'a pas pris le relais ; ensuite (classe .px) la toile dessine le mur, l'auvent, le comptoir et la lumière. */
+.stall { position: relative; isolation: isolate; height: 252px; border-radius: 14px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--gold, #e3b552) 55%, #000); box-shadow: 0 0 0 1px #000, 0 10px 24px -10px rgb(0 0 0 / .8); }
+.stall > canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.stall-wall { position: absolute; inset: 0; z-index: 0;
+  background: radial-gradient(60% 55% at 50% 58%, rgb(255 190 90 / .28), transparent 70%),
+    repeating-linear-gradient(90deg, rgb(0 0 0 / .28) 0 2px, transparent 2px 46px), linear-gradient(#3a2010, #1c0e06); }
+.stall-awning { position: absolute; left: 0; right: 0; top: 0; height: 36px; z-index: 0;
+  background: repeating-linear-gradient(90deg, #8e1f1f 0 26px, #e9d6a8 26px 52px);
+  -webkit-mask: radial-gradient(14px 10px at 13px 100%, transparent 98%, #000) 0 0 / 26px 100%;
+          mask: radial-gradient(14px 10px at 13px 100%, transparent 98%, #000) 0 0 / 26px 100%; filter: drop-shadow(0 4px 3px rgb(0 0 0 / .5)); }
+.stall-shelf { position: absolute; left: 0; right: 0; bottom: 0; height: 52px; z-index: 0;
+  background: linear-gradient(#c58a3f 0 5px, #6b3a14 5px 9px, #4a250c 9px); border-top: 2px solid #f0c454; }
+.stall.px > .stall-wall, .stall.px > .stall-awning, .stall.px > .stall-shelf { display: none; }
+
+.stall-items { position: absolute; inset: 40px 8px 10px; z-index: 1; display: flex; justify-content: center; align-items: flex-end; gap: clamp(10px, 6vw, 40px); }
+.stall-item { --pk1: #2d4f8f; --pk2: #c99a1e; --pk3: #0f1d3a; --rar: #ffd76a;
+  position: relative; display: grid; justify-items: center; gap: 6px; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; }
+.stall-item.pk-set2 { --pk1: #4b2a6b; --pk2: #d0547f; --pk3: #1a0f29; }
+.stall-item.pk-set3 { --pk1: #12244a; --pk2: #3ad7ff; --pk3: #060c1c; }
+.stall-item { --glow: var(--pk2); } .stall-item.is-chest { --glow: var(--rar); }
+.stall-obj { display: block; animation: stallbob 3.2s ease-in-out calc(var(--i) * -1.1s) infinite; filter: drop-shadow(0 8px 6px rgb(0 0 0 / .55)); transition: scale .15s; }
+.stall-item.is-pack .stall-obj { width: clamp(92px, 27vw, 124px); aspect-ratio: 230 / 320; border-radius: 6px; overflow: hidden;
+  background: linear-gradient(155deg, var(--pk1), var(--pk3) 55%, var(--pk1)); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .6); }
+.stall-item.is-pack .pack-art { display: block; width: 100%; height: 100%; }
+.stall-item.is-pack .pack-title { fill: #f0c454; }
+.stall-item.is-chest .stall-obj { width: clamp(118px, 34vw, 150px); aspect-ratio: 1; }
+.stall-item:not(:disabled):hover .stall-obj, .stall-item:not(:disabled):focus-visible .stall-obj { scale: 1.05; }
+.stall-item:not(:disabled):active .stall-obj { scale: .94; transition-duration: .06s; }
+.stall-item:focus-visible { outline: none; }
+.stall-item:focus-visible .stall-tag { outline: 2px solid var(--gold-hi, #ffe7a3); outline-offset: 2px; }
+.stall-item:disabled { cursor: default; }
+.stall-item:disabled .stall-obj { filter: drop-shadow(0 8px 6px rgb(0 0 0 / .55)) saturate(.55) brightness(.8); }
+@keyframes stallbob { 50% { translate: 0 -6px; } }
+.stall-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 99px; white-space: nowrap;
+  font: 700 13px/1.2 var(--display); color: #fff3c0; background: linear-gradient(#2a160a, #120804); border: 1.5px solid #f0c454; box-shadow: 0 2px 0 #000; }
+.stall-item:disabled .stall-tag { color: #b9a988; border-color: #7a6440; }
+.stall-free { position: absolute; bottom: 44px; right: -16px; z-index: 2; padding: 2px 8px; border-radius: 99px; rotate: 8deg;
+  font: 800 12px/1.3 var(--display); color: #1a0f05; background: linear-gradient(#fff3c0, #f0c454 50%, #c88a20); border: 1.5px solid #1a0f05;
+  box-shadow: 0 2px 0 #000, 0 0 12px rgb(255 215 106 / .8); animation: stallfree 1.4s ease-in-out infinite; }
+@keyframes stallfree { 50% { scale: 1.08; } }
+/* Ruban « Nouveau » sur le paquet du set le plus récent (fresh), posé sur le haut du paquet, au-dessus de son titre. */
+.stall-new { position: absolute; top: -17px; left: 50%; translate: -50% 0; z-index: 2; padding: 1px 8px; border-radius: 99px; white-space: nowrap;
+  font: 800 11px/1.3 var(--display); letter-spacing: .04em; text-transform: uppercase; color: #fff; background: linear-gradient(#e86a96, var(--pk2) 55%, #7a1f44);
+  border: 1.5px solid #1a0f05; box-shadow: 0 2px 0 #000, 0 0 12px color-mix(in srgb, var(--pk2) 80%, transparent); animation: stallfree 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .stall-obj, .stall-free, .stall-new { animation: none; } }
+
+/* Section du set le plus récent : liseré et lueur aux couleurs de son paquet, pastille « Nouveau set ». */
+.shopset.pk-set2 { --pk1: #4b2a6b; --pk2: #d0547f; }
+.shopset.pk-set3 { --pk1: #12244a; --pk2: #3ad7ff; }
+.shopset.fresh { border-color: color-mix(in srgb, var(--pk2, #c99a1e) 70%, transparent);
+  background: radial-gradient(90% 60% at 50% 0%, color-mix(in srgb, var(--pk1, #2d4f8f) 45%, transparent), transparent 70%), var(--surface);
+  box-shadow: 0 0 0 1px #000, 0 0 22px -6px var(--pk2, #c99a1e); }
+.newset { display: inline-block; padding: 1px 8px; border-radius: 99px; color: #fff; background: var(--pk2, #c99a1e); letter-spacing: .04em; }
+
+/* Vitrine des sélections du jour (vitrineHTML) : velours, projecteurs (PixiJS) et étiquettes de prix. */
+.vitrine { position: relative; isolation: isolate; display: grid; gap: 10px; padding: 12px 10px 14px; border-radius: 12px; overflow: hidden;
+  border: 2px solid transparent; background: linear-gradient(#1a0a0e, #1a0a0e) padding-box, linear-gradient(160deg, #fff3c0, #c88a20 30%, #6a4210 55%, #f0c454 80%, #8a5a14) border-box;
+  box-shadow: 0 0 0 1px #000, 0 10px 24px -12px rgb(0 0 0 / .9), inset 0 0 30px rgb(0 0 0 / .6); }
+.vitrine > canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.vit-velvet { position: absolute; inset: 0; z-index: 0;
+  background: radial-gradient(80% 60% at 50% 0%, rgb(255 220 150 / .16), transparent 70%),
+    repeating-linear-gradient(90deg, rgb(0 0 0 / .32) 0, rgb(255 255 255 / .05) 14px, rgb(0 0 0 / .32) 28px), linear-gradient(#5a1624, #2a0810); }
+body[data-season="halloween"] .vit-velvet { background: radial-gradient(80% 60% at 50% 0%, rgb(200 150 255 / .16), transparent 70%),
+    repeating-linear-gradient(90deg, rgb(0 0 0 / .32) 0, rgb(255 255 255 / .05) 14px, rgb(0 0 0 / .32) 28px), linear-gradient(#3a1658, #160826); }
+body[data-season="cyber"] .vit-velvet { background: radial-gradient(80% 60% at 50% 0%, rgb(255 138 232 / .16), transparent 70%),
+    repeating-linear-gradient(90deg, rgb(0 0 0 / .32) 0, rgb(25 230 255 / .06) 14px, rgb(0 0 0 / .32) 28px), linear-gradient(#0e1c40, #03050b); }
+.vitrine.px > .vit-velvet { display: none; }
+.vitrine > :not(canvas, .vit-velvet) { position: relative; z-index: 1; }
+.vit-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.vit-head .eyebrow { color: #f0c454; }
+.vit-title { font-family: Cinzel, var(--display); font-size: clamp(16px, 4.6vw, 20px); line-height: 1.15; font-weight: 900; color: #fff3c0; text-shadow: 0 2px 0 #000, 0 0 12px rgb(240 196 84 / .5); }
+.vit-timer { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; white-space: nowrap; font: 700 12px/1.3 var(--display);
+  color: #fff3c0; background: rgb(0 0 0 / .55); border: 1px solid #a26a1a; }
+.vit-timer i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #f0c454; position: relative; }
+.vit-timer i::after { content: ""; position: absolute; left: 3px; top: 1px; width: 2px; height: 4px; background: #f0c454; transform-origin: 1px 3px; animation: vitclock 4s steps(12) infinite; }
+@keyframes vitclock { to { rotate: 360deg; } }
+.vit-row { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: clamp(8px, 3vw, 16px); align-items: start; }
+.vit-row:has(> :nth-child(2):last-child) { --n: 2; padding-inline: 12%; }
+.vit-row:has(> :only-child) { --n: 1; padding-inline: 30%; }
+.vit-slot { display: grid; justify-items: center; gap: 4px; min-width: 0; text-align: center; }
+.vit-card { position: relative; display: block; width: 100%; padding: 0; border: 0; background: none; border-radius: 8px; cursor: zoom-in;
+  box-shadow: 0 0 0 2px #1a0f05, 0 0 0 3.5px var(--glow, #f0c454), 0 0 18px -2px var(--glow, #f0c454), 0 10px 14px -6px #000;
+  animation: vitin .5s cubic-bezier(.3,1.5,.5,1) calc(var(--i) * 90ms) backwards; transition: translate .15s; }
+.vit-card .art { border-radius: 8px; }
+.vit-card .art-name { font-size: clamp(10px, 3vw, 13px); }
+.vit-card::after { content: ""; position: absolute; inset: 0; border-radius: 8px; pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / .35) 50%, transparent 65%) 0 0 / 300% 100% no-repeat; animation: vitshine 5s ease-in-out calc(var(--i) * 1.3s) infinite; }
+@keyframes vitshine { 0%, 60% { background-position: 100% 0; } 85%, 100% { background-position: 0 0; } }
+@keyframes vitin { from { opacity: 0; translate: 0 18px; scale: .9; } }
+.vit-slot.sale .vit-card:hover { translate: 0 -3px; }
+.vit-cost { position: absolute; top: -6px; left: -6px; z-index: 2; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  font: 800 13px/1 var(--display); color: #1a0f05; background: radial-gradient(circle at 35% 30%, #fff3c0, #f0c454 50%, #a26a1a); border: 1.5px solid #1a0f05; box-shadow: 0 2px 0 #000; }
+.vit-badge { position: absolute; top: 6px; right: -6px; z-index: 2; padding: 1px 7px; border-radius: 4px 4px 4px 0; rotate: 6deg;
+  font: 800 10px/1.4 var(--display); letter-spacing: .04em; text-transform: uppercase; color: #fff; background: var(--glow, #d0547f); border: 1px solid #1a0f05; box-shadow: 0 2px 0 #000; }
+.vit-slot.sale:not(.rar-rare, .rar-epique, .rar-legendaire) .vit-badge { background: linear-gradient(#e0405a, #9a1830); }
+.vit-stamp { position: absolute; left: 50%; top: 45%; z-index: 3; translate: -50% -50%; rotate: -18deg; padding: 2px 8px; border: 3px double #ff6a6a; border-radius: 4px;
+  font: 900 clamp(12px, 4vw, 16px)/1.2 Cinzel, var(--display); letter-spacing: .08em; text-transform: uppercase; color: #ff8a8a; background: rgb(30 0 0 / .65);
+  animation: vitstamp .35s cubic-bezier(.3,1.8,.5,1) backwards; }
+@keyframes vitstamp { from { scale: 2.2; opacity: 0; } }
+.vit-slot.sold .vit-card .art, .vit-slot.owned .vit-card .art { filter: saturate(.45) brightness(.7); }
+.vit-slot.sold .vit-card, .vit-slot.owned .vit-card { box-shadow: 0 0 0 2px #1a0f05, 0 0 0 3.5px #6a5a40, 0 10px 14px -6px #000; }
+.vit-slot.sold .vit-card::after, .vit-slot.owned .vit-card::after { display: none; }
+.vit-name { font: 700 12px/1.2 var(--display); color: #fff3c0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vit-sub { font-size: 11px; line-height: 1.2; color: #d8c4a0; opacity: .85; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vit-buy { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 76%; margin-top: 2px; padding: 5px 10px; border-radius: 99px; cursor: pointer;
+  font: 800 14px/1.2 var(--display); color: #1a0f05; background: linear-gradient(#fff3c0, #f0c454 45%, #c88a20); border: 1.5px solid #1a0f05; box-shadow: 0 3px 0 #5a3a0a, 0 0 12px -2px rgb(240 196 84 / .7);
+  transition: translate .08s, box-shadow .08s; }
+.vit-buy:active:not(:disabled) { translate: 0 2px; box-shadow: 0 1px 0 #5a3a0a; }
+.vit-buy:disabled { cursor: default; color: #6a5a40; background: linear-gradient(#5a4a30, #3a2c18); box-shadow: 0 3px 0 #1a0f05; }
+.vit-buy:focus-visible { outline: 2px solid #fff3c0; outline-offset: 2px; }
+.vit-done { margin-top: 2px; padding: 4px 8px; font: 700 12px/1.2 var(--display); color: #b9a988; }
+@media (prefers-reduced-motion: reduce) { .vit-card, .vit-card::after, .vit-stamp, .vit-timer i::after { animation: none; } }
+
+/* Étal : enseigne et bouton « i » (ce que contient le coffre), et son volet sous l'étal. */
+.stall-sign { position: absolute; left: 50%; top: 42px; z-index: 2; translate: -50% 0; padding: 2px 12px; border-radius: 4px; white-space: nowrap;
+  font: 900 13px/1.3 Cinzel, var(--display); letter-spacing: .06em; color: #fff3c0; background: linear-gradient(#3a2010, #1c0e06);
+  border: 1.5px solid #f0c454; box-shadow: 0 2px 0 #000, 0 0 10px -2px rgb(240 196 84 / .6); text-shadow: 0 1px 0 #000; }
+.stall-info { position: absolute; right: 12px; bottom: 12px; z-index: 2; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border-radius: 50%; cursor: pointer;
+  font: italic 900 17px/1 Georgia, serif; color: #1a0f05; background: radial-gradient(circle at 35% 30%, #fff3c0, #f0c454 50%, #a26a1a);
+  border: 1.5px solid #1a0f05; box-shadow: 0 2px 0 #000, 0 0 10px -2px rgb(240 196 84 / .8); transition: scale .1s; }
+.stall-info:hover { scale: 1.08; } .stall-info:active { scale: .92; }
+.stall-info:focus-visible { outline: 2px solid #fff3c0; outline-offset: 2px; }
+.stall-info.infobtn { position: static; flex: none; } /* le même « i » à côté du titre « Booster du set » */
+.panel.infobox { max-width: 440px; gap: 10px; }
+/* Boosters (main.js, boosterInfo) : un set par ligne, avec son nombre de cartes et son prix. */
+.boosterlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.boosterlist li { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+/* Booster d'un set : titre, « i » et boutons d'achat sur une ligne qui passe à la ligne au besoin ; la description est derrière le « i ». */
+.boosterrow { flex-wrap: wrap; gap: 8px; }
+.boosterrow .gal-h { flex: 1 0 auto; margin: 0; white-space: nowrap; }
+.closex { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; font-size: 24px; line-height: 1; }
+
+/* Rayon Change : bourses d'Éclats en vitrine (shardPileSVG), quatre de front, deux par ligne sur les petits écrans. */
+.vit-card.still { cursor: default; aspect-ratio: 1; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #3a1a10, #12070a); }
+.vit-card.still .shardpile { width: 88%; height: 88%; }
+.shardpile { display: block; overflow: visible; }
+.vitrine.exchange .vit-row { --n: 4; padding-inline: 0; }
+.vitrine.exchange .vit-name { font-size: 13px; }
+@media (max-width: 520px) { .vitrine.exchange .vit-row { --n: 2; padding-inline: 6%; row-gap: 14px; } }
+
+/* Panneau « il vous manque des Éclats » : l'offre de change qui suffit. */
+.needpanel { max-width: 460px; }
+.needoffer { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: 12px; border: 2px solid transparent;
+  background: linear-gradient(#2a0810, #1a0a0e) padding-box, linear-gradient(160deg, #fff3c0, #c88a20 30%, #6a4210 55%, #f0c454 80%, #8a5a14) border-box; color: #f3e6c8; }
+.needoffer .shardpile { width: 96px; height: 96px; flex: none; }
+.needmeta { display: grid; gap: 2px; justify-items: start; }
+.needmeta .eyebrow { color: #f0c454; }
+.needgain { display: inline-flex; align-items: center; gap: 6px; font: 900 26px/1.1 Cinzel, var(--display); color: #fff3c0; text-shadow: 0 2px 0 #000, 0 0 12px rgb(240 196 84 / .5); }
+.needbonus { padding: 1px 8px; border-radius: 4px; font: 800 11px/1.4 var(--display); letter-spacing: .04em; text-transform: uppercase; color: #fff; background: linear-gradient(#e0405a, #9a1830); }

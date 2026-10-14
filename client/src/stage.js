@@ -1,12 +1,15 @@
-// Plateau de partie dessiné avec PixiJS (WebGL), chargé seulement quand une partie commence.
+// Plateau de partie dessiné avec PixiJS (WebGL), chargé au premier écran (menus) ou à la première partie.
+// Dans les menus, les mêmes toiles montrent seulement la brume, les braises et la lampe (plus les effets de stage-menu.js).
 // Deux toiles : la table, sous le plateau (bois éclairé, braises qui montent, lumière de la zone que chaque camp mène),
 // et les effets, par-dessus (étincelles d'une carte révélée, éclats d'une carte détruite, colonne de lumière d'une zone gagnée,
 // onde du général, confettis). Les cartes et les zones restent en HTML (main.js) : toucher, glisser-déposer, tutoriel et
 // lecteurs d'écran ne changent pas ; PixiJS lit leur place à l'écran (getBoundingClientRect) pour s'y caler.
 // Sans WebGL ou avec « réduire les animations », rien n'est chargé et fx.js garde ses effets en CSS.
-import { Application, Color, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
+import { Application, Color, Container, Graphics, Sprite, Text, Texture, UPDATE_PRIORITY } from 'pixi.js';
+import { palette, tableLook, season } from './season.js';
 
-let table = null, over = null, root = null, ready = null, embers = null, pools = [], parts = [], glowTex = null, sparkTex = null, shardTex = null;
+let table = null, over = null, root = null, ready = null, embers = null, pools = [], parts = [], glowTex = null, sparkTex = null, shardTex = null, gameBg = null;
+let mode = null;
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a);
 const cssColor = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#e3b552';
 let COL = {}, anims = [], fog = [], cine = null;
@@ -21,9 +24,11 @@ function radial(size, stops) {
   stops.forEach(([at, col]) => grd.addColorStop(at, col)); g.fillStyle = grd; g.fillRect(0, 0, size, size);
   return Texture.from(c);
 }
-async function makeApp(z) {
+// Toile plein écran. La table n'a que des lueurs floues et des planches sombres : elle est dessinée en définition 1, sans lissage,
+// ce qui divise par quatre les pixels à remplir sur un téléphone (écran de définition 2 ou 3) sans différence visible.
+async function makeApp(z, sharp = true) {
   const a = new Application();
-  await a.init({ backgroundAlpha: 0, resizeTo: window, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 2), preference: 'webgl' });
+  await a.init({ backgroundAlpha: 0, resizeTo: window, antialias: sharp, autoDensity: true, resolution: sharp ? Math.min(devicePixelRatio || 1, 2) : 1, preference: 'webgl' });
   Object.assign(a.canvas.style, { position: 'fixed', inset: '0', width: '100vw', height: '100vh', zIndex: z, pointerEvents: 'none' });
   a.canvas.setAttribute('aria-hidden', 'true'); a.canvas.className = 'stage';
   document.body.append(a.canvas);
@@ -31,42 +36,84 @@ async function makeApp(z) {
 }
 
 async function init() {
-  table = await makeApp('0'); over = await makeApp('9');
+  // Table sous tout le contenu de la page (z-index négatif), effets sous les feuilles (z-index 10) : panneau de fin, carte en grand.
+  table = await makeApp('-1', false); over = await makeApp('9');
+  // La table ne bouge que lentement (braises, brume, lumière des zones) : 30 images par seconde lui suffisent.
+  table.ticker.maxFPS = 30;
+  // Les effets ne sont dessinés que quand il y a quelque chose à montrer (plus une dernière fois pour effacer la toile) :
+  // la plupart du temps la toile est vide et le téléphone n'a rien à redessiner.
+  let drawn = false;
+  over.ticker.remove(over.render, over);
+  // Un conteneur vide gardé d'une scène à l'autre (chauves-souris des menus) ne compte pas.
+  const shows = c => c.visible && !(c.constructor === Container && !c.children.length);
+  over.ticker.add(() => { const busy = over.stage.children.some(shows); if (busy || drawn) over.render(); drawn = busy; }, null, UPDATE_PRIORITY.LOW);
   COL = { me: cssColor('--mine'), foe: cssColor('--foe'), gold: cssColor('--accent') };
   glowTex = radial(256, [[0, 'rgba(255,255,255,1)'], [0.35, 'rgba(255,255,255,.35)'], [1, 'rgba(255,255,255,0)']]);
   sparkTex = radial(32, [[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(255,255,255,.8)'], [1, 'rgba(255,255,255,0)']]);
   shardTex = Texture.from((() => { const c = document.createElement('canvas'); c.width = 12; c.height = 18; const g = c.getContext('2d');
     g.fillStyle = '#fff'; g.beginPath(); g.moveTo(6, 0); g.lineTo(12, 7); g.lineTo(7, 18); g.lineTo(0, 9); g.closePath(); g.fill(); return c; })());
 
-  // Table : bois sombre éclairé par une lampe au-dessus du plateau, vignette sur les bords.
-  const wood = new Graphics(); table.stage.addChild(wood);
-  const lamp = new Sprite(glowTex); lamp.anchor.set(0.5); lamp.tint = 0xffc070; lamp.alpha = 0.22; lamp.blendMode = 'add'; table.stage.addChild(lamp);
+  // Table : bois sombre éclairé par une lampe au-dessus du plateau, vignette sur les bords (aux couleurs du thème : tableLook).
+  // Planches et lumières des zones : seulement en partie.
+  gameBg = new Container(); table.stage.addChild(gameBg);
+  const wood = new Graphics(); gameBg.addChild(wood);
+  const lamp = new Sprite(glowTex); lamp.anchor.set(0.5); lamp.alpha = 0.22; lamp.blendMode = 'add'; table.stage.addChild(lamp);
+  // Seconde lueur, en bas (thèmes de saison : violet d'Halloween, magenta de Néon 2099).
+  const low = new Sprite(glowTex); low.anchor.set(0.5); low.alpha = 0.16; low.blendMode = 'add'; gameBg.addChild(low);
+  // Néon 2099 : ligne de balayage qui descend lentement sur la grille.
+  const scan = new Graphics(); scan.blendMode = 'add'; gameBg.addChild(scan);
   // Lumière de la zone : un halo par zone, à la couleur du camp qui la mène.
-  pools = [0, 1, 2].map(() => { const s = new Sprite(glowTex); s.anchor.set(0.5); s.alpha = 0; s.blendMode = 'add'; table.stage.addChild(s); return s; });
+  pools = [0, 1, 2].map(() => { const s = new Sprite(glowTex); s.anchor.set(0.5); s.alpha = 0; s.blendMode = 'add'; gameBg.addChild(s); return s; });
   // Brume : deux nappes de nuages très pâles qui dérivent lentement au-dessus des planches.
   const cloud = cloudTexture();
   fog = [0, 1].map(i => { const f = new Sprite(cloud); f.anchor.set(0.5); f.alpha = 0.09; f.tint = i ? 0xd8b890 : 0xa0b0c0; table.stage.addChild(f); return Object.assign(f, { phase: i * 3, speed: i ? 0.00011 : 0.00007 }); });
   embers = new Container(); table.stage.addChild(embers);
+  // Table du thème affiché (tableLook de season.js) : planches de bois, ou grille néon pour Néon 2099. Redessinée quand le thème change.
+  let drawnLook = null;
   const drawTable = () => {
-    const w = innerWidth, h = innerHeight; wood.clear().rect(0, 0, w, h).fill({ color: 0x140e0a });
-    // planches : bandes verticales à peine plus claires
-    for (let x = 0, i = 0; x < w; x += 46, i++) wood.rect(x, 0, 45, h).fill({ color: i % 2 ? 0x1c140e : 0x19110c });
-    for (let x = 46; x < w; x += 46) wood.rect(x - 1, 0, 1, h).fill({ color: 0x0a0604, alpha: 0.8 });
-    lamp.position.set(w / 2, h * 0.42); lamp.width = w * 1.6; lamp.height = h * 1.1;
+    const w = innerWidth, h = innerHeight, L = drawnLook = tableLook(); wood.clear().rect(0, 0, w, h).fill({ color: L.ground });
+    if (L.planks) {
+      // planches : bandes verticales à peine plus claires
+      for (let x = 0, i = 0; x < w; x += 46, i++) wood.rect(x, 0, 45, h).fill({ color: L.planks[i % 2] });
+      for (let x = 46; x < w; x += 46) wood.rect(x - 1, 0, 1, h).fill({ color: L.seam, alpha: 0.8 });
+    }
+    if (L.grid) {
+      // grille holographique, plus serrée et plus vive vers le bas (comme vue en perspective)
+      for (let y = 0, k = 0; y < h; k++, y += 18 + k * 1.5) wood.rect(0, h - y, w, 1).fill({ color: L.grid, alpha: 0.05 + 0.1 * (1 - y / h) });
+      for (let x = (w / 2) % 32; x < w; x += 32) wood.rect(x, 0, 1, h).fill({ color: L.grid, alpha: 0.06 });
+    }
+    lamp.tint = L.lamp; lamp.position.set(w / 2, h * 0.42); lamp.width = w * 1.6; lamp.height = h * 1.1;
+    low.visible = !!L.low; if (L.low) { low.tint = L.low; low.position.set(w / 2, h * 1.02); low.width = w * 1.8; low.height = h * 0.7; }
+    if (L.moon) {
+      // pleine lune pâle en haut à droite, avec son halo, et quelques pierres tombales penchées sur les bords du bas
+      const mx = w * 0.82, my = h * 0.1, mr = Math.min(w, h) * 0.07;
+      wood.circle(mx, my, mr * 2.6).fill({ color: 0xffe6a0, alpha: 0.04 }).circle(mx, my, mr * 1.6).fill({ color: 0xffe6a0, alpha: 0.07 })
+        .circle(mx, my, mr).fill({ color: 0xf6ead0, alpha: 0.32 }).circle(mx - mr * 0.3, my - mr * 0.2, mr * 0.18).fill({ color: 0xc8b890, alpha: 0.25 });
+      for (const [x, s, tilt] of [[0.04, 1, -0.12], [0.13, 0.7, 0.08], [0.9, 0.85, 0.1], [0.97, 1.1, -0.06]]) {
+        const tw = 34 * s, th = 46 * s, bx = w * x, by = h + 4;
+        const pts = [[-tw / 2, 0], [-tw / 2, -th + tw / 2], [0, -th], [tw / 2, -th + tw / 2], [tw / 2, 0]].map(([px, py]) => [bx + px * Math.cos(tilt) - py * Math.sin(tilt), by + px * Math.sin(tilt) + py * Math.cos(tilt)]);
+        wood.poly(pts.flat()).fill({ color: 0x241830, alpha: 0.9 });
+      }
+    }
   };
   drawTable(); addEventListener('resize', drawTable);
   for (let i = 0; i < 26; i++) { const e = new Sprite(sparkTex); e.anchor.set(0.5); e.blendMode = 'add'; embers.addChild(ember(e, true)); }
 
   table.ticker.add(t => {
     const dt = t.deltaTime;
+    if (drawnLook !== tableLook()) drawTable();
+    scan.clear();
+    if (drawnLook.grid) { const y = (performance.now() / 18) % (innerHeight + 120) - 60;
+      scan.rect(0, y, innerWidth, 2).fill({ color: drawnLook.grid, alpha: 0.18 }).rect(0, y - 24, innerWidth, 24).fill({ color: drawnLook.grid, alpha: 0.025 }); }
     for (const e of embers.children) { e.y -= e.vy * dt; e.x += Math.sin((e.y + e.seed) / 40) * 0.3 * dt; e.alpha = Math.min(1, e.life) * 0.7; e.life -= 0.003 * dt;
       if (e.y < -10 || e.life <= 0) ember(e, false); }
     const now = performance.now();
-    fog.forEach(f => { f.width = innerWidth * 2.2; f.height = innerHeight * 0.9; f.x = innerWidth / 2 + Math.sin(now * f.speed + f.phase) * innerWidth * 0.35; f.y = innerHeight * (0.3 + 0.35 * f.phase / 3) + Math.cos(now * f.speed * 1.3) * 30; });
-    const zones = root?.querySelectorAll('.board > .zone') || [];
+    fog.forEach((f, i) => { f.tint = palette().fog[i]; f.width = innerWidth * 2.2; f.height = innerHeight * 0.9; f.x = innerWidth / 2 + Math.sin(now * f.speed + f.phase) * innerWidth * 0.35; f.y = innerHeight * (0.3 + 0.35 * f.phase / 3) + Math.cos(now * f.speed * 1.3) * 30; });
+    // Place et camp de chaque zone relus quelques fois par seconde seulement (lire la page à chaque image force le navigateur à la remettre en page).
+    if ((zoneRead -= t.deltaMS) <= 0) { zoneRead = 120; readZones(); }
     pools.forEach((p, z) => {
-      const el = zones[z]; if (!el) { p.alpha = 0; return; }
-      const r = el.getBoundingClientRect(), lead = el.querySelector('.v.lead.me') ? 'me' : el.querySelector('.v.lead.foe') ? 'foe' : null;
+      const zs = zoneState[z]; if (!zs) { p.alpha = 0; return; }
+      const { r, lead } = zs;
       p.position.set(r.left + r.width / 2, lead === 'me' ? r.bottom - r.height * 0.25 : r.top + r.height * 0.25);
       p.width = r.width * 1.9; p.height = r.height * 0.9;
       if (lead) p.tint = COL[lead];
@@ -85,6 +132,13 @@ async function init() {
     }
   });
 }
+// Zones du plateau : rectangle à l'écran et camp qui la mène.
+let zoneState = [], zoneRead = 0;
+function readZones() {
+  const zones = root?.querySelectorAll('.board > .zone') || [];
+  zoneState = [0, 1, 2].map(z => { const el = zones[z]; if (!el) return null;
+    return { r: el.getBoundingClientRect(), lead: el.querySelector('.v.lead.me') ? 'me' : el.querySelector('.v.lead.foe') ? 'foe' : null }; });
+}
 // Nuage : quelques halos superposés dans un canevas 2D, flou et sans bord.
 function cloudTexture() {
   const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
@@ -94,12 +148,15 @@ function cloudTexture() {
 }
 // Braise : repart du bas de l'écran (ou de n'importe où, au début) et monte en ondulant.
 function ember(s, anywhere) {
-  s.tint = Math.random() < 0.7 ? 0xffa040 : 0xffe0a0; s.scale.set(rnd(0.12, 0.35));
+  const e = palette().embers; s.tint = e[Math.floor(Math.random() * e.length)]; s.scale.set(rnd(0.12, 0.35));
   return Object.assign(s, { x: rnd(0, innerWidth), y: anywhere ? rnd(0, innerHeight) : innerHeight + 10, vy: rnd(0.15, 0.6), life: rnd(0.6, 1), seed: rnd(0, 500) });
 }
 
 // Une particule d'effet : position, vitesse (px par image à 60 i/s), durée de vie en images.
+const MAX_PARTS = 160;
 function spawn(tex, x, y, o) {
+  // Plafond : quand trop d'effets se chevauchent, les nouvelles particules sont simplement omises.
+  if (parts.length >= MAX_PARTS) return;
   const s = new Sprite(tex); s.anchor.set(0.5); s.position.set(x, y); s.tint = o.tint ?? 0xffffff; s.blendMode = o.blend ?? 'add';
   s.scale.set(o.scale ?? 1); s.rotation = o.rot ?? 0; s.alpha = o.alpha ?? 1; over.stage.addChild(s);
   parts.push({ s, vx: o.vx ?? 0, vy: o.vy ?? 0, g: o.g ?? 0, drag: o.drag ?? 0.96, spin: o.spin ?? 0, ttl: o.ttl ?? 40, age: 0, fade: o.fade ?? true, a0: s.alpha, grow: o.grow ?? 0, sc0: s.scale.x });
@@ -108,28 +165,41 @@ const centerOf = el => { const r = el.getBoundingClientRect(); return { r, x: r.
 const toNum = c => { try { return new Color(c).toNumber(); } catch { return 0xe3b552; } };
 
 // ---- API utilisée par fx.js ----
-// Charge PixiJS pour la durée de la partie et pose la table sous #app. Renvoie false si ce n'est pas possible.
-export function enter(app) {
+// Charge PixiJS et pose les toiles sous #app, pour une partie ('game') ou les menus ('menu'). Renvoie false si ce n'est pas possible.
+// La table tourne toujours à 30 images par seconde ; les effets aussi dans les menus, pour ménager la batterie.
+export function enter(app, scene = 'game') {
   root = app;
   ready ||= init().then(() => true, err => { console.warn('Plateau PixiJS indisponible', err); return false; });
-  return ready.then(ok => { if (ok) { table.canvas.style.display = over.canvas.style.display = ''; table.start(); over.start(); document.body.classList.add('staged'); } return ok; });
+  return ready.then(ok => {
+    if (!ok) return ok;
+    if (mode !== scene) clear();
+    mode = scene; gameBg.visible = scene === 'game';
+    for (const a of [table, over]) { a.ticker.maxFPS = scene === 'game' && a === over ? 0 : 30; a.canvas.style.display = ''; a.start(); }
+    document.body.classList.toggle('staged', scene === 'game');
+    return ok;
+  });
 }
-// Retour aux menus : les toiles sont cachées et leurs boucles arrêtées (rien ne tourne hors partie).
+// Retire les effets en cours (passage d'une partie aux menus et inversement).
+function clear() {
+  for (const p of parts) p.s.destroy(); parts = [];
+  anims = []; over.stage.removeChildren().forEach(c => c.keep || c.destroy()); cine = null; root?.style.removeProperty('transform');
+}
+// Plus de toile du tout (« réduire les animations » activé en cours de route) : cachées et boucles arrêtées.
 export function leave() {
-  document.body.classList.remove('staged');
+  document.body.classList.remove('staged'); mode = null;
   if (!table) return;
   table.stop(); over.stop(); table.canvas.style.display = over.canvas.style.display = 'none';
-  for (const p of parts) p.s.destroy(); parts = [];
-  anims = []; over.stage.removeChildren().forEach(c => c.destroy()); cine = null; root?.style.removeProperty('transform');
+  clear();
 }
-export const active = () => !!table && document.body.classList.contains('staged');
+export const active = () => !!table && mode === 'game';
+export const scene = () => mode;
 
 // Carte révélée : gerbe d'étincelles à la couleur de sa famille (ou de son camp) et éclair blanc.
 export function reveal(el, color) {
   if (!active() || !el) return;
   const { r, x, y } = centerOf(el), tint = toNum(color || COL.gold);
-  spawn(glowTex, x, y, { tint, scale: Math.max(r.width, r.height) / 90, ttl: 22, grow: 0.6, alpha: 0.9 });
-  for (let i = 0; i < 26; i++) { const a = rnd(0, TAU), v = rnd(1.5, 5);
+  spawn(glowTex, x, y, { tint, scale: Math.max(r.width, r.height) / 130, ttl: 20, grow: 0.3, alpha: 0.6 });
+  for (let i = 0; i < 12; i++) { const a = rnd(0, TAU), v = rnd(1.2, 3.5);
     spawn(sparkTex, x + rnd(-r.width / 3, r.width / 3), y + rnd(-r.height / 3, r.height / 3), { tint: i % 3 ? tint : 0xffffff, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.5, g: 0.08, scale: rnd(0.25, 0.6), ttl: rnd(30, 55) }); }
 }
 // Carte détruite : elle vole en éclats qui retombent.
@@ -145,10 +215,9 @@ export function shatter(rect, color) {
 export function zone(el, side, strong = false) {
   if (!active() || !el) return;
   const { r, x } = centerOf(el), tint = toNum(COL[side] || COL.gold);
-  if (!strong) shake(2, 200);
-  spawn(glowTex, x, r.top + r.height / 2, { tint, scale: r.width / 110, ttl: strong ? 80 : 45, grow: 0.4, alpha: strong ? 0.9 : 0.6 });
-  for (let i = 0; i < (strong ? 60 : 28); i++) spawn(sparkTex, r.left + rnd(0, r.width), r.bottom - rnd(0, r.height * 0.3),
-    { tint: i % 4 ? tint : 0xffffff, vx: rnd(-0.4, 0.4), vy: rnd(-5, -1.5), drag: 0.985, scale: rnd(0.2, 0.55), ttl: rnd(40, strong ? 90 : 60) });
+  spawn(glowTex, x, r.top + r.height / 2, { tint, scale: r.width / 120, ttl: strong ? 70 : 40, grow: 0.25, alpha: strong ? 0.6 : 0.35 });
+  for (let i = 0; i < (strong ? 22 : 8); i++) spawn(sparkTex, r.left + rnd(0, r.width), r.bottom - rnd(0, r.height * 0.3),
+    { tint: i % 4 ? tint : 0xffffff, vx: rnd(-0.3, 0.3), vy: rnd(-3, -1), drag: 0.985, scale: rnd(0.15, 0.35), ttl: rnd(35, strong ? 70 : 50) });
 }
 // Le général entre en action : deux ondes de choc et des étincelles à la couleur de sa famille.
 export function general(el, color) {
@@ -174,15 +243,13 @@ export function shake(px = 3, ms = 260) {
   const f = []; for (let i = 0; i < 7; i++) { const k = 1 - i / 7; f.push({ transform: `translate(${rnd(-px, px) * k}px, ${rnd(-px, px) * k}px)` }); }
   f.push({ transform: 'none' }); root.animate(f, { duration: ms, easing: 'linear' });
 }
-// Carte qui tombe sur le plateau : onde de choc au sol et poussière qui s'écarte, puis un léger tremblement si elle frappe fort.
+// Carte qui tombe sur le plateau : onde de choc au sol, et un léger tremblement si elle frappe fort.
 export function impact(el, color, power = 0) {
   if (!active() || !el) return;
-  const { r, x, y } = centerOf(el), tint = toNum(color || COL.gold);
-  const ring = new Graphics().ellipse(0, 0, 40, 22).stroke({ width: 3, color: 0xffffff }); ring.position.set(x, r.bottom - 4); ring.tint = tint; ring.blendMode = 'add'; over.stage.addChild(ring);
-  tween(420, k => { ring.scale.set(0.3 + ease(k) * (1.2 + r.width / 80)); ring.alpha = 1 - k; }, () => ring.destroy());
-  for (let i = 0; i < 14; i++) { const a = rnd(-0.3, Math.PI + 0.3), v = rnd(1, 3);
-    spawn(glowTex, x + Math.cos(a) * r.width * 0.3, r.bottom - 6, { tint: 0x8a7458, blend: 'normal', vx: Math.cos(a) * v, vy: -Math.abs(Math.sin(a)) * v * 0.4, drag: 0.93, scale: rnd(0.04, 0.08), grow: 0.12, alpha: 0.3, ttl: rnd(30, 45) }); }
-  if (power >= 5) shake(Math.min(6, power - 2));
+  const { r, x } = centerOf(el), tint = toNum(color || COL.gold);
+  const ring = new Graphics().ellipse(0, 0, 40, 18).stroke({ width: 2, color: 0xffffff }); ring.position.set(x, r.bottom - 4); ring.tint = tint; ring.blendMode = 'add'; ring.alpha = 0; over.stage.addChild(ring);
+  tween(360, k => { ring.scale.set(0.4 + ease(k) * (0.6 + r.width / 110)); ring.alpha = 0.8 * (1 - k); }, () => ring.destroy());
+  if (power >= 5) shake(Math.min(5, power - 3));
 }
 // Traînée d'étincelles derrière une carte qu'on fait glisser.
 export function trail(x, y) {
@@ -195,23 +262,25 @@ export function banner(board, title, sub = '', tone = '') {
   if (!active() || !board) return false;
   for (const c of over.stage.children.filter(c => c.label === 'banner')) c.destroy({ children: true });
   const r = board.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, w = innerWidth, h = 78;
-  const edge = toNum(tone === 'reveal' ? COL.foe : tone === 'last' ? '#f07a66' : COL.gold);
+  const L = tableLook(), edge = tone === 'reveal' ? toNum(COL.foe) : tone === 'last' ? toNum('#f07a66') : L.edge ?? toNum(COL.gold);
   const c = new Container(); c.label = 'banner'; c.position.set(0, cy); over.stage.addChild(c);
-  const band = new Graphics().rect(0, -h / 2, w, h).fill({ color: 0x0c0806, alpha: 0.82 })
+  const band = new Graphics().rect(0, -h / 2, w, h).fill({ color: L.band, alpha: 0.82 })
     .rect(0, -h / 2, w, 2).fill({ color: edge }).rect(0, h / 2 - 2, w, 2).fill({ color: edge });
   const glow = new Sprite(glowTex); glow.anchor.set(0.5); glow.position.set(cx, 0); glow.width = w * 1.2; glow.height = h * 2.2; glow.tint = edge; glow.alpha = 0.35; glow.blendMode = 'add';
-  const t = new Text({ text: title.toUpperCase(), style: { fontFamily: 'Cinzel, Alegreya SC, serif', fontWeight: '700', fontSize: 34, fill: tone === 'last' ? 0xffb0a0 : 0xffe8b0,
-    stroke: { color: 0x2a1606, width: 4 }, dropShadow: { color: edge, blur: 12, distance: 0, alpha: 0.9 }, letterSpacing: 4 } });
+  const t = new Text({ text: title.toUpperCase(), style: { fontFamily: L.font, fontWeight: '700', fontSize: 34, fill: tone === 'last' ? 0xffb0a0 : L.text,
+    stroke: { color: L.stroke, width: 4 }, dropShadow: { color: edge, blur: 12, distance: 0, alpha: 0.9 }, letterSpacing: 4 } });
   t.anchor.set(0.5); t.position.set(cx, sub ? -8 : 0);
   const st = sub ? new Text({ text: sub.toUpperCase(), style: { fontFamily: 'Alegreya Sans, sans-serif', fontWeight: '700', fontSize: 12, fill: edge, letterSpacing: 3 } }) : null;
   if (st) { st.anchor.set(0.5); st.position.set(cx, 22); }
   const sweep = new Sprite(glowTex); sweep.anchor.set(0.5); sweep.height = h * 1.4; sweep.width = 60; sweep.alpha = 0.7; sweep.blendMode = 'add';
   c.addChild(glow, band, t, sweep); if (st) c.addChild(st);
   if (tone === 'reveal') flash(edge, 0.18);
-  tween(1900, k => {
+  tween(1400, k => {
     const open = Math.min(1, k / 0.12), out = k > 0.8 ? (k - 0.8) / 0.2 : 0;
     band.scale.y = ease(open); glow.alpha = 0.35 * ease(open) * (1 - out);
-    t.x = cx + (1 - ease(Math.min(1, k / 0.2))) * -60; t.style.letterSpacing = 4 + (1 - ease(Math.min(1, k / 0.25))) * 18;
+    t.x = cx + (1 - ease(Math.min(1, k / 0.2))) * -60;
+    // Changer l'espacement redessine tout le texte (et son ombre) puis le renvoie à la carte graphique : seulement quand il change vraiment.
+    const ls = Math.round(4 + (1 - ease(Math.min(1, k / 0.25))) * 18); if (ls !== t.style.letterSpacing) t.style.letterSpacing = ls;
     sweep.x = -80 + (w + 160) * Math.min(1, Math.max(0, (k - 0.15) / 0.4));
     c.alpha = 1 - out; c.y = cy - out * 12;
   }, () => c.destroy({ children: true }));
@@ -224,11 +293,12 @@ export function flash(color = 0xffffff, alpha = 0.25) {
   tween(260, k => { g.alpha = alpha * (1 - k); }, () => g.destroy());
 }
 // Fin de partie : rayons de lumière qui tournent derrière un grand titre, en haut de l'écran, au-dessus du résultat.
-// Or pour une victoire, rouge sombre pour une défaite, gris pour une égalité. Ils restent jusqu'à la sortie de la partie.
+// Or pour une victoire (le titre frappe, onde de choc, poussière d'or), rouge sombre pour une défaite (le titre tombe et secoue l'écran,
+// voile sombre, cendres), gris pour une égalité. Ils restent jusqu'à la sortie de la partie.
 export function ending(result) {
   if (!active()) return;
   cine?.destroy({ children: true });
-  const tint = result === 'win' ? 0xffd070 : result === 'lose' ? 0xb03a2a : 0xa0a8b8, x = innerWidth / 2, y = Math.min(innerHeight * 0.2, 170);
+  const look = season(), tint = result === 'win' ? (look === 'cyber' ? 0x19e6ff : look === 'halloween' ? 0xff8a2a : 0xffd070) : result === 'lose' ? (look === 'cyber' ? 0xff003c : 0xb03a2a) : 0xa0a8b8, x = innerWidth / 2, y = Math.min(innerHeight * 0.2, 170);
   const c = cine = new Container(); over.stage.addChild(c);
   const rays = new Container(); rays.position.set(x, y);
   for (let i = 0; i < 14; i++) { const a = (i / 14) * TAU, len = Math.max(innerWidth, innerHeight);
@@ -236,14 +306,37 @@ export function ending(result) {
   rays.tint = tint; rays.blendMode = 'add';
   const halo = new Sprite(glowTex); halo.anchor.set(0.5); halo.position.set(x, y); halo.width = halo.height = 360; halo.tint = tint; halo.blendMode = 'add'; halo.alpha = 0.7;
   const label = result === 'win' ? 'Victoire' : result === 'lose' ? 'Défaite' : 'Égalité';
-  const t = new Text({ text: label.toUpperCase(), style: { fontFamily: 'Cinzel, Alegreya SC, serif', fontWeight: '900', fontSize: 52, fill: result === 'win' ? 0xfff0c0 : 0xf1e6cf,
-    stroke: { color: 0x1a0c04, width: 6 }, dropShadow: { color: tint, blur: 18, distance: 0, alpha: 1 }, letterSpacing: 6 } });
+  const L = tableLook(), cyber = season() === 'cyber';
+  const t = new Text({ text: label.toUpperCase(), style: { fontFamily: L.font, fontWeight: '900', fontSize: cyber ? 44 : 52, fill: result === 'win' ? (cyber ? 0xfcee0a : 0xfff0c0) : 0xf1e6cf,
+    stroke: { color: cyber ? 0x05070f : 0x1a0c04, width: 6 }, letterSpacing: 6, ...(cyber ? { dropShadow: { color: 0x19e6ff, blur: 0, distance: 4, angle: Math.PI, alpha: 0.8 } } : {}) } });
   t.anchor.set(0.5); t.position.set(x, y);
+  // Défaite : un voile rouge sombre gagne les bords de l'écran.
+  const veil = result === 'lose' ? new Sprite(glowTex) : null;
+  if (veil) { veil.anchor.set(0.5); veil.position.set(x, innerHeight / 2); veil.width = innerWidth * 2.4; veil.height = innerHeight * 2.4; veil.tint = 0x3a0804; veil.alpha = 0; c.addChild(veil); }
   c.addChild(rays, halo, t);
-  if (result === 'win') flash(0xffe0a0, 0.3);
-  tween(900, k => { const e = ease(k); t.scale.set(1.8 - 0.8 * e); t.alpha = e; rays.alpha = e; halo.alpha = 0.7 * e; });
-  over.ticker.add(function spin(tk) { if (c.destroyed) { over.ticker.remove(spin); return; } rays.rotation += 0.0025 * tk.deltaTime; halo.alpha = 0.55 + Math.sin(performance.now() / 500) * 0.15; });
-  for (let i = 0; i < 40; i++) { const a = rnd(0, TAU), v = rnd(1, 4); spawn(sparkTex, x, y, { tint, vx: Math.cos(a) * v, vy: Math.sin(a) * v, scale: rnd(0.3, 0.6), ttl: rnd(50, 90) }); }
+  if (result === 'win') {
+    // Victoire : le titre frappe en grandissant, éclair doré et onde de choc.
+    flash(0xffe0a0, 0.3);
+    tween(900, k => { const e = ease(k); t.scale.set(1.8 - 0.8 * e); t.alpha = e; rays.alpha = e; halo.alpha = 0.7 * e; });
+    setTimeout(() => { if (c.destroyed) return; const g = new Graphics().circle(0, 0, 60).stroke({ width: 5, color: 0xffffff }); g.position.set(x, y); g.tint = tint; g.blendMode = 'add'; c.addChild(g);
+      tween(700, k => { g.scale.set(0.5 + ease(k) * 4); g.alpha = 1 - k; }, () => g.destroy()); }, 260);
+  } else if (result === 'lose') {
+    // Défaite : le titre tombe d'en haut, lourd, rebondit à peine et secoue l'écran ; les rayons s'allument lentement.
+    tween(700, k => { const e = k < 0.7 ? Math.pow(k / 0.7, 2) : 1 - Math.sin((k - 0.7) / 0.3 * Math.PI) * 0.06; t.y = y - 120 * (1 - e); t.alpha = Math.min(1, k * 3); t.rotation = (1 - Math.min(1, k / 0.7)) * -0.08; },
+      () => { shake(5, 320); for (let i = 0; i < 16; i++) spawn(shardTex, x + rnd(-120, 120), y + 26, { tint: 0x6a5a4a, blend: 'normal', vx: rnd(-2, 2), vy: rnd(-2.5, -0.5), g: 0.15, spin: rnd(-0.2, 0.2), rot: rnd(0, TAU), scale: rnd(0.4, 0.8), ttl: rnd(30, 50) }); });
+    tween(1600, k => { const e = ease(k); rays.alpha = e * 0.7; halo.alpha = 0.5 * e; veil.alpha = 0.55 * e; });
+  } else tween(900, k => { const e = ease(k); t.alpha = e; t.scale.set(1.15 - 0.15 * e); rays.alpha = e; halo.alpha = 0.7 * e; });
+  // Tant que le résultat reste à l'écran : poussière d'or qui monte du titre (victoire), cendres qui tombent (défaite).
+  over.ticker.add(function spin(tk) {
+    if (c.destroyed) { over.ticker.remove(spin); return; }
+    rays.rotation += (result === 'lose' ? 0.001 : 0.0025) * tk.deltaTime; halo.alpha = (0.55 + Math.sin(performance.now() / 500) * 0.15) * rays.alpha;
+    if (result === 'win' && Math.random() < 0.25 * tk.deltaTime) spawn(sparkTex, x + rnd(-150, 150), y + rnd(-10, 30), { tint: Math.random() < 0.3 ? 0xffffff : tint, vx: rnd(-0.2, 0.2), vy: rnd(-1.1, -0.4), drag: 1, scale: rnd(0.15, 0.35), ttl: rnd(50, 90) });
+    if (result === 'lose' && Math.random() < 0.18 * tk.deltaTime) spawn(shardTex, rnd(0, innerWidth), -10, { tint: Math.random() < 0.5 ? 0x5a4a3c : 0x8a3020, blend: 'normal', vx: rnd(-0.4, 0.4), vy: rnd(0.5, 1.2), drag: 1, spin: rnd(-0.05, 0.05), rot: rnd(0, TAU), scale: rnd(0.3, 0.6), ttl: rnd(200, 320), alpha: 0.7 });
+  });
+  if (result !== 'lose') for (let i = 0; i < 40; i++) { const a = rnd(0, TAU), v = rnd(1, 4); spawn(sparkTex, x, y, { tint, vx: Math.cos(a) * v, vy: Math.sin(a) * v, scale: rnd(0.3, 0.6), ttl: rnd(50, 90) }); }
 }
 // Nouvelle partie (revanche) : la fin de partie s'efface.
 export function clearEnding() { cine?.destroy({ children: true }); cine = null; }
+
+// Outils partagés avec les effets des généraux (stage-generals.js), lus à chaque appel : la table peut être recréée.
+export const kit = () => ({ over, root, COL, glowTex, sparkTex, shardTex, spawn, tween, ease, rnd, toNum, TAU });

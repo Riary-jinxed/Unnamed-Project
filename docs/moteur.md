@@ -27,6 +27,8 @@ Champs d'une carte : `name`, `type`, `cost`, `power`, `kw` (la famille, ex. `['E
 | `mobile` | Déplaçable par le joueur pendant la préparation. |
 | `token` | Jeton : créé par un effet, jamais en collection, disparaît sans aller à la défausse. |
 | `raise` | Relève : défaussée depuis la main, la carte entre en jeu. |
+| `firewall` | Pare-feu : vos créatures dans sa zone (elle comprise) ne peuvent pas être piratées. |
+| `malware(st, p)` | Malware (jeton) : la fonction s'exécute quand le joueur `p` pioche la carte, qui disparaît sans être remplacée. |
 | `egg` | Œuf : éclôt selon son propre effet. |
 
 ### Crochets
@@ -48,9 +50,11 @@ Un effet est une fonction attachée à la carte. Arguments : `c` (la carte en je
 | `onSpell(c, st, zone, sort)` | Vous révélez un sort. |
 | `onSwitch(c, st)` | La carte change de camp (Échange). |
 
-Les généraux ont `activate` (+ `needsZone`, `activateCost`) pour un effet activable une fois par partie, `aura`, `preview` (voit ses terrains à venir) et les crochets `onStart`, `onStartTurn`, `onEndTurn`, `onEndGame`, `onDraw`, `onDiscard`, `onSpell`, `onAllyDestroyed`, qui reçoivent le numéro du joueur (`p`) au lieu d'une carte. Les terrains ont `flat` (bonus de zone), `aura`, `onReveal`, `onStartTurn`, `onEndTurn`, `onAllyDestroyed`, `onCardReveal`, `onSpellHere`, avec `p` et la zone.
+Une carte piratée (`c.hacked`, posé par `hack(st, c)`) perd tous ses effets : ses crochets ne passent plus que par `fx(c)`, et `self`/`aura` sont ignorés. Un Pare-feu (`firewall`, ou le terrain Pare-feu) l'en protège.
 
-Les effets s'écrivent avec les petites fonctions du moteur : `buff(st, carte, n)`, `addZone`, `draw`, `summon`, `horde`, `feast`, `move`, `destroy`, `drain`, `exhume`, `discardFromHand`, et les sélecteurs `creaturesAt(st, p, zone)`, `mine(st, p)`, `weakest`, `strongest`, `bestZone`.
+Les généraux ont `activate` (+ `needsZone`, `activateCost`) pour un effet activable une fois par partie, `aura`, `preview` (voit ses terrains à venir) et les crochets `onStart`, `onStartTurn`, `onEndTurn`, `onEndGame`, `onDraw`, `onDiscard`, `onSpell`, `onAllyDestroyed`, `onMalware` (un de vos Malwares s'exécute chez l'adversaire), `onHack(p, st, carte)`, `onOverload(p, st, zone, carte)` (Surcharge payée), `onRaise` (une carte se relève), qui reçoivent le numéro du joueur (`p`) au lieu d'une carte. Ces crochets passent par `genHook` : s'il a écrit au journal, le général a agi, et `P.genFired` compte un déclenchement de plus (envoyé dans la vue, `genFired`, pour que l'appli joue son effet). Les terrains ont `flat` (bonus de zone), `aura`, `onReveal`, `onStartTurn`, `onEndTurn`, `onAllyDestroyed`, `onCardReveal`, `onSpellHere`, `onFoeReveal` (une créature adverse est révélée ici), avec `p` et la zone. Un général piraté (`hackGeneral`, `genHacked(st, p)`) est muet jusqu'à la fin du tour suivant : ni crochets, ni activation.
+
+Les effets s'écrivent avec les petites fonctions du moteur : `buff(st, carte, n)`, `addZone`, `draw`, `summon`, `horde`, `feast`, `move`, `destroy`, `drain`, `exhume`, `discardFromHand`, `malware(st, p, n, type)` (type `virus`, `ver`, `rancon` ou `mix`), `hack`, `hackGeneral`, `implant(st, carte, n)`, `overload(st, carte, n)` (renvoie `true` si la Surcharge a été payée), et les sélecteurs `creaturesAt(st, p, zone)`, `mine(st, p)`, `weakest`, `strongest`, `bestZone`.
 
 ## État d'une partie
 
@@ -67,11 +71,11 @@ st = {
   sim,                    // true dans les copies simulées par l'IA (pas de journal)
 }
 P = {
-  name, deckName, deckKey, general, generalUsed,
+  name, deckName, deckKey, general, generalUsed, genFired,   // genFired : nombre de déclenchements du général
   deck: [carte], hand: [carte], discard: [carte], board: [[carte], [carte], [carte]],
   terrains: [id|null ×3], terrainPlan: [{ t, z, turn }], zoneBonus: [n ×3],
   seals, bonusSeals, treasure, lastUnspent, perfectTurns, lost, stolen, feasts, spells,
-  moves: [{ uid, zone }], played: [id],   // déplacements prévus ; cartes révélées (stats)
+  moves: [{ uid, zone, from }], played: [id],   // déplacements prévus ; cartes révélées (stats)
 }
 carte = { uid, id, owner, zone, buff, revealed, pending, order, ... }
 ```
@@ -85,6 +89,9 @@ startTurn   tour +1 ; sceaux = tour + bonus ; chacun pioche 1 ; terrain du tour 
             calcul du meneur ; onStartTurn des cartes, des terrains et des généraux.
 (plan)      chaque joueur prépare : applyPlan pose les cartes face cachée (placeHidden),
             note les déplacements et l'activation du général.
+            Les places se comptent en fin de tour (4 par zone) : une carte qui part libère sa place
+            pour une carte posée ou une autre arrivée le même tour. Une zone peut donc compter
+            plus de 4 cartes le temps que ses déplacements se fassent pendant la révélation.
 revealSteps liste des étapes : pour le meneur puis l'autre joueur, général, déplacements, cartes posées (dans l'ordre de pose).
 doStep      résout une étape : révélation, sacrifice, onReveal, terrain, réactions aux sorts (un sort part ensuite à la défausse).
 endTurn     onEndTurn et Grâce des cartes ; Festins dévorés ; effets de fin de tour des terrains et généraux ;
@@ -105,7 +112,7 @@ Les messages du journal sont écrits une fois pour les deux joueurs avec des mar
 
 ## IA (`aiPlan`)
 
-`aiPlan(st, p, essais)` tire au hasard `essais` plans possibles (cartes jouables, zones, déplacements, général parfois), simule chacun sur une copie de l'état (ses propres révélations puis la fin de tour) et garde le plan le mieux noté par `evalFor` : avance dans chaque zone (lissée par `tanh`), plus la valeur future du Trésor (Dragon) et des tours parfaits (Ange). Le plan de l'adversaire n'est pas deviné.
+`aiPlan(st, p, essais)` tire au hasard `essais` plans possibles (cartes jouables, zones, déplacements, général parfois), simule chacun sur une copie de l'état (ses propres révélations puis la fin de tour) et garde le plan le mieux noté par `evalFor` : avance dans chaque zone (lissée par `tanh`), plus la valeur future du Trésor (Dragon) et des tours parfaits (Ange). Le plan de l'adversaire n'est pas deviné. `aiSearch(st, p, essais)` fait la même recherche et renvoie aussi la note du meilleur plan (`{ plan, value }`) : on peut ainsi la découper en tranches et garder le meilleur de toutes (partie contre l'IA dans la page, `solo.js`).
 
 Réglages : 250 essais contre un joueur (`client/src/solo.js`), de 15 (Bronze) à 500 (Maître) en partie classée (`TIERS`, `ranked.js`), 80 dans `npm run sim`, 60 dans `npm run empreinte`. La copie de l'état (`clone`) laisse de côté le journal ; c'est la partie la plus coûteuse de l'IA.
 
@@ -115,8 +122,10 @@ Réglages : 250 essais contre un joueur (`client/src/solo.js`), de 15 (Bronze) �
 - `COLLECTIBLE` (cartes hors jetons), `OWNABLE` (cartes et généraux), `BOOSTER_POOL` (contenu du booster quotidien) : tableaux mis à jour sur place quand un catalogue est appliqué.
 - `openBooster(collection)` : 3 cartes dont au moins une nouvelle tant qu'il en manque.
 - `deckError(deck, compte)` : message d'erreur ou `null` si le deck est jouable (15 cartes différentes possédées, 5 terrains autorisés, un général possédé). `draftError` accepte un deck incomplet.
-- `allowedTerrains` : terrains neutres et ceux des familles dont le joueur possède un général.
+- `allowedTerrains` : terrains neutres et ceux des familles dont le joueur possède un général, sauf ceux d'un set pas encore sorti.
+- `deckCode(deck)` / `readDeckCode(code)` : code de deck à partager (`DK1-` puis nom, général, terrains et cartes en base64url) ; il ne dépend pas de la collection. `fitDeck(deck, compte)` ramène un deck (code ou recette) à la collection : `deck` avec ce que le joueur possède, `missing` (général, terrains, cartes ; `unknown` compte les identifiants inconnus ou d'un set pas sorti, sans les nommer), `complete`. `recipeKeys()` : decks préconstruits proposés en recettes (ceux des sets sortis).
 - `SETS` / `DEFAULT_SETS` : sets (cartes, ouvert en boutique, booster quotidien, présentation) ; `dailyOffers` : cartes du jour en boutique.
+- `EXCHANGE_TIERS`, `exchangeOffers(rate)`, `exchangeFor(rate, need)` : offres fixes du change de Prismes en Éclats (bonus pour les grosses offres), et celle à proposer quand il manque `need` Éclats (la plus petite qui suffit, sinon la plus grosse).
 - `today()` : le jour à Paris (`AAAA-MM-JJ`) ; tout ce qui est quotidien bascule à minuit, heure française.
 
 ## Catalogue (`catalog.js`)
@@ -135,9 +144,23 @@ Catalogue des arts (`ARTS` : carte, nom, rareté ; `edition: 'promo'` avec `how`
 
 Le rang d'un joueur tient en un nombre d'étoiles `r` : 3 étoiles par division, 3 divisions par palier (III, II, I), paliers `TIERS` Bronze, Argent, Or, Platine, Diamant, puis Maître où les étoiles deviennent des points sans plafond (`MASTER`). `rankOf(r)` donne palier, division, étoiles, plancher et libellé.
 
-- `applyResult(r, { result, streak, foeR })` : victoire +1 étoile, plus 1 pour une série de 3 victoires ou plus (jusqu'au Diamant) et plus 1 pour avoir battu un ami mieux classé ; défaite −1, jamais sous le début du palier ; nul sans effet.
+- `applyResult(r, { result, streak, foeR, mult })` : victoire +1 étoile, plus 1 pour une série de 3 victoires ou plus (jusqu'au Diamant) et plus 1 pour avoir battu un ami mieux classé, le tout multiplié par `mult` (événement « points de classé », `events.js`) ; défaite −1, jamais sous le début du palier ; nul sans effet.
 - Chaque palier règle la force de l'IA (`ai` : essais d'`aiPlan`) et ses récompenses de fin de saison (`title`, `frame` ; Éclats dans les réglages `rankShards…` de `rewards.js`, voir `seasonShardsKey`).
 - Saisons : une par mois, heure de Paris (`seasonId`, `seasonName`, `seasonDaysLeft`) ; `seasonReset(r)` fait redescendre d'un palier au début de la suivante.
+- Classement final : `PLACES` (1re place, podium, top 10) donne en plus des Éclats et Prismes (réglages `rankPlaceShards…` et `rankPlacePrisms…`, voir `placeShardsKey`, `placePrismsKey`) et un titre (`rang:top1`, `rang:top3`, `rang:top10`, avec ceux des places en dessous : `placeTitles`), aux joueurs qui ont joué au moins `rankPlaceGames` parties classées dans la saison.
+
+## Quêtes d'histoire (`story.js`)
+
+Le lore (`LORE`) et les quêtes (`QUESTS`) : trois campagnes, une par deck de départ, qui se suivent comme les livres I à III d'une même histoire (`book` ; `razzia` : Grisk vole la clé du Septième Sceau ; `racines` : Sylvaën retient la fissure ; `pacte` : Morgrath brise le Sceau), toujours ouvertes, et des quêtes à durée limitée (`kind: 'limitee'`, dates par défaut `from`, `to` : `halloween`, `eclipse`, `neon`). Chaque quête a son héros, son deck (un deck de départ, parfois retouché), le thème de sa carte, un prologue, la quête qui raconte la suite (`next`, proposée à la fin) et ses chapitres (`C(...)`) : lieu et place sur la carte, enjeu en une phrase (`goal`, sur la fiche du chapitre et avant le combat), adversaire (`foe(nom, général, deck, essais, bonus de zone)`), récompense de la première victoire, dialogues d'avant et d'après (`[qui, texte]`, `NARRATOR` pour la narration), et parfois un allié qui rejoint le deck (`join : { card, out }`, appliqué aux chapitres suivants par `chapterDeck`). Le dernier chapitre donne un art Promo (`arts.js`) et un titre (`STORY_TITLES`) ; les quêtes limitées donnent aussi une carte de récompense (`STORY_CARDS` : `epouvantail`, `pretre_eclipse`, `coursier_neon`, set `recompense`, jamais en booster). Réglages de `/admin` (`questCfg`, `DEFAULT_STORY`, `STORY_LIMITS`) : ouverte ou non, dates, nombres de chaque récompense ; `questState` dit si une quête est `open`, `soon`, `over`, `archive` ou `off`. Une quête d'événement qui fait avancer l'histoire (`canon` : Éclipse, Signal perdu) passe à sa fin dans l'histoire principale (`archive`, `questTab`) : même progression, mais `chapterReward(…, archive)` retire l'art Promo et remplace la carte de quête par `CARD_SHARDS` Éclats, et `releasedStoryCards` met sa carte dans le booster du Set de base (le serveur la joint au catalogue). Une quête non canon (Halloween) disparaît à sa fin. Dialogues : une réplique est `[qui, texte]` ou `[qui, texte, illustration]` ; `qui` est un général, une carte (son illustration sert de portrait) ou `NARRATOR` ; chaque chapitre a un lieu illustré (`scene`, table `SCENES` : un terrain ou une carte), montré en tête des dialogues (`lineScene`). Les essais de l'IA et les decks adverses ont été réglés par simulation : environ 60 à 80 % de victoires au premier chapitre et 55 à 75 % au dernier, pour que le combat final ne soit pas frustrant. Une quête de plus : une entrée dans `QUESTS` (avec ses arts dans `arts.js` et son titre dans `STORY_TITLES`), son décor dans `DECOR` et `SKY` (`client/src/story.js`) ; le chargement vérifie que chaque général et chaque carte existe.
+
+## Événements temporaires (`events.js`)
+
+Un événement multiplie un gain (`EVENT_EFFECTS` : `xp`, `ranked`, `shards`, `passXp`) par `mult` (`MULTS` : ×1,5, ×2 ou ×3) pendant une période (`EVENT_WHEN`) : chaque week-end, dernier week-end du mois (le dernier samedi et le lendemain), dernière semaine du mois (les 7 derniers jours) ou entre deux dates (`from`, `to`). Les jours sont ceux du jeu (heure de Paris), de minuit à minuit.
+
+- `DEFAULT_EVENTS` : week-end double XP et semaine double points de classé, tant que `/admin` n'a rien enregistré.
+- `occurrence(ev, jour)` : la période qui contient ce jour, ou la prochaine ; `isLive`, `liveEvents`, `daysLeft`.
+- `multiplier(events, effet, jour)` : le plus fort des événements en cours sur cet effet (ils ne se cumulent pas) ; `boost(n, mult)` arrondit le gain.
+- Nouvel effet : une entrée dans `EVENT_EFFECTS`, puis `events.mult('<effet>')` là où le gain se calcule (`server/src/progress.js`).
 
 ## Outils
 

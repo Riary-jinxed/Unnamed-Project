@@ -31,11 +31,12 @@ export const tierOf = r => TIERS[rankOf(r).tier];
 
 // Nouveau rang après une partie classée. streak : victoires d'affilée en classé, celle-ci comprise.
 // foeR : rang de l'ami battu (défi classé) ; battre mieux classé que soi rapporte une étoile de plus.
-export function applyResult(r, { result, streak = 0, foeR = null }) {
+// mult : multiplicateur d'un événement « points de classé » (events.js), appliqué aux étoiles gagnées, bonus compris ; une défaite n'en tient pas compte.
+export function applyResult(r, { result, streak = 0, foeR = null, mult = 1 }) {
   const now = rankOf(r);
   if (result === 'win') {
     const bonus = (streak >= STREAK_BONUS && r < STREAK_BONUS_BELOW ? 1 : 0) + (foeR !== null && foeR > r ? 1 : 0);
-    return { r: r + 1 + bonus, bonus };
+    return { r: r + Math.max(1, Math.round((1 + bonus) * mult)), bonus };
   }
   if (result === 'loss') return { r: Math.max(now.floor, r - 1), bonus: 0 };
   return { r, bonus: 0 };
@@ -58,3 +59,19 @@ export const seasonShardsKey = t => `rankShards${TIERS[t].id[0].toUpperCase()}${
 export const seasonPrismsKey = t => `rankPrisms${TIERS[t].id[0].toUpperCase()}${TIERS[t].id.slice(1)}`;
 // Titres et cadres de fin de saison, du palier atteint et de ceux en dessous.
 export const seasonCosmetics = t => TIERS.slice(0, t + 1).filter(x => x.title || x.frame).map(x => ({ title: x.title ? `rang:${x.id}` : null, frame: x.frame || null }));
+
+// ---- Classement final ----
+// Le classement de la saison est figé à la fin du mois (doc « classement », server/src/progress.js). Les mieux placés reçoivent,
+// en plus des récompenses de leur palier, celles de leur place, avec les titres des places en dessous. Seuls comptent les joueurs
+// qui ont joué au moins « rankPlaceGames » parties classées dans la saison.
+export const PLACES = [
+  { id: 'top1', max: 1, name: '1re place', title: 'Champion de l\'arène' },
+  { id: 'top3', max: 3, name: 'Podium', title: 'Gloire du podium' },
+  { id: 'top10', max: 10, name: 'Top 10', title: 'Élite de l\'arène' },
+];
+export const placeOf = pos => PLACES.findIndex(p => pos && pos <= p.max);
+// Réglages « rankPlaceShards… » et « rankPlacePrisms… » du document « recompenses » (rewards.js).
+export const placeShardsKey = i => `rankPlaceShards${PLACES[i].id[0].toUpperCase()}${PLACES[i].id.slice(1)}`;
+export const placePrismsKey = i => `rankPlacePrisms${PLACES[i].id[0].toUpperCase()}${PLACES[i].id.slice(1)}`;
+// Titres de la place atteinte et de celles en dessous.
+export const placeTitles = i => (i < 0 ? [] : PLACES.slice(i).map(p => `rang:${p.id}`));

@@ -1,17 +1,21 @@
 // Vitrine de l'accueil dessinée avec PixiJS (WebGL), chargée par lobby.js au premier passage sur l'accueil.
-// Le général du deck joué y respire : son personnage (calque perso.webp) se soulève doucement, le décor derrière lui avance
-// très lentement, une lueur à la couleur de sa famille bat au rythme de son souffle, et des braises montent d'un foyer en bas,
-// les unes derrière lui, les autres devant. Effet de profondeur (parallaxe) : chaque calque glisse plus ou moins selon
-// l'inclinaison du téléphone, la souris sur ordinateur, ou à défaut une lente dérive ; le décor traîne un peu quand on fait défiler.
+// Le général du deck joué y respire : son illustration (décor et personnage, qui bougent toujours ensemble) se soulève doucement
+// et avance très lentement, une lueur à la couleur de sa famille bat au rythme de son souffle, et des braises montent d'un foyer
+// en bas, les unes derrière le personnage, les autres devant. Effet de profondeur (parallaxe) : braises, lueur et illustration
+// glissent plus ou moins selon l'inclinaison du téléphone, la souris sur ordinateur, ou à défaut une lente dérive ;
+// l'illustration traîne un peu quand on fait défiler.
+// Saison (season.js) : à Halloween, le foyer devient un chaudron violet, les braises se mêlent de feux follets violets et verts,
+// et de temps en temps une chauve-souris passe derrière le personnage.
 // Une seule petite toile, à la taille de la vitrine, posée dans `.sc-art` par-dessus l'illustration HTML (qui est masquée une
 // fois la toile dessinée). Pour rester léger sur téléphone : définition plafonnée à 1,5, 45 images par seconde au plus, et la
 // boucle s'arrête hors de l'accueil ou quand la vitrine sort de l'écran.
 import { Application, Assets, Color, Container, Sprite, Texture } from 'pixi.js';
+import { season, palette, batCanvases } from './season.js';
 
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const BREATH_MS = 4600, MARGIN = 18;
 let app = null, ready = null, host = null, cur = null, pending = null, ro = null, io = null, seen = true;
-let world, glow, hearth, decor, perso, back, front, sparkTex;
+let world, glow, hearth, decor, perso, back, front, sparkTex, bats, batTex, nextBat = 0;
 const par = { x: 0, y: 0 }, aim = { tilt: null, mouse: null }, textures = new Map();
 
 // Texture ronde et floue (halo, braise) dessinée une fois dans un canevas 2D.
@@ -32,12 +36,13 @@ async function boot() {
   const glowTex = radial(256, [[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(255,255,255,.35)'], [1, 'rgba(255,255,255,0)']]);
   sparkTex = radial(32, [[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(255,255,255,.8)'], [1, 'rgba(255,255,255,0)']]);
   world = new Container(); app.stage.addChild(world);
-  decor = new Sprite(); decor.anchor.set(0.5);
+  decor = new Sprite(); decor.anchor.set(0.5, 1);
   glow = new Sprite(glowTex); glow.anchor.set(0.5); glow.blendMode = 'add';
   hearth = new Sprite(glowTex); hearth.anchor.set(0.5); hearth.blendMode = 'add'; hearth.tint = 0xff7a2a;
   back = new Container(); front = new Container();
   perso = new Sprite(); perso.anchor.set(0.5, 1);
-  world.addChild(decor, glow, hearth, back, perso, front);
+  bats = new Container(); batTex = batCanvases().map(c => Texture.from(c));
+  world.addChild(decor, glow, hearth, bats, back, perso, front);
   for (let i = 0; i < 22; i++) back.addChild(ember(new Sprite(sparkTex), true, false));
   for (let i = 0; i < 7; i++) front.addChild(ember(new Sprite(sparkTex), true, true));
 
@@ -56,20 +61,30 @@ async function boot() {
 function ember(s, anywhere, near = s.near) {
   const w = app.screen.width, h = app.screen.height;
   // Mélange normal, pas additif : sur un décor clair, une braise additive disparaîtrait.
-  s.anchor.set(0.5); s.tint = Math.random() < 0.65 ? 0xff6a1a : 0xffb040;
+  const tints = palette().sparks; s.anchor.set(0.5); s.tint = tints[Math.floor(Math.random() * tints.length)];
   s.scale.set(near ? rnd(0.4, 0.7) : rnd(0.14, 0.32));
   return Object.assign(s, { near, x: rnd(-10, w + 10), y: anywhere ? rnd(0, h) : h + rnd(4, 30), vy: near ? rnd(0.7, 1.4) : rnd(0.2, 0.7),
     life: rnd(0.6, 1), seed: rnd(0, 500), a: near ? 0.7 : 0.9 });
 }
 
-// Calage des images comme l'illustration HTML (object-fit: cover, cadrée à 12 % du haut), avec une marge pour la parallaxe.
+// Chauve-souris : part d'un bord de la vitrine, dans le tiers haut, vers l'autre bord.
+function bat(W, H) {
+  const dir = Math.random() < 0.5 ? 1 : -1, b = new Sprite(batTex[0]), sc = rnd(0.28, 0.45);
+  b.anchor.set(0.5); b.tint = 0x1a0d22; b.alpha = 0.9; b.scale.set(sc * dir, sc);
+  b.x = dir > 0 ? -50 : W + 50;
+  Object.assign(b, { vx: dir * rnd(1.6, 2.6), y0: rnd(H * 0.08, H * 0.35), amp: rnd(6, 14), seed: rnd(0, 6) });
+  bats.addChild(b);
+}
+
+// Calage des images comme l'illustration HTML (style.css, .hero-art) : elles couvrent la vitrine, avec une marge pour la
+// parallaxe, et le visage du général (cur.fx, cur.fy, de 0 à 1) vient au milieu en largeur et au tiers haut en hauteur.
 let lay = null;
 function fit() {
   if (!host || !cur) return;
   const W = host.clientWidth, H = host.clientHeight; if (!W || !H) return;
   if (app.screen.width !== W || app.screen.height !== H) app.renderer.resize(W, H);
   const iw = cur.decor.width, ih = cur.decor.height, s = Math.max((W + MARGIN * 2) / iw, (H + MARGIN * 2) / ih);
-  const left = (W - iw * s) / 2, top = -MARGIN + (H + MARGIN * 2 - ih * s) * 0.12;
+  const left = clamp(W / 2 - cur.fx * iw * s, W + MARGIN - iw * s, -MARGIN), top = clamp(H * 0.4 - cur.fy * ih * s, H + MARGIN - ih * s, -MARGIN);
   lay = { W, H, s, cx: left + iw * s / 2, cy: top + ih * s / 2, bottom: top + ih * s };
   glow.width = W * 1.3; glow.height = H * 1.1; hearth.width = W * 1.4; hearth.height = H * 0.5;
   tick();
@@ -85,17 +100,26 @@ function tick(t) {
   const k = Math.min(1, 0.06 * (dt || 1)); par.x += (goal.x - par.x) * k; par.y += (goal.y - par.y) * k;
   const scroll = clamp(scrollY * 0.12, 0, MARGIN);
   const at = (d, dx = 0, dy = 0) => [par.x * 10 * d + dx, par.y * 7 * d + dy];
-  // Décor : très lent mouvement de caméra (zoom de 0 à 1,5 % sur 22 s).
-  const zoom = 1 + 0.015 * (0.5 - 0.5 * Math.cos(TAU * now / 22000));
-  decor.scale.set(s * zoom); decor.position.set(...at(-0.35, lay.cx, lay.cy + scroll * 0.6));
-  glow.position.set(...at(-0.2, W / 2, H * 0.4)); glow.alpha = 0.16 + 0.12 * b;
+  // Illustration : le décor contient déjà le personnage, et le calque perso est aligné pixel pour pixel dessus. Les deux
+  // bougent donc ensemble (même échelle, même place), sinon le personnage apparaît en double (comme sur les cartes, art.js).
+  // Très lent mouvement de caméra (zoom de 0 à 1,5 % sur 22 s), et le souffle soulève l'image depuis le bas.
+  const zoom = 1 + 0.015 * (0.5 - 0.5 * Math.cos(TAU * now / 22000)), [ix, iy] = at(0.4, lay.cx, lay.bottom + scroll * 0.6 - 1.5 * b);
+  for (const sp of [decor, perso]) { sp.scale.set(s * zoom * (1 + 0.003 * b), s * zoom * (1 + 0.008 * b)); sp.position.set(ix, iy); }
+  glow.position.set(...at(0.2, W / 2, H * 0.4)); glow.alpha = 0.16 + 0.12 * b;
   // Foyer : lueur chaude en bas qui vacille (trois sinus de périodes différentes).
-  hearth.position.set(...at(0.2, W / 2, H * 1.02));
+  hearth.position.set(...at(0.6, W / 2, H * 1.02));
   hearth.alpha = 0.22 + 0.06 * Math.sin(now / 130) * Math.sin(now / 370) + 0.04 * Math.sin(now / 910);
-  // Personnage : il se soulève depuis le bas de l'image (la poitrine monte, les épaules s'élargissent à peine).
-  if (perso.visible) { perso.scale.set(s * (1 + 0.004 * b), s * (1 + 0.011 * b)); perso.position.set(...at(0.6, lay.cx, lay.bottom - 1.5 * b)); }
-  else decor.scale.y = s * zoom * (1 + 0.006 * b);
-  for (const [layer, d] of [[back, 0.3], [front, 1.4]]) {
+  hearth.tint = palette().hearth;
+  // Halloween : une chauve-souris traverse le fond toutes les 6 à 12 secondes, en ondulant, ailes battantes.
+  const spooky = season() === 'halloween';
+  if (spooky && now > nextBat) { if (nextBat) bat(W, H); nextBat = now + rnd(6000, 12000); }
+  bats.position.set(...at(0.1));
+  for (const b of [...bats.children]) {
+    b.x += b.vx * dt; b.y = b.y0 + Math.sin(b.x / 40 + b.seed) * b.amp;
+    b.texture = batTex[Math.floor(now / 150 + b.seed) % 2];
+    if (!spooky || b.x < -80 || b.x > W + 80) b.destroy();
+  }
+  for (const [layer, d] of [[back, 0.2], [front, 1.6]]) {
     layer.position.set(...at(d));
     for (const e of layer.children) {
       e.y -= e.vy * dt; e.x += Math.sin((e.y + e.seed) / (e.near ? 60 : 38)) * (e.near ? 0.5 : 0.3) * dt; e.life -= 0.0035 * dt;
@@ -122,11 +146,11 @@ function attach(w) {
 // ---- API utilisée par lobby.js ----
 export function show(w) {
   pending = w;
-  if (cur && cur.key === w.decor + '|' + w.perso && app) { attach(w); return; }
+  if (cur && cur.key === w.decor + '|' + w.perso && app) { Object.assign(cur, { fx: w.fx, fy: w.fy }); attach(w); return; }
   ready ||= boot();
   Promise.all([ready, load(w.decor), load(w.perso)]).then(([, d, p]) => {
     const now = pending; if (!now || now.decor !== w.decor || now.perso !== w.perso || !d) return;
-    cur = { key: w.decor + '|' + w.perso, decor: d };
+    cur = { key: w.decor + '|' + w.perso, decor: d, fx: now.fx, fy: now.fy };
     decor.texture = d; perso.visible = !!p; if (p) perso.texture = p;
     let tint = 0xe3b552; try { if (w.fam) tint = new Color(w.fam).toNumber(); } catch { /* couleur illisible : or */ }
     glow.tint = tint;

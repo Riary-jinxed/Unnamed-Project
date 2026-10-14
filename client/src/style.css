@@ -3,10 +3,11 @@
   /* Une seule palette, sombre, quel que soit le réglage du téléphone : celle d'un jeu (cuir, pierre et or), pas d'un site. */
   --bg: #120d0a; --surface: #241a13; --sunk: #0d0907; --ink: #f1e6cf; --muted: #b29f80; --line: #5a4530;
   --accent: #e3b552; --accent-ink: #2a1a06; --mine: #77a3e6; --foe: #e48069; --up: #6cc583; --down: #f07a66;
-  --f-ange: #e2b93e; --f-elfe: #4fbcad; --f-demon: #de5c56; --f-gobelin: #79b85f; --f-dragon: #e48447; --f-mortvivant: #8fb19c; --f-vampire: #d0547f; --f-dieux: #a585e6; --f-neutre: #99a1b0;
+  --f-ange: #e2b93e; --f-elfe: #4fbcad; --f-demon: #de5c56; --f-gobelin: #79b85f; --f-dragon: #e48447; --f-mortvivant: #8fb19c; --f-vampire: #d0547f; --f-hacker: #3ad7ff; --f-cyborg: #ff4fbf; --f-dieux: #a585e6; --f-neutre: #99a1b0;
   --display: "Cinzel", "Alegreya SC", "Palatino Linotype", Georgia, serif;
   --ff-ange: "Cinzel Decorative", var(--display); --ff-demon: "Pirata One", var(--display); --ff-gobelin: "Metal Mania", var(--display); --ff-elfe: "Uncial Antiqua", var(--display);
   --ff-dragon: "MedievalSharp", var(--display); --ff-mortvivant: "Creepster", var(--display); --ff-vampire: "UnifrakturMaguntia", var(--display);
+  --ff-hacker: "Share Tech Mono", var(--display); --ff-cyborg: "Orbitron", var(--display);
   --body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
   --r: 6px;
   color-scheme: dark;
@@ -86,7 +87,16 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
 .gencard.used .gn { color: var(--muted); }
 .gencard.used .gdot { border-style: dotted; }
 @keyframes genready { 50% { box-shadow: 0 0 0 1px var(--accent), 0 0 18px 1px var(--accent); } }
-@media (prefers-reduced-motion: reduce) { .gencard.ready { animation: none; } }
+/* Portrait vivant : il respire (grandit à peine autour du visage, au centre du portrait) et dérive lentement.
+   Le décor contient déjà le personnage, et le calque perso est aligné pixel pour pixel dessus : on anime donc le portrait
+   entier (.gport-art), jamais un calque seul, sinon le personnage apparaît en double.
+   --gt (main.js) reprend les animations là où elles en étaient : le rendu suivant ne les fait pas repartir de zéro. */
+.gencard .gport-art { position: absolute; inset: 0; animation: gbreath 4.6s ease-in-out infinite, gdrift 16s ease-in-out infinite; animation-delay: var(--gt, 0s); }
+.gencard.ready { animation-delay: var(--gt, 0s); }
+.gencard.used .gport-art { animation-play-state: paused; }
+@keyframes gbreath { 50% { scale: 1.04; } }
+@keyframes gdrift { 33% { translate: -1px .5px; } 66% { translate: 1px -.5px; } }
+@media (prefers-reduced-motion: reduce) { .gencard.ready, .gencard .gport-art { animation: none; } }
 
 /* tour (barre du haut, sous le type de partie) et sceaux (en bas, à côté de Valider) */
 .tturn { margin-right: auto; min-width: 0; display: grid; gap: 1px; }
@@ -188,7 +198,7 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
 @keyframes endin { from { transform: translateY(30px) scale(.9); opacity: 0; } }
 @keyframes endtitle { 0% { letter-spacing: .4em; opacity: 0; } 100% { letter-spacing: .02em; } }
 /* carte en grand */
-.sheet.zoom { place-items: center; }
+.sheet.zoom { place-items: center; grid-template-rows: minmax(0, 1fr); } /* rangée à la hauteur de l'écran : sans elle, le max-height de .zoomwrap ne s'applique pas et la fiche déborde sans défiler */
 .zoomcard { width: min(360px, 100%) !important; border-top: 6px solid var(--fam, var(--f-neutre)) !important; gap: 8px !important; }
 .zoomcard .zh { display: flex; align-items: center; gap: 10px; }
 .zoomcard .zh h2 { font-size: 24px; flex: 1; line-height: 1.15; }
@@ -238,8 +248,10 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
 .timer.low { color: var(--down); font-weight: 700; }
 
 /* panneaux */
-.sheet { position: fixed; inset: 0; background: color-mix(in srgb, var(--sunk) 70%, transparent); display: grid; place-items: end center; z-index: 10; padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
-.sheet .panel { width: min(720px, 100%); max-height: 82%; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; align-content: start; }
+.sheet { position: fixed; inset: 0; background: color-mix(in srgb, var(--sunk) 70%, transparent); display: grid; place-items: end center; z-index: 10; padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; }
+/* Fenêtre ouverte : la page derrière ne défile plus (sur téléphone, le doigt faisait défiler la collection). */
+html:has(#app > .sheet) { overflow: hidden; }
+.sheet .panel { width: min(720px, 100%); max-height: 82%; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; align-content: start; overscroll-behavior: contain; }
 .panel .ph { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .log { display: grid; gap: 2px; font-size: 13.5px; }
 .log .turn { font-family: var(--display); margin-top: 8px; color: var(--accent); }
@@ -268,6 +280,9 @@ body:has(#app.ingame) { margin: 0; }
 #app.ingame .slots { grid-template-rows: repeat(2, minmax(42px, 1fr)); }
 #app.ingame .slot, #app.ingame .mc { height: auto; min-height: 0; max-height: 104px; }
 #app.ingame .mc .p { position: absolute; right: 4px; bottom: 3px; } /* la puissance ne force pas la hauteur de la case */
+/* Carte cachée : elle garde la forme d'une carte (le dos dessiné, cosmetics.js, est en 240 × 336), centrée dans sa case.
+   Sur ordinateur les cases sont presque carrées : étiré, le dos était rogné et son cadre apparaissait en rectangle dans un carré. */
+#app.ingame .mc.back { justify-self: center; width: auto; max-width: 100%; aspect-ratio: 240 / 336; box-sizing: border-box; padding: 0; }
 /* Écran court : main un peu plus basse, pour défiler le moins possible. */
 @media (max-height: 720px) {
   #app.ingame .hand { min-height: 104px; } #app.ingame .hc { height: 100px; } #app.ingame .hc .x { -webkit-line-clamp: 2; }
@@ -286,6 +301,12 @@ body:has(#app.ingame) { margin: 0; }
 .field { display: grid; gap: 4px; }
 .field input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 9px 11px; min-width: 0; }
 .field input[type=range] { padding: 0; border: 0; background: none; accent-color: var(--accent); min-height: 32px; }
+.field input[type=range]:disabled { opacity: .45; }
+.check { display: inline-flex; gap: 10px; align-items: center; min-height: 32px; cursor: pointer; }
+.check input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
+/* /admin, onglet Boss : champs chiffrés en ligne, chacun avec sa légende au-dessus. */
+.brow { align-items: flex-end; flex-wrap: wrap; gap: 8px; }
+.bfield { display: grid; gap: 2px; }
 .field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .code { font-family: var(--display); font-size: 44px; letter-spacing: .18em; color: var(--accent); }
 .err { color: var(--down); }
@@ -299,9 +320,18 @@ body:has(#app.ingame) { margin: 0; }
 .starters .deckopt { border-top: 4px solid var(--fam); }
 .card-box.booster { grid-template-columns: 1fr auto; align-items: center; }
 .card-box.booster.ready { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.card-box.booster.gifts h2 span { display: block; }
+.card-box.booster .giftbtns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.card-box.booster.gifts:has(.giftbtns > :nth-child(2)) { grid-template-columns: 1fr; }
+.card-box.booster.gifts:has(.giftbtns > :nth-child(2)) .giftbtns { justify-content: stretch; }
+.card-box.booster.gifts:has(.giftbtns > :nth-child(2)) .giftbtns .btn { flex: 1 1 140px; }
 .famseg { flex-wrap: wrap; align-self: start; }
 .ccard { position: relative; display: grid; padding: 0; border: 0; background: none; text-align: left; }
 .ccard .fc { height: 100%; box-sizing: border-box; }
+/* Galerie de la collection (plus de 200 cartes) : le navigateur ne met en page et ne dessine que les cartes proches de l'écran,
+   les autres gardent la place de leur dernière taille connue (400 px avant la première). Ouvrir la collection demandait plus
+   d'une seconde de mise en page sur téléphone. La marge laisse déborder la lueur des bordures (Or, Astral) comme avant. */
+.gallery.vignettes > .ccard { content-visibility: auto; contain-intrinsic-size: auto 400px; overflow-clip-margin: 24px; }
 .ccard.locked .fc { opacity: .4; filter: grayscale(1); }
 .ccard .count { position: absolute; top: 8px; right: 8px; background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 1px 8px; font-weight: 700; font-size: 13px; }
 .ccard .lock { position: absolute; left: 8px; right: 8px; bottom: 8px; text-align: center; font-size: 12px; font-weight: 700; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 2px 6px; }
@@ -336,6 +366,7 @@ body:has(#app.ingame) { margin: 0; }
 .avatar.big { width: 96px; height: 96px; border-width: 3px; }
 .avatar.big.initials { font-size: 44px; }
 .card-box.profile { grid-template-columns: auto 1fr; align-items: center; gap: 16px; }
+.card-box.profile:has(> .frame) { column-gap: 28px; } /* les ailes et les lueurs du cadre débordent sur le côté */
 .setline { display: grid; gap: 4px; }
 .setline.done b { color: var(--up); }
 .bar { height: 8px; border-radius: 999px; background: var(--sunk); overflow: hidden; }
@@ -352,6 +383,18 @@ body:has(#app.ingame) { margin: 0; }
 /* decks */
 .deckitem { border-left: 5px solid var(--fam, var(--f-neutre)); }
 .deckitem.active { border-color: var(--accent); border-left-color: var(--fam, var(--f-neutre)); box-shadow: inset 0 0 0 1px var(--accent); }
+/* Codes de deck et recettes */
+.deckcode { box-sizing: border-box; width: 100%; field-sizing: content; max-height: 14lh; font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; resize: none; background: var(--sunk); color: inherit; border: 1px solid var(--line); border-radius: var(--r); padding: 8px; }
+.recipe .rbar { height: 6px; border-radius: 3px; background: var(--sunk); overflow: hidden; }
+.recipe .rbar span { display: block; height: 100%; background: var(--fam, var(--accent)); }
+.recipe.ready .rbar span { background: var(--accent); }
+.recipe .rlist summary { cursor: pointer; font-weight: 600; }
+.recipe .rlist[open] { display: grid; gap: 6px; }
+.recipe .rlist ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px 12px; }
+.recipe .rlist li { display: flex; align-items: center; gap: 6px; }
+.recipe .rlist li .seal { width: 20px; height: 20px; font-size: 12px; flex: none; }
+.recipe .miss { opacity: .55; }
+.recipe .rlist li small { color: var(--muted, inherit); }
 .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .step { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 6px 8px; min-width: 0; text-align: left; }
 .step .sn { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--sunk); font-weight: 700; font-size: 13px; flex: none; }
@@ -361,7 +404,13 @@ body:has(#app.ingame) { margin: 0; }
 .step:disabled { opacity: .45; cursor: default; }
 .pickcard { border: 0; background: none; padding: 0; text-align: left; border-radius: var(--r); }
 .pickcard.on .fc { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--bg)); }
-@media (max-width: 480px) { .step > span:nth-child(2) { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+/* Sur téléphone, le compte passe sous le nom de l'étape : « Terrains » et « Cartes » ne sont plus coupés. */
+@media (max-width: 480px) {
+  .step { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 6px; row-gap: 0; }
+  .step .sn { grid-row: span 2; }
+  .step > span:nth-child(2) { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .step .sc { margin-left: 0; font-size: 12px; line-height: 1.1; }
+}
 
 /* ---- Progression : niveau, missions, récompenses, succès ---- */
 .lvl { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
@@ -383,9 +432,11 @@ body:has(#app.ingame) { margin: 0; }
 .pickc.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .pickc.locked { opacity: .45; }
 .pickc .mc.back { width: 44px; height: 60px; cursor: inherit; }
+.pickc > .frame { margin-block: 8px 6px; } /* place pour les couronnes et les flammes qui débordent du cadre */
 
 /* Cadres de profil : un anneau autour de l'image. */
-.frame { display: inline-grid; place-items: center; border-radius: 50%; padding: 3px; background: var(--line); line-height: 0; }
+/* Centré et jamais étiré : dans une grille ou une ligne flex plus haute (vignettes de la Personnalisation), il deviendrait ovale. */
+.frame { display: inline-grid; place-items: center; border-radius: 50%; padding: 3px; background: var(--line); line-height: 0; align-self: center; justify-self: center; flex: none; }
 .frame.big { padding: 5px; }
 .frame .avatar { border-color: var(--surface); }
 .frame-bronze { background: linear-gradient(135deg, #e0a36b, #8a4f22 60%, #d08b50); }
@@ -398,9 +449,14 @@ body:has(#app.ingame) { margin: 0; }
 .frame-etoile { background: radial-gradient(circle, #fff 0 1px, transparent 2px) 0 0 / 7px 7px, linear-gradient(135deg, #1d2a5a, #4b3a8f); }
 .frame-base { background: linear-gradient(135deg, var(--f-ange), var(--f-demon), var(--f-gobelin), var(--f-elfe), var(--f-dragon)); }
 .frame-set2 { background: linear-gradient(135deg, #2b1d3a, var(--f-vampire) 45%, var(--f-mortvivant)); box-shadow: 0 0 8px rgb(140 35 80 / .5); }
+.frame-set3 { background: linear-gradient(135deg, #0b1530, var(--f-hacker) 45%, var(--f-cyborg)); box-shadow: 0 0 9px rgb(58 215 255 / .55); }
 .frame-platine { background: linear-gradient(135deg, #e9f6f4, #7fb7b0 50%, #d4ece8); box-shadow: 0 0 8px rgb(127 183 176 / .6); }
 .frame-diamant { background: conic-gradient(#bfe9ff, #5aa8e6, #e4f6ff, #3a7fd0, #bfe9ff); box-shadow: 0 0 10px rgb(90 168 230 / .7); }
 .frame-maitre { background: conic-gradient(from 90deg, #6a2bd0, #e04aa0, #ffcf4a, #6a2bd0); box-shadow: 0 0 12px rgb(160 70 210 / .7); }
+/* Cadres des paliers des familles d'arts (sans WebGL, ou avant que cosmetics.js ne les dessine). */
+.frame[class*="frame-art_"] { background: conic-gradient(#6a6a7a, #b0b0c0, #6a6a7a); }
+.frame[class*="frame-art_eclipse_"] { background: radial-gradient(circle at 50% 8%, #ffc94a 0 9%, #24182e 22%), conic-gradient(#24182e, #b0306a, #24182e); box-shadow: 0 0 10px rgb(176 48 106 / .6); }
+.frame[class*="frame-art_tresors_"] { background: radial-gradient(circle at 50% 30%, #fff3b0, #e3b552 45%, #8a4a1e); box-shadow: 0 0 9px rgb(255 212 90 / .6); }
 
 /* ---- Mode classé : palier, étoiles, classement ---- */
 .rank { display: inline-block; padding: 1px 10px; border-radius: 999px; color: #1d1a16; font-weight: 600; line-height: 1.5; white-space: nowrap; }
@@ -441,6 +497,15 @@ body:has(#app.ingame) { margin: 0; }
 .mc.back.back-elfe_set2 { background: radial-gradient(circle, #fff 0 1px, transparent 2px) 0 0 / 8px 8px, linear-gradient(#1d2a5a, #2a8a7e); }
 .mc.back.back-dragon_set2 { background: radial-gradient(ellipse at 50% 70%, #ffb36b, transparent 35%), linear-gradient(#2b1d3a, #7a3a1a); }
 
+/* Dos de la Cité Néon : les deux nouvelles familles, puis les autres sous une nuit bleue traversée de circuits. */
+.mc.back.back-hacker { background: linear-gradient(90deg, transparent 0 46%, #3ad7ff 46% 54%, transparent 54%) 0 0 / 12px 12px, linear-gradient(#0f2a3a, #04090f); border-top-color: #3ad7ff; }
+.mc.back.back-cyborg { background: radial-gradient(circle at 50% 50%, #ff4fbf 0 6%, #c0c8d4 7% 22%, transparent 23%), repeating-linear-gradient(90deg, #3a1238 0 6px, #5a1f56 6px 8px); border-top-color: #ff4fbf; }
+.mc.back.back-ange_set3, .mc.back.back-demon_set3, .mc.back.back-gobelin_set3, .mc.back.back-elfe_set3, .mc.back.back-dragon_set3, .mc.back.back-mortvivant_set3, .mc.back.back-vampire_set3 {
+  background: radial-gradient(circle at 50% 50%, var(--fam, #19c8e6), transparent 40%), linear-gradient(90deg, transparent 0 47%, rgb(25 200 230 / .45) 47% 53%, transparent 53%) 0 0 / 14px 14px, linear-gradient(#12244a, #060c1c);
+  border-top-color: #d42bb8; }
+.mc.back.back-ange_set3 { --fam: #e2b93e; } .mc.back.back-demon_set3 { --fam: #de5c56; } .mc.back.back-gobelin_set3 { --fam: #79b85f; } .mc.back.back-elfe_set3 { --fam: #4fbcad; }
+.mc.back.back-dragon_set3 { --fam: #e48447; } .mc.back.back-mortvivant_set3 { --fam: #8fb19c; } .mc.back.back-vampire_set3 { --fam: #d0547f; }
+
 /* amis : liste avec statut, bandeau de défi */
 .flist { display: grid; gap: 8px; }
 .frow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding-block: 4px; border-top: 1px solid var(--line); }
@@ -463,14 +528,58 @@ body:has(#app.ingame) { margin: 0; }
 /* le bandeau ne cache pas le bas de la page */
 #app:has(.fbanner) { padding-bottom: 120px; }
 
-/* Tutoriel : bulle du guide (à la place de l'encadré d'info, ou en haut par-dessus une carte ouverte) et élément à toucher. */
-.coach { background: var(--surface); border: 2px solid var(--accent); border-radius: var(--r); padding: 8px 10px; display: grid; gap: 6px; font-size: 14px; line-height: 1.35; }
+/* Tutoriel : bulle de Séraphine, la guide (entre votre bandeau et la main, ou en haut par-dessus une carte ouverte), et élément à toucher.
+   Sur PixiJS (body.coached), stage-coach.js assombrit le reste et dessine le liseré : le contour CSS s'efface. */
+.coach { position: relative; display: grid; grid-template-columns: 50px minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; padding: 8px 10px 8px 8px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 88%, #fff 12%), var(--surface)); border: 1.5px solid var(--accent); border-radius: 14px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .5), 0 8px 22px rgb(0 0 0 / .45), 0 0 16px color-mix(in srgb, var(--accent) 22%, transparent); font-size: 14px; line-height: 1.3; }
 .coach p { margin: 0; }
-.coach .eyebrow { color: var(--accent); font-weight: 700; }
-.coach.float { position: fixed; top: 8px; left: 8px; right: 8px; max-width: 720px; margin-inline: auto; z-index: 11; box-shadow: 0 6px 20px rgb(0 0 0 / .25); }
+.coach p strong { color: var(--accent); }
+.coach-face { position: relative; width: 50px; height: 50px; border-radius: 50%; overflow: hidden; align-self: start; background: var(--sunk);
+  border: 2px solid var(--accent); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent); }
+.coach-face .gport-art { position: absolute; inset: 0; }
+.coach-body { min-width: 0; display: grid; gap: 2px; }
+.coach-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.coach-head b { font-family: var(--display); font-size: 13px; letter-spacing: .05em; color: var(--accent); }
+.coach-dots { display: flex; flex-wrap: wrap; gap: 3px; min-width: 0; }
+.coach-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--line); }
+.coach-dots i.past { background: var(--muted); }
+.coach-dots i.now { background: var(--accent); box-shadow: 0 0 5px var(--accent); }
+.coach-skip { margin-left: auto; background: none; border: 0; padding: 2px 4px; color: var(--muted); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.coach-next { align-self: end; }
+.coach.new { animation: coachin .38s cubic-bezier(.2, .8, .2, 1); }
+.coach.new .coach-face { animation: coachface .7s ease-out; }
+@keyframes coachin { from { opacity: 0; transform: translateY(10px) scale(.97); } }
+@keyframes coachface { 0% { box-shadow: 0 0 0 0 var(--accent); } 60% { box-shadow: 0 0 0 8px transparent; } }
+.coach.float { position: fixed; top: 8px; left: 8px; right: 8px; max-width: 720px; margin-inline: auto; z-index: 11; }
+/* Guide dans les menus (« Améliorer une carte ») : en bas de l'écran, au-dessus de la barre d'onglets. */
+.coach.float.bottom { top: auto; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 8; }
 .coach-hl { outline: 3px solid var(--accent); outline-offset: 2px; animation: coachhl 1s ease-in-out infinite alternate; }
 @keyframes coachhl { to { outline-color: transparent; } }
-@media (prefers-reduced-motion: reduce) { .coach-hl { animation: none; } }
+body.coached .coach-hl { outline-color: transparent; animation: none; }
+@media (prefers-reduced-motion: reduce) { .coach-hl, .coach.new, .coach.new .coach-face { animation: none; } }
+/* Initiation : pas de terrain, la case reste vide. */
+.terrain.none { visibility: hidden; }
+/* Apprendre : les leçons, numérotées. */
+.lessons { display: grid; gap: 8px; }
+.lesson { display: flex; align-items: center; gap: 12px; padding: 10px 12px; text-align: left; font: inherit; color: var(--ink); cursor: pointer;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); }
+.lesson:hover, .lesson:focus-visible { border-color: var(--accent); }
+.lesson-n { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: var(--accent-ink); background: var(--accent); }
+.lesson-t { display: grid; gap: 2px; min-width: 0; }
+.lesson-t b { font-family: var(--display); font-size: 16px; }
+.lesson-t small { color: var(--muted); font-size: 13px; }
+.lesson-r { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; color: var(--accent); font-weight: 700; font-size: 14px; }
+.lesson.done { opacity: .8; }
+.lesson.done .lesson-n { background: var(--up); }
+/* Cadeau de Séraphine (premier passage à l'accueil) : un doublon du général joué. */
+.panel.gift { text-align: left; }
+.gift-head { display: flex; align-items: center; gap: 12px; }
+.gift-head h2 { margin: 0; }
+.panel.gift p strong { color: var(--accent); }
+.gift-card { width: 150px; margin: 4px auto; animation: giftin .6s cubic-bezier(.2, .8, .2, 1); }
+@keyframes giftin { from { opacity: 0; transform: translateY(16px) rotate(-4deg) scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .gift-card { animation: none; } }
 
 /* Codex des mots-clés */
 .cxs { display: grid; gap: 8px; }
@@ -488,9 +597,12 @@ body:has(#app.ingame) { margin: 0; }
    Le dégradé est peint sous un cadre transparent (fond en deux couches), ce qui garde les coins arrondis de la carte. */
 .mc { --lvbg: var(--surface); } .hc { --lvbg: var(--surface); } .fc, .gencard { --lvbg: var(--bg); } .zoomcard { --lvbg: var(--surface); }
 .gencard.armed { --lvbg: color-mix(in srgb, var(--accent) 16%, var(--bg)); }
-.lv { border-left: 2px solid transparent; border-right: 2px solid transparent; border-bottom: 2px solid transparent;
-  background: linear-gradient(var(--lvbg), var(--lvbg)) padding-box, var(--lvg) border-box; }
-.fc.lv, .hc.lv, .zoomcard.lv { border-left-width: 3px; border-right-width: 3px; border-bottom-width: 3px; }
+/* habillage.css et les thèmes de saison, chargés après, redessinent le cadre des cartes et le fond des panneaux avec des sélecteurs
+   plus forts : la bordure passe donc par « :is(#app, body) » (le poids d'un id), sans quoi elle disparaissait sous leur cadre.
+   --lvfill : fond de la carte sous le cadre transparent, quand ce n'est pas une couleur unie (panneau de la carte en grand, habillage.css). */
+:is(#app, body) .lv { border-left: 2px solid transparent; border-right: 2px solid transparent; border-bottom: 2px solid transparent;
+  background: var(--lvfill, linear-gradient(var(--lvbg), var(--lvbg))) padding-box, var(--lvg) border-box; }
+:is(#app, body) :is(.fc, .hc, .zoomcard).lv { border-left-width: 3px; border-right-width: 3px; border-bottom-width: 3px; }
 .lv-bronze { --lvg: linear-gradient(135deg, #e7ad78, #8a4f22 55%, #d08b50); }
 .lv-argent { --lvg: linear-gradient(135deg, #ffffff, #8d96a2 55%, #e3e8ee); }
 .lv-or { --lvg: linear-gradient(135deg, #ffe7a0, #b07c0c 50%, #ffd45a); filter: drop-shadow(0 0 3px rgb(224 170 40 / .55)); }
@@ -507,8 +619,14 @@ body:has(#app.ingame) { margin: 0; }
 .lvladder li { display: flex; align-items: center; gap: 8px; opacity: .7; }
 .lvladder li.done { opacity: 1; }
 .lvladder li > span:nth-child(2) { flex: 1; line-height: 1.25; }
-.lvladder .lvsw { flex: none; width: 22px; height: 28px; border-radius: 4px; border-top: 4px solid var(--fam, var(--f-neutre)); --lvbg: var(--bg); }
+.lvladder .lvsw, .bdopt .lvsw { flex: none; width: 22px; height: 28px; border-radius: 4px; border-top: 4px solid var(--fam, var(--f-neutre)); --lvbg: var(--bg); }
 .lvladder .ok { color: var(--up); font-weight: 700; }
+/* Menu « Bordure » (main.js, borderHTML) : une case par bordure obtenue, sur une ligne ; « Aucune » garde le cadre gris d'origine. */
+.bdopts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.bdopt { flex-direction: column; gap: 4px; text-align: center; padding: 8px 4px; }
+.bdopt > span:nth-child(2) { display: grid; font-size: 13px; }
+.bdopt small { font-size: 11px; }
+.bdopt .lvsw { border: 2px solid var(--line); border-top: 4px solid var(--fam, var(--f-neutre)); background: var(--bg); }
 .zoomcard.lv-up { animation: lvup .7s cubic-bezier(.2,.8,.2,1); }
 @keyframes lvup { 40% { transform: scale(1.04); box-shadow: 0 0 0 3px var(--accent), 0 0 30px 6px var(--accent); } }
 /* Effet de mise en jeu (niveau maximum) : la carte s'illumine, un anneau de lumière et des étincelles s'en échappent. */
@@ -552,6 +670,18 @@ body:has(#app.ingame) { margin: 0; }
 .zoomwrap:has(.zoomart) .zoomcard .zh h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .zoomwrap:has(.zoomart) .zoomcard .zh { justify-content: space-between; }
 .zoomart.pop .art-perso { filter: drop-shadow(0 8px 10px rgb(0 0 0 / .45)); }
+/* La partie du personnage hors de la fenêtre passe devant le contour de la carte (.art.rar::after) et le reflet : une copie du
+   personnage, au-dessus, découpée au gabarit privé de la fenêtre (rétrécie de 8 px pour couvrir le trait du contour qu'il franchit).
+   Dans la fenêtre, rien ne change : le nom, le contour et le reflet restent devant le personnage. */
+.zoomart.pop { --hors-fenetre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 960 1424' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M0 0H960V1424H0ZM92 200H868A20 20 0 0 1 888 220V1332A20 20 0 0 1 868 1352H92A20 20 0 0 1 72 1332V220A20 20 0 0 1 92 200Z'/%3E%3C/svg%3E"); }
+.perso-out { z-index: 3; -webkit-mask: var(--hors-fenetre) 0 0 / 100% 100% no-repeat; mask: var(--hors-fenetre) 0 0 / 100% 100% no-repeat; }
+/* Le bandeau du nom assombrit le bas de la fenêtre : sa copie .name-shade (même texte, donc même hauteur) prolonge cet assombrissement
+   sur la partie du personnage qui déborde en bas et sur les côtés. Elle couvre le gabarit jusqu'à ses bords (7.6923cqi autour de la
+   fenêtre), son dégradé est recalé sur celui du nom, et elle est découpée au personnage hors de la fenêtre. */
+.name-shade { z-index: 3; left: -7.6923cqi; right: -7.6923cqi; bottom: -7.6923cqi; padding: 18cqi 13.6923cqi 12.6923cqi; border-radius: 0;
+  color: transparent; text-shadow: none; background: linear-gradient(transparent, rgb(0 0 0 / .72) calc(55% - 4.2308cqi));
+  -webkit-mask: var(--perso) left bottom / 115.3846cqi 171.1538cqi no-repeat, var(--hors-fenetre) left bottom / 115.3846cqi 171.1538cqi no-repeat;
+  mask: var(--perso) left bottom / 115.3846cqi 171.1538cqi no-repeat, var(--hors-fenetre) left bottom / 115.3846cqi 171.1538cqi no-repeat; mask-composite: intersect; }
 
 /* accueil : un bloc « Jouer », la progression, et une barre de menu en bas pour le reste */
 .home { gap: 12px; }
@@ -599,6 +729,22 @@ body:has(#app.ingame) { margin: 0; }
 .art.ph .ph-title { position: absolute; top: 34%; left: 8%; right: 8%; z-index: 1; text-align: center; color: #fff; font-family: var(--display); font-size: clamp(11px, 9cqi, 24px); line-height: 1.1; text-wrap: balance;
   text-shadow: 0 1px 3px rgb(0 0 0 / .9); }
 .art.ph .ph-title::after { content: "Illustration à venir"; display: block; margin-top: .4em; font-family: var(--body); font-size: .6em; opacity: .85; }
+/* Visuel provisoire (art.js, provHTML) : carte dont l'illustration n'est pas encore arrivée. Fond aux couleurs de la famille,
+   anneau et emblème au centre, « Illustration à venir » en haut ; disparaît de lui-même quand les images sont ajoutées. */
+.art.prov { background: radial-gradient(70% 50% at 50% 40%, color-mix(in srgb, var(--fam, var(--f-neutre)) 75%, #fff), transparent 72%),
+  repeating-conic-gradient(from 0deg at 50% 40%, rgb(255 255 255 / .05) 0 6deg, transparent 6deg 18deg),
+  linear-gradient(170deg, color-mix(in srgb, var(--fam, var(--f-neutre)) 70%, #1a1020), #0d0907 88%); }
+.prov-ring { position: absolute; left: 50%; top: 40%; width: 74%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%;
+  border: 2px solid rgb(255 255 255 / .35); box-shadow: inset 0 0 0 5px rgb(0 0 0 / .12), 0 0 18px color-mix(in srgb, var(--fam, var(--f-neutre)) 70%, transparent); }
+.prov-emb { position: absolute; left: 50%; top: 40%; width: 46%; translate: -50% -50%; color: rgb(255 255 255 / .9);
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / .5)) drop-shadow(0 0 10px color-mix(in srgb, var(--fam, var(--f-neutre)) 80%, #fff)); }
+.prov-tag { position: absolute; top: 5%; left: 0; right: 0; text-align: center; font-size: clamp(7px, 6.5cqi, 13px); font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: rgb(255 255 255 / .85); text-shadow: 0 1px 2px #000; }
+@container (max-width: 140px) { .prov-tag { display: none; } }
+/* Petites cartes (main, plateau) sans illustration : fond de la famille et emblème en filigrane. */
+.cart.prov { background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--fam, var(--f-neutre)) 70%, #fff 0%), transparent 70%),
+  linear-gradient(170deg, color-mix(in srgb, var(--fam, var(--f-neutre)) 65%, #1a1020), #0d0907); }
+.cart.prov .prov-emb { top: 38%; width: 58%; color: rgb(255 255 255 / .35); filter: none; }
 .rarchip { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #fff; background: var(--rar); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
 .chip.prism { border-color: #8a5bd6; color: var(--ink); background: color-mix(in srgb, #8a5bd6 18%, var(--surface)); }
 /* Boutique */
@@ -607,7 +753,6 @@ body:has(#app.ingame) { margin: 0; }
 .artmeta { display: grid; gap: 2px; justify-items: start; line-height: 1.2; }
 .rates { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 12px; }
 .rates li { display: flex; align-items: center; gap: 6px; font-size: 13px; }
-.row.chest { display: grid; gap: 10px; justify-items: start; }
 .rates li .num { white-space: nowrap; }
 /* Collection : choix de l'art d'une carte */
 .artopts { display: grid; gap: 6px; }
@@ -622,12 +767,17 @@ body:has(#app.ingame) { margin: 0; }
 .artthumb .art { width: 100%; border-radius: var(--r); }
 
 /* Boutique : onglets Sets et Arts */
-.shoptabs { align-self: start; }
-.shoptabs button { padding: 8px 18px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.shoptabs { align-self: start; display: flex; max-width: 100%; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; scroll-snap-type: x proximity; position: relative; }
+.shoptabs::-webkit-scrollbar { display: none; }
+.shoptabs button { flex: 0 0 auto; padding: 8px 18px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; scroll-snap-align: start; }
 .shoptabs .badge { min-width: 18px; padding: 0 5px; border-radius: 999px; background: #8a5bd6; color: #fff; font-size: 11px; line-height: 18px; }
 .shoptabs button.on .badge { background: var(--accent-ink); color: var(--accent); }
-.chestbtns { display: flex; flex-wrap: wrap; gap: 8px; }
-.convert input { width: 100%; min-width: 0; box-sizing: border-box; }
+/* Menu glissant : quand les rayons ne tiennent pas sur la largeur de l'écran, la barre défile au doigt (jamais la page) ; un
+   fondu sur le bord indique qu'il y en a d'autres. De nouveaux rayons pourront s'ajouter sans rien casser. */
+.shoptabs.more-r { mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
+.shoptabs.more-l { mask-image: linear-gradient(90deg, transparent, #000 36px); }
+.shoptabs.more-l.more-r { mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
+@media (max-width: 520px) { .shoptabs { align-self: stretch; } .shoptabs button { padding: 8px 14px; } }
 
 /* Calendrier de connexion du mois */
 .calline { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%; padding: 0; border: 0; background: none; color: inherit; text-align: left;
@@ -652,16 +802,37 @@ body:has(#app.ingame) { margin: 0; }
 .ico { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -0.2em; background: center / contain no-repeat; flex: none; }
 .ico-shard { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1 16 7 10 19 4 7Z' fill='%23e0a530' stroke='%238a5a10' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M4 7h12M10 1 8 7l2 12 2-12Z' fill='none' stroke='%238a5a10' stroke-width='.9' stroke-linejoin='round'/%3E%3Cpath d='M8 7 10 1 6 6Z' fill='%23fff3c4' opacity='.8'/%3E%3C/svg%3E"); }
 .ico-prism { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1.5 18.5 17.5H1.5Z' fill='%239b6ee8' stroke='%234a2590' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M10 1.5 13 17.5' stroke='%234a2590' stroke-width='.9'/%3E%3Cpath d='M10 1.5 13 17.5H18.5Z' fill='%236a3fc0'/%3E%3Cpath d='M9 6 5 14' stroke='%23efe4ff' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E"); }
+.ico-ecu { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='8.5' fill='%23e3b552' stroke='%239a6a1c' stroke-width='1.2'/%3E%3Cpath d='M6.5 6h7v4c0 2.6-1.8 4-3.5 4.6C8.3 14 6.5 12.6 6.5 10z' fill='%23b0282a'/%3E%3Cpath d='M10 6h3.5v4c0 2.6-1.8 4-3.5 4.6z' fill='%232a5fa8'/%3E%3C/svg%3E"); }
 .ico-chest { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M2 8a5 4 0 0 1 5-4h6a5 4 0 0 1 5 4v2H2Z' fill='%23c4934a' stroke='%235a3a10' stroke-width='1.1'/%3E%3Crect x='2' y='10' width='16' height='7' rx='1' fill='%23a87634' stroke='%235a3a10' stroke-width='1.1'/%3E%3Cpath d='M2 10h16' stroke='%23e0b860' stroke-width='1.6'/%3E%3Crect x='8.5' y='8.5' width='3' height='4' rx='.6' fill='%23f2d27a' stroke='%235a3a10' stroke-width='.8'/%3E%3C/svg%3E"); }
 .chip.cur { display: inline-flex; align-items: center; gap: 4px; }
+/* Essence universelle : étoile à quatre branches, bleu glacier et violet. */
+.ico-essence { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cdefs%3E%3CradialGradient id='g' cx='.5' cy='.45' r='.6'%3E%3Cstop offset='0' stop-color='%23ffffff'/%3E%3Cstop offset='.35' stop-color='%23a8e8ff'/%3E%3Cstop offset='1' stop-color='%235a6ee8'/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath d='M10 1C11 7 13 9 19 10 13 11 11 13 10 19 9 13 7 11 1 10 7 9 9 7 10 1Z' fill='url(%23g)' stroke='%232a2f8a' stroke-width='1.1' stroke-linejoin='round'/%3E%3Ccircle cx='15.5' cy='4.5' r='1.3' fill='%23e8d0ff'/%3E%3Ccircle cx='4.5' cy='15.5' r='1' fill='%23e8d0ff'/%3E%3C/svg%3E"); }
+.chip.cur.uni { color: #bfe6ff; }
 .calgain { display: inline-flex; align-items: center; gap: 2px; }
 .calday .ico { width: 15px; height: 15px; }
 .calday.sun .ico-chest { width: 18px; height: 18px; }
 .calday { min-width: 0; overflow: hidden; }
+/* Bienvenue des nouveaux comptes : sept cases (4 puis 3), la septième en double largeur avec le cadre de bienvenue. */
+.panel.welcome { max-width: 560px; }
+.welgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.welday { position: relative; display: grid; justify-items: center; align-content: start; gap: 4px; min-width: 0; min-height: 72px; padding: 6px 4px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface); text-align: center; }
+.welday.last { grid-column: span 2; border-color: #3aa25a; background: color-mix(in srgb, #3aa25a 16%, var(--surface)); }
+.welday.last small { font-size: 11px; color: var(--ink); font-weight: 700; }
+.welday.today { outline: 2px solid var(--accent); outline-offset: 1px; }
+.welday.got { background: color-mix(in srgb, var(--up) 14%, var(--surface)); }
+.welday .ok { position: absolute; top: 3px; right: 6px; color: var(--up); font-size: 12px; }
+.welgain { display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px; }
+.welgain .ico { width: 20px; height: 20px; }
+.welgain small { font-size: 12px; font-weight: 700; }
+.welday .frame.swatch { width: 34px; height: 34px; }
+.welbooster { display: inline-block; width: 16px; height: 22px; border-radius: 3px; border: 1.5px solid #5a3a10;
+  background: linear-gradient(160deg, #f2d27a 0 30%, #b0282a 30% 70%, #2a5fa8 70%); box-shadow: 1px 1px 0 #5a3a10; }
+.welcometile { border-color: color-mix(in srgb, #3aa25a 55%, var(--line)); }
 
 /* Passe de saison : chaque saison a ses deux couleurs (--sa, --sb), reprises par l'accueil et l'écran du passe. */
 .theme-halloween { --sa: #e8741c; --sb: #5b2a86; }
-.theme-cyber { --sa: #19c8e6; --sb: #d42bb8; }
+.theme-cyber { --sa: #19e6ff; --sb: #ff2bd6; }
 .passline { width: 100%; text-align: left; color: inherit; font: inherit; gap: 6px; border-color: color-mix(in srgb, var(--sa) 55%, var(--line));
   background: linear-gradient(120deg, color-mix(in srgb, var(--sb) 16%, var(--surface)), color-mix(in srgb, var(--sa) 14%, var(--surface))); }
 .passline b { font-family: var(--display); font-size: 20px; }
@@ -720,6 +891,12 @@ body:has(#app.ingame) { margin: 0; }
 .tbg.me::after { background: linear-gradient(0deg, color-mix(in srgb, var(--sunk) 30%, transparent), color-mix(in srgb, var(--sunk) 85%, transparent)); }
 .zone:has(> .tbg) .slot { background: color-mix(in srgb, var(--sunk) 55%, transparent); }
 .zone:has(> .tbg) .terrain.set { background: color-mix(in srgb, var(--surface) 82%, transparent); backdrop-filter: blur(2px); }
+/* Les visuels couvrent le fond et le liseré intérieur de la zone : la surbrillance (zone visée, survolée, gagnée) passe sur un calque au-dessus d'eux, sous les cartes. */
+.zone:has(> .tbg)::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; transition: box-shadow .3s; }
+.zone:has(> .tbg).won-me::after { box-shadow: inset 0 0 0 1px var(--mine); }
+.zone:has(> .tbg).won-foe::after { box-shadow: inset 0 0 0 1px var(--foe); }
+.zone:has(> .tbg).target:hover::after { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.zone:has(> .tbg).over::after { background: color-mix(in srgb, var(--accent) 22%, transparent); box-shadow: inset 0 0 0 2px var(--accent); }
 
 /* Courrier et codes cadeaux (mail.js) */
 .mailbtn { position: relative; }
@@ -742,18 +919,36 @@ body:has(#app.ingame) { margin: 0; }
 .artthemes li small { grid-column: 1; }
 .artthemes li .num { grid-row: 1 / span 2; grid-column: 2; font-family: var(--display); font-size: 18px; }
 .artthemes li.done { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
+/* Rayon Essence : solde d'essence universelle. */
+.unibal { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--r); border: 1px solid color-mix(in srgb, #7fb8ff 45%, var(--line));
+  background: radial-gradient(120% 140% at 0% 0%, rgb(120 170 255 / .22), transparent 60%), var(--surface); }
+.unibal .ico { width: 34px; height: 34px; filter: drop-shadow(0 0 6px rgb(150 200 255 / .7)); }
+.unibal b { font-family: var(--display); font-size: 28px; line-height: 1; }
 .artthemes li.done .num { color: var(--accent); }
 
 /* salon (accueil) : bandeau du joueur, vitrine du deck joué avec son général en grand, bouton Jouer, tuiles */
 .hud { gap: 8px; }
 .hud-id { min-width: 0; margin-right: auto; display: grid; gap: 3px; text-align: left; border: 0; background: none; padding: 0; color: inherit; }
 .hud-id b { font-family: var(--display); font-size: 16px; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hud-lv { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
-.hud-lv .bar { width: 56px; height: 6px; }
+.hud-lv { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; min-width: 0; }
+/* La barre d'XP rétrécit (jusqu'à disparaître) plutôt que de passer sous les monnaies sur les écrans étroits. */
+.hud-lv .bar { width: 56px; flex-shrink: 1; min-width: 0; height: 6px; }
+/* Téléphone : monnaies et boutons un peu plus serrés, pour que le pseudo tienne (« Roit… » sur 390 px). */
+@media (max-width: 480px) {
+  .hud { gap: 6px; }
+  .hud .wallet { gap: 4px; }
+  .hud .chip.cur { padding-inline: 7px; gap: 3px; }
+  .hud > .btn.icon { padding-inline: 6px; }
+}
+@media (max-width: 380px) { .hud { gap: 5px; } .hud .chip.cur { padding-inline: 6px; } .hud-id b { font-size: 14px; } }
 .showcase { position: relative; height: clamp(220px, 40dvh, 400px); border-radius: 10px; overflow: hidden; isolation: isolate;
   background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--fam, var(--accent)) 45%, #000), #000 75%); }
 .sc-art, .hero-art { position: absolute; inset: 0; }
-.hero-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; }
+/* Illustration du général (960 × 1424) qui couvre le bandeau, cadrée sur le visage (--fx, --fy : sa place dans l'image, de 0 à 1,
+   art.js) : le visage vient au tiers haut du bandeau, sans jamais laisser de bord vide. Même calage dans lobby-stage.js. */
+.hero-art { container-type: size; overflow: hidden; --iw: max(100cqw, 100cqh * 960 / 1424); --ih: calc(var(--iw) * 1424 / 960); }
+.hero-art img { position: absolute; width: var(--iw); height: var(--ih); max-width: none;
+  left: clamp(100cqw - var(--iw), 50cqw - var(--fx, .5) * var(--iw), 0px); top: clamp(100cqh - var(--ih), 40cqh - var(--fy, .25) * var(--ih), 0px); }
 .sc-init { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--famfont, var(--display)); font-size: 120px; color: rgb(255 255 255 / .25); }
 .showcase::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(transparent 45%, rgb(0 0 0 / .85)); }
 .sc-deck { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: grid; justify-items: start; gap: 1px; padding: 16px 112px 16px 16px; border: 0; background: none; color: #fff; text-align: left; }
@@ -771,7 +966,8 @@ body:has(#app.ingame) { margin: 0; }
 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .tile { min-width: 0; min-height: 96px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 12px; text-align: left; color: inherit; font: inherit;
   border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
-.tile b { font-family: var(--display); font-size: 18px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+/* Titre long (passe « Nuit des citrouilles », boss, nom du clan) : sur deux lignes au plus plutôt que coupé après quelques lettres sur téléphone. */
+.tile b { font-family: var(--display); font-size: 18px; line-height: 1.15; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; text-wrap: balance; overflow-wrap: anywhere; }
 .tile .eyebrow { font-size: 10.5px; }
 .tile-foot { margin-top: auto; font-size: 12.5px; color: var(--muted); }
 .tile .bar { width: 100%; height: 6px; }
@@ -779,3 +975,122 @@ body:has(#app.ingame) { margin: 0; }
 .tile.todo .tile-foot { color: var(--accent); font-weight: 700; }
 .lobby .card-box.booster { padding: 8px 10px 8px 14px; gap: 8px; }
 .lobby .card-box.booster h2 { font-size: 17px; }
+
+/* Classement : un joueur s'ouvre en pop-up (profil public) ; le top 10 montre son image et son cadre. */
+.ladder .lwho { display: flex; align-items: center; gap: 10px; min-width: 0; border: 0; background: none; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ladder .lwho:hover b, .ladder .lwho:focus-visible b { text-decoration: underline; }
+.ladder li.top { padding-block: 10px; }
+.avatar.lav { width: 34px; height: 34px; border-width: 2px; }
+.avatar.lav.initials { font-size: 16px; }
+.frame.lav { padding: 3px; margin: 2px; }
+/* Profil public et Mon profil : cartes les plus jouées (version réduite), général le plus joué, arts préférés (illustration seule). */
+.topcards { display: grid; gap: 12px; }
+.topgen, .topfive { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.topgenrow { display: grid; grid-template-columns: calc((100% - 24px) / 5) 1fr; gap: 10px; align-items: center; line-height: 1.3; }
+.topgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.topcard { display: grid; gap: 4px; justify-items: stretch; text-align: center; align-content: start; min-width: 0; }
+.topcard > small { overflow-wrap: anywhere; line-height: 1.2; }
+.mc.topmc { height: clamp(72px, 22vw, 104px); font: inherit; text-align: left; width: 100%; }
+.mc.topmc .p.sm { font-family: inherit; font-size: 10px; }
+.favgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-width: 420px; }
+.favart { display: block; border: 0; padding: 0; background: none; border-radius: 4px; width: 100%; }
+.favpick { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.favopt { position: relative; display: grid; gap: 4px; justify-items: stretch; align-content: start; text-align: center; font-size: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 6px; color: inherit; }
+.favopt > .art { pointer-events: none; }
+.favopt.on { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.favopt:disabled:not(.on) { opacity: .45; }
+.favopt .favn { position: absolute; top: 2px; left: 2px; z-index: 3; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 13px; }
+
+/* Événements temporaires (week-end double XP…) : pastilles de la vitrine de l'accueil, leur feuille, bandeau de l'écran classé, marque « ×2 » des gains. */
+.sc-events { position: absolute; top: 6px; left: 8px; z-index: 2; display: flex; gap: 4px; }
+.medal { position: relative; width: 54px; height: 68px; border: 0; padding: 0; background: none; cursor: pointer; filter: drop-shadow(0 3px 4px rgb(0 0 0 / .6));
+  --m-hi: #fff3c4; --m-mid: #f0b440; --m-lo: #9a5a14; --m-rib: #b8322a; --m-rib2: #e0574a; --m-ink: #3a1d04; animation: medalsway 3.2s ease-in-out infinite; transform-origin: 50% 0; }
+.medal.ev-ranked { --m-hi: #f2f8ff; --m-mid: #8ec2f5; --m-lo: #2f5f9a; --m-rib: #1f3d75; --m-rib2: #3d68b5; --m-ink: #0b2242; }
+.medal.ev-shards { --m-rib: #6a3fb0; --m-rib2: #8f62d8; }
+.medal.ev-passXp { --m-hi: #f6ecff; --m-mid: #b58ae8; --m-lo: #5a2f94; --m-rib: #2f6b3a; --m-rib2: #4f9a5c; --m-ink: #22093f; }
+.medal-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.medal .rib { fill: var(--m-rib); stroke: #000; stroke-width: 1; } .medal .rib.alt { fill: var(--m-rib2); }
+.medal .rim { fill: var(--m-lo); stroke: #000; stroke-width: 1; }
+.medal .face { fill: var(--m-mid); stroke: var(--m-hi); stroke-width: 1.5; }
+.medal .ring { fill: none; stroke: var(--m-lo); stroke-width: 1; stroke-dasharray: 2 2; opacity: .7; }
+.medal .shine { fill: var(--m-hi); opacity: .55; }
+.medal-txt { position: absolute; left: 0; right: 0; top: 30px; height: 26px; display: grid; place-content: center; justify-items: center; gap: 1px; line-height: .95; color: var(--m-ink);
+  text-shadow: 0 1px 0 rgb(255 255 255 / .45); font-family: var(--display); }
+.medal-txt b { font-size: 13.5px; font-weight: 800; }
+.medal-txt small { font-size: 8.5px; font-weight: 800; letter-spacing: .03em; }
+/* Libellé long (« XP saison ») : sur deux lignes, dans la médaille, plutôt que de déborder sur le bord dentelé. */
+.medal-txt.long { top: 29px; height: 28px; }
+.medal-txt.long small { font-size: 7.5px; letter-spacing: 0; max-width: 34px; text-align: center; text-wrap: balance; }
+@keyframes medalsway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+.evcard { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #d98b2b; border-radius: 10px;
+  background: linear-gradient(100deg, color-mix(in srgb, #d98b2b 26%, var(--surface)), var(--surface) 70%); }
+.evcard.ev-ranked { border-color: #6aa7e8; background: linear-gradient(100deg, color-mix(in srgb, #6aa7e8 24%, var(--surface)), var(--surface) 70%); }
+.evcard > div { display: grid; gap: 1px; min-width: 0; }
+.evcard b { font-family: var(--display); font-size: 17px; line-height: 1.15; }
+.evcard small { color: var(--muted); font-size: 12.5px; line-height: 1.35; }
+.evmult { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; font-family: var(--display); font-size: 21px; font-weight: 700;
+  color: #2a1606; background: radial-gradient(circle at 35% 30%, #fff0b8, #f0b04a 55%, #a5631c); box-shadow: 0 0 0 2px #000, 0 0 16px -2px #f0b04a; animation: evpulse 2.4s ease-in-out infinite; }
+.ev-ranked .evmult { background: radial-gradient(circle at 35% 30%, #e8f4ff, #7fb6f0 55%, #2f5f9a); box-shadow: 0 0 0 2px #000, 0 0 16px -2px #7fb6f0; }
+@keyframes evpulse { 50% { transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .evmult, .medal { animation: none; } }
+.evtag { display: inline-block; padding: 0 6px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #2a1606; background: #f0b04a; }
+
+/* Réglages des notifications (notifs.js) : une case par sorte, avec son explication dessous. */
+.notif-kinds { display: grid; gap: 10px; }
+.notif-kind { align-items: flex-start; }
+.notif-kind input { margin-top: 2px; flex: none; }
+.notif-kind span { display: grid; gap: 2px; }
+.notif-kind small { line-height: 1.35; }
+
+/* émotes en partie : votre portrait ouvre le sélecteur, celui de l'adversaire coupe ses émotes ; bulle à côté de celui qui parle */
+.pslot { position: relative; min-width: 0; }
+.pav.emobtn { border: 0; padding: 0; background: none; color: inherit; cursor: pointer; border-radius: 50%; }
+.pav.emobtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pav .emohint { position: absolute; left: -3px; bottom: -3px; z-index: 2; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--gold, var(--accent)); color: #1c1006; box-shadow: 0 0 0 2px var(--surface), 0 2px 4px rgb(0 0 0 / .5); }
+.pav .emohint.off { background: var(--foe, #c0392b); color: #fff; }
+.pav.emobtn.on .emohint { background: var(--ink); }
+.ebubble { display: inline-flex; align-items: center; gap: 7px; max-width: min(78vw, 300px); padding: 7px 13px 7px 9px; border-radius: 16px;
+  background: #fbf3dc; color: #2a1a0a; font-family: var(--display); font-size: 15px; line-height: 1.2; box-shadow: 0 0 0 1px #4a3214, 0 6px 16px rgb(0 0 0 / .55); }
+.ebubble .ei { font-size: 22px; line-height: 1; font-family: initial; }
+.pslot > .ebubble { position: absolute; left: 6px; z-index: 30; pointer-events: none; transform-origin: 22px 0; animation: ebub 3.2s cubic-bezier(.2, .9, .3, 1.3) both; }
+.pslot > .ebubble.foe { top: calc(100% + 9px); }
+.pslot > .ebubble.me { bottom: calc(100% + 9px); transform-origin: 22px 100%; }
+/* la pointe de la bulle montre le portrait */
+.pslot > .ebubble::after { content: ''; position: absolute; left: 16px; width: 12px; height: 12px; background: inherit; transform: rotate(45deg); box-shadow: 1px 1px 0 #4a3214; }
+.pslot > .ebubble.foe::after { top: -6px; box-shadow: -1px -1px 0 #4a3214; }
+.pslot > .ebubble.me::after { bottom: -6px; }
+@keyframes ebub { 0% { opacity: 0; transform: scale(.4); } 8% { opacity: 1; transform: scale(1.06); } 13% { transform: scale(1); } 88% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(.94); } }
+@media (prefers-reduced-motion: reduce) { .pslot > .ebubble { animation-name: ebubfade; animation-timing-function: linear; } }
+@keyframes ebubfade { 0% { opacity: 0; } 6%, 90% { opacity: 1; } 100% { opacity: 0; } }
+.emotepick { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 40; display: grid; gap: 8px; padding: 10px; border-radius: var(--r);
+  background: var(--surface); border: 1px solid var(--rim, var(--line)); box-shadow: 0 10px 30px rgb(0 0 0 / .6); animation: emopop .16s ease-out both; }
+@keyframes emopop { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .emotepick { animation: none; } }
+.emogrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.emo { position: relative; display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 6px 10px 6px 8px; text-align: left; border-radius: 12px;
+  border: 1px solid var(--line); background: color-mix(in srgb, #fbf3dc 7%, var(--surface)); color: var(--ink); font-size: 13px; line-height: 1.2; cursor: pointer; }
+.emo .ei { font-size: 20px; line-height: 1; flex: none; }
+.emo .et { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.emo:hover:not(:disabled) { border-color: var(--accent); }
+.emo:active:not(:disabled) { transform: scale(.97); }
+.emomute { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; border: 1px dashed var(--line); border-radius: 10px; background: none; color: var(--muted); font-size: 12px; cursor: pointer; }
+.emomute.on { border-style: solid; color: var(--ink); }
+/* profil : choix du sélecteur */
+.emopick { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.emopick .emo.on { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); padding-right: 30px; }
+.emopick .emo:disabled:not(.on) { opacity: .45; }
+.emopick .emo .favn { position: absolute; right: 5px; top: 50%; translate: 0 -50%; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 11px; }
+/* boutique : rayon Émotes */
+.emolist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+/* Émote à gauche, prix (ou « Possédée ») à droite, même pour une phrase longue qui passe alors sur deux lignes dans sa bulle. */
+.emoitem { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; justify-items: start; gap: 6px 8px; min-height: 52px; padding: 8px; border: 1px solid var(--line); border-radius: var(--r); background: color-mix(in srgb, #000 12%, var(--surface)); }
+.emoitem .ebubble.static { font-size: 14px; padding: 6px 11px 6px 8px; min-width: 0; }
+.emoitem .ebubble.static .ei { font-size: 20px; }
+.emoitem .ebubble.static { max-width: 100%; }
+.emoitem.owned .ebubble.static { opacity: .92; }
+.emoitem small.hint { grid-column: 1 / -1; padding-left: 4px; font-size: 12px; }
+.emolist.free { display: flex; flex-wrap: wrap; gap: 8px; }
+.emolist.free .ebubble.static { font-size: 13px; padding: 5px 10px 5px 7px; box-shadow: 0 0 0 1px #4a3214; }
+.emolist.free .ebubble.static .ei { font-size: 17px; }
+.emoitem .btn { flex: none; display: inline-flex; align-items: center; gap: 4px; }

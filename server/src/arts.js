@@ -1,8 +1,13 @@
 // Arts alternatifs : offres du jour propres à chaque joueur, coffre, choix de l'art de chaque carte, dons depuis /admin (Promo).
 // Payés en Prismes, la monnaie rare des arts, ou avec un coffre offert (pay est fourni par accounts.js).
-// Compte : arts = { idArt: { at, gift? } }, artSel = { idCarte: idArt }, artShop = offres du jour.
-import { ARTS, artExists, isClassic, artPrice, artOffers, chestPool, chestRates, weightedPick, rarityName } from '@jeu/engine/arts';
+// Compte : arts = { idArt: { at, gift? } }, artSel = { idCarte: idArt }, artShop = offres du jour,
+// holoOff = { idCarte: true } pour les cartes dont le joueur a coupé le reflet holographique,
+// popOff = { idCarte: true } pour celles dont il a coupé le débordement du personnage.
+import { CARDS, GENERALS } from '@jeu/engine';
+import { ARTS, artExists, isClassic, artPrice, artOffers, chestPool, chestRates, weightedPick, rarityName, isEssenceArt, essenceArts, essenceArtPrice } from '@jeu/engine/arts';
 import { today } from '@jeu/engine/collection';
+import { CLAN_SHOP } from '@jeu/engine/clans';
+import { BOSS_SHOP } from '@jeu/engine/boss';
 import { HttpError } from './accounts.js';
 
 export function createArts(store, cfg) {
@@ -32,10 +37,23 @@ export function createArts(store, cfg) {
     if (!art || !artExists(id)) throw new HttpError(400, 'Art inconnu.');
     if (owns(a, id)) throw new HttpError(409, 'Vous avez déjà cet art.');
     if (art.edition === 'promo') throw new HttpError(409, 'Cet art ne se vend pas : il s\'obtient en récompense.');
+    if (isEssenceArt(art)) throw new HttpError(409, 'Cet art se vend au rayon Essence, contre de l\'essence universelle.');
+    if (art.edition === 'clan') throw new HttpError(409, 'Cet art se vend au magasin de clan, contre des Écus.');
+    if (art.edition === 'boss') throw new HttpError(409, 'Cet art se vend au magasin du boss mondial, contre des Insignes.');
     const d = day(a);
     if (!isClassic(art) || !d.offers.includes(id)) throw new HttpError(400, 'Cet art n\'est plus en vente aujourd\'hui.');
     pay(a, artPrice(art, cfg()));
     d.bought.push(id); give(a, id);
+    return art;
+  }
+  // Rayon Essence : les arts de l'édition Essence, toujours tous en vente, payés en essence universelle (pay fourni par accounts.js).
+  const essenceView = a => essenceArts().map(art => ({ id: art.id, price: essenceArtPrice(art, cfg()), owned: owns(a, art.id) }));
+  function buyEssence(a, { art: id }, pay) {
+    const art = ARTS[id];
+    if (!art || !artExists(id) || !isEssenceArt(art)) throw new HttpError(400, 'Cet art ne se vend pas au rayon Essence.');
+    if (owns(a, id)) throw new HttpError(409, 'Vous avez déjà cet art.');
+    pay(a, essenceArtPrice(art, cfg()));
+    give(a, id);
     return art;
   }
   // Coffre : un art que le joueur n'a pas encore, au hasard selon sa rareté.
@@ -55,12 +73,22 @@ export function createArts(store, cfg) {
     if (!owns(a, id)) throw new HttpError(409, 'Vous n\'avez pas cet art.');
     a.artSel = { ...(a.artSel || {}), [card]: id };
   }
+  // Reflet holographique (arts alternatifs, cartes Or et Astral) : allumé par défaut, le joueur peut le couper carte par carte.
+  const holo = (a, body) => toggle(a, 'holoOff', body);
+  // Débordement du personnage (niveau Or et plus) : allumé par défaut, le joueur peut le couper carte par carte.
+  const pop = (a, body) => toggle(a, 'popOff', body);
+  function toggle(a, field, { card, on }) {
+    if (!CARDS[card] && !GENERALS[card]) throw new HttpError(400, 'Carte inconnue.');
+    const off = { ...(a[field] || {}) };
+    if (on) delete off[card]; else off[card] = true;
+    a[field] = off;
+  }
 
   // ---- Administration ----
   // Catalogue avec le nombre de joueurs qui ont chaque art, pour l'onglet Boutique.
   function adminList() {
     const all = store.all();
-    return Object.values(ARTS).map(art => ({ ...art, exists: artExists(art.id), rarityName: rarityName(art), price: art.edition === 'promo' ? null : artPrice(art, cfg()),
+    return Object.values(ARTS).map(art => ({ ...art, exists: artExists(art.id), rarityName: rarityName(art), price: art.edition === 'promo' ? null : art.edition === 'clan' ? CLAN_SHOP.find(x => x.id === `art:${art.id}`)?.price ?? null : art.edition === 'boss' ? BOSS_SHOP.find(x => x.id === `art:${art.id}`)?.price ?? null : isEssenceArt(art) ? essenceArtPrice(art, cfg()) : artPrice(art, cfg()),
       owners: all.filter(x => owns(x, art.id)).length }));
   }
   // Donner (Promo, geste commercial) ou retirer un art.
@@ -71,5 +99,5 @@ export function createArts(store, cfg) {
     for (const [card, sel] of Object.entries(a.artSel || {})) if (sel === id) delete a.artSel[card];
   }
 
-  return { view, buy, chest, select, adminList, adminGive };
+  return { view, buy, essenceView, buyEssence, chest, select, holo, pop, adminList, adminGive };
 }

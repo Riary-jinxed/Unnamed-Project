@@ -6,6 +6,9 @@
 import { CARDS, GENERALS } from './engine.js';
 import { today } from './collection.js';
 
+// Arts préférés qu'un joueur montre sur son profil public (Profil, Personnalisation).
+export const MAX_FAV_ARTS = 3;
+
 // Raretés. price : prix par défaut en Prismes (réglable dans /admin) ; weight : chance relative de sortir
 // dans les offres du jour et dans le coffre. D'autres raretés pourront s'ajouter ici.
 export const ART_RARITIES = {
@@ -15,10 +18,15 @@ export const ART_RARITIES = {
 };
 export const RARITY_IDS = Object.keys(ART_RARITIES);
 // Édition Promo : jamais en vente ; donnée par un code, un événement, un succès (aujourd'hui, depuis /admin). Garde sa rareté.
+// Édition Essence : vendue seulement au rayon Essence de la boutique, contre de l'essence universelle (jamais au coffre ni en arts du jour).
+// Édition Clan : vendue seulement au magasin de clan, contre des Écus (clans.js, CLAN_SHOP).
+// Édition Boss : vendue seulement au magasin du boss mondial, contre des Insignes (boss.js, BOSS_SHOP).
 export function rarityName(art) {
   const name = ART_RARITIES[art.rarity]?.name || art.rarity;
-  return art.edition === 'promo' ? `Promo ${name.toLowerCase()}` : name;
+  return art.edition === 'promo' ? `Promo ${name.toLowerCase()}` : art.edition === 'essence' ? `Essence ${name.toLowerCase()}` : art.edition === 'clan' ? `Clan ${name.toLowerCase()}` : art.edition === 'boss' ? `Boss ${name.toLowerCase()}` : name;
 }
+// Prix par défaut des arts de l'édition Essence, en essence universelle, selon la rareté (réglables dans /admin : essArtPrice_<rareté>).
+export const ESSENCE_ART_PRICES = { rare: 150, epique: 300, legendaire: 600 };
 // Classe CSS de la rareté (style.css, « .rar-… »).
 export const rarityKey = art => art.rarity;
 
@@ -30,6 +38,10 @@ export const ART_THEMES = {
   eclipse: { name: 'Éclipse', style: 'ciel sombre, soleil noir, contre-jour', title: 'Enfant de l\'éclipse' },
   tresors: { name: 'Trésors', style: 'or, joyaux et lumière chaude', title: 'Chasseur de trésors' },
   taverne: { name: 'La taverne', style: 'scène de fête, lumière de taverne', title: 'Roi de la fête' },
+  astral: { name: 'Astrale', style: 'constellations, nébuleuses et poussière d\'étoiles, bleu nuit et or', title: 'Tisseur d\'étoiles' },
+  bannieres: { name: 'Bannières', style: 'héraldique, étendards et blasons de clan, rouge, bleu et or', title: 'Seigneur des bannières' },
+  chasse: { name: 'Chasse aux boss', style: 'trophées de chasse, crocs, braises et givre, lumière de forge', title: 'Tueur de boss' },
+  chroniques: { name: 'Chroniques', style: 'enluminure de manuscrit, parchemin, encre et feuille d\'or', title: 'Enlumineur' },
 };
 export const THEME_IDS = Object.keys(ART_THEMES);
 
@@ -40,11 +52,9 @@ export const ARTS = Object.fromEntries([
   // Anges
   A('seraphine_zenith', 'seraphine', 'Séraphine au zénith', 'rare', { theme: 'saisons' }),
   A('aurelia_vitrail', 'aurelia', 'Aurélia, vitrail du Serment', 'epique', { theme: 'vitraux' }),
-  A('cherubin_nuage', 'cherubin', 'Chérubin des nuées', 'rare'),
   A('archange_jugement', 'archange', 'Archange du Jugement dernier', 'legendaire', { theme: 'eclipse' }),
   A('archange_vitrail', 'archange', 'Archange de verre', 'epique', { theme: 'vitraux' }),
   // Démons
-  A('morgrath_braises', 'morgrath', 'Morgrath dans les braises', 'rare'),
   A('vorgoth_cercle', 'vorgoth', 'Vorgoth et le cercle pourpre', 'epique', { theme: 'eclipse' }),
   A('diablotin_farceur', 'diablotin', 'Diablotin farceur', 'rare', { theme: 'taverne' }),
   A('archidemon_couronne', 'archidemon', 'Archidémon couronné', 'epique'),
@@ -55,7 +65,6 @@ export const ARTS = Object.fromEntries([
   A('grand_chef_totem', 'grand_chef', 'Grand-chef du totem', 'epique'),
   // Elfes
   A('sylvaen_automne', 'sylvaen', 'Sylvaën d\'automne', 'rare', { theme: 'saisons' }),
-  A('lirael_tempete', 'lirael', 'Lirael dans la tempête', 'epique'),
   A('rodeuse_eclipse', 'rodeuse', 'Rôdeuse de l\'éclipse', 'rare', { theme: 'eclipse' }),
   A('lirael_vitrail', 'lirael', 'Lirael en vitrail', 'rare', { theme: 'vitraux' }),
   A('feu_follet_lanterne', 'feu_follet', 'Feu follet des lanternes', 'rare'),
@@ -67,17 +76,49 @@ export const ARTS = Object.fromEntries([
   A('dragonnet_tresor', 'dragonnet', 'Dragonnet sur le trésor', 'rare', { theme: 'tresors' }),
   A('dragon_or_soleil', 'dragon_or', 'Dragon d\'or, soleil levant', 'legendaire', { theme: 'tresors' }),
   // Neutres
-  A('golem_mousse', 'golem', 'Golem moussu', 'rare'),
   A('barde_taverne', 'barde', 'Barde de la taverne', 'rare', { theme: 'taverne' }),
   A('wyrm_or', 'wyrm_tresor', 'Wyrm sur la montagne d\'or', 'epique', { theme: 'tresors' }),
-  // Promo
-  A('seraphine_pionniere', 'seraphine', 'Séraphine des pionniers', 'rare', { edition: 'promo', how: 'Offert aux premiers joueurs.' }),
+  // Édition Essence (famille Astrale) : seulement au rayon Essence de la boutique, contre de l'essence universelle.
+  A('seraphin_constellation', 'seraphin', 'Séraphin des constellations', 'rare', { edition: 'essence', theme: 'astral' }),
+  A('eclaireur_etoiles', 'eclaireur', 'Éclaireur, voleur d\'étoiles', 'rare', { edition: 'essence', theme: 'astral' }),
+  A('cerf_voie_lactee', 'cerf', 'Chevaucheur de la Voie lactée', 'rare', { edition: 'essence', theme: 'astral' }),
+  A('wyverne_comete', 'wyverne', 'Wyverne, la comète', 'epique', { edition: 'essence', theme: 'astral' }),
+  A('vorgoth_nebuleuse', 'vorgoth', 'Vorgoth de la nébuleuse', 'epique', { edition: 'essence', theme: 'astral' }),
+  A('archidemon_trou_noir', 'archidemon', 'Archidémon du trou noir', 'legendaire', { edition: 'essence', theme: 'astral' }),
+  // Édition Clan (famille Bannières) : seulement au magasin de clan, contre des Écus (clans.js).
+  A('porte_etendard_clan', 'porte_etendard', 'Porte-étendard du clan', 'rare', { edition: 'clan', theme: 'bannieres' }),
+  A('heraut_clan', 'heraut', 'Héraut des bannières', 'rare', { edition: 'clan', theme: 'bannieres' }),
+  A('mercenaire_clan', 'mercenaire', 'Mercenaire sous serment', 'epique', { edition: 'clan', theme: 'bannieres' }),
+  A('seigneur_guerre_clan', 'seigneur_guerre', 'Seigneur de guerre, la grande bannière', 'epique', { edition: 'clan', theme: 'bannieres' }),
+  A('cartographe_clan', 'cartographe', 'Cartographe des conquêtes', 'legendaire', { edition: 'clan', theme: 'bannieres' }),
+  // Édition Boss (famille Chasse aux boss) : seulement au magasin du boss mondial, contre des Insignes (boss.js).
+  A('chevalier_boss', 'chevalier', 'Chevalier, tueur de boss', 'rare', { edition: 'boss', theme: 'chasse' }),
+  A('vaelthar_trophee', 'vaelthar', 'Vael\'Thar, trophée du glacier', 'epique', { edition: 'boss', theme: 'chasse' }),
+  A('vorgoth_trophee', 'vorgoth', 'Vorgoth, trophée du cercle', 'epique', { edition: 'boss', theme: 'chasse' }),
+  A('ignaroth_trophee', 'ignaroth', 'Ignaroth, trophée de l\'éclipse', 'legendaire', { edition: 'boss', theme: 'chasse' }),
   // Promo des passes de saison (pass.js) : season = mois de la saison ; cachés dans l'appli avant le début de leur saison.
   A('morgrath_citrouilles', 'morgrath', 'Morgrath, nuit des citrouilles', 'epique', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : palier 18.' }),
   A('grisk_farce', 'grisk', 'Grisk, farce ou friandise', 'legendaire', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : palier 38.' }),
   A('lirael_neon', 'lirael', 'Lirael sous les néons', 'epique', { edition: 'promo', season: '2026-11', how: 'Passe de saison Néon 2099 : palier 18.' }),
   A('vaelthar_chrome', 'vaelthar', 'Vael\'Thar chromé', 'legendaire', { edition: 'promo', season: '2026-11', how: 'Passe de saison Néon 2099 : palier 38.' }),
+  // Promo des quêtes d'histoire (story.js) : le dernier chapitre de chaque quête. Les campagnes forment la famille Chroniques ;
+  // les quêtes à durée limitée restent hors famille, pour qu'une quête manquée n'empêche jamais de compléter une famille.
+  A('grisk_razzia', 'grisk', 'Grisk, la Grande Razzia', 'epique', { edition: 'promo', theme: 'chroniques', how: 'Quête d\'histoire La Grande Razzia : dernier chapitre.' }),
+  A('sylvaen_racines', 'sylvaen', 'Sylvaën, le chant des racines', 'epique', { edition: 'promo', theme: 'chroniques', how: 'Quête d\'histoire Le Chant des Racines : dernier chapitre.' }),
+  A('morgrath_pacte', 'morgrath', 'Morgrath, le pacte des Fosses', 'epique', { edition: 'promo', theme: 'chroniques', how: 'Quête d\'histoire Le Pacte des Fosses : dernier chapitre.' }),
+  A('citrouille_lanterne', 'citrouille', 'Lanterne, la citrouille de Grisk', 'epique', { edition: 'promo', season: '2026-10', how: 'Quête La Nuit des citrouilles (octobre 2026) : dernier chapitre.' }),
+  A('seraphine_eclipse', 'seraphine', 'Séraphine, l\'aube noire', 'legendaire', { edition: 'promo', season: '2026-10', how: 'Quête L\'Éclipse noire (octobre et novembre 2026) : dernier chapitre.' }),
+  A('kaia_signal', 'kaia', 'Kaïa, signal perdu', 'legendaire', { edition: 'promo', season: '2026-11', how: 'Quête Signal perdu (novembre 2026) : dernier chapitre.' }),
 ]);
+
+// Arts retirés du jeu : les joueurs qui en avaient un le perdent et reçoivent ces Prismes (accounts.js, au démarrage du serveur).
+export const RETIRED_ARTS = {
+  cherubin_nuage: { name: 'Chérubin des nuées', prisms: 60 },
+  morgrath_braises: { name: 'Morgrath dans les braises', prisms: 60 },
+  lirael_tempete: { name: 'Lirael dans la tempête', prisms: 60 },
+  golem_mousse: { name: 'Golem moussu', prisms: 60 },
+  seraphine_pionniere: { name: 'Séraphine des pionniers', prisms: 60 },
+};
 
 // Les arts dont la carte existe (le catalogue publié depuis /admin peut en avoir retiré).
 export const artExists = id => { const a = ARTS[id]; return !!a && !!(CARDS[a.card] || GENERALS[a.card]); };
@@ -90,6 +131,10 @@ export const artsOf = card => Object.values(ARTS).filter(a => a.card === card &&
 export const isClassic = a => !a.edition && !!ART_RARITIES[a.rarity];
 // Prix d'un art en Prismes, avec les réglages de la boutique (artPrice_<rareté>).
 export const artPrice = (a, cfg = {}) => cfg[`artPrice_${a.rarity}`] ?? ART_RARITIES[a.rarity]?.price ?? 0;
+// Arts de l'édition Essence et leur prix en essence universelle (essArtPrice_<rareté>).
+export const isEssenceArt = a => a?.edition === 'essence';
+export const essenceArts = () => Object.values(ARTS).filter(a => isEssenceArt(a) && artExists(a.id) && artVisible(a));
+export const essenceArtPrice = (a, cfg = {}) => cfg[`essArtPrice_${a.rarity}`] ?? ESSENCE_ART_PRICES[a.rarity] ?? 0;
 
 // Tirage pondéré par la rareté. bonus(art) multiplie la chance (offres : les arts des cartes possédées d'abord).
 export function weightedPick(arts, rand = Math.random, bonus = () => 1) {

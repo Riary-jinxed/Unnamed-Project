@@ -23,14 +23,14 @@ export function setMusicVolume(v) {
 // Morceaux voulus pour l'écran affiché, par ordre de préférence (appelé à chaque affichage).
 export function setMusic(list) { wanted = list; sync(); }
 
-// Au premier geste du joueur (après unlockAudio) : deux lecteurs, pour passer d'un morceau à l'autre en fondu.
+// Dès que le son est permis (au chargement si possible, sinon au premier geste, après unlockAudio) : deux lecteurs, pour passer d'un morceau à l'autre en fondu.
 export function wakeMusic() {
   const ctx = audioContext();
   if (!ctx) return;
   if (!bus) {
     bus = ctx.createGain(); bus.gain.value = level(); bus.connect(ctx.destination);
     decks = [0, 1].map(() => {
-      const el = new Audio(), gain = ctx.createGain(), d = { el, gain, name: null, token: 0 };
+      const el = new Audio(), gain = ctx.createGain(), d = { el, gain, name: null, token: 0, ok: false };
       el.loop = true; el.preload = 'auto'; gain.gain.value = 0;
       ctx.createMediaElementSource(el).connect(gain); gain.connect(bus);
       el.addEventListener('error', () => {
@@ -38,13 +38,18 @@ export function wakeMusic() {
         missing.add(d.name); d.name = null;
         if (cur === d) { cur = null; sync(); }
       });
-      el.src = SILENCE; el.play().then(() => { if (!d.name) el.pause(); }).catch(() => {});
+      el.src = SILENCE;
       return d;
     });
     document.addEventListener('visibilitychange', sync);
     ctx.addEventListener('statechange', sync);
   }
   sync();
+  // Tant qu'un lecteur n'a jamais pu jouer (geste pas encore reconnu par le navigateur), on réessaie à chaque geste.
+  decks.forEach(d => {
+    if (d.ok || (d.name && d !== cur)) return;
+    d.el.play().then(() => { d.ok = true; if (!d.name) d.el.pause(); }).catch(() => {});
+  });
 }
 
 function fade(d, to) {
@@ -67,6 +72,6 @@ function sync() {
   // Le morceau qu'on vient de quitter revient en fondu là où il en était ; sinon, l'autre lecteur le charge.
   let d = decks.find(x => x.name === name);
   if (!d) { d = decks.find(x => x !== old && !x.name) || decks.find(x => x !== old); d.name = name; d.el.src = `/music/${name}.mp3`; }
-  d.el.play().catch(() => {});
+  d.el.play().then(() => { d.ok = true; }).catch(() => {});
   fade(d, 1); cur = d;
 }

@@ -19,6 +19,8 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `@jeu/engine/catalog` | `catalog.js` | Catalogue modifiable depuis `/admin` (retouches, nouvelles cartes, sets). |
 | `@jeu/engine/rewards` | `rewards.js` | Niveaux, missions, succès, récompenses de complétion, titres, cadres, dos. |
 | `@jeu/engine/arts` | `arts.js` | Arts alternatifs : catalogue, raretés, arts Promo, offres du jour, coffre, prix en Prismes. |
+| `@jeu/engine/events` | `events.js` | Événements temporaires : bonus (XP, points de classé, Éclats, XP de saison), périodes (week-end, dernier week-end, dernière semaine du mois, dates), multiplicateur du jour. |
+| `@jeu/engine/emotes` | `emotes.js` | Émotes en partie : catalogue (offertes, boutique, succès), taille du sélecteur, limites d'envoi, réponses de l'IA. |
 | `@jeu/engine/pass` | `pass.js` | Passe de saison : saisons (cartes, cosmétiques, missions, arts Promo), paliers gratuits et premium, missions du jour et de la semaine. |
 
 ## Carte des fichiers
@@ -48,6 +50,10 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `client/src/common.js` | 10 | Couleur de famille et échappement HTML, partagés par l'appli et `/admin`. |
 | `client/src/sfx.js` | ~70 | Bruitages synthétisés (Web Audio). |
 | `client/src/opening.js` | ~200 | Ouverture d'un booster (paquet à déchirer, cartes retournées une à une) et d'un coffre d'arts (coffre à frapper), avec `opening.css`. |
+| `client/src/opening-stage.js` | ~210 | Effets PixiJS de ces ouvertures (étincelles, rayons, lumière), seulement avec WebGL. |
+| `client/src/end-stage.js` | ~300 | Écran de fin de partie sur PixiJS : récompenses qui défilent, barre de niveau, étoiles du classé, seulement avec WebGL. |
+| `client/src/shop.js` | ~65 | Étal de la boutique (boosters, coffre), vitrines des sélections du jour, chargement de leurs décors PixiJS. |
+| `client/src/shop-stage.js` | ~290 | Décors PixiJS de la boutique : étal (auvent, lanternes, rayons) et vitrines (velours, projecteurs), poussière, éclats au toucher. |
 | `client/src/admin*.js` | ~720 | Page `/admin` : comptes, boutique, stats, cartes et sets, récompenses. |
 | `client/src/style.css` | | Styles de l'appli et de `/admin` (thème clair et sombre). |
 | `client/public/` | | Icône, manifeste PWA, service worker. |

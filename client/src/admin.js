@@ -10,7 +10,11 @@ import { esc, famStyle } from './common.js';
 import { cardsTab } from './admin-cards.js';
 import { rewardsTab } from './admin-rewards.js';
 import { mailTab } from './admin-mail.js';
+import { eventsTab } from './admin-events.js';
+import { bossTab } from './admin-boss.js';
+import { storyTab } from './admin-story.js';
 import { ARTS, ART_RARITIES, RARITY_IDS, rarityName } from '@jeu/engine/arts';
+import { SEASON_THEMES } from '@jeu/engine/pass';
 
 const app = document.getElementById('app');
 const KEY = 'jeu-admin-key';
@@ -28,9 +32,9 @@ async function adminCall(method, path, body) {
   return data;
 }
 const say = (msg, err = '') => { st.msg = msg; st.err = err; };
-const TABS = { accounts: 'Comptes', stats: 'Stats', cards: 'Cartes', sets: 'Sets', shop: 'Boutique', rewards: 'Récompenses', mail: 'Courrier' };
+const TABS = { accounts: 'Comptes', stats: 'Stats', cards: 'Cartes', sets: 'Sets', shop: 'Boutique', rewards: 'Récompenses', events: 'Événements', boss: 'Boss', story: 'Quêtes', mail: 'Courrier' };
 const tabCtx = { call: adminCall, render: () => render(), say, esc: s => esc(s), notice: () => notice() };
-const stats = statsTab(tabCtx), rewards = rewardsTab(tabCtx), mail = mailTab(tabCtx);
+const stats = statsTab(tabCtx), rewards = rewardsTab(tabCtx), mail = mailTab(tabCtx), events = eventsTab(tabCtx), boss = bossTab(tabCtx), story = storyTab(tabCtx);
 // Après une publication, la liste des comptes et les collections tiennent compte des nouvelles cartes.
 const cards = cardsTab({ ...tabCtx, onPublished: () => refresh() });
 async function refresh() {
@@ -116,6 +120,7 @@ function renderDetail() {
       <div class="field"><label class="eyebrow" for="p-name">Pseudo</label><input id="p-name" maxlength="20" value="${esc(a.name)}"></div>
       <div class="field"><label class="eyebrow" for="p-shards">Éclats</label><input id="p-shards" type="number" min="0" step="1" value="${a.shards}"></div>
       <div class="field"><label class="eyebrow" for="p-prisms">Prismes</label><input id="p-prisms" type="number" min="0" step="1" value="${a.prisms}"><small class="hint">Monnaie des arts alternatifs.</small></div>
+      <div class="field"><label class="eyebrow" for="p-uni">Essence universelle</label><input id="p-uni" type="number" min="0" step="1" value="${a.uniEssence || 0}"><small class="hint">Doublons des cartes au niveau maximum ; se dépense au rayon Essence.</small></div>
       <div class="field"><label class="eyebrow" for="p-level">Niveau</label><input id="p-level" type="number" min="1" step="1" value="${a.level}">
         <small class="hint">${a.xp} XP dans ce niveau. Changer le niveau ne donne pas les récompenses des niveaux sautés.</small></div>
       <div class="field"><label class="eyebrow" for="p-free">Boosters offerts à ouvrir</label><input id="p-free" type="number" min="0" step="1" value="${a.freeBoosters}"></div>
@@ -143,6 +148,14 @@ function renderDetail() {
       ${changed ? '<button class="btn" data-act="cards-undo">Annuler les changements</button>' : ''}</div>
   </div>
   ${artsBlock(a)}
+  ${themesBlock(a)}
+  <div class="card-box">
+    <h3>Bienvenue des 7 jours</h3>
+    <p class="hint" style="margin:0">${a.welcome ? `${a.welcome.got} cadeau${a.welcome.got > 1 ? 'x' : ''} sur ${a.welcome.steps} récupéré${a.welcome.got > 1 ? 's' : ''} · ${a.welcome.done ? 'terminée' : a.welcome.expired ? `délai passé le ${esc(a.welcome.last)}` : `jusqu'au ${esc(a.welcome.last)}${a.welcome.claimed ? ' · pris aujourd\'hui' : ''}`}`
+      : 'Ce compte a été créé avant la bienvenue des 7 jours : il n\'y a pas droit.'}</p>
+    <div class="row"><button class="btn" data-act="welcome" ${dis()}>${a.welcome ? 'Relancer la bienvenue depuis aujourd\'hui' : 'Offrir la bienvenue'}</button></div>
+    <p class="hint" style="margin:0">Le délai repart d'aujourd'hui et les sept cadeaux redeviennent à prendre (le cadre et le titre déjà gagnés restent).</p>
+  </div>
   <form class="card-box" id="pass">
     <h3>Accès</h3>
     <div class="field"><label class="eyebrow" for="p-pass">Nouveau mot de passe</label><input id="p-pass" minlength="4" required autocomplete="new-password"></div>
@@ -176,15 +189,27 @@ function artsBlock(a) {
     <p class="hint" style="margin:0">Les arts Promo ne sont jamais en vente : ils se donnent d'ici.</p>
   </div>`;
 }
+// Thèmes de saison du joueur : en donner un pour tester avant sa saison, ou le retirer.
+function themesBlock(a) {
+  const mine = (a.themes || []).filter(id => SEASON_THEMES[id]), other = Object.keys(SEASON_THEMES).filter(id => !mine.includes(id));
+  return `<div class="card-box">
+    <div class="row"><h3 style="margin-right:auto">Thèmes de saison</h3><small class="hint">${mine.length}/${Object.keys(SEASON_THEMES).length}</small></div>
+    ${mine.length ? `<div class="chips">${mine.map(id => `<span class="pick on">${esc(SEASON_THEMES[id])}
+      <button class="btn sm" type="button" data-theme-take="${id}" ${dis()}>Retirer</button></span>`).join('')}</div>` : '<p class="hint" style="margin:0">Aucun thème pour l\'instant.</p>'}
+    ${other.length ? `<div class="row"><select id="give-theme" aria-label="Thème à donner">${other.map(id => `<option value="${id}">${esc(SEASON_THEMES[id])}</option>`).join('')}</select>
+      <button class="btn" data-act="give-theme" ${dis()}>Donner ce thème</button></div>` : ''}
+    <p class="hint" style="margin:0">Le joueur le choisit ensuite dans Personnalisation, même avant le début de sa saison.</p>
+  </div>`;
+}
 // Catalogue des arts alternatifs : rareté, prix, nombre de joueurs qui l'ont.
 function artsCatalog() {
   if (!st.arts) return '<p class="wait">Chargement des arts…</p>';
   const rows = st.arts.map(x => `<tr><td><b>${esc(x.name)}</b>${x.exists ? '' : ' <span class="chip off">carte absente</span>'}<br><small class="hint">${esc(x.id)}</small></td><td>${esc(CARDS[x.card]?.name || GENERALS[x.card]?.name || x.card)}</td>
     <td>${esc(x.rarityName)}${x.edition === 'promo' && x.how ? `<br><small class="hint">${esc(x.how)}</small>` : ''}</td>
-    <td class="num">${x.price === null ? '—' : x.price}</td><td class="num">${x.owners}</td></tr>`).join('');
+    <td class="num">${x.price === null ? '—' : x.edition === 'essence' ? `${x.price} essence` : x.edition === 'clan' ? `${x.price} Écus` : x.price}</td><td class="num">${x.owners}</td></tr>`).join('');
   return `<div class="card-box" style="overflow-x:auto"><h2 style="font-size:20px">Catalogue des arts</h2>
     <p class="hint" style="margin:0">Les arts se déclarent dans <code>packages/engine/src/arts.js</code> et leurs images dans <code>client/src/art/alt/&lt;id&gt;/</code> ; sans image, l'appli montre un art provisoire.</p>
-    <table class="admin"><thead><tr><th>Art</th><th>Carte</th><th>Rareté</th><th>Prix (Prismes)</th><th>Joueurs</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    <table class="admin"><thead><tr><th>Art</th><th>Carte</th><th>Rareté</th><th>Prix (Prismes, ou essence universelle pour l'édition Essence)</th><th>Joueurs</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function renderShopSettings() {
   const s = st.settings, d = st.defaults;
@@ -208,6 +233,17 @@ function renderShopSettings() {
     <div class="row"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="renew">Renouveler les offres de tous maintenant</button></div>
     <p class="hint" style="margin:0">Renouveler tire de nouvelles cartes du jour et de nouveaux arts du jour pour tous les joueurs ; ils peuvent alors en acheter de nouveau aujourd'hui.</p>
   </form>
+  <form class="card-box" id="dup-settings">
+    <h2 style="font-size:20px">Doublons du jour et rayon Essence</h2>
+    <p class="hint" style="margin:0">Doublons du jour (onglet Sets de la boutique) : des cartes que le joueur possède et à qui il manque encore de l'essence, celles de ses decks d'abord, renouvelées à minuit. Un doublon acheté donne l'essence d'un doublon (onglet Récompenses), sans les Éclats d'un doublon tiré.
+      Rayon Essence : les arts de l'édition Essence, toujours en vente, payés en essence universelle (les doublons d'une carte qui a déjà toute l'essence de ses niveaux ; taux d'échange dans l'onglet Récompenses).</p>
+    <div class="grid2">
+      ${field('dupOffers', 'Doublons du jour', 'Entre 0 et 10. 0 les retire de la boutique.')}
+      ${field('dupPrice', 'Prix d\'un doublon du jour', 'En Éclats.')}
+      ${RARITY_IDS.map(r => field(`essArtPrice_${r}`, `Art ${ART_RARITIES[r].name.toLowerCase()} de l'édition Essence`, 'En essence universelle.')).join('')}
+    </div>
+    <div class="row"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="dup-defaults">Revenir aux valeurs par défaut</button></div>
+  </form>
   <form class="card-box" id="art-settings">
     <h2 style="font-size:20px">Arts alternatifs</h2>
     <p class="hint" style="margin:0">Payés en Prismes, la monnaie rare gagnée en fin de saison classée, avec les succès et le calendrier du mois (onglet Récompenses). Les coffres offerts (succès rares, dimanches du calendrier) s'ouvrent sans Prismes. Chaque joueur a ses arts du jour, tirés selon leur rareté parmi ceux qu'il n'a pas (ceux de ses cartes trois fois plus souvent). Le coffre donne un art qu'il n'a pas, avec les mêmes chances.</p>
@@ -215,7 +251,7 @@ function renderShopSettings() {
       ${field('artOffers', 'Arts du jour', 'Entre 0 et 12.')}
       ${field('chestPrice', 'Prix du coffre', 'En Prismes.')}
       ${RARITY_IDS.map(r => field(`artPrice_${r}`, `Prix d'un art ${ART_RARITIES[r].name.toLowerCase()}`, 'En Prismes.')).join('')}
-      ${field('prismShards', 'Éclats par Prisme changé', 'Change à sens unique, des Prismes vers les Éclats. 0 ferme le change.')}
+      ${field('prismShards', 'Éclats par Prisme changé', 'Base des offres fixes du change (10, 30, 60 et 120 Prismes, avec 0, 10, 20 et 30 % de bonus). Change à sens unique. 0 le ferme.')}
     </div>
     <div class="row"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="art-defaults">Revenir aux valeurs par défaut</button></div>
   </form>
@@ -230,7 +266,7 @@ function render() {
       <div class="field"><label class="eyebrow" for="key">Clé d'administration (ADMIN_KEY)</label><input id="key" type="password" value="${esc(st.key)}" required></div>
       ${st.err ? `<p class="err" style="margin:0">${esc(st.err)}</p>` : ''}
       <div class="row"><button class="btn primary" type="submit">Ouvrir</button></div></form>`
-    : st.tab === 'shop' ? renderShopSettings() : st.tab === 'rewards' ? rewards.render() : st.tab === 'mail' ? mail.render() : st.tab === 'stats' ? stats.render() : st.tab === 'cards' ? cards.renderCards()
+    : st.tab === 'shop' ? renderShopSettings() : st.tab === 'rewards' ? rewards.render() : st.tab === 'events' ? events.render() : st.tab === 'boss' ? boss.render() : st.tab === 'story' ? story.render() : st.tab === 'mail' ? mail.render() : st.tab === 'stats' ? stats.render() : st.tab === 'cards' ? cards.renderCards()
     : st.tab === 'sets' ? cards.renderSets() : st.sel && st.detail ? renderDetail() : renderList();
   app.innerHTML = `<div class="top"><span class="title">Administration</span>${tabs}</div>${body}`;
 }
@@ -250,7 +286,7 @@ app.addEventListener('submit', async e => {
     } catch (err) { say('', err.message); render(); }
     return;
   }
-  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), prisms: Number(v('p-prisms')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')), freeChests: Number(v('p-chests')) }, 'Profil enregistré.'); return; }
+  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), prisms: Number(v('p-prisms')), uniEssence: Number(v('p-uni')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')), freeChests: Number(v('p-chests')) }, 'Profil enregistré.'); return; }
   if (id === 'pass') {
     const password = v('p-pass');
     try {
@@ -260,12 +296,13 @@ app.addEventListener('submit', async e => {
     } catch (err) { say('', err.message); }
     render(); return;
   }
-  if (id === 'settings' || id === 'rotation' || id === 'art-settings') {
-    const keys = id === 'settings' ? ['cardPrice', 'boosterPrice', 'boosterSize', 'shardsPerDuplicate'] : id === 'rotation' ? ['dailyCards'] : ART_KEYS;
+  if (id === 'settings' || id === 'rotation' || id === 'art-settings' || id === 'dup-settings') {
+    const keys = id === 'settings' ? ['cardPrice', 'boosterPrice', 'boosterSize', 'shardsPerDuplicate'] : id === 'rotation' ? ['dailyCards'] : id === 'dup-settings' ? DUP_KEYS : ART_KEYS;
     saveSettings(Object.fromEntries(keys.map(k => [k, Number(v(`s-${k}`))])), 'Réglages enregistrés.');
   }
 });
 const ART_KEYS = ['artOffers', 'chestPrice', ...RARITY_IDS.map(r => `artPrice_${r}`), 'prismShards'];
+const DUP_KEYS = ['dupOffers', 'dupPrice', ...RARITY_IDS.map(r => `essArtPrice_${r}`)];
 async function loadArts() {
   try { st.arts = (await adminCall('GET', '/api/admin/arts')).arts; } catch (e) { say('', e.message); }
   render();
@@ -282,10 +319,11 @@ app.addEventListener('click', e => {
   if (t.dataset.open) { openAccount(t.dataset.open); return; }
   if (t.dataset.tab) {
     st.tab = t.dataset.tab; st.sel = null; st.detail = null; say('');
-    if (st.tab === 'stats') stats.load(); else if (st.tab === 'shop') loadArts(); else if (st.tab === 'rewards') rewards.load(); else if (st.tab === 'mail') mail.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
+    if (st.tab === 'stats') stats.load(); else if (st.tab === 'shop') loadArts(); else if (st.tab === 'rewards') rewards.load(); else if (st.tab === 'mail') mail.load(); else if (st.tab === 'events') events.load(); else if (st.tab === 'boss') boss.load(); else if (st.tab === 'story') story.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
     render(); return;
   }
-  if (stats.onClick(t) || cards.onClick(t) || rewards.onClick(t) || mail.onClick(t)) return;
+  if (stats.onClick(t) || cards.onClick(t) || rewards.onClick(t) || mail.onClick(t) || events.onClick(t) || boss.onClick(t) || story.onClick(t)) return;
+  if (t.dataset.themeTake) { act('/api/admin/account/theme', { theme: t.dataset.themeTake, give: false }, 'Thème retiré.'); return; }
   if (t.dataset.artTake) { act('/api/admin/account/art', { art: t.dataset.artTake, give: false }, 'Art retiré.'); return; }
   if (t.dataset.addShards) { const i = document.getElementById('p-shards'); i.value = (Number(i.value) || 0) + Number(t.dataset.addShards); return; }
   const fam = t.dataset.famAll || t.dataset.famNone;
@@ -309,6 +347,9 @@ app.addEventListener('click', e => {
       act('/api/admin/account/starter', { starter: s }, `Deck de départ : ${esc(DECKS[s].name)}.`); break;
     }
     case 'booster': act('/api/admin/account/booster', {}, 'Le booster du jour est de nouveau disponible.'); break;
+    case 'welcome':
+      if (!a.welcome || confirm(`Relancer la bienvenue de ${a.login} ? Les sept cadeaux redeviennent à prendre.`)) act('/api/admin/account/welcome', {}, 'Bienvenue des 7 jours lancée pour ce compte.');
+      break;
     case 'shop': act('/api/admin/account/shop', {}, 'Nouvelles cartes du jour tirées pour ce joueur.'); break;
     case 'cards': act('/api/admin/account/cards', { cards: [...st.cards] }, 'Collection enregistrée.'); break;
     case 'cards-undo': st.cards = new Set(a.owned); render(); break;
@@ -329,6 +370,8 @@ app.addEventListener('click', e => {
       saveSettings({ cardPrice, boosterPrice, boosterSize, shardsPerDuplicate }, 'Prix remis par défaut.'); break;
     }
     case 'give-art': { const id = document.getElementById('give-art')?.value; if (id) act('/api/admin/account/art', { art: id, give: true }, `Art « ${esc(ARTS[id].name)} » donné.`); break; }
+    case 'give-theme': { const id = document.getElementById('give-theme')?.value; if (id) act('/api/admin/account/theme', { theme: id, give: true }, `Thème « ${esc(SEASON_THEMES[id])} » donné.`); break; }
+    case 'dup-defaults': saveSettings(Object.fromEntries(DUP_KEYS.map(k => [k, st.defaults[k]])), 'Doublons du jour et arts de l\'essence remis par défaut.'); break;
     case 'art-defaults': saveSettings(Object.fromEntries(ART_KEYS.map(k => [k, st.defaults[k]])), 'Prix des arts remis par défaut.'); break;
     case 'renew':
       if (confirm('Tirer de nouvelles cartes du jour pour tous les joueurs ?')) saveSettings({ renew: true }, 'Offres du jour renouvelées pour tous.');
@@ -337,11 +380,11 @@ app.addEventListener('click', e => {
 });
 app.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset?.open) openAccount(e.target.dataset.open); });
 app.addEventListener('input', e => {
-  if (cards.onInput(e)) return;
+  if (cards.onInput(e) || events.onInput(e) || boss.onInput(e) || story.onInput(e)) return;
   if (e.target.id === 'q') { st.q = e.target.value; const pos = e.target.selectionStart; render(); const q = document.getElementById('q'); q.focus(); q.setSelectionRange(pos, pos); }
 });
 app.addEventListener('change', e => {
-  if (stats.onChange(e) || cards.onChange(e)) return;
+  if (stats.onChange(e) || cards.onChange(e) || events.onInput(e) || boss.onInput(e) || story.onInput(e)) return;
   const id = e.target.dataset?.card; if (!id) return;
   e.target.checked ? st.cards.add(id) : st.cards.delete(id);
   render();
