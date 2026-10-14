@@ -67,8 +67,8 @@ Une saison sans entrée dans `SEASONS` n'a pas de passe : l'accueil ne le montre
 - **Succès** : une ligne `A(...)` dans `ACHIEVEMENTS` avec la statistique suivie (`level`, `wins`, `cards`, `famWins.Elfe`…, voir `statsOf` dans `progress.js`), l'objectif, les Éclats, et éventuellement un titre ou un cadre. Les comptes qui remplissent déjà la condition le reçoivent au prochain démarrage du serveur.
 - **Compteur tenu hors de `progress.js`** (clans…) : `progress.count(compte, 'stat', n)` ajoute n, `progress.best(compte, 'stat', valeur)` garde la plus grande ; les succès suivent aussitôt.
 - **Famille d'arts qui grandit** : rien à faire. Quand un set apporte des arts à une famille (arts sur des cartes de ce set), `themeTiers` (`rewards.js`) ajoute tout seul un palier qui débloque un cadre `art_<famille>_<set>`. Les paliers comptent les arts de la famille d'où qu'ils viennent : le premier en demande autant qu'en avait la famille à sa création, le dernier toute la famille. Son nom vient de `ART_FRAME_NAMES` ; son dessin de `ART_FRAME_DRAW` (`cosmetics-art.js`), sinon un rendu provisoire aux couleurs de `ART_FRAME_TINTS`. Un succès déjà gagné reste acquis.
-
 - **Cadre animé** : l'anneau se dessine comme les autres (`FRAMES` de `cosmetics-art.js`) ; le mouvement est un calque `::before` dans `client/src/frames-anim.css`, qui n'anime que `transform` et `opacity` (léger sur téléphone). Ajoutez l'identifiant aux sélecteurs communs en tête du fichier, et une règle `.frame.frame-<id>::before` avec son dessin et son animation. Les exemples : `boss_comete` et `boss_brasier` (magasin du boss mondial). Augmentez `VERSION` dans `cosmetics.js` quand vous ajoutez un dessin.
+
 Les nombres (XP, Éclats, objectifs) se règlent ensuite depuis l'onglet Récompenses de `/admin`, sans redéploiement.
 
 ## Ajouter une route d'API
