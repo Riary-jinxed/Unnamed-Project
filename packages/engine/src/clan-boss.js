@@ -37,35 +37,35 @@ export function clanBossDamage(st, cfg = CLAN_BOSS_SCORING) {
 // Récompenses à la fermeture, propres à chaque boss, selon la part des PV retirés (pct : au moins ce pourcentage). La première vaut
 // même à 0 %. Seule celle du palier atteint est donnée. Écus (coins), Éclats, Prismes et essence universelle sont multipliés par le
 // niveau du boss ; coffres d'arts (chests), boosters et titre (à 100 %) ne le sont pas. clanXp : XP de clan, donnée une fois au clan.
-// Thalassor : les Écus. Velmor : les Prismes et les coffres d'arts. Ysolde : les Éclats, l'essence et les boosters.
+// Wyrm du trésor : les Écus. Chevalier de la mort : les Prismes et les coffres d'arts. Reine sylvestre : les Éclats, l'essence et les boosters.
 const XP = [0, 25, 50, 100, 150], PCTS = [0, 25, 50, 75, 100];
 const tiers = list => list.map((r, i) => ({ pct: PCTS[i], clanXp: XP[i], ...r }));
 export const CLAN_BOSS_REWARDS = {
-  clan_thalassor: tiers([
+  clan_wyrm: tiers([
     { coins: 20, shards: 20 },
     { coins: 45, shards: 40 },
     { coins: 80, shards: 60 },
     { coins: 120, shards: 80 },
-    { coins: 180, shards: 100, title: 'clanboss:thalassor' },
+    { coins: 180, shards: 100, title: 'clanboss:wyrm' },
   ]),
-  clan_velmor: tiers([
+  clan_chevalier: tiers([
     { coins: 10, prisms: 1 },
     { coins: 20, prisms: 3 },
     { coins: 30, prisms: 5 },
     { coins: 40, prisms: 8, chests: 1 },
-    { coins: 50, prisms: 12, chests: 1, title: 'clanboss:velmor' },
+    { coins: 50, prisms: 12, chests: 1, title: 'clanboss:chevalier' },
   ]),
-  clan_ysolde: tiers([
+  clan_reine: tiers([
     { coins: 10, shards: 50 },
     { coins: 20, shards: 100, uniEssence: 10 },
     { coins: 30, shards: 160, uniEssence: 20 },
     { coins: 40, shards: 220, uniEssence: 30, boosters: 1 },
-    { coins: 50, shards: 300, uniEssence: 40, boosters: 2, title: 'clanboss:ysolde' },
+    { coins: 50, shards: 300, uniEssence: 40, boosters: 2, title: 'clanboss:reine' },
   ]),
 };
 // Titres gagnés en venant à bout de chaque boss (ajoutés à TITLES, rewards.js).
-export const CLAN_BOSS_TITLES = [['clanboss:thalassor', 'Briseur d\'abysses'], ['clanboss:velmor', 'Fossoyeur de liches'], ['clanboss:ysolde', 'Élagueur de ronces']];
-export const clanBossRewards = id => CLAN_BOSS_REWARDS[id] || CLAN_BOSS_REWARDS.clan_thalassor;
+export const CLAN_BOSS_TITLES = [['clanboss:wyrm', 'Pilleur de la montagne d\'or'], ['clanboss:chevalier', 'Chasseur du soleil noir'], ['clanboss:reine', 'Élagueur de ronces']];
+export const clanBossRewards = id => CLAN_BOSS_REWARDS[id] || CLAN_BOSS_REWARDS.clan_wyrm;
 // Part des PV retirés, de 0 à 100 (arrondie vers le bas : 100 seulement si le boss est vaincu).
 export const clanBossPct = (hp, max) => (max > 0 ? Math.max(0, Math.min(100, Math.floor(100 * (max - hp) / max))) : 0);
 export const clanBossTier = (pct, id) => clanBossRewards(id).reduce((x, r, i) => (pct >= r.pct ? i : x), 0);

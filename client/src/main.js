@@ -1044,7 +1044,8 @@ function genSlot(side, isMe, canGen) {
 }
 function pbar(side, isMe, connected, canGen = false) {
   const seat = isMe ? ui.view.seat : 1 - ui.view.seat, b = badgeOf(seat);
-  const who = { name: side.name, avatar: avatarOf(seat), progress: { frame: b?.frame } };
+  // Le nom d'un boss est un texte du jeu, traduit comme les autres.
+  const who = { name: !isMe && ui.view.boss ? t(side.name) : side.name, avatar: avatarOf(seat), progress: { frame: b?.frame } };
   // Le boss n'a ni main ni deck : sa ligne dit plutôt combien de zones il tient encore.
   // Le boss de clan ne tient qu'une zone : sa ligne donne ses PV après les dégâts du moment.
   const held = !isMe && ui.view.boss ? [0, 1, 2].filter(z => !ui.view.boss.score.zones[z]?.beat).length : 0, cb = ui.view.boss?.clan;
@@ -1065,7 +1066,7 @@ function pbar(side, isMe, connected, canGen = false) {
   // Bulle et sélecteur d'émotes : à côté du bandeau, pas dedans (les thèmes découpent le bandeau, clip-path, ce qui les cacherait).
   return `<div class="pslot">${bubbleHTML(seat, isMe)}${isMe && emo && ui.emotePick ? emotePickHTML() : ''}<div class="pbar ${isMe ? 'me' : 'foe'}">
     ${pav}
-    <div class="pid"><div class="pline"><span class="who">${isMe ? t('Vous') : esc(side.name)}</span>${b?.level ? `<small class="lv num">${t('niv. {n}', { n: b.level })}</small>` : ''}${ready ? `<span class="chip ok">${t('Prêt')}</span>` : ''}${b?.title ? `<span class="ptitle">${esc(t(b.title))}</span>` : ''}</div>
+    <div class="pid"><div class="pline"><span class="who">${isMe ? t('Vous') : esc(who.name)}</span>${b?.level ? `<small class="lv num">${t('niv. {n}', { n: b.level })}</small>` : ''}${ready ? `<span class="chip ok">${t('Prêt')}</span>` : ''}${b?.title ? `<span class="ptitle">${esc(t(b.title))}</span>` : ''}</div>
       <div class="pstats">${stats}</div></div>
     ${ui.view.noGeneral ? '' : genSlot(side, isMe, canGen)}</div></div>`;
 }
