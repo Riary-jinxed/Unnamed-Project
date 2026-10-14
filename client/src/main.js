@@ -993,11 +993,12 @@ function pbar(side, isMe, connected, canGen = false) {
   const pav = !emo ? `<span class="pav">${av}</span>` : isMe
     ? `<button class="pav emobtn ${ui.emotePick ? 'on' : ''}" data-act="emotes" aria-haspopup="menu" aria-expanded="${ui.emotePick}" aria-label="Envoyer une émote" title="Émotes">${av}<span class="emohint" aria-hidden="true">${EMO_ICON}</span></button>`
     : `<button class="pav emobtn" data-act="emote-mute" aria-pressed="${ui.emoteMute}" aria-label="${ui.emoteMute ? 'Rétablir' : 'Couper'} les émotes de ${esc(side.name)}" title="${ui.emoteMute ? 'Émotes coupées' : 'Couper ses émotes'}">${av}${ui.emoteMute ? `<span class="emohint off" aria-hidden="true">${MUTED_ICON}</span>` : ''}</button>`;
-  return `<div class="pbar ${isMe ? 'me' : 'foe'}">
-    ${pav}${bubbleHTML(seat, isMe)}${isMe && emo && ui.emotePick ? emotePickHTML() : ''}
+  // Bulle et sélecteur d'émotes : à côté du bandeau, pas dedans (les thèmes découpent le bandeau, clip-path, ce qui les cacherait).
+  return `<div class="pslot">${bubbleHTML(seat, isMe)}${isMe && emo && ui.emotePick ? emotePickHTML() : ''}<div class="pbar ${isMe ? 'me' : 'foe'}">
+    ${pav}
     <div class="pid"><div class="pline"><span class="who">${isMe ? 'Vous' : esc(side.name)}</span>${b?.level ? `<small class="lv num">niv. ${b.level}</small>` : ''}${ready ? '<span class="chip ok">Prêt</span>' : ''}${b?.title ? `<span class="ptitle">${esc(b.title)}</span>` : ''}</div>
       <div class="pstats">${stats}</div></div>
-    ${ui.view.noGeneral ? '' : genSlot(side, isMe, canGen)}</div>`;
+    ${ui.view.noGeneral ? '' : genSlot(side, isMe, canGen)}</div></div>`;
 }
 // ---- Émotes en partie ----
 const EMO_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>';
