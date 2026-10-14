@@ -647,7 +647,7 @@ export const GENERALS = {
                  { when: 'end', name: 'Souffle d\'éclipse', text: 'votre créature la plus puissante à Droite perd 3', act: (st, p) => scorch(st, p, 2, 3) },
                  { when: 'end', name: 'Éclipse totale', text: 'votre créature la plus puissante de chaque zone perd 2', act: (st, p) => [0, 1, 2].forEach(z => scorch(st, p, z, 2)) },
                ],
-               aura: bossAura, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') },
+               aura: bossAura, onStart: bossMinions, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') },
   boss_vorgoth: { boss: true, name: 'Vorgoth, le cercle infernal', fam: 'Démon', kind: 'Boss', art: 'vorgoth_cercle',
                text: 'Boss mondial. Il s\'en prend à votre main : cartes plus chères, cartes défaussées, créatures affaiblies avant d\'être jouées.',
                boost: { fams: { 'Mort-vivant': 2, Gobelin: 1 }, cards: { goule: 2, zombie: 2, recruteur: 2 } },
@@ -660,7 +660,7 @@ export const GENERALS = {
                  { when: 'end', name: 'Pacte rompu', text: 'vous défaussez une carte de votre main au hasard', act: (st, p) => pact(st, p) },
                  { when: 'end', name: 'Cercle de flammes', text: 'chacune de vos zones qui n\'est pas pleine perd 3', act: (st, p) => [0, 1, 2].forEach(z => { if (creaturesAt(st, p, z).length < SLOTS) addZone(st, p, z, -3); }) },
                ],
-               aura: bossAura, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') },
+               aura: bossAura, onStart: bossMinions, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') },
   boss_vaelthar: { boss: true, name: 'Vael\'Thar du glacier', fam: 'Dragon', kind: 'Boss', art: 'vaelthar_glacier',
                text: 'Boss mondial. Il gèle votre deck : Éclats de givre glissés dans vos pioches, créatures engourdies, cartes perdues.',
                boost: { fams: { 'Démon': 2, Dragon: 1 }, cards: { pyromane: 2, rouge: 2, bete: 2 } },
@@ -673,15 +673,13 @@ export const GENERALS = {
                  { when: 'end', name: 'Gel profond', text: 'les 2 premières cartes de votre deck partent à la défausse', act: (st, p) => mill(st, p, 2) },
                  { when: 'start', name: 'Blizzard', text: 'vos créatures en jeu de puissance 1 ou moins sont détruites', act: (st, p) => mine(st, p).filter(c => power(st, c) <= 1).forEach(c => destroy(st, c, 1 - p)) },
                ],
-               aura: bossAura, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') },
+               aura: bossAura, onStart: bossMinions, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') },
 };
 
 // ---- Boss mondiaux : actions de leur script ----
 // p : le joueur visé (celui qui affronte le boss). Le boss écrit d'abord le nom de son action au journal (genHook : il a agi).
 export const bossStep = (st, p = 1) => GENERALS[st.p[p].general]?.script?.[st.turn - 1] || null;
 function bossAct(p, st, when) {
-  // Ses Sbires arrivent au début du premier tour (avant, ses crochets ne se déclenchent pas : genHacked au tour 0).
-  if (when === 'start' && st.turn === 1) bossMinions(p, st);
   const s = bossStep(st, p); if (!s || s.when !== when) return;
   log(st, `${GENERALS[st.p[p].general].name} : ${s.name}, ${s.text}.`, 'reveal');
   s.act(st, 1 - p);
@@ -925,7 +923,7 @@ export const free = (st, p, z) => SLOTS - st.p[p].board[z].length;
 const NOFX = {};
 const fx = c => (c.hacked ? NOFX : CARDS[c.id]);
 // Général piraté : son pouvoir ne fonctionne pas jusqu'à la fin du tour indiqué.
-export const genHacked = (st, p) => (st.p[p].genHacked || 0) >= st.turn;
+export const genHacked = (st, p) => !!st.p[p].genHacked && st.p[p].genHacked >= st.turn;
 
 // Coût actuel d'une carte (null pour un coût X).
 export function costOf(st, c) {
