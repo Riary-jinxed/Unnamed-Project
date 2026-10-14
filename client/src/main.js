@@ -203,7 +203,9 @@ function goTutorial(lesson = 'initiation') {
   });
 }
 // Les leçons s'enchaînent dans l'ordre de LESSONS : la fin d'une leçon propose la suivante, et Passer y mène directement.
-const nextLesson = () => { const ks = Object.keys(LESSONS), i = ks.indexOf(ui.ctrl?.lesson); return i >= 0 ? ks[i + 1] || null : null; };
+// Les leçons de base ne mènent pas au tutoriel avancé : il se lance depuis « Apprendre ».
+const nextLesson = () => { const ks = Object.keys(LESSONS), i = ks.indexOf(ui.ctrl?.lesson), k = i >= 0 ? ks[i + 1] : null;
+  return k && !!LESSONS[k].advanced === !!LESSONS[ks[i]].advanced ? k : null; };
 // Leçon finie (une fois par partie jouée) : le serveur donne sa récompense la première fois, affichée dans le panneau de fin.
 function lessonDone() {
   if (ui.tutoSent || !ui.auth || !ui.ctrl?.lesson) return;
@@ -1963,11 +1965,15 @@ function sheetHTML() {
   }
   if (ui.sheet === 'learn') {
     const done = ui.account?.tuto || [];
-    const lessons = Object.entries(LESSONS).map(([k, l], i) => `<button class="lesson ${done.includes(k) ? 'done' : ''}" data-act="tuto" data-lesson="${k}"><span class="lesson-n num">${done.includes(k) ? '✓' : i + 1}</span>
+    // Leçons de base, puis celles du tutoriel avancé (une mécanique de famille chacune), numérotées à part.
+    const lessons = adv => Object.entries(LESSONS).filter(([, l]) => !!l.advanced === adv).map(([k, l], i) => `<button class="lesson ${done.includes(k) ? 'done' : ''}" data-act="tuto" data-lesson="${k}"><span class="lesson-n num">${done.includes(k) ? '✓' : i + 1}</span>
       <span class="lesson-t"><b>${esc(t(l.title))}</b><small>${esc(t(l.blurb))}</small></span>${done.includes(k) ? '' : `${ui.account?.tutoShards ? `<span class="lesson-r num">+${ui.account.tutoShards}${ico('shard')}</span>` : ''}`}</button>`).join('');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${t('Apprendre')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
       <p class="hint" style="margin:0">${t('Séraphine vous guide pendant une partie contre l\'IA, avec un deck prêt à jouer. Chaque leçon finie rapporte des Éclats la première fois, et un booster vous attend quand elles le sont toutes.')}</p>
-      <div class="lessons">${lessons}</div>
+      <div class="lessons">${lessons(false)}</div>
+      <div class="gal-h">${t('Tutoriel avancé')}</div>
+      <p class="hint" style="margin:0">${t('Une mécanique de famille par leçon : Trésor, Sacrifice, Relève, Drain, Sortilège…')}</p>
+      <div class="lessons">${lessons(true)}</div>
       <div class="row"><button class="btn" data-act="codex">${t('Codex des mots-clés')}</button><button class="btn" data-act="set">${t('Toutes les cartes')}</button></div></div></div>`;
   }
   if (ui.sheet === 'chest-info' && ui.screen === 'shop') return chestInfo(ui.shop?.arts);

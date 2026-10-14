@@ -83,9 +83,14 @@ export const REWARD_LIMITS = {
 };
 
 // Leçons du tutoriel (client/src/tutorial.js, mêmes identifiants), dans l'ordre d'« Apprendre ». Chacune récompensée une fois.
+// advanced : tutoriel avancé (une mécanique de famille par leçon), qui ne compte pas pour les boosters offerts.
+// Une nouvelle mécanique de famille mérite sa leçon : voir docs/recettes.md.
 export const TUTO_LESSONS = [
   { id: 'initiation', name: 'Initiation' }, { id: 'effets', name: 'Effets et sorts' }, { id: 'terrains', name: 'Terrains et déplacements' },
   { id: 'generaux', name: 'Généraux' }, { id: 'complet', name: 'Partie complète' },
+  { id: 'sceaux', name: 'Sceaux et Trésor', advanced: true }, { id: 'sacrifice', name: 'Sacrifice et Destruction', advanced: true },
+  { id: 'releve', name: 'Défausse et Relève', advanced: true }, { id: 'drain', name: 'Drain et Échange', advanced: true },
+  { id: 'sorts', name: 'Sortilège et Inspiration', advanced: true },
 ];
 
 // XP pour passer du niveau `level` au suivant.

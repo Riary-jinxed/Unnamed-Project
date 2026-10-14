@@ -92,6 +92,11 @@ export default {
   'Terrains et déplacements': 'Terrains and movement',
   'Généraux': 'Generals',
   'Partie complète': 'Full match',
+  'Sceaux et Trésor': 'Seals and Treasure',
+  'Sacrifice et Destruction': 'Sacrifice and Death',
+  'Défausse et Relève': 'Discard and Rise',
+  'Drain et Échange': 'Drain and Swap',
+  'Sortilège et Inspiration': 'Spellcast and Inspire',
 
   // ---- Niveaux de carte ----
   'Base': 'Base',
