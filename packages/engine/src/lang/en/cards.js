@@ -540,6 +540,9 @@ export default {
   'Boss mondial. Il s\'en prend à votre main : cartes plus chères, cartes défaussées, créatures affaiblies avant d\'être jouées.': 'World boss. He goes after your hand: pricier cards, discarded cards, creatures weakened before they are played.',
   'Vael\'Thar du glacier': 'Vael\'Thar of the Glacier',
   'Boss mondial. Il gèle votre deck : Éclats de givre glissés dans vos pioches, créatures engourdies, cartes perdues.': 'World boss. He freezes your deck: Frost Slivers slipped into your draws, numbed creatures, lost cards.',
+  'Boss de clan. Il frappe votre plateau : ses Cendres prennent vos places, son Souffle brûle votre créature la plus puissante.': 'Clan boss. He strikes your board: his Ashes take your slots, his Breath burns your strongest creature.',
+  'Boss de clan. Il s\'en prend à votre main : cartes plus chères, cartes défaussées, créatures affaiblies avant d\'être jouées.': 'Clan boss. He goes after your hand: pricier cards, discarded cards, creatures weakened before they are played.',
+  'Boss de clan. Il gèle votre deck : Éclats de givre glissés dans vos pioches, créatures engourdies, cartes perdues.': 'Clan boss. He freezes your deck: Frost Slivers slipped into your draws, numbed creatures, lost cards.',
   // Boss mondiaux : étapes
   'Pluie de cendres': 'Ash Rain',
   'Cendres d\'éclipse (-1) dans votre zone Gauche': 'Eclipse Ashes (-1) in your Left zone',

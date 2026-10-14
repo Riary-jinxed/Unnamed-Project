@@ -684,6 +684,14 @@ export const GENERALS = {
                ],
                aura: bossAura, onStart: bossMinions, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') },
 };
+// ---- Boss de clan (clan-boss.js) ----
+// Les boss mondiaux, version clan (clan: true, from : le boss mondial d'origine) : même script et mêmes cartes renforcées, mais
+// pas de Sbire. En face, le boss ne tient qu'une seule zone : sa barre de PV, que les points de vos 3 zones font baisser.
+for (const [id, from, text] of [
+  ['clan_ignaroth', 'boss_ignaroth', 'Boss de clan. Il frappe votre plateau : ses Cendres prennent vos places, son Souffle brûle votre créature la plus puissante.'],
+  ['clan_vorgoth', 'boss_vorgoth', 'Boss de clan. Il s\'en prend à votre main : cartes plus chères, cartes défaussées, créatures affaiblies avant d\'être jouées.'],
+  ['clan_vaelthar', 'boss_vaelthar', 'Boss de clan. Il gèle votre deck : Éclats de givre glissés dans vos pioches, créatures engourdies, cartes perdues.'],
+]) { const { onStart, ...g } = GENERALS[from]; GENERALS[id] = { ...g, clan: true, from, text }; }
 
 // ---- Boss mondiaux : actions de leur script ----
 // p : le joueur visé (celui qui affronte le boss). Le boss écrit d'abord le nom de son action au journal (genHook : il a agi).

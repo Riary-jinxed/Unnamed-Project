@@ -70,7 +70,8 @@ const friends = createFriends({ ui, render: () => render(), call: (...x) => call
 // Courrier et codes cadeaux (mail.js).
 const mail = createMail({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), rewardItem: r => rewardItem(r), play: (...x) => play(...x) });
 // Clans (clan.js) : création, adhésion, missions de clan, dons, magasin et classement des clans.
-const clan = createClan({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), avatarHTML: (...x) => avatarHTML(...x), ico: k => ico(k), play: (...x) => play(...x) });
+const clan = createClan({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), avatarHTML: (...x) => avatarHTML(...x), ico: k => ico(k), play: (...x) => play(...x),
+  go: id => goClanBoss(id), editBossDeck: id => { editBossDeck(id); render(); }, leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
 // Boss mondial (boss.js) : boss de la semaine, tentatives, classement et magasin du boss ; à la table, son bandeau et la fin de tentative.
 const boss = createBoss({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), avatarHTML: (...x) => avatarHTML(...x), ico: k => ico(k), play: (...x) => play(...x),
   go: () => goBoss(), editBossDeck: id => { editBossDeck(id); render(); }, gotArt: id => { ui.gotArt = { id }; ui.sheet = 'art'; render(); }, leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
@@ -163,6 +164,14 @@ function goRanked() {
   toTable(t('Votre adversaire s\'installe…'), () => {
     ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = true; ui.sheet = null; ui.lastTurn = 0;
     ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'ranked', auth: ui.auth });
+  });
+}
+// Boss de clan : une tentative contre le boss ouvert du clan (clan-boss.js), jouée par le serveur comme celle du boss mondial.
+function goClanBoss(id) {
+  if (!clan.bossDeck(id) && !deckReady()) return;
+  toTable(t('Le boss se dresse devant vous…'), () => {
+    ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = false; ui.bossRun = true; ui.sheet = null; ui.lastTurn = 0;
+    ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'clanboss', auth: ui.auth });
   });
 }
 // Boss mondial : une tentative contre le boss de la semaine, jouée par le serveur. Elle compte dès que la partie commence.
@@ -1037,8 +1046,10 @@ function pbar(side, isMe, connected, canGen = false) {
   const seat = isMe ? ui.view.seat : 1 - ui.view.seat, b = badgeOf(seat);
   const who = { name: side.name, avatar: avatarOf(seat), progress: { frame: b?.frame } };
   // Le boss n'a ni main ni deck : sa ligne dit plutôt combien de zones il tient encore.
-  const held = !isMe && ui.view.boss ? [0, 1, 2].filter(z => !ui.view.boss.score.zones[z]?.beat).length : 0;
-  const stats = !isMe && ui.view.boss ? `<span class="num">${held ? tp(held, 'Tient {n} zone sur 3', 'Tient {n} zones sur 3') : t('Débordé partout')}</span>` : [
+  // Le boss de clan ne tient qu'une zone : sa ligne donne ses PV après les dégâts du moment.
+  const held = !isMe && ui.view.boss ? [0, 1, 2].filter(z => !ui.view.boss.score.zones[z]?.beat).length : 0, cb = ui.view.boss?.clan;
+  const stats = !isMe && cb ? `<span class="num">${t('{hp} / {max} PV', { hp: Math.max(0, cb.hp - ui.view.boss.score.total), max: cb.max })}</span>`
+    : !isMe && ui.view.boss ? `<span class="num">${held ? tp(held, 'Tient {n} zone sur 3', 'Tient {n} zones sur 3') : t('Débordé partout')}</span>` : [
     !isMe ? `<span class="num" title="${t('Sceaux de l\'adversaire ce tour')}">${t('Sceaux {n}', { n: side.seals })}</span>` : '',
     `<span class="num">${t('Main {n}', { n: side.handCount })}</span>`, `<span class="num">${t('Deck {n}', { n: side.deckCount })}</span>`,
     side.treasure ? `<span class="num" title="${t('Sceaux non dépensés aux tours précédents')}">${t('Trésor {n}', { n: side.treasure })}</span>` : '',
@@ -1111,15 +1122,17 @@ function sealsHTML(seals) {
 function renderGame() {
   const v = ui.view, m = v.me, f = v.foe, g = GENERALS[m.general];
   const play = canPlay();
+  // Boss de clan : il ne tient qu'une seule zone, au-dessus du plateau (boss.js, tableHTML) ; vos 3 zones n'ont que votre côté.
+  const one = !!v.boss?.clan;
   let board = '';
   for (const z of [0, 1, 2]) {
     const a = f.zonePower[z], b = v.phase === 'plan' ? planPower(z) : m.zonePower[z];
     const mz = ui.moveSel !== null ? planZone(ui.moveSel) : -1;
     const target = play && ((ui.sel && freeSlots(z) > 0) || (ui.moveSel !== null && z !== mz && freeSlots(z) > 0));
-    const won = b > a ? 'won-me' : a > b ? 'won-foe' : '';
-    board += `<div class="zone ${won} ${target ? 'target' : ''}" data-z="${z}" ${target ? 'tabindex="0" role="button"' : ''} aria-label="${t('Zone {zone}', { zone: t(ZONE_NAMES[z]) })}">
-      ${f.terrains[z] ? terrainBg(f.terrains[z], 'foe') : ''}${m.terrains[z] ? terrainBg(m.terrains[z], 'me') : ''}${terrainChip(f, z, false)}${slots(f, z, false)}
-      <div class="score"><span class="v foe ${a > b ? 'lead' : ''}">${a}</span><span class="zn">${t(ZONE_NAMES[z])}</span><span class="v me ${b > a ? 'lead' : ''}">${b}</span></div>
+    const won = one ? '' : b > a ? 'won-me' : a > b ? 'won-foe' : '';
+    board += `<div class="zone ${won} ${one ? 'oneboss' : ''} ${target ? 'target' : ''}" data-z="${z}" ${target ? 'tabindex="0" role="button"' : ''} aria-label="${t('Zone {zone}', { zone: t(ZONE_NAMES[z]) })}">
+      ${f.terrains[z] && !one ? terrainBg(f.terrains[z], 'foe') : ''}${m.terrains[z] ? terrainBg(m.terrains[z], 'me') : ''}${one ? '' : `${terrainChip(f, z, false)}${slots(f, z, false)}`}
+      <div class="score">${one ? '' : `<span class="v foe ${a > b ? 'lead' : ''}">${a}</span>`}<span class="zn">${t(ZONE_NAMES[z])}</span><span class="v me ${!one && b > a ? 'lead' : ''}">${b}</span></div>
       ${slots(m, z, true)}${terrainChip(m, z, true)}
       ${ui.genZone === z && g.needsZone ? `<div class="gmark">${t('Général activé ici')}</div>` : ''}</div>`;
   }
@@ -1133,7 +1146,7 @@ function renderGame() {
       <span class="n">${esc(d.name)}</span>${d.text ? `<span class="x">${rich(d.text)}</span>` : `<span class="k">${kwLine(d)}</span>`}${boss.handChip(v, c.id)}</button>`; }).join('');
   const canGen = play && g.activate && !m.generalUsed && m.seals >= (g.activateCost || 0);
   const goLabel = v.phase === 'reveal' ? t('Révélation…') : v.ready.me ? t('En attente…') : v.turn === v.turns ? t('Valider le dernier tour') : t('Valider le tour');
-  const mode = ui.mode === 'online' ? (v.boss ? t('Boss mondial') : v.ranked ? t('Partie classée') : t('Partie {room}', { room: esc(ui.room || '') })) : ui.mode === 'tuto' ? t('Tutoriel') : ui.mode === 'story' ? esc(story.label()) : t('Contre l\'IA');
+  const mode = ui.mode === 'online' ? (v.boss ? (one ? t('Boss de clan') : t('Boss mondial')) : v.ranked ? t('Partie classée') : t('Partie {room}', { room: esc(ui.room || '') })) : ui.mode === 'tuto' ? t('Tutoriel') : ui.mode === 'story' ? esc(story.label()) : t('Contre l\'IA');
   // Hors tutoriel, pas d'encadré d'info : une double touche ouvre la carte en grand, et un refus (zone pleine, sceaux) s'affiche en bulle au-dessus de la main.
   const toast = ui.msg ? `<div class="toast" role="alert">${esc(ui.msg)}</div>` : '';
   return `
