@@ -6,7 +6,7 @@ import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today
 import { pick, CARDS, GENERALS } from '@jeu/engine';
 import { ART_RARITIES, RARITY_IDS, ESSENCE_ART_PRICES, RETIRED_ARTS } from '@jeu/engine/arts';
 import { SEASON_THEMES } from '@jeu/engine/pass';
-import { TUTO_LESSONS, levelCost, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
+import { TUTO_LESSONS, levelCost, MAX_CARD_LEVEL, ESSENCE_FRAME } from '@jeu/engine/rewards';
 import { createProgress } from './progress.js';
 import { createArts } from './arts.js';
 import { createActivity } from './activity.js';
@@ -24,15 +24,15 @@ const LOGIN_RE = /^[a-z0-9._-]{2,24}$/;
 // Réglages de la boutique modifiables depuis /admin. « rotation » change à chaque renouvellement forcé des offres du jour.
 // Arts alternatifs : nombre d'offres du jour, prix du coffre et prix de chaque rareté (artPrice_<rareté>), en Prismes.
 // Doublons du jour : nombre d'offres (dupOffers, 0 les retire) et prix d'un doublon en Éclats (dupPrice).
-// Rayon Essence : prix des arts de l'édition Essence selon leur rareté (essArtPrice_<rareté>), en essence universelle.
+// Rayon Essence : prix des arts de l'édition Essence selon leur rareté (essArtPrice_<rareté>), et du cadre de la nébuleuse (essFramePrice), en essence universelle.
 export const DEFAULT_SETTINGS = { cardPrice: SHOP.cardPrice, boosterPrice: SHOP.boosterPrice, dailyCards: SHOP.dailyCards, boosterSize: SHOP.boosterSize, shardsPerDuplicate: SHARDS_PER_DUPLICATE,
   dupOffers: 3, dupPrice: 100,
   artOffers: 3, chestPrice: 60, ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, ART_RARITIES[r].price])), prismShards: 10,
-  ...Object.fromEntries(RARITY_IDS.map(r => [`essArtPrice_${r}`, ESSENCE_ART_PRICES[r]])), rotation: 0 };
+  ...Object.fromEntries(RARITY_IDS.map(r => [`essArtPrice_${r}`, ESSENCE_ART_PRICES[r]])), essFramePrice: ESSENCE_FRAME.price, rotation: 0 };
 const SETTING_LIMITS = { cardPrice: [0, 100000], boosterPrice: [0, 100000], dailyCards: [1, 10], boosterSize: [1, 10], shardsPerDuplicate: [0, 10000],
   dupOffers: [0, 10], dupPrice: [0, 100000],
   artOffers: [0, 12], chestPrice: [0, 10000], ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, [0, 100000]])), prismShards: [0, 10000],
-  ...Object.fromEntries(RARITY_IDS.map(r => [`essArtPrice_${r}`, [0, 1000000]])) };
+  ...Object.fromEntries(RARITY_IDS.map(r => [`essArtPrice_${r}`, [0, 1000000]])), essFramePrice: [0, 1000000] };
 
 // Decks du joueur : jusqu'à MAX_DECKS, chacun avec un identifiant ; « active » désigne celui qui est joué.
 const newDeckId = () => randomBytes(4).toString('hex');
@@ -202,8 +202,9 @@ export function createAccounts(store) {
     const c = cfg();
     return { shards: a.shards || 0, freeBoosters: a.freeBoosters || 0, prices: { dailyCards: c.dailyCards, cardPrice: c.cardPrice, boosterPrice: c.boosterPrice, boosterSize: c.boosterSize, shardsPerDuplicate: c.shardsPerDuplicate, dupPrice: c.dupPrice },
       dups: a.starter ? dupDay(a).offers.map(id => ({ id, bought: dupDay(a).bought.includes(id), capped: !canLevel(a)(id) })) : [],
-      // Rayon Essence : essence universelle du joueur et arts de l'édition Essence.
-      essence: a.starter ? { universal: a.uniEssence || 0, arts: arts.essenceView(a) } : null,
+      // Rayon Essence : essence universelle du joueur, arts de l'édition Essence et cadre de la nébuleuse.
+      essence: a.starter ? { universal: a.uniEssence || 0, arts: arts.essenceView(a),
+        frame: { id: ESSENCE_FRAME.id, price: c.essFramePrice ?? ESSENCE_FRAME.price, owned: !!a.cosmetics?.frames?.includes(ESSENCE_FRAME.id) } } : null,
       arts: a.starter ? arts.view(a) : null, sets: shopOrder(SETS.filter(s => setRevealed(s))).map(set => ({ id: set.id, name: set.name, open: set.open, teaser: set.teaser || '', size: set.cards.length, boosterPrice: setBoosterPrice(set, c.boosterPrice),
       offers: set.open ? shopDay(a, set).offers.map(id => ({ id, bought: shopDay(a, set).bought.includes(id), owned: !!a.cards[id] })) : [] })) };
   }
@@ -262,6 +263,15 @@ export function createAccounts(store) {
     progress.check(a);
     await store.put(a);
     return { art: art.id, shop: shopView(a), account: me(a) };
+  }
+  async function buyEssenceFrame(a) {
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
+    if (!a.level) progress.init(a);
+    if (a.cosmetics.frames.includes(ESSENCE_FRAME.id)) throw new HttpError(409, msg('Vous avez déjà ce cadre.'));
+    payUni(a, cfg().essFramePrice ?? ESSENCE_FRAME.price);
+    progress.grant(a, { frame: ESSENCE_FRAME.id }, { silent: true });
+    await store.put(a);
+    return { frame: ESSENCE_FRAME.id, shop: shopView(a), account: me(a) };
   }
   // free : booster offert (niveau, set complété), ouvert dans le set choisi.
   async function buyBooster(a, { set: setId, free }) {
@@ -429,14 +439,15 @@ export function createAccounts(store) {
   async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
   async function equip(a, body) { await progress.equip(a, body || {}); progress.check(a); await store.put(a); return { account: me(a) }; }
   async function buyEmote(a, body) { const emote = progress.buyEmote(a, body || {}); await store.put(a); activity.count('emotesBought'); return { emote, account: me(a) }; }
-  // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes le sont. Affiché par le panneau de fin (silent).
+  // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes les leçons de base le sont (le tutoriel avancé
+  // ne rapporte que des Éclats). Affiché par le panneau de fin (silent).
   async function lessonDone(a, { lesson } = {}) {
     const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l) throw new HttpError(400, msg('Leçon inconnue.'));
     progress.init(a);
     const done = a.tuto ||= [];
     if (done.includes(l.id)) return { reward: null, account: me(a) };
     done.push(l.id);
-    const r = progress.cfg(), all = TUTO_LESSONS.every(x => done.includes(x.id));
+    const r = progress.cfg(), all = !l.advanced && TUTO_LESSONS.filter(x => !x.advanced).every(x => done.includes(x.id));
     const reward = { kind: 'tuto', label: `Leçon finie : ${l.name}`, labelMsg: msg('Leçon finie : {name}', { name: [l.name] }), shards: r.tutoShards, boosters: all ? r.tutoBoosters : 0, all };
     progress.grant(a, reward, { silent: true });
     await store.put(a);
@@ -572,7 +583,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, buyEssenceFrame, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminWelcome, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -611,6 +622,7 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/shop/convert': (a, body) => accounts.convertPrisms(a, body || {}),
     'POST /api/shop/dup': (a, body) => accounts.buyDup(a, body || {}),
     'POST /api/shop/essence-art': (a, body) => accounts.buyEssenceArt(a, body),
+    'POST /api/shop/essence-frame': a => accounts.buyEssenceFrame(a),
     'POST /api/shop/emote': (a, body) => accounts.buyEmote(a, body),
     'POST /api/essence/convert': (a, body) => accounts.convertEssence(a, body),
     'POST /api/calendar/claim': a => accounts.claimDay(a),

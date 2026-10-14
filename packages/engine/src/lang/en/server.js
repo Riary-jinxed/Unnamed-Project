@@ -49,6 +49,7 @@ export default {
   // ---- Arts alternatifs (arts.js) ----
   "Art inconnu.": "Unknown art.",
   "Vous avez déjà cet art.": "You already have this art.",
+  "Vous avez déjà ce cadre.": "You already have this frame.",
   "Cet art ne se vend pas : il s'obtient en récompense.": "This art isn't for sale: it's earned as a reward.",
   "Cet art se vend au rayon Essence, contre de l'essence universelle.": "This art is sold in the Essence section, for universal essence.",
   "Cet art se vend au magasin de clan, contre des Écus.": "This art is sold in the clan shop, for Crowns.",

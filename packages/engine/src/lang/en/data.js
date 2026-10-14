@@ -92,6 +92,11 @@ export default {
   'Terrains et déplacements': 'Terrains and movement',
   'Généraux': 'Generals',
   'Partie complète': 'Full match',
+  'Sceaux et Trésor': 'Seals and Treasure',
+  'Sacrifice et Destruction': 'Sacrifice and Death',
+  'Défausse et Relève': 'Discard and Rise',
+  'Drain et Échange': 'Drain and Swap',
+  'Sortilège et Inspiration': 'Spellcast and Inspire',
 
   // ---- Niveaux de carte ----
   'Base': 'Base',
@@ -125,6 +130,9 @@ export default {
   'Cadre du blason': 'Crest frame',
   'Cadre du héraut': "Herald's frame",
   'Cadre des crocs': 'Fang frame',
+  'Cadre de la comète': 'Comet frame',
+  'Cadre du brasier': 'Blaze frame',
+  'Cadre de la nébuleuse': 'Nebula frame',
   'Cadre du vitrail': 'Stained-glass frame',
   'Cadre des saisons': 'Seasons frame',
   "Cadre de l'Éclipse": 'Eclipse frame',

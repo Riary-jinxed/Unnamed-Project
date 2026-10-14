@@ -83,9 +83,14 @@ export const REWARD_LIMITS = {
 };
 
 // Leçons du tutoriel (client/src/tutorial.js, mêmes identifiants), dans l'ordre d'« Apprendre ». Chacune récompensée une fois.
+// advanced : tutoriel avancé (une mécanique de famille par leçon), qui ne compte pas pour les boosters offerts.
+// Une nouvelle mécanique de famille mérite sa leçon : voir docs/recettes.md.
 export const TUTO_LESSONS = [
   { id: 'initiation', name: 'Initiation' }, { id: 'effets', name: 'Effets et sorts' }, { id: 'terrains', name: 'Terrains et déplacements' },
   { id: 'generaux', name: 'Généraux' }, { id: 'complet', name: 'Partie complète' },
+  { id: 'sceaux', name: 'Sceaux et Trésor', advanced: true }, { id: 'sacrifice', name: 'Sacrifice et Destruction', advanced: true },
+  { id: 'releve', name: 'Défausse et Relève', advanced: true }, { id: 'drain', name: 'Drain et Échange', advanced: true },
+  { id: 'sorts', name: 'Sortilège et Inspiration', advanced: true },
 ];
 
 // XP pour passer du niveau `level` au suivant.
@@ -178,7 +183,13 @@ export const FRAMES = {
   // Cadres des paliers des familles d'arts : ajoutés plus bas (ART_THEME_FRAMES).
   // Cadres du magasin du boss mondial (boss.js).
   ...Object.fromEntries(BOSS_FRAMES),
+  // Cadre du rayon Essence (ESSENCE_FRAME).
+  essence_nebuleuse: 'Cadre de la nébuleuse',
 };
+// Cadre vendu au rayon Essence de la boutique, en essence universelle (prix réglable dans /admin : essFramePrice).
+export const ESSENCE_FRAME = { id: 'essence_nebuleuse', price: 500 };
+// Cadres animés : un calque en mouvement s'ajoute à l'anneau (client/src/frames-anim.css).
+export const ANIMATED_FRAMES = new Set(['boss_comete', 'boss_brasier', 'essence_nebuleuse', 'set2', 'halloween_p', 'cyber_p', 'maitre', 'legende']);
 const FAM_KEY = { 'Ange': 'ange', 'Démon': 'demon', 'Gobelin': 'gobelin', 'Elfe': 'elfe', 'Dragon': 'dragon', 'Mort-vivant': 'mortvivant', 'Vampire': 'vampire', 'Hacker': 'hacker', 'Cyborg': 'cyborg' };
 export const famKey = fam => FAM_KEY[fam] || 'neutre';
 // Dos de carte : celui par défaut, puis un par famille complétée dans chaque set. Il se voit sur vos cartes cachées, côté adversaire.
