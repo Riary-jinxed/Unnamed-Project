@@ -181,4 +181,10 @@ export default {
   'Quotidien': 'Daily',
   'Modes de jeu': 'Game modes',
   'Niveau du joueur': 'Player level',
+  'Passe de saison · {n} j': 'Season pass · {n} d',
+  '{n} mission du passe à faire': '{n} pass mission to do',
+  '{n} missions du passe à faire': '{n} pass missions to do',
+  'Toutes les missions du passe sont faites ✓': 'All pass missions done ✓',
+  'Premium ✓': 'Premium ✓',
+  'Voir le passe': 'View the pass',
 };

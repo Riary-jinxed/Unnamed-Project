@@ -1276,9 +1276,10 @@ function renderHome() {
   const daily = [
     p.missions.length || p.weekly?.list.length ? quick('missions', 'M9 4h6M9 4a2 2 0 0 0-2 2H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1a2 2 0 0 0-2-2M9 13l2 2 4-4',
       t('Missions'), `${p.missions.length - left}/${p.missions.length}`, left || false) : '',
-    cal ? quick('calendar', 'M4 6a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 10h16M8 3v4M16 3v4',
+    // Calendrier et bienvenue : seulement quand une récompense attend (ils s'ouvrent d'eux-mêmes une fois par visite).
+    cal?.ready ? quick('calendar', 'M4 6a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 10h16M8 3v4M16 3v4',
       t('Calendrier'), cal.ready ? t('À récupérer') : `${cal.got}/${cal.days.length}`, !!cal.ready) : '',
-    wel ? quick('welcome', 'M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 7h18v4H3zM12 7v14M12 7c-1.5-3-5-3-5-1s3 1 5 1c2 0 5 1 5-1s-3.5-2-5 1',
+    wel?.ready ? quick('welcome', 'M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 7h18v4H3zM12 7v14M12 7c-1.5-3-5-3-5-1s3 1 5 1c2 0 5 1 5-1s-3.5-2-5 1',
       t('Bienvenue'), wel.ready ? t('À récupérer') : `${wel.got}/${wel.steps}`, !!wel.ready) : '',
     quick('learn', 'M4 5a1 1 0 0 1 1-1h5a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 5a1 1 0 0 0-1-1h-5a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', t('Apprendre'), t('Tuto, codex')),
   ].join('');
@@ -1289,11 +1290,18 @@ function renderHome() {
     clan.tile(a),
   ].filter(Boolean).join('');
   const rows = [
-    p.pass ? `<button class="tile hrow passline theme-${p.pass.theme}" data-act="pass"><span class="hrow-txt"><span class="eyebrow">${t('Passe · {n} j', { n: p.pass.daysLeft })}</span><b>${esc(t(p.pass.name))}</b></span>
-      <span class="hrow-end num">${t('Palier {tier}/{tiers}', { tier: p.pass.tier, tiers: p.pass.tiers })}</span><span class="bar" aria-hidden="true"><span style="width:${pct(p.pass.xp, p.pass.next)}%"></span></span></button>` : '',
     `<button class="tile hrow" data-act="profile" data-tab="succes"><span class="hrow-txt"><span class="eyebrow">${p.title ? esc(t(titleLabel(p.title))) : t('Niveau du joueur')}</span><b class="num">${t('Niv. {n}', { n: p.level })}</b></span>
       <span class="hrow-end num">${t('{xp}/{next} XP · Succès', { xp: p.xp, next: p.xpNext })}</span><span class="bar" aria-hidden="true"><span style="width:${pct(p.xp, p.xpNext)}%"></span></span></button>`,
   ].join('');
+  // Passe de saison : grand bandeau sous Jouer (en tête de la colonne de droite sur ordinateur), à l'image d'un art Promo de la saison.
+  const season = p.pass && SEASONS.find(x => x.id === p.pass.id), promo = season?.promo.map(x => x.art).find(id => ARTS[id] && GENERALS[ARTS[id].card]);
+  const passBand = p.pass ? `<button class="passband theme-${p.pass.theme}" data-act="pass">
+      ${promo ? `<span class="pb-art">${portraitHTML(ARTS[promo].card, promo)}</span>` : ''}
+      <span class="pb-txt"><span class="eyebrow">${t('Passe de saison · {n} j', { n: p.pass.daysLeft })}</span><b>${esc(t(p.pass.name))}</b>
+        <small>${p.pass.todo ? tp(p.pass.todo, '{n} mission du passe à faire', '{n} missions du passe à faire') : t('Toutes les missions du passe sont faites ✓')}</small></span>
+      <span class="pb-tier num"><b>${p.pass.tier}</b><small>/${p.pass.tiers}</small></span>
+      <span class="bar" aria-hidden="true"><span style="width:${pct(p.pass.xp, p.pass.next)}%"></span></span>
+      <span class="pb-foot num"><span>${t('Palier {tier}/{tiers}', { tier: p.pass.tier, tiers: p.pass.tiers })} · ${p.pass.xp}/${p.pass.next} XP</span><span class="pb-go">${p.pass.premium ? t('Premium ✓') : t('Voir le passe')}</span></span></button>` : '';
   return `
   <div class="top hometop hud"><button class="profile-btn" data-act="profile" aria-label="${t('Mon profil')}">${avatarHTML(a)}</button>
     <button class="hud-id" data-act="profile"><b>${esc(a.name)}</b><span class="hud-lv num">${t('Niv. {n}', { n: p.level })}<span class="bar" aria-hidden="true"><span style="width:${pct(p.xp, p.xpNext)}%"></span></span></span></button>
@@ -1312,6 +1320,7 @@ function renderHome() {
     </div>
     <div class="home-side">
       ${gift}
+      ${passBand}
       <nav class="quick" aria-label="${t('Quotidien')}">${daily}</nav>
       ${modes ? `<section class="home-sec modes-sec"><h3 class="home-h">${t('Modes de jeu')}</h3><div class="tiles modes">${modes}</div></section>` : ''}
       <section class="home-sec prog-sec"><h3 class="home-h">${t('Progression')}</h3><div class="hrows">${rows}</div></section>
