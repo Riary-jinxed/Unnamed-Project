@@ -32,6 +32,13 @@ export const terrainBg = (id, side) => TERRAIN_ART[id] ? `<span class="tbg ${sid
 export const terrainHTML = (id, name, cls = '') => TERRAIN_ART[id] ? `<div class="art tart ${cls}" aria-hidden="true">
   <div class="art-clip"><img class="art-terrain" src="${TERRAIN_ART[id]}" alt="" loading="lazy" decoding="async"></div>
   <span class="art-name">${esc(name)}</span></div>` : provHTML(id, name, `tart ${cls}`, TERRAINS[id]?.fam || null);
+// Illustration d'un lieu ou d'une carte en grand, sans cadre ni nom (dialogues des quêtes d'histoire) : un terrain (art/terrain)
+// ou une carte (décor et personnage). Sans image : rien.
+export function sceneHTML(id) {
+  if (TERRAIN_ART[id]) return `<img src="${TERRAIN_ART[id]}" alt="" decoding="async">`;
+  const a = ART[id]; if (!a?.decor) return '';
+  return `<img src="${a.decor}" alt="" decoding="async">${a.perso ? `<img src="${a.perso}" alt="" decoding="async">` : ''}`;
+}
 // Un art alternatif a-t-il déjà ses images ?
 export const altReady = artId => !!ALT[artId]?.decor;
 

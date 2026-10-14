@@ -1,11 +1,14 @@
 // Quêtes d'histoire : des suites de combats contre l'IA, avec des decks préconstruits, un peu de récit et une petite carte.
 // Partagé par le serveur (server/src/story.js : progression, récompenses, réglages de /admin) et l'appli (client/src/story.js :
-// carte, dialogues ; client/src/story-game.js : la partie, jouée dans la page comme contre l'IA).
+// carte, dialogues ; la partie se joue dans la page avec solo.js, comme contre l'IA).
 //
-// Deux sortes de quêtes :
-// - les campagnes (une par deck de départ : Gobelin, Elfe, Démon), ouvertes à tous et sans limite de temps ;
-// - les quêtes à durée limitée (Halloween, Éclipse, novembre), ouvertes entre deux dates (réglables dans /admin) ; leurs récompenses
-//   (carte, art Promo, titre) ne s'obtiennent que pendant ce temps, et restent acquises ensuite.
+// Deux onglets dans l'appli :
+// - Histoire principale : les campagnes (une par deck de départ : Gobelin, Elfe, Démon), ouvertes à tous et sans limite de temps,
+//   puis les quêtes d'événement qui font avancer l'histoire (canon), une fois leur événement fini ;
+// - Événements : les quêtes à durée limitée (Halloween, Éclipse, novembre), ouvertes entre deux dates (réglables dans /admin).
+// Une quête d'événement canon arrive ensuite pour de bon dans l'histoire principale (état « archive ») : même progression, mêmes
+// récompenses, sauf l'art Promo (plus jamais donné) et la carte de quête, remplacée par des Éclats (CARD_SHARDS) : la carte rejoint
+// le booster du Set de base (releasedStoryCards, appliqué au catalogue par le serveur). Une quête non canon (Halloween) disparaît.
 //
 // Une quête = des chapitres, joués dans l'ordre. Un chapitre = un adversaire (deck préconstruit, général, force de l'IA, bonus de zone),
 // un récit avant (intro) et après la victoire (outro), un lieu sur la carte (at : [x, y] en % de la carte) et une récompense,
@@ -22,7 +25,8 @@ export const LORE = {
   ],
 };
 
-// Personnages qui parlent sans être un général : la narration.
+// Qui parle dans un dialogue : un général, une carte (son illustration sert de portrait) ou la narration.
+// Une réplique est [qui, texte] ou [qui, texte, illustration] : une carte ou un terrain montré en grand au-dessus du texte.
 export const NARRATOR = 'recit';
 
 const deckOf = key => ({ name: DECKS[key].name, general: DECKS[key].general, cards: DECKS[key].cards.slice(), terrains: DECKS[key].terrains.slice() });
@@ -36,7 +40,8 @@ const tweak = (key, out = [], add = [], extra = {}) => {
 const foe = (name, general, deck, tries, bonus = null, art = null) => ({ name, general, deck, tries, bonus, art });
 // Récompense d'un chapitre. Les nombres (Éclats, XP, Prismes, boosters, coffres) se règlent dans /admin ; carte, art et titre restent ceux-ci.
 const R = (x = {}) => ({ shards: 0, xp: 0, prisms: 0, boosters: 0, chests: 0, ...x });
-const C = (id, name, place, at, f, reward, intro, outro, extra = {}) => ({ id, name, place, at, foe: f, reward, intro, outro, ...extra });
+// scene : le lieu du chapitre, un terrain (art/terrain) ou une carte illustrée, en tête des dialogues.
+const C = (id, name, place, at, f, reward, intro, outro, extra = {}) => ({ id, name, place, at, foe: f, reward, intro, outro, scene: null, ...extra });
 
 // Titres des quêtes (ajoutés aux titres de rewards.js).
 export const STORY_TITLES = [
@@ -57,14 +62,14 @@ export const QUESTS = [
       C('bourg', 'Razzia au bourg', 'Le Bourg-aux-Moutons', [33, 52], foe('Milice du bourg', 'intendant', 'ange', 50), R({ shards: 80, xp: 50 }),
         [[NARRATOR, 'Le bourg dort. Ses greniers sont pleins, sa chapelle prie l\'Aube et sa milice ronfle.'], ['grisk', 'Pas de feu tant que je n\'ai pas dit « feu ». … Feu !']],
         [[NARRATOR, 'Le bourg est vidé de ses moutons, de ses tonneaux et de sa fierté. Sous la place du marché, Grisk trouve une vieille carte gravée : un chemin vers les Monts d\'Or.']]),
-      C('tablee', 'Le festin de Gorbag', 'La Grande Tablée', [52, 70], foe('Gorbag le Ripailleur', 'gorbag', 'festin', 30), R({ boosters: 1, xp: 60 }),
+      C('tablee', 'Le festin de Gorbag', 'La Grande Tablée', [52, 70], foe('Gorbag le Ripailleur', 'gorbag', 'festin', 15), R({ boosters: 1, xp: 60 }),
         [['gorbag', 'Du butin ? Ici, tout ce qui entre finit dans la marmite. Toi compris.'], ['grisk', 'On a faim aussi, Gorbag. Mais on mange après la bagarre.']],
-        [['gorbag', 'Belle bagarre ! Prends mon Boss de la Horde : une horde qui mange bien pille mieux.']],
+        [['gorbag', 'Belle bagarre ! Prends mon Boss de la Horde : une horde qui mange bien pille mieux.'], ['boss_horde', 'BOSS ! On pille quoi ? On pille où ? On pille quand ?'], ['grisk', 'Tout, partout, tout de suite.']],
         { join: { card: 'boss_horde', out: 'potion' } }),
       C('bois', 'La forêt qui chante', 'Bois de Sylvaën', [70, 42], foe('Lirael Pas-de-Vent', 'lirael', 'elfe', 140), R({ shards: 120, xp: 70 }),
         [['lirael', 'Les Gobelins ne traversent pas nos bois. Ils les contournent, ou ils y restent.'], ['grisk', 'On ne fait que passer ! Bon, et peut-être deux ou trois arbres.']],
         [['lirael', 'Le chant que tu suis… je l\'entends aussi. Il vient des Monts d\'Or, et ce n\'est pas une chanson. C\'est un appel au secours.']]),
-      C('monts', 'Le magot de Vael\'Thar', 'Les Monts d\'Or', [88, 18], foe('Vael\'Thar, l\'Aîné', 'vaelthar', 'dragon', 220, [1, 1, 1]), R({ shards: 150, prisms: 10, xp: 100, art: 'grisk_razzia', title: 'histoire:razzia' }),
+      C('monts', 'Le magot de Vael\'Thar', 'Les Monts d\'Or', [88, 18], foe('Vael\'Thar, l\'Aîné', 'vaelthar', 'dragon', 120, [1, 1, 1]), R({ shards: 150, prisms: 10, xp: 100, art: 'grisk_razzia', title: 'histoire:razzia' }),
         [['vaelthar', 'Mille ans que je dors sur cet or, petit roi. Mille ans qu\'aucun voleur n\'en est reparti.'], ['grisk', 'Mille ans que t\'attends le bon, alors.'],
           [NARRATOR, 'Vael\'Thar se bat dans son repaire : ses trois zones commencent avec +1.']],
         [[NARRATOR, 'Sous la montagne d\'or, Grisk trouve un éclat de pierre qui brille d\'une lumière qui n\'est pas celle de l\'or : un morceau du Septième Sceau.'],
@@ -85,12 +90,12 @@ export const QUESTS = [
         [['ossa', 'Ce n\'est pas moi qui tue ta forêt. Je ramasse seulement ce qui tombe. Cherche plus bas, sous les racines.']]),
       C('cercle', 'Le cercle d\'Elyndra', 'Cercle des Arcanes', [50, 32], foe('Elyndra, Tisseuse de sorts', 'elyndra', tweak('arcanes', ['sylvain', 'grand_druide'], ['barde', 'potion']), 90), R({ boosters: 1, xp: 60 }),
         [['elyndra', 'Ton chant ne sauvera rien, Sylvaën. Il faut des sorts. Des sorts puissants, même interdits.'], ['sylvaen', 'Un sort qui brûle la forêt pour la sauver ? Non.']],
-        [['elyndra', 'Tu as raison… pour cette fois. Emmène ma Gardienne des sentiers : elle connaît les chemins sous la terre.']],
+        [['elyndra', 'Tu as raison… pour cette fois. Emmène ma Gardienne des sentiers : elle connaît les chemins sous la terre.'], ['gardienne_sentiers', 'Les racines descendent loin, Voix des Bois. Suivez ma lanterne, et ne marchez pas sur les champignons.']],
         { join: { card: 'gardienne_sentiers', out: 'potion' } }),
       C('racines', 'Les racines brûlées', 'Les Racines', [68, 66], foe('Ignaroth le Dévoreur', 'ignaroth', 'dragon', 200), R({ shards: 120, xp: 70 }),
         [['ignaroth', 'Les racines de ton arbre descendent jusqu\'à mon antre. Elles sont tendres. Elles brûlent bien.'], ['sylvaen', 'Alors je te ferai remonter, Dévoreur.']],
         [['ignaroth', 'Ce n\'est pas mon feu qui ronge ton arbre, petite Voix. C\'est le pacte, tout en bas, dans les Fosses.']]),
-      C('fosses', 'Le cœur des Fosses', 'Les Fosses', [88, 82], foe('Morgrath, Seigneur des Fosses', 'morgrath', 'demon', 220, [1, 1, 1]), R({ shards: 150, prisms: 10, xp: 100, art: 'sylvaen_racines', title: 'histoire:racines' }),
+      C('fosses', 'Le cœur des Fosses', 'Les Fosses', [88, 82], foe('Morgrath, Seigneur des Fosses', 'morgrath', tweak('demon', ['archidemon'], ['barde']), 120, [1, 1, 1]), R({ shards: 150, prisms: 10, xp: 100, art: 'sylvaen_racines', title: 'histoire:racines' }),
         [['morgrath', 'Ton arbre boit à la même source que mes Fosses, l\'Elfe. Le Septième Sceau. Et je ne partage pas.'], ['sylvaen', 'Il n\'est à personne. Rends-le à la terre.'],
           [NARRATOR, 'Morgrath se bat chez lui : ses trois zones commencent avec +1.']],
         [[NARRATOR, 'Les racines de l\'Arbre-Mère se referment autour du Sceau fissuré. La forêt respire à nouveau, pour un temps.'],
@@ -108,7 +113,7 @@ export const QUESTS = [
         [['vorgoth', 'Je m\'incline… pour l\'instant. Mon cercle invoquera pour vous.']]),
       C('foire', 'Le marché des dupes', 'La Foire aux âmes', [34, 46], foe('Belzharoth, Marchand d\'âmes', 'belzharoth', 'contrat', 50), R({ shards: 80, xp: 50 }),
         [['belzharoth', 'Un Sceau à briser ? J\'ai ce qu\'il vous faut. Le prix : une âme. La vôtre, de préférence.'], ['morgrath', 'Je n\'achète pas, marchand. Je prends.']],
-        [['belzharoth', 'Marché conclu, puisqu\'il le faut. Mon Héritier des abysses vous servira… à crédit.']],
+        [['belzharoth', 'Marché conclu, puisqu\'il le faut. Mon Héritier des abysses vous servira… à crédit.'], ['heritier_abysses', 'Les abysses vous saluent, Seigneur. Elles ont hâte de remonter.']],
         { join: { card: 'heritier_abysses', out: 'potion' } }),
       C('chateau', 'Le bal de Valdric', 'Château Valdric', [56, 24], foe('Comte Valdric', 'valdric', 'vampire', 90), R({ boosters: 1, xp: 60 }),
         [['valdric', 'Les Fosses ouvertes, la nuit serait éternelle. Charmant… si je n\'étais pas déjà le maître de la nuit.'], ['morgrath', 'Danse, Comte. Pendant que tu danses, tu ne mords pas.']],
@@ -116,7 +121,7 @@ export const QUESTS = [
       C('serment', 'La Porte de l\'Aube', 'Le Serment', [72, 56], foe('Aurélia, Gardienne du Serment', 'aurelia', 'ange', 140), R({ shards: 120, xp: 70 }),
         [['aurelia', 'J\'ai juré de garder ce Sceau. Un serment ne se rompt pas.'], ['morgrath', 'Tout se rompt, Gardienne. Les serments, les sceaux, les ailes.']],
         [['aurelia', 'Séraphine… elle viendra. Elle vient toujours.']]),
-      C('septieme', 'Séraphine, Main de l\'Aube', 'Le Septième Sceau', [90, 80], foe('Séraphine, Main de l\'Aube', 'seraphine', 'oracle', 90, [1, 1, 1]), R({ shards: 150, prisms: 10, xp: 100, art: 'morgrath_pacte', title: 'histoire:pacte' }),
+      C('septieme', 'Séraphine, Main de l\'Aube', 'Le Septième Sceau', [90, 80], foe('Séraphine, Main de l\'Aube', 'seraphine', tweak('oracle', ['archange', 'dominion'], ['golem', 'potion']), 30, [1, 1, 1]), R({ shards: 150, prisms: 10, xp: 100, art: 'morgrath_pacte', title: 'histoire:pacte' }),
         [['seraphine', 'Morgrath. Encore toi. Encore ici.'], ['morgrath', 'Pour la dernière fois, Main de l\'Aube. Ce soir, l\'Aube se couche.'],
           [NARRATOR, 'Séraphine garde le Sceau : ses trois zones commencent avec +1.']],
         [[NARRATOR, 'Le Septième Sceau se brise dans un cri de lumière. Au-dessus des Terres d\'Aube, le soleil s\'assombrit, et un dragon noir déploie ses ailes devant lui.'],
@@ -124,7 +129,7 @@ export const QUESTS = [
     ] },
 
   // ---- Quêtes à durée limitée ----
-  // Halloween : jusqu'à la fin de la saison Nuit des citrouilles.
+  // Halloween : jusqu'à la fin de la saison Nuit des citrouilles. Une farce hors de l'histoire : elle ne rejoint pas l'histoire principale.
   { id: 'halloween', kind: 'limitee', fam: 'Gobelin', hero: 'grisk', name: 'La Nuit des citrouilles', map: 'halloween', from: '2026-10-14', to: '2026-10-31',
     arts: { grisk: 'grisk_farce', morgrath: 'morgrath_citrouilles' },
     tagline: 'Les citrouilles ricanent, la Sorcière du sabbat allume ses lanternes.',
@@ -132,7 +137,7 @@ export const QUESTS = [
     deck: tweak('gobelin', ['potion', 'mercenaire'], ['citrouille', 'sorciere_sabbat'], { name: 'Farce ou friandise' }),
     chapters: [
       C('bourg_fete', 'Les lanternes s\'allument', 'Le Bourg en fête', [14, 70], foe('Citrouilles farceuses', 'snagg', tweak('gobelin', ['potion'], ['citrouille'], { name: 'Citrouilles farceuses' }), 40), R({ shards: 100, xp: 50 }),
-        [[NARRATOR, 'Les rues du bourg sont pleines de lanternes… et les lanternes ont des dents.'], ['grisk', 'Farce ou friandise ? … Farce, hein. J\'aurais dû m\'en douter.']],
+        [[NARRATOR, 'Les rues du bourg sont pleines de lanternes… et les lanternes ont des dents.', 'citrouille'], ['citrouille', 'Hi hi hi ! Farce ou friandise ?'], ['grisk', 'Friandise ? … Farce, hein. J\'aurais dû m\'en douter.']],
         [['grisk', 'Elles filent vers le cimetière. Évidemment, le cimetière.']]),
       C('cimetiere', 'Le cimetière qui ricane', 'Le Cimetière', [38, 40], foe('Ossa la Nécromancienne', 'ossa', tweak('mortvivant', ['pilleur', 'seigneur_os'], ['citrouille', 'barde'], { name: 'Os et citrouilles' }), 25), R({ card: 'epouvantail', xp: 60 }),
         [['ossa', 'Des âmes dans des citrouilles ! Quel gâchis. J\'en aurais fait de si beaux squelettes.'], ['grisk', 'Personne ne les aura. Surtout pas toi.']],
@@ -140,28 +145,28 @@ export const QUESTS = [
       C('bal', 'Le bal masqué', 'Château Valdric', [62, 62], foe('Dame Carmilla', 'carmilla', tweak('vampire', ['potion'], ['sorciere_sabbat'], { name: 'Bal masqué' }), 120), R({ prisms: 10, shards: 100, xp: 70 }),
         [['carmilla', 'Un Gobelin à mon bal ? Quelle audace. Quel mauvais goût. Dansons.'], ['grisk', 'Je danse très mal. Je cogne très bien.']],
         [['carmilla', 'Ta sorcière est partie à sa clairière, le sabbat va commencer. Le Seigneur des Fosses y préside, déguisé en citrouille. Si, si.']]),
-      C('sabbat', 'Le Sabbat', 'La Clairière du sabbat', [86, 24], foe('Le Roi Citrouille', 'morgrath', tweak('demon', ['potion', 'mercenaire'], ['citrouille', 'sorciere_sabbat'], { name: 'Sabbat des Fosses' }), 200, [1, 1, 1]),
+      C('sabbat', 'Le Sabbat', 'La Clairière du sabbat', [86, 24], foe('Le Roi Citrouille', 'morgrath', tweak('demon', ['potion', 'mercenaire', 'archidemon'], ['citrouille', 'sorciere_sabbat', 'barde'], { name: 'Sabbat des Fosses' }), 25, [1, 1, 1]),
         R({ shards: 150, xp: 100, art: 'citrouille_lanterne', title: 'quete:halloween' }),
-        [['morgrath', 'Bienvenue au sabbat, petit roi. Les âmes du bourg brûlent si joliment dans mes lanternes.'], ['grisk', 'Morgrath ?! T\'as une citrouille sur la tête.'],
+        [['sorciere_sabbat', 'Approche, petit roi, approche. Le sabbat commence, et il manquait justement un invité.'], ['morgrath', 'Bienvenue au sabbat. Les âmes du bourg brûlent si joliment dans mes lanternes.'], ['grisk', 'Morgrath ?! T\'as une citrouille sur la tête.'],
           [NARRATOR, 'Le sabbat protège le Roi Citrouille : ses trois zones commencent avec +1.']],
         [[NARRATOR, 'Les lanternes s\'éteignent une à une et les âmes rentrent au bourg en ricanant. Il reste une citrouille, la plus grosse, qui suit Grisk partout.'],
           ['grisk', 'Bon. Tu t\'appelles Lanterne, et tu ne manges pas les moutons.']]),
     ] },
 
   // Éclipse : quelques semaines, à la suite de la campagne Démon.
-  { id: 'eclipse', kind: 'limitee', fam: 'Ange', hero: 'seraphine', name: 'L\'Éclipse noire', map: 'eclipse', from: '2026-10-19', to: '2026-11-08',
+  { id: 'eclipse', kind: 'limitee', canon: true, fam: 'Ange', hero: 'seraphine', name: 'L\'Éclipse noire', map: 'eclipse', from: '2026-10-19', to: '2026-11-08',
     arts: { ignaroth: 'ignaroth_eclipse', vorgoth: 'vorgoth_cercle' },
     tagline: 'Le soleil s\'éteint au-dessus des Terres d\'Aube. Séraphine part le rallumer.',
     prologue: 'Le Septième Sceau s\'est brisé, et de ses morceaux est sorti un soleil noir. Ignaroth le Dévoreur s\'est posé devant l\'astre et en boit la lumière. Tant que dure l\'éclipse, les Terres d\'Aube n\'ont plus d\'aube. Séraphine, elle, n\'a jamais su attendre le matin.',
     deck: tweak('ange', ['potion'], ['voix_aube'], { name: 'Aube rebelle' }),
     chapters: [
       C('hauts', 'Le ciel s\'assombrit', 'Les Hauts de l\'Aube', [12, 76], foe('Rôdeuses de l\'éclipse', 'lirael', 'elfe', 25), R({ shards: 100, xp: 50 }),
-        [[NARRATOR, 'Dans le noir, les Elfes ne reconnaissent plus amis ni ennemis. Leurs flèches volent vers tout ce qui brille.'], ['seraphine', 'Je brille. Tant pis pour moi.']],
+        [[NARRATOR, 'Dans le noir, les Elfes ne reconnaissent plus amis ni ennemis. Leurs flèches volent vers tout ce qui brille.'], ['voix_aube', 'Main de l\'Aube, les Hauts sont tombés dans la nuit. Nous vous suivrons jusqu\'au soleil.'], ['seraphine', 'Alors restez derrière moi. Je brille : tant pis pour moi.']],
         [['lirael', 'Pardon, Main de l\'Aube. Sans soleil, nos yeux nous trahissent. Le cercle pourpre s\'est rallumé, à l\'est.']]),
       C('cercle_noir', 'Le cercle pourpre', 'Le Cercle pourpre', [36, 46], foe('Vorgoth l\'Invocateur', 'vorgoth', 'demon', 90), R({ card: 'pretre_eclipse', xp: 60 }),
         [['vorgoth', 'L\'éclipse nourrit mon cercle. Chaque minute sans soleil, mes invocations grandissent.'], ['seraphine', 'Alors je vais faire vite.']],
         [['vorgoth', 'Le dragon noir ne boit pas seul la lumière… sa couvée aussi a faim. Va voir Ysmera, si tu oses.']]),
-      C('cendres', 'La pluie de cendres', 'Le Nid des cendres', [62, 28], foe('Ysmera, Mère des couvées', 'ysmera', 'couvee', 140), R({ boosters: 1, shards: 100, xp: 70 }),
+      C('cendres', 'La pluie de cendres', 'Le Nid des cendres', [62, 28], foe('Ysmera, Mère des couvées', 'ysmera', 'couvee', 80), R({ boosters: 1, shards: 100, xp: 70 }),
         [['ysmera', 'Mes œufs éclosent dans l\'ombre, Séraphine. Ils n\'ont jamais vu le jour. Ils ne le verront jamais.'], ['seraphine', 'Ils le verront. Tous.']],
         [[NARRATOR, 'Le nid se tait. Là-haut, devant le soleil noir, une silhouette immense ouvre un œil rouge.']]),
       C('soleil_noir', 'Ignaroth sous l\'éclipse', 'Devant le soleil noir', [88, 12], foe('Ignaroth sous l\'éclipse', 'ignaroth', 'dragon', 220, [1, 1, 1], 'ignaroth_eclipse'),
@@ -174,7 +179,7 @@ export const QUESTS = [
     ] },
 
   // Novembre : la saison Néon 2099 et le set 3 Cité Néon (2 novembre). La brèche de l'éclipse laisse passer un Éclat futuriste.
-  { id: 'neon', kind: 'limitee', fam: 'Cyborg', hero: 'kaia', name: 'Signal perdu', map: 'neon', from: '2026-11-02', to: '2026-11-30',
+  { id: 'neon', kind: 'limitee', canon: true, fam: 'Cyborg', hero: 'kaia', name: 'Signal perdu', map: 'neon', from: '2026-11-02', to: '2026-11-30',
     tagline: 'Un Éclat venu d\'ailleurs s\'écrase sur les Terres d\'Aube. Il émet un signal.',
     prologue: 'Par la fente du soleil noir, un Éclat s\'est détaché de l\'Interstice : Cité Néon, une ville qui ne dort jamais, sous une pluie de lumière. Kaïa Lame-d\'acier y capte un signal impossible, qui vient d\'un monde de dragons et d\'anges. Quelqu\'un, là-bas, a brisé un Sceau. Et quelqu\'un, ici, veut le revendre.',
     deck: deckOf('cyborg'),
@@ -188,7 +193,7 @@ export const QUESTS = [
       C('tour', 'Arcadia Corp', 'La Tour d\'Arcadia', [62, 60], foe('Aurum, PDG d\'Arcadia', 'aurum', tweak('arcadia', ['dragon_or', 'ancien'], ['barde', 'potion']), 60), R({ boosters: 1, shards: 100, xp: 70 }),
         [['aurum', 'Tout a un prix, mercenaire. Même un morceau de monde. Surtout un morceau de monde.'], ['kaia', 'Celui-là n\'est pas à vendre.']],
         [['aurum', 'Le fragment ? Il n\'est plus dans mes coffres. Quelque chose l\'a… absorbé. Quelque chose qui était mort.']]),
-      C('fantome', 'Le fantôme du Sceau', 'Le Serveur mort', [88, 22], foe('Spectre, l\'IA défunte', 'spectre_ia', 'fantomes', 100, [1, 1, 1]),
+      C('fantome', 'Le fantôme du Sceau', 'Le Serveur mort', [88, 22], foe('Spectre, l\'IA défunte', 'spectre_ia', tweak('fantomes', ['seigneur_os'], ['golem']), 150, [1, 1, 1]),
         R({ shards: 150, prisms: 15, xp: 100, art: 'kaia_signal', title: 'quete:neon' }),
         [['spectre_ia', 'J\'ÉTAIS MORTE. LE SCEAU M\'A RENDU LA VIE. JE NE LE RENDRAI PAS.'], ['kaia', 'Tu vas le rendre. À son monde.'],
           [NARRATOR, 'Spectre a pris le serveur : ses trois zones commencent avec +1.']],
@@ -217,7 +222,9 @@ export function foeDeck(ch) {
 }
 // Portrait d'un personnage dans une quête : l'art choisi pour la quête (arts), sinon celui du chapitre, sinon l'original.
 export const castArt = (q, gen, ch = null) => (ch && ch.foe.general === gen && ch.foe.art) || q.arts?.[gen] || null;
-export const castName = gen => GENERALS[gen]?.name || 'Récit';
+export const castName = who => GENERALS[who]?.name || CARDS[who]?.name || 'Récit';
+// Illustration d'une réplique : la sienne, sinon le lieu du chapitre.
+export const lineScene = (ch, line) => line[2] || ch.scene || null;
 
 // ---- Réglages (/admin) ----
 // Par quête : on (ouverte ou non), from et to (dates, quêtes limitées seulement : « AAAA-MM-JJ », jours de Paris compris)
@@ -231,29 +238,48 @@ export function questCfg(id, doc = {}) {
   const d = DEFAULT_STORY[id], o = doc[id] || {};
   return { ...d, ...o, rewards: d.rewards.map((r, i) => ({ ...r, ...(o.rewards?.[i] || {}) })) };
 }
+// Éclats donnés à la place de la carte de quête, une fois la quête passée dans l'histoire principale.
+export const CARD_SHARDS = 100;
 // Récompense d'un chapitre : les nombres réglés, plus la carte, l'art et le titre du chapitre.
-export function chapterReward(q, i, c = questCfg(q.id)) {
+// archive : version de l'histoire principale d'une quête d'événement finie, sans art Promo, la carte remplacée par des Éclats.
+export function chapterReward(q, i, c = questCfg(q.id), archive = false) {
   const ch = q.chapters[i], n = c.rewards[i] || {};
   const out = Object.fromEntries(REWARD_KEYS.filter(k => n[k]).map(k => [k, n[k]]));
   for (const k of ['card', 'art', 'title']) if (ch.reward[k]) out[k] = ch.reward[k];
+  if (archive) { delete out.art; if (out.card) { delete out.card; out.shards = (out.shards || 0) + CARD_SHARDS; } }
   return out;
 }
-// État d'une quête un jour donné : « open » (jouable), « soon » (limitée, pas encore commencée), « over » (finie), « off » (fermée).
+// État d'une quête un jour donné : « open » (jouable), « soon » (limitée, pas encore commencée), « over » (finie),
+// « archive » (quête canon finie, jouable dans l'histoire principale), « off » (fermée).
 export function questState(q, c, day) {
   if (!c.on) return 'off';
   if (!isLimited(q)) return 'open';
   if (c.from && day < c.from) return 'soon';
-  if (c.to && day > c.to) return 'over';
+  if (c.to && day > c.to) return q.canon ? 'archive' : 'over';
   return 'open';
 }
+// Onglet d'une quête dans l'appli : histoire principale (campagnes, quêtes canon archivées) ou événements.
+export const questTab = (q, state) => (!isLimited(q) || state === 'archive' ? 'main' : 'event');
+// Cartes de quête arrivées dans le booster du Set de base : celles des quêtes passées dans l'histoire principale.
+export const releasedStoryCards = (doc, day) => QUESTS.filter(q => questState(q, questCfg(q.id, doc), day) === 'archive')
+  .flatMap(q => q.chapters.map(ch => ch.reward.card).filter(Boolean));
 // Jours qui restent à une quête limitée (aujourd'hui compris).
 export const questDaysLeft = (c, day) => (c.to ? Math.max(1, Math.round((Date.parse(`${c.to}T12:00:00Z`) - Date.parse(`${day}T12:00:00Z`)) / 86400000) + 1) : null);
 
 // Cartes et arts gagnés dans les quêtes : pour dire où les obtenir (collection) et les cacher avant le début d'une quête.
 export const STORY_CARDS = Object.fromEntries(QUESTS.flatMap(q => q.chapters.filter(ch => ch.reward.card).map(ch => [ch.reward.card, q.id])));
 export const questOfCard = id => questById(STORY_CARDS[id]);
-// Vérification au chargement : chaque adversaire et chaque allié existe (une faute de frappe casserait une partie).
+// Lieu de chaque chapitre (C(…).scene) : un terrain illustré (art/terrain) ou une carte. Sans illustration, l'appli montre le ciel de la carte.
+const SCENES = {
+  razzia: ['terrier', 'guet', 'table', 'bois', 'aire'], racines: ['razzia', 'clairiere', 'cercle', 'couvoir', 'charnier'],
+  pacte: ['ruines', 'foire', 'chateau', 'autel', 'sanctuaire'], halloween: ['guet', 'cimetiere', 'chateau', 'cercle'],
+  eclipse: ['prairie', 'charnier', 'nid', 'couvoir'], neon: [null, null, null, null],
+};
+for (const q of QUESTS) q.chapters.forEach((ch, i) => { ch.scene = SCENES[q.id]?.[i] || null; });
+// Vérification au chargement : chaque adversaire, allié et personnage existe (une faute de frappe casserait une partie).
+const speaks = who => who === NARRATOR || GENERALS[who] || CARDS[who];
 for (const q of QUESTS) for (const ch of q.chapters) {
+  for (const [who] of [...ch.intro, ...ch.outro]) if (!speaks(who)) throw new Error(`Quête ${q.id}, ${ch.id} : personnage inconnu ${who}`);
   if (!GENERALS[ch.foe.general]) throw new Error(`Quête ${q.id}, ${ch.id} : général inconnu ${ch.foe.general}`);
   const d = foeDeck(ch); for (const id of d.cards) if (!CARDS[id]) throw new Error(`Quête ${q.id}, ${ch.id} : carte inconnue ${id}`);
   if (ch.join && !CARDS[ch.join.card]) throw new Error(`Quête ${q.id}, ${ch.id} : allié inconnu ${ch.join.card}`);

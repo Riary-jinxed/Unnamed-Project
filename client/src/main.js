@@ -1291,7 +1291,8 @@ function tabbar(cur) {
 }
 // Cartes de récompense : on dit comment les obtenir.
 function lockLabel(id) {
-  const sq = questOfCard(id); if (sq) return `Récompense : quête ${sq.name}`;
+  // Carte de quête : réservée à sa quête, tant qu'elle n'est pas arrivée dans le booster du Set de base (quête passée dans l'histoire principale).
+  const sq = questOfCard(id); if (sq && !SETS.some(x => x.cards.includes(id))) return `Récompense : quête ${sq.name}`;
   const ss = seasonOfCard(id);
   if (ss && !SETS.some(x => x.cards.includes(id))) return `Récompense : passe de saison ${ss.name}`;
   const src = rewardSourceOf(id);

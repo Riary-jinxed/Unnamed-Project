@@ -2,7 +2,7 @@
 // Pour chaque quête : ouverte ou non, dates des quêtes à durée limitée, récompenses de chaque chapitre (les nombres ; la carte,
 // l'art Promo et le titre du dernier chapitre restent ceux du code). Tout s'enregistre d'un bloc ; le serveur l'applique aussitôt.
 const KEYS = [['shards', 'Éclats'], ['xp', 'XP'], ['prisms', 'Prismes'], ['boosters', 'Boosters'], ['chests', 'Coffres']];
-const STATE = { open: 'Ouverte', soon: 'Pas encore commencée', over: 'Terminée', off: 'Fermée' };
+const STATE = { open: 'Ouverte', soon: 'Pas encore commencée', over: 'Terminée', archive: 'Dans l\'histoire principale', off: 'Fermée' };
 const frDay = d => (d ? new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }) : '');
 const clone = x => JSON.parse(JSON.stringify(x));
 
@@ -30,7 +30,8 @@ export function storyTab({ call, render, say, esc, notice }) {
       <label class="check"><input type="checkbox" data-sk="${q.id}.on" ${s.on ? 'checked' : ''}> Ouverte aux joueurs</label>
       ${limited ? `<div class="row"><label class="bfield"><small class="hint">Début (inclus)</small><input type="date" data-sk="${q.id}.from" value="${esc(s.from || '')}"></label>
         <label class="bfield"><small class="hint">Fin (incluse)</small><input type="date" data-sk="${q.id}.to" value="${esc(s.to || '')}"></label>
-        <small class="hint">Du ${esc(frDay(s.from))} au ${esc(frDay(s.to))}, heure de Paris. Elle se montre « bientôt » 7 jours avant.</small></div>` : ''}
+        <small class="hint">Du ${esc(frDay(s.from))} au ${esc(frDay(s.to))}, heure de Paris. Elle se montre « bientôt » 7 jours avant.</small></div>
+      <p class="hint" style="margin:0">${q.canon ? 'Fait avancer l\'histoire : après sa fin, elle passe dans l\'histoire principale, sans l\'art Promo, et sa carte de quête (remplacée par 100 Éclats) rejoint le booster du Set de base.' : 'Hors de l\'histoire principale : elle disparaît à sa fin, et sa carte reste réservée à la quête.'}</p>` : ''}
       <div class="scroll"><table class="admin"><thead><tr><th>Chapitre (récompense de la première victoire)</th>${KEYS.map(([, l]) => `<th>${l}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
   }
   function renderStory() {
@@ -38,7 +39,7 @@ export function storyTab({ call, render, say, esc, notice }) {
     if (!S.data) return '<p class="wait">Chargement…</p>';
     return `${notice()}
       <div class="card-box"><h2 style="font-size:20px">Quêtes d'histoire</h2>
-        <p class="hint" style="margin:0">Les campagnes restent ouvertes ; les quêtes à durée limitée s'ouvrent entre leurs deux dates. Une quête finie ou fermée disparaît de l'appli, et ce que les joueurs y ont gagné leur reste.
+        <p class="hint" style="margin:0">Les campagnes restent ouvertes ; les quêtes d'événement s'ouvrent entre leurs deux dates (onglet Événements de l'appli). À leur fin, celles qui font avancer l'histoire passent dans l'histoire principale, les autres disparaissent. Une quête fermée disparaît aussi ; ce que les joueurs y ont gagné leur reste.
           Les combats se jouent dans l'appli contre l'IA ; chaque récompense se gagne une fois, à la première victoire du chapitre. Aujourd'hui : ${esc(frDay(S.data.day))}.</p></div>
       ${S.data.quests.map(questBox).join('')}
       <div class="row"><button class="btn primary" data-act="story-save" ${dis()}>Enregistrer</button>

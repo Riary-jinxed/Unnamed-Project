@@ -12,14 +12,17 @@ export function createCatalog(store, accounts) {
   published = upgrade(published);
   // Catalogue servi et appliqué : le publié, plus les cartes de saison arrivées dans le Set de base.
   let served = null;
+  // Autres cartes arrivées dans le Set de base (quêtes d'histoire passées dans l'histoire principale) : setExtraCards.
+  let extraCards = () => [];
+  const released = () => [...new Set([...accounts.progress.seasonCards(), ...extraCards()])];
   function apply() {
-    const seasonCards = accounts.progress.seasonCards();
+    const seasonCards = released();
     served = { ...published, seasonCards, stamp: `${published.version || 0}-${seasonCards.length}` };
     applyCatalog(served);
     accounts.setCatalogVersion(served.stamp);
   }
   // Appelé régulièrement : les cartes de saison rejoignent le Set de base au début du mois prévu.
-  function refresh() { if (accounts.progress.seasonCards().length !== served.seasonCards.length) { apply(); console.log('Cartes de saison ajoutées au Set de base.'); } }
+  function refresh() { if (released().length !== served.seasonCards.length) { apply(); console.log('Cartes de saison ou de quête ajoutées au Set de base.'); } }
   apply();
   const draft = () => { const d = store.doc('brouillon'); return d ? upgrade(d) : published; };
 
@@ -59,5 +62,6 @@ export function createCatalog(store, accounts) {
     },
     public: ['GET /api/catalog'],
     refresh,
+    setExtraCards: fn => { extraCards = fn; apply(); },
   };
 }

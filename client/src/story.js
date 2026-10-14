@@ -4,11 +4,11 @@
 // main.js le lance avec gameOpts().
 import { api } from './api.js';
 import { esc, famStyle } from './common.js';
-import { portraitHTML } from './art.js';
+import { portraitHTML, sceneHTML } from './art.js';
 import { CARDS, GENERALS, ZONE_NAMES, renderLog } from '@jeu/engine';
 import { ARTS } from '@jeu/engine/arts';
 import { TITLES } from '@jeu/engine/rewards';
-import { LORE, NARRATOR, questById, isLimited, chapterDeck, foeDeck, castArt, castName } from '@jeu/engine/story';
+import { LORE, NARRATOR, CARD_SHARDS, questById, isLimited, questTab, chapterDeck, foeDeck, castArt, castName, lineScene } from '@jeu/engine/story';
 
 const plural = (n, w) => `${n} ${w}${n > 1 ? 's' : ''}`;
 const frDate = d => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' });
@@ -19,7 +19,7 @@ const starsHTML = tries => `<span class="sstars" aria-label="Difficulté ${stars
 // app : ce que main.js prête à l'écran (état ui, render, call, errLine, ico, play, anyCard, zoomKey, rewardItem, go : lance un chapitre).
 export function createStory(app) {
   const { ui } = app;
-  const S = ui.storyScreen = { data: null, sel: null, ch: null, talk: null, run: null, result: null, lore: false };
+  const S = ui.storyScreen = { data: null, sel: null, ch: null, talk: null, run: null, result: null, lore: false, tab: 'main' };
   const ico = k => app.ico(k);
   const info = id => S.data?.quests.find(x => x.id === id) || null;
 
@@ -29,10 +29,11 @@ export function createStory(app) {
   }
 
   // ---- Portraits ----
-  // Portrait d'un personnage (général) dans une quête, avec l'art choisi pour elle ; une initiale tant qu'il n'a pas d'illustration.
-  function face(q, gen, ch = null, cls = '') {
-    const g = GENERALS[gen];
-    return `<span class="gport ${cls}" style="${famStyle(g?.fam)}">${portraitHTML(gen, castArt(q, gen, ch)) || `<span class="gport-init">${esc((g?.name || '?')[0])}</span>`}</span>`;
+  // Portrait d'un personnage dans une quête : un général (avec l'art choisi pour la quête) ou une carte, recadrés sur le visage ;
+  // une initiale tant qu'il n'a pas d'illustration.
+  function face(q, who, ch = null, cls = '') {
+    const g = GENERALS[who], c = CARDS[who], fam = g ? g.fam : c?.kw?.[0];
+    return `<span class="gport ${cls}" style="${famStyle(fam)}">${portraitHTML(who, g ? castArt(q, who, ch) : null) || `<span class="gport-init">${esc(castName(who)[0])}</span>`}</span>`;
   }
 
   // ---- Carte d'une quête ----
@@ -41,10 +42,28 @@ export function createStory(app) {
   function rng(seed) { let s = seed; return () => { s = (s * 16807) % 2147483647; return s / 2147483647; }; }
   const tree = (x, y, h, c) => `<path d="M${x} ${y - h}L${x + h * 0.38} ${y}H${x - h * 0.38}Z" fill="${c}"/><rect x="${x - 0.5}" y="${y}" width="1" height="${h * 0.18}" fill="#2a1a10"/>`;
   const DECOR = {
-    razzia: () => { const r = rng(7); let s = '<path d="M0 62 Q30 48 60 58 T120 52 T160 46 V100 H0Z" fill="#4a5a2a"/><path d="M0 80 Q40 66 80 78 T160 70 V100 H0Z" fill="#3a4a20"/>';
-      s += '<path d="M118 34 L138 4 L152 30 L160 22 V40 H112Z" fill="#c9a23a"/><path d="M138 4 L143 14 L133 14Z" fill="#fff3b0" opacity=".8"/>';
-      for (let i = 0; i < 14; i++) s += tree(70 + r() * 50, 50 + r() * 22, 5 + r() * 4, '#2e4a22');
-      for (let i = 0; i < 4; i++) { const x = 8 + i * 9, y = 84 + (i % 2) * 4; s += `<path d="M${x} ${y}l4 -5 4 5Z" fill="#7a4a24"/><rect x="${x + 1}" y="${y}" width="6" height="4" fill="#5a3418"/>`; }
+    razzia: () => { const r = rng(7);
+      // Les Monts d'Or au fond à droite (chaîne lointaine, massif doré avec son repaire), puis les collines, la forêt, le bourg et les terriers.
+      let s = '<path d="M64 52 L82 34 L92 41 L106 24 L118 35 L128 20 L138 30 L150 16 L160 22 V58 H64Z" fill="#7d8fa8" opacity=".55"/>';
+      s += '<path d="M94 56 L108 34 L114 38 L126 16 L134 20 L141 5 L149 15 L154 11 L160 17 V60 H94Z" fill="#c4922e"/>';
+      s += '<path d="M141 5 L149 15 L147 26 L156 36 L160 34 V60 H128 L138 40 L135 24Z" fill="#94641c"/><path d="M126 16 L134 20 L130 30 L122 44 L114 50 L118 34Z" fill="#a8761f"/>';
+      s += '<path d="M141 5 L145 10 L141 12 L137 10Z M126 16 L129 19 L124 21Z M154 11 L157 15 L152 15Z" fill="#fff6cf"/>';
+      s += '<path d="M112 46 l6 -6 4 3 6 -8 M136 44 l5 -7 3 4 5 -9 M146 30 l4 -6" stroke="#ffe27a" stroke-width=".45" fill="none" opacity=".75"/>';
+      s += '<path d="M124 56 V51 a7 7 0 0 1 14 0 V56Z" fill="#241005"/><path d="M127 56 V52.5 a4 4 0 0 1 8 0 V56Z" fill="#ff9a1a" opacity=".45"/>';
+      for (let i = 0; i < 9; i++) s += `<circle cx="${124 + r() * 14}" cy="${53 + r() * 3}" r="${0.6 + r() * 0.6}" fill="#ffd24a"/>`;
+      // Vael'Thar qui tourne au-dessus de son repaire : ailes, cou, queue.
+      s += '<g transform="translate(116 13)" fill="#3a2410" opacity=".85"><path d="M0 0 C-3 -5 -9 -6 -12 -4 C-8 -3 -6 -1 -5 1Z M3 0 C6 -5 12 -6 15 -4 C11 -3 9 -1 8 1Z"/>'
+        + '<path d="M-5 1 C-1 -1 4 -1 8 1 C5 3 0 3 -5 1Z M8 1 l4 -1.5 l1 1Z M-5 1 C-9 2 -12 4 -15 3" stroke="#3a2410" stroke-width=".6"/></g>';
+      s += '<path d="M0 62 Q30 48 62 57 T118 58 T160 58 V100 H0Z" fill="#5d6e2c"/><path d="M0 80 Q40 66 82 78 T160 72 V100 H0Z" fill="#46561f"/>';
+      for (let i = 0; i < 16; i++) s += tree(98 + r() * 30, 47 + r() * 14, 5 + r() * 4, i % 3 ? '#2e4a22' : '#3a5a26');
+      // Le Bourg-aux-Moutons : maisons aux toits rouges, clocher, moutons.
+      [[44, 56], [50, 54], [57, 57], [63, 55]].forEach(([x, y]) => { s += `<rect x="${x}" y="${y}" width="5" height="4" fill="#d8c8a0"/><path d="M${x - 0.6} ${y}l3.1 -3 3.1 3Z" fill="#a8402a"/>`; });
+      s += '<rect x="53" y="47" width="2.6" height="8" fill="#d8c8a0"/><path d="M52.6 47l1.7 -4 1.7 4Z" fill="#6a4a8a"/>';
+      for (let i = 0; i < 5; i++) s += `<ellipse cx="${38 + r() * 34}" cy="${62 + r() * 6}" rx="1.3" ry=".9" fill="#f4f0e4"/>`;
+      // La Grande Tablée : la fumée du feu de camp.
+      s += '<circle cx="86" cy="76" r="1.6" fill="#ff8a2a"/><path d="M86 74 q-2 -4 1 -7 q-2 -4 1 -7" stroke="#d8d0c0" stroke-width="1.2" fill="none" opacity=".45"/>';
+      // Les Terriers : buttes percées de trous.
+      for (let i = 0; i < 4; i++) { const x = 6 + i * 9, y = 86 + (i % 2) * 4; s += `<ellipse cx="${x + 3}" cy="${y}" rx="4.6" ry="3" fill="#6a4a24"/><ellipse cx="${x + 3}" cy="${y + 0.6}" rx="1.8" ry="1.3" fill="#1e1208"/>`; }
       return s; },
     racines: () => { const r = rng(11); let s = '<path d="M0 40 Q80 30 160 40 V100 H0Z" fill="#1d3a20"/><path d="M-5 70 C30 60 50 90 90 76 S140 60 165 72" stroke="#3a7a9a" stroke-width="4" fill="none" opacity=".7"/>';
       for (let i = 0; i < 40; i++) s += tree(r() * 160, 30 + r() * 70, 6 + r() * 7, i % 3 ? '#1f5a2a' : '#2f6e30');
@@ -116,19 +135,36 @@ export function createStory(app) {
     const done = I.won >= I.total;
     return `<button class="squest smap-${q.map} ${done ? 'done' : ''}" data-act="story-open" data-quest="${q.id}" style="${famStyle(q.fam)}">
       <span class="squest-art">${face(q, q.hero, null, 'squest-face')}</span>
-      <span class="squest-tx"><span class="eyebrow">${isLimited(q) ? `Quête du moment · encore ${plural(I.daysLeft, 'jour')}` : `Campagne · ${esc(q.fam)}`}</span>
+      <span class="squest-tx"><span class="eyebrow">${eyebrow(q, I)}</span>
         <b>${esc(q.name)}</b><small class="hint">${esc(q.tagline)}</small>
         <span class="squest-foot num">${done ? 'Terminée ✓' : `Chapitre ${I.won + 1} sur ${I.total}`}</span>
         <span class="bar" aria-hidden="true"><span style="width:${Math.round(100 * I.won / I.total)}%"></span></span></span></button>`;
   }
+  // Deux onglets : l'histoire principale (campagnes, puis les quêtes d'événement qui l'ont fait avancer) et les événements en cours.
+  const tabOf = I => questTab(questById(I.id), I.state);
   function listHTML() {
-    const D = S.data, limited = D.quests.filter(x => questById(x.id) && isLimited(questById(x.id))), camps = D.quests.filter(x => questById(x.id) && !isLimited(questById(x.id)));
-    return `<section class="card-box slore"><span class="eyebrow">Le monde d'Éclats</span><h2>${esc(LORE.title)}</h2>
-        ${(S.lore ? LORE.text : LORE.text.slice(0, 1)).map(p => `<p>${esc(p)}</p>`).join('')}
-        <button class="linkbtn" data-act="story-lore">${S.lore ? 'Réduire' : 'Lire la suite'}</button></section>
-      ${limited.length ? `<div class="gal-h">Quêtes du moment</div><div class="squests">${limited.map(questCard).join('')}</div>` : ''}
-      <div class="gal-h">Campagnes</div><p class="hint" style="margin:0">Une campagne par deck de départ. Vous jouez le deck du héros : pas besoin d'avoir ses cartes.</p>
-      <div class="squests">${camps.map(questCard).join('')}</div>`;
+    const D = S.data, all = D.quests.filter(x => questById(x.id)), main = all.filter(x => tabOf(x) === 'main'), events = all.filter(x => tabOf(x) === 'event');
+    const camps = main.filter(x => x.state === 'open'), suite = main.filter(x => x.state === 'archive');
+    const live = events.filter(x => x.state === 'open' && x.won < x.total).length;
+    const tabs = `<div class="seg tabs stabs" role="tablist">${[['main', 'Histoire principale', 0], ['event', 'Événements', live]].map(([k, l, n]) =>
+      `<button class="${S.tab === k ? 'on' : ''}" role="tab" aria-selected="${S.tab === k}" data-act="story-tab" data-tab="${k}">${l}${n ? ` <span class="dot num">${n}</span>` : ''}</button>`).join('')}</div>`;
+    const body = S.tab === 'event'
+      ? `<p class="hint" style="margin:0">Des quêtes à durée limitée, avec leurs récompenses à elles : carte de quête, art Promo et titre. Celles qui font avancer l'histoire rejoignent l'histoire principale à la fin de l'événement, sans l'art Promo.</p>
+        ${events.length ? `<div class="squests">${events.map(questCard).join('')}</div>` : '<p class="wait">Pas d\'événement en ce moment. Revenez bientôt !</p>'}`
+      : `<section class="card-box slore"><span class="eyebrow">Le monde d'Éclats</span><h2>${esc(LORE.title)}</h2>
+          ${(S.lore ? LORE.text : LORE.text.slice(0, 1)).map(p => `<p>${esc(p)}</p>`).join('')}
+          <button class="linkbtn" data-act="story-lore">${S.lore ? 'Réduire' : 'Lire la suite'}</button></section>
+        <div class="gal-h">Campagnes</div><p class="hint" style="margin:0">Une campagne par deck de départ. Vous jouez le deck du héros : pas besoin d'avoir ses cartes.</p>
+        <div class="squests">${camps.map(questCard).join('')}</div>
+        ${suite.length ? `<div class="gal-h">La suite de l'histoire</div><p class="hint" style="margin:0">Les événements passés qui ont changé les Terres d'Aube, à rejouer quand vous voulez.</p>
+          <div class="squests">${suite.map(questCard).join('')}</div>` : ''}`;
+    return `${tabs}${body}`;
+  }
+  // Petite ligne au-dessus du nom d'une quête.
+  function eyebrow(q, I, long = false) {
+    if (I.state === 'archive') return `Suite de l'histoire · ${esc(q.fam)}`;
+    if (isLimited(q)) return long ? `Événement · jusqu'au ${esc(frDate(I.to))}` : `Événement · encore ${plural(I.daysLeft, 'jour')}`;
+    return `Campagne · ${esc(q.fam)}`;
   }
 
   // ---- Écran : une quête ----
@@ -149,8 +185,12 @@ export function createStory(app) {
   }
   function questHTML(q, I) {
     const sel = S.ch ?? nextOf(I);
-    return `<div class="squest-head" style="${famStyle(q.fam)}"><span class="eyebrow">${isLimited(q) ? `Quête du moment · jusqu'au ${esc(frDate(I.to))}` : `Campagne · ${esc(q.fam)}`}</span>
-        <p class="sprologue">${esc(q.prologue)}</p></div>
+    const note = I.state === 'open' && isLimited(q) ? (q.canon
+      ? 'Cette quête fait avancer l\'histoire : à la fin de l\'événement, elle rejoindra l\'histoire principale, sans son art Promo, et sa carte arrivera dans le booster du Set de base.'
+      : 'Une quête hors de l\'histoire principale : elle disparaît à la fin de l\'événement, avec ses récompenses.')
+      : I.state === 'archive' ? `Version définitive d'un événement passé : son art Promo n'est plus à gagner, et sa carte de quête, désormais dans le booster du Set de base, est remplacée par ${CARD_SHARDS} Éclats.` : '';
+    return `<div class="squest-head" style="${famStyle(q.fam)}"><span class="eyebrow">${eyebrow(q, I, true)}</span>
+        <p class="sprologue">${esc(q.prologue)}</p>${note ? `<p class="hint" style="margin:0">${note}</p>` : ''}</div>
       ${mapHTML(q, I, sel)}
       <p class="hint num" style="margin:0">${I.won >= I.total ? 'Quête terminée ✓ : chaque chapitre peut se rejouer.' : `${I.won} chapitre${I.won > 1 ? 's' : ''} gagné${I.won > 1 ? 's' : ''} sur ${I.total}. Touchez une étape de la carte.`}</p>
       ${chapterHTML(q, I, sel)}`;
@@ -167,10 +207,16 @@ export function createStory(app) {
 
   // ---- Dialogues ----
   // Une réplique à la fois, avec le portrait de celui qui parle ; la narration s'affiche comme un parchemin.
+  // En tête, l'illustration du lieu (ou celle de la réplique) ; sans image, le ciel de la carte de la quête.
+  function sceneBox(q, ch, line) {
+    const id = lineScene(ch, line), img = id ? sceneHTML(id) : '';
+    return `<div class="stalk-scene smap-${q.map} ${img ? '' : 'empty'}" aria-hidden="true">${img}<span class="stalk-place">${esc(ch.place)}</span></div>`;
+  }
   function talkHTML() {
-    const T = S.talk, q = questById(T.quest), ch = q.chapters[T.i], [who, text] = T.lines[T.n], last = T.n === T.lines.length - 1;
+    const T = S.talk, q = questById(T.quest), ch = q.chapters[T.i], line = T.lines[T.n], [who, text] = line, last = T.n === T.lines.length - 1;
     const narr = who === NARRATOR;
     return `<div class="sheet stalk-sheet"><div class="panel stalk ${narr ? 'narr' : ''}" role="dialog" aria-label="${esc(ch.name)}">
+      ${sceneBox(q, ch, line)}
       <span class="eyebrow">Chapitre ${T.i + 1} · ${esc(ch.name)}</span>
       <div class="stalk-body">${narr ? '' : face(q, who, ch, 'stalk-face')}<div class="stalk-tx">${narr ? '' : `<b>${esc(castName(who))}</b>`}<p>${esc(text)}</p></div></div>
       <div class="stalk-dots" aria-hidden="true">${T.lines.map((_, k) => `<i class="${k <= T.n ? 'on' : ''}"></i>`).join('')}</div>
@@ -227,7 +273,7 @@ export function createStory(app) {
   // ---- Clics ----
   function open(quest) {
     const I = info(quest); if (!I) return;
-    S.sel = quest; S.ch = null; ui.error = ''; app.play('pick'); app.render();
+    S.sel = quest; S.ch = null; S.tab = tabOf(I); ui.error = ''; app.play('pick'); app.render();
   }
   function fight(i) {
     const q = questById(S.sel), I = info(S.sel); if (!q || !I || i > I.won) return;
@@ -235,10 +281,11 @@ export function createStory(app) {
     ui.sheet = 'story-talk'; app.play('pick'); app.render();
   }
   function click(a, ds) {
-    if (a === 'story') { app.leaveGame?.(); ui.screen = 'story'; ui.sheet = null; ui.error = ''; if (ds.quest) { S.sel = ds.quest; S.ch = null; } load(); app.render(); }
+    if (a === 'story') { app.leaveGame?.(); ui.screen = 'story'; ui.sheet = null; ui.error = ''; if (ds.quest) { S.sel = ds.quest; S.ch = null; S.tab = ds.tab || 'main'; } load(); app.render(); }
     else if (a === 'story-open') open(ds.quest);
     else if (a === 'story-back') { S.sel = null; S.ch = null; app.render(); }
     else if (a === 'story-lore') { S.lore = !S.lore; app.render(); }
+    else if (a === 'story-tab') { S.tab = ds.tab === 'event' ? 'event' : 'main'; app.play('pick'); app.render(); }
     else if (a === 'story-ch') { S.ch = Number(ds.i); app.play('pick'); app.render(); }
     else if (a === 'story-fight' && !ui.busy) fight(Number(ds.i));
     else if (a === 'story-talk') { const T = S.talk; if (!T) return true; if (T.n < T.lines.length - 1) { T.n++; app.play('flip'); app.render(); } else start(); }
@@ -277,8 +324,9 @@ export function createStory(app) {
       const t = account.storyTile; if (!t) return '';
       const q = t.id && questById(t.id);
       if (!q) return `<button class="tile stile" data-act="story"><span class="eyebrow">Histoire</span><b>Campagnes</b><span class="tile-foot num">${t.done ? `${t.done} terminée${t.done > 1 ? 's' : ''} ✓` : 'Le monde d\'Éclats'}</span></button>`;
-      return `<button class="tile stile smap-${q.map} todo" data-act="story" data-quest="${q.id}" style="${famStyle(q.fam)}"><span class="stile-art">${face(q, q.hero)}</span>
-        <span class="eyebrow">${isLimited(q) ? `Quête · ${t.daysLeft} j` : 'Histoire'}</span><b>${esc(q.name)}</b>
+      const live = t.daysLeft != null;
+      return `<button class="tile stile smap-${q.map} todo" data-act="story" data-quest="${q.id}" data-tab="${live ? 'event' : 'main'}" style="${famStyle(q.fam)}"><span class="stile-art">${face(q, q.hero)}</span>
+        <span class="eyebrow">${live ? `Événement · ${t.daysLeft} j` : 'Histoire'}</span><b>${esc(q.name)}</b>
         <span class="tile-foot num">Chapitre ${t.won + 1}/${t.total}</span><span class="bar" aria-hidden="true"><span style="width:${Math.round(100 * t.won / t.total)}%"></span></span></button>`;
     },
     reload: load,

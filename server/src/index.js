@@ -57,7 +57,8 @@ games.routes['GET /api/player'] = (...x) => { const r = playerRoute(...x); r.pla
 const boss = createBoss(store, accounts);
 accounts.setBossTile(a => boss.tile(a));
 // Quêtes d'histoire : combats joués dans la page, progression et récompenses des chapitres, quêtes à durée limitée.
-const story = createStory(store, accounts);
+const story = createStory(store, accounts, { onChange: () => catalog.refresh() });
+catalog.setExtraCards(() => story.releasedCards());
 accounts.setStoryTile(a => story.tile(a));
 const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...accounts.progress.events.routes, ...clans.routes, ...push.routes, ...boss.routes, ...story.routes }, catalog.public);
 
