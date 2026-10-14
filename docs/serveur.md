@@ -55,6 +55,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `level`, `xp`, `freeBoosters` | Niveau, XP vers le niveau suivant, boosters offerts à ouvrir. |
 | `stats` | Compteurs des succès : parties, victoires, séries, missions, victoires par famille, parties du jour, coffres ouverts, victoires classées, meilleur palier, défis gagnés contre un ami, jours de connexion, mois parfaits. |
 | `missions` | `{ date, rerolls, list }` : les missions du jour. |
+| `weekly` | `{ week, bonus, list }` : les missions de la semaine (hors passe), `week` le lundi, `bonus` vrai une fois le bonus de fin donné. |
 | `calendar` | `{ month, days }` : jours du mois dont la récompense de connexion est prise (remis à zéro chaque mois). |
 | `freeChests` | Coffres d'arts offerts à ouvrir (succès rares, dimanches du calendrier). |
 | `welcome` | Bienvenue des 7 jours : `{ start, days }` (création, dates des cadeaux pris). Posé à la création du compte ; absent des comptes plus anciens. Gardé par la remise à zéro, qui vide seulement `days`. |

@@ -29,6 +29,8 @@ export function createBoss(store, accounts) {
     return { ...DEFAULT_BOSS, ...doc, shop: { ...(doc.shop || {}) } };
   }
   const weekBoss = (week = bossWeek()) => bossOfWeek(week, cfg().rotation);
+  // Missions « boss mondial » : tirées seulement quand le mode est ouvert.
+  progress.setNeed('boss', a => (cfg().on && weekBoss() && a.starter ? 1 : 0));
   const finals = () => store.doc('boss-classement') || {};
 
   // ---- État du joueur ----
@@ -70,6 +72,8 @@ export function createBoss(store, accounts) {
     s.bossSeen = { ...(s.bossSeen || {}), [id]: 1 }; s.bossKinds = Object.keys(s.bossSeen).length;
     const before = a.level, gain = Object.fromEntries(Object.entries(sum).filter(([, n]) => n));
     if (Object.keys(gain).length) progress.grant(a, { kind: 'boss', label: `${GENERALS[id]?.name || 'Boss mondial'} : ${score.total} points`, ...gain }, { silent: true });
+    // Une tentative abandonnée ne fait pas avancer les missions.
+    if (!abandoned) progress.act(a, 'boss');
     progress.check(a);
     const pos = ladder().findIndex(x => x.login === a.login) + 1;
     return { boss: id, score: score.total, zones: score.zones, reached, tiers: c.tiers, gain, abandoned, total: B.total, best: B.best, pos: pos || null,
