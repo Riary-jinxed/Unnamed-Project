@@ -1167,7 +1167,7 @@ function renderLoading() {
 }
 // Choix de la langue au premier lancement (réglable ensuite dans le profil).
 function renderLang() {
-  return `<div class="top"><span class="title">Jeu de cartes</span></div>
+  return `<div class="top"><span class="title">${t('Jeu de cartes')}</span></div>
   <div class="card-box langpick">
     <h2 style="font-size:22px">Langue · Language</h2>
     <p class="hint" style="margin:0">Choisissez la langue du jeu. Vous pourrez la changer dans votre profil.<br>Choose the game's language. You can change it later in your profile.</p>

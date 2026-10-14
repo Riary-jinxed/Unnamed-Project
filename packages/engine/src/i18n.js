@@ -14,6 +14,8 @@ let current = 'fr';
 // Ajoute des traductions (un objet « texte français → traduction ») à une langue.
 export function addStrings(lang, dict) { Object.assign(dicts[lang] ||= {}, dict); }
 export const isLang = l => LANG_IDS.includes(l);
+// Exécute fn (synchrone) dans une langue donnée : le serveur s'en sert pour les textes composés par le moteur.
+export function withLang(l, fn) { const was = current; current = isLang(l) ? l : 'fr'; try { return fn(); } finally { current = was; } }
 export function setLang(l) { current = isLang(l) ? l : 'fr'; return current; }
 export const getLang = () => current;
 // Code de langue pour toLocaleString et Intl (« fr-FR », « en-US »).
