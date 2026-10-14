@@ -148,6 +148,7 @@ Protégée par `ADMIN_KEY`, saisie une fois et gardée dans le navigateur le tem
 | --- | --- | --- |
 | Comptes | `admin.js` | Créer un compte ; fiche complète : pseudo, mot de passe, Éclats, Prismes, niveau, arts alternatifs (donner, retirer), collection, deck de départ, booster, offres, sessions, désactivation, remise à zéro, suppression. |
 | Stats | `admin-stats.js` | Joueurs actifs, comptes, boosters ouverts et achats de la boutique (avec leur courbe par jour), puis taux de victoire par joueur et par général, cartes les plus jouées, dernières parties. |
+| Suivi | `admin-follow.js` | Rétention (retours après 1, 7 et 30 jours, cohortes par semaine de création, parcours des nouveaux comptes, joueurs à relancer) et suivi du contenu : bienvenue des 7 jours, clans, Boss mondial, quêtes d'histoire (où les joueurs s'arrêtent), effet des événements, émotes, decks partagés, notifications, passe et classé. |
 | Cartes, Sets | `admin-cards.js` | Brouillon du catalogue : retoucher ou créer une carte, ranger les cartes en sets, publier. |
 | Boutique | `admin.js` | Prix, taille des boosters, Éclats par doublon, cartes du jour, renouvellement des offres ; arts alternatifs : prix en Prismes par rareté, arts du jour, coffre, Éclats par Prisme changé, catalogue. |
 | Événements | `admin-events.js` | Événements temporaires : nom, bonus, multiplicateur, période (week-end, dernier week-end, dernière semaine du mois, dates), actif ou non, état (en cours, prochain) ; ajouter, retirer, enregistrer, revenir aux événements par défaut. |

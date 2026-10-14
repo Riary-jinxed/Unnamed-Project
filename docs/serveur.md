@@ -29,7 +29,7 @@ Documents de la table `reglages` :
 | `brouillon` | onglets Cartes et Sets | Catalogue en cours de modification. |
 | `catalogue` | « Publier dans le jeu » | Catalogue publié, appliqué au moteur. |
 | `evenements` | onglet Événements | `{ list }` : événements temporaires (`events.js` du moteur). Absent ou vide : `DEFAULT_EVENTS`. |
-| `compteurs` | `activity.js` | Par jour (`AAAA-MM-JJ`, heure de Paris, 400 jours au plus) : boosters du jour, achetés et offerts ouverts, cartes du jour achetées, coffres d'arts ouverts, arts achetés, changes de Prismes en Éclats. Pour l'onglet Stats. |
+| `compteurs` | `activity.js` | Par jour (`AAAA-MM-JJ`, heure de Paris, 400 jours au plus) : boosters du jour, achetés et offerts ouverts, cartes du jour achetées, coffres d'arts ouverts, arts achetés, changes de Prismes en Éclats. Pour l'onglet Stats. Aussi, pour l'onglet Suivi : tentatives contre le boss (`bossRuns`) et achats à son magasin (`bossBuys`), chapitres gagnés (`storyChapters`), émotes envoyées en ligne et contre l'IA (`emotesOnline`, `emotesSolo`, et `emote:<id>` pour chacune), émotes achetées (`emotesBought`), codes de deck copiés (`deckShared`), decks importés d'un code ou bâtis d'une recette (`deckImported`, `deckRecipe`), notifications envoyées et touchées par sorte (`pushSent:<sorte>`, une par joueur ; `pushOpened:<sorte>`). |
 | `push` | `push.js` | `keys` : clés VAPID des notifications (créées au premier démarrage, sauf si `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY` sont définies) ; `sent` : envois planifiés déjà faits (`ev-<événement>-<premier jour>`, `saison-<AAAA-MM>`), 60 jours. |
 
 ## Compte joueur
@@ -92,7 +92,8 @@ Les parties enregistrées avant l'historique n'ont que `mode`, `ranked`, `at`, `
 | `accounts.js` | `createAccounts(store)` : sessions, connexion, deck de départ, booster quotidien, boutique, decks, profil, administration des comptes et de la boutique. `apiHandler` : le routeur de l'API. |
 | `progress.js` | `createProgress(store)` : XP et niveaux, missions, succès, complétions, cosmétiques, rang classé et saisons, réglages des récompenses. Appelé par `accounts.js` (nouvelles cartes, booster, fin de partie). |
 | `games.js` | `createGames(store, accounts)` : enregistre les parties (JcJ par le serveur, JcE envoyées par l'appli), calcule les stats de `/admin` et du profil, et l'historique de chaque joueur (`playerHistory`). |
-| `activity.js` | `createActivity(store)` : jours d'activité des joueurs (`seen`, appelé par le routeur), compteurs du jour (`count`, appelé par `accounts.js`), et leur synthèse pour l'onglet Stats (`stats`). |
+| `activity.js` | `createActivity(store)` : jours d'activité des joueurs (`seen`, appelé par le routeur), compteurs du jour (`count`, une clé ou une liste de clés, appelé par `accounts.js`, `boss.js`, `story.js`, `push.js`, `follow.js` et les émotes d'`index.js`), et leur synthèse pour l'onglet Stats (`stats`). |
+| `follow.js` | `createFollow(store, accounts, { boss, events })` : onglet Suivi de `/admin` (`GET /api/admin/follow`), calculé à la demande à partir des comptes, des documents `clans`, `boss-classement`, `quetes` et des compteurs ; et `POST /api/track`, ce que l'appli signale et que le serveur ne voit pas passer (code de deck copié, émote contre l'IA, notification touchée ; 40 par minute et par joueur au plus). |
 | `friends.js` | `createFriends(store, accounts, salons)` : amis et demandes, présence (qui est connecté, qui est en partie), défis entre amis. |
 | `events.js` | `createEvents(store)` : liste des événements temporaires (document `evenements`), multiplicateur du jour (`mult`), ce qu'en voit le joueur (`view` : événements en cours avec période et fin), un message du courrier par événement en cours (`mails`, ajouté par `mail.js` le temps de l'événement, identifiant `ev-<événement>-<premier jour>`) et routes `/api/admin/events`. Créé par `progress.js` (`progress.events`), qui multiplie l'XP des parties, des missions et des nouvelles cartes, les Éclats et l'XP de saison des parties, et les étoiles d'une victoire classée. |
 | `mail.js` | `createMail(store, accounts, { notify })` : courrier (messages de `/admin` à tous ou à quelques joueurs, avec récompense facultative, documents `courrier`) et codes cadeaux (document `codes`, 10 codes faux par heure au plus). Comptes : `mail = { read, got, hidden }`, `redeemed`. Routes `/api/mail…`, `/api/redeem`, `/api/admin/mail…`, `/api/admin/codes…`. |
@@ -120,7 +121,8 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/logout` | Ferme la session. |
 | `POST /api/starter` | Choisit le deck de départ (`{ starter }`), une seule fois. |
 | `POST /api/booster` | Ouvre le booster du jour. |
-| `PUT /api/decks` | Crée (sans `id`) ou enregistre un deck, même incomplet ; `play: true` le rend joué s'il est complet. |
+| `PUT /api/decks` | Crée (sans `id`) ou enregistre un deck, même incomplet ; `play: true` le rend joué s'il est complet. `from: 'code'` ou `'recipe'` : nouveau deck repris d'un code ou d'une recette (compté pour l'onglet Suivi). |
+| `POST /api/track` | `{ what, id }` : `deckShare` (code de deck copié), `emote` (émote `id` envoyée contre l'IA), `pushOpen` (notification de la sorte `id` touchée). Compteurs de l'onglet Suivi. |
 | `POST /api/decks/rename`, `/play`, `/reset`, `/delete` | Renomme, joue, vide ou supprime un deck (`{ id }`). |
 | `PUT /api/deck` | Ancienne route : enregistre le deck joué. |
 | `PUT /api/profile` | Pseudo et/ou image de profil. |
@@ -183,6 +185,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `GET/POST /api/admin/events` | Événements temporaires : liste avec leur état (`live`, `period`), effets et périodes possibles. `POST { list }` remplace la liste (20 au plus), `{ reset: true }` revient aux événements par défaut. |
 | `GET/POST /api/admin/rewards` | Réglages des récompenses (`reset: true` revient aux valeurs par défaut). |
 | `GET /api/admin/stats?mode=&days=` | Stats des parties (`all`, `pvp`, `pve` ; sur N jours, 0 = tout), plus `activity` : comptes, joueurs actifs (aujourd'hui, 7 et 30 jours), compteurs de la période et courbe par jour (joueurs actifs, boosters ouverts). |
+| `GET /api/admin/follow?days=` | Onglet Suivi (sur N jours, 0 = 90 jours pour le parcours et tout pour les compteurs) : `retention` (`d1`, `d7`, `d30` : comptes revenus N jours ou plus après leur création ; `cohorts` : 8 semaines ; `sticky` ; `churn` : venus ces 30 jours mais pas ces 7), `funnel` (comptes créés sur la période), `welcome`, `clans`, `boss`, `story` (par quête, joueurs arrivés à chaque chapitre), `events` (actifs et parties par jour pendant et hors de chaque événement, 90 jours), `emotes`, `decks`, `push`, `seasons`, `series` (courbes par jour). |
 | `GET/PUT /api/admin/catalog`, `POST …/publish`, `POST …/discard` | Brouillon du catalogue, publication, abandon du brouillon. |
 
 ## Parties en ligne (WebSocket `/ws`)
