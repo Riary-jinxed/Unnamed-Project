@@ -1703,107 +1703,107 @@ function achievementsHTML() {
       ${x.done ? '' : `<div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(x.value, x.goal)}%"></span></div><small class="num">${x.value}/${x.goal}</small></div>`}</div>`).join('')}</div>`).join('')}</div>`;
 }
 // Profil en onglets : le haut (image, pseudo, niveau) reste, la rubrique change en dessous.
-const PROFILE_TABS = [['profil', 'Profil'], ['collection', 'Collection'], ['perso', 'Personnalisation'], ['succes', 'Succès']];
+const PROFILE_TABS = [['profil', t('Profil')], ['collection', t('Collection')], ['perso', t('Personnalisation')], ['succes', t('Succès')]];
 function renderProfile() {
   const a = ui.account, st = ui.profile, p = prog();
   const sets = SETS.filter(s => s.cards.length && setRevealed(s)).map(s => { const n = s.cards.filter(owned).length, pct = Math.round(100 * n / s.cards.length);
     return `<div class="setline ${n === s.cards.length ? 'done' : ''}"><div class="row" style="justify-content:space-between"><b>${esc(s.name)}</b>
-      <span class="num">${n === s.cards.length ? 'Complété · ' : ''}${n}/${s.cards.length}</span></div>
+      <span class="num">${n === s.cards.length ? `${t('Complété')} · ` : ''}${n}/${s.cards.length}</span></div>
       <div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(s.name)}"><span style="width:${pct}%"></span></div></div>`; }).join('');
   const complete = SETS.filter(s => s.cards.length && setRevealed(s) && s.cards.every(owned)).length;
-  const RES = { wins: 'Victoire', losses: 'Défaite', draws: 'Match nul' };
-  const stats = !st ? '<p class="wait">Chargement…</p>' : `
+  const RES = { wins: t('Victoire'), losses: t('Défaite'), draws: t('Match nul') };
+  const stats = !st ? `<p class="wait">${t('Chargement…')}</p>` : `
     ${winTiles(st)}
-    <div class="gal-h">Cartes</div>${cardStatsHTML((st.cards || []).map(c => ({ ...c, level: myLevel(c.id), border: myBorder(c.id), art: mySel(c.id) })),
+    <div class="gal-h">${t('Cartes')}</div>${cardStatsHTML((st.cards || []).map(c => ({ ...c, level: myLevel(c.id), border: myBorder(c.id), art: mySel(c.id) })),
       st.generals[0] && { ...st.generals[0], level: myLevel(st.generals[0].id), border: myBorder(st.generals[0].id), art: mySel(st.generals[0].id) })}
-    ${st.generals.length ? `<div class="gal-h">Par général</div><div class="statlist">${st.generals.map(g => `<div class="row"><span style="flex:1">${esc(g.name)}</span><span class="num hint">${g.games} partie${g.games > 1 ? 's' : ''}</span><b class="num">${g.rate} %</b></div>`).join('')}</div>` : ''}
-    ${st.recent.length ? `<div class="gal-h">Dernières parties</div><div class="statlist">${st.recent.map(r => `<div class="row"><b class="res ${r.result}">${RES[r.result]}</b><span style="flex:1">contre ${esc(r.foe)} <small class="hint">· ${esc(r.deck || '')}</small></span><small class="hint num">${new Date(r.at).toLocaleDateString('fr-FR')}</small></div>`).join('')}</div>`
-      : '<p class="hint" style="margin:0">Aucune partie jouée pour l\'instant.</p>'}`;
+    ${st.generals.length ? `<div class="gal-h">${t('Par général')}</div><div class="statlist">${st.generals.map(g => `<div class="row"><span style="flex:1">${esc(g.name)}</span><span class="num hint">${tp(g.games, '{n} partie', '{n} parties')}</span><b class="num">${g.rate} %</b></div>`).join('')}</div>` : ''}
+    ${st.recent.length ? `<div class="gal-h">${t('Dernières parties')}</div><div class="statlist">${st.recent.map(r => `<div class="row"><b class="res ${r.result}">${RES[r.result]}</b><span style="flex:1">${t('contre {foe}', { foe: esc(r.foe) })} <small class="hint">· ${esc(r.deck || '')}</small></span><small class="hint num">${new Date(r.at).toLocaleDateString(locale())}</small></div>`).join('')}</div>`
+      : `<p class="hint" style="margin:0">${t('Aucune partie jouée pour l\'instant.')}</p>`}`;
   const tab = PROFILE_TABS.some(([id]) => id === ui.profileTab) ? ui.profileTab : 'profil';
   const tabBtn = ([id, label]) => `<button role="tab" data-act="profile-tab" data-tab="${id}" class="${tab === id ? 'on' : ''}" aria-selected="${tab === id}">${label}</button>`;
   const body = {
     profil: () => `<form class="card-box" id="name-form">
-      <div class="field"><label class="eyebrow" for="profile-name">Pseudo</label><input id="profile-name" maxlength="20" value="${esc(ui.nameDraft)}"></div>
-      <div class="row"><button class="btn primary" type="submit" ${ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === a.name ? 'disabled' : ''}>Enregistrer le pseudo</button></div>
+      <div class="field"><label class="eyebrow" for="profile-name">${t('Pseudo')}</label><input id="profile-name" maxlength="20" value="${esc(ui.nameDraft)}"></div>
+      <div class="row"><button class="btn primary" type="submit" ${ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === a.name ? 'disabled' : ''}>${t('Enregistrer le pseudo')}</button></div>
     </form>
-    <div class="card-box"><div><span class="eyebrow">Réglages</span><h2 style="font-size:22px">Langue, son et vibrations</h2></div>
+    <div class="card-box"><div><span class="eyebrow">${t('Réglages')}</span><h2 style="font-size:22px">${t('Langue, son et vibrations')}</h2></div>
       <div class="field"><span class="eyebrow">Langue · Language</span><div class="row">${langButtons(getLang())}</div></div>
-      <label class="check"><input type="checkbox" id="sound-on" ${isMuted() ? '' : 'checked'}> Son activé</label>
-      <div class="field"><label class="eyebrow" for="sfx-volume">Bruitages · <span id="sfx-pct" class="num">${Math.round(sfxVolume() * 100)} %</span></label>
+      <label class="check"><input type="checkbox" id="sound-on" ${isMuted() ? '' : 'checked'}> ${t('Son activé')}</label>
+      <div class="field"><label class="eyebrow" for="sfx-volume">${t('Bruitages')} · <span id="sfx-pct" class="num">${Math.round(sfxVolume() * 100)} %</span></label>
         <input id="sfx-volume" type="range" min="0" max="100" step="5" value="${Math.round(sfxVolume() * 100)}" ${isMuted() ? 'disabled' : ''}></div>
-      <div class="field"><label class="eyebrow" for="music-volume">Musique · <span id="music-pct" class="num">${Math.round(musicVolume() * 100)} %</span></label>
+      <div class="field"><label class="eyebrow" for="music-volume">${t('Musique')} · <span id="music-pct" class="num">${Math.round(musicVolume() * 100)} %</span></label>
         <input id="music-volume" type="range" min="0" max="100" step="5" value="${Math.round(musicVolume() * 100)}" ${isMuted() ? 'disabled' : ''}></div>
-      ${canVibrate() ? `<label class="check"><input type="checkbox" id="vibrations-on" ${vibrations() ? 'checked' : ''}> Vibrations en partie</label>`
-        : '<p class="hint" style="margin:0">Les vibrations ne marchent que sur un téléphone Android : ni sur ordinateur, ni sur iPhone.</p>'}</div>
+      ${canVibrate() ? `<label class="check"><input type="checkbox" id="vibrations-on" ${vibrations() ? 'checked' : ''}> ${t('Vibrations en partie')}</label>`
+        : `<p class="hint" style="margin:0">${t('Les vibrations ne marchent que sur un téléphone Android : ni sur ordinateur, ni sur iPhone.')}</p>`}</div>
     ${notifs.html()}
-    <div class="card-box"><div><span class="eyebrow">Statistiques</span><h2 style="font-size:22px">Victoires</h2></div>${stats}</div>`,
-    collection: () => `<div class="card-box"><div><span class="eyebrow">Collection</span><h2 style="font-size:22px">${complete} set${complete > 1 ? 's' : ''} complété${complete > 1 ? 's' : ''}</h2></div>
-      <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.filter(id => !hiddenCard(id)).length}, généraux compris.</p>${sets}${ui.progressInfo ? familiesHTML() : '<p class="wait">Chargement…</p>'}
-      <div class="row"><button class="btn" data-act="collection">Voir mes cartes</button></div></div>`,
+    <div class="card-box"><div><span class="eyebrow">${t('Statistiques')}</span><h2 style="font-size:22px">${t('Victoires')}</h2></div>${stats}</div>`,
+    collection: () => `<div class="card-box"><div><span class="eyebrow">${t('Collection')}</span><h2 style="font-size:22px">${tp(complete, '{n} set complété', '{n} sets complétés')}</h2></div>
+      <p class="hint" style="margin:0">${t('{n} cartes sur {total}, généraux compris.', { n: OWNABLE.filter(owned).length, total: OWNABLE.filter(id => !hiddenCard(id)).length })}</p>${sets}${ui.progressInfo ? familiesHTML() : `<p class="wait">${t('Chargement…')}</p>`}
+      <div class="row"><button class="btn" data-act="collection">${t('Voir mes cartes')}</button></div></div>`,
     perso: customizeHTML,
-    succes: () => (ui.progressInfo ? achievementsHTML() : '<p class="wait">Chargement…</p>'),
+    succes: () => (ui.progressInfo ? achievementsHTML() : `<p class="wait">${t('Chargement…')}</p>`),
   }[tab]();
-  return `<div class="top"><span class="title">Mon profil</span><button class="btn" data-act="logout">Se déconnecter</button><button class="btn" data-act="home">Retour</button></div>
+  return `<div class="top"><span class="title">${t('Mon profil')}</span><button class="btn" data-act="logout">${t('Se déconnecter')}</button><button class="btn" data-act="home">${t('Retour')}</button></div>
   ${errLine()}${ui.msg ? `<p class="hint" role="status" style="margin:0">${esc(ui.msg)}</p>` : ''}
   <div class="card-box profile">
     ${avatarHTML(a, 'big')}
     <div style="display:grid;gap:8px">
-      <span class="eyebrow">Identifiant : ${esc(a.login)}</span>
+      <span class="eyebrow">${t('Identifiant : {login}', { login: esc(a.login) })}</span>
       <div><b style="font-size:20px">${esc(a.name)}</b>${p.title ? `<div class="ptitle">${esc(titleLabel(p.title))}</div>` : ''}</div>
       ${levelBar(p)}
-      <div class="row"><label class="btn" for="avatar-file">${a.avatar ? 'Changer l\'image' : 'Ajouter une image'}</label>
+      <div class="row"><label class="btn" for="avatar-file">${a.avatar ? t('Changer l\'image') : t('Ajouter une image')}</label>
         <input id="avatar-file" type="file" accept="image/*" hidden>
-        ${a.avatar ? `<button class="btn" data-act="avatar-remove" ${ui.busy ? 'disabled' : ''}>Retirer l'image</button>` : ''}
-        <button class="btn" data-act="player" data-login="${esc(a.login)}">Voir mon profil public</button></div>
+        ${a.avatar ? `<button class="btn" data-act="avatar-remove" ${ui.busy ? 'disabled' : ''}>${t('Retirer l\'image')}</button>` : ''}
+        <button class="btn" data-act="player" data-login="${esc(a.login)}">${t('Voir mon profil public')}</button></div>
     </div>
   </div>
-  <div class="seg proftabs" role="tablist" aria-label="Rubriques du profil">${PROFILE_TABS.map(tabBtn).join('')}</div>
+  <div class="seg proftabs" role="tablist" aria-label="${t('Rubriques du profil')}">${PROFILE_TABS.map(tabBtn).join('')}</div>
   ${body}`;
 }
 function togglePick(id) {
   const e = ui.edit; ui.msg = '';
   if (e.cards.includes(id)) e.cards.splice(e.cards.indexOf(id), 1);
-  else if (e.cards.length >= DECK_SIZE) ui.msg = `Le deck est complet (${DECK_SIZE} cartes) : retirez-en une d'abord.`;
-  else if (e.cards.filter(x => x === id).length >= MAX_COPIES || owned(id) <= e.cards.filter(x => x === id).length) ui.msg = 'Déjà dans le deck.';
+  else if (e.cards.length >= DECK_SIZE) ui.msg = t('Le deck est complet ({n} cartes) : retirez-en une d\'abord.', { n: DECK_SIZE });
+  else if (e.cards.filter(x => x === id).length >= MAX_COPIES || owned(id) <= e.cards.filter(x => x === id).length) ui.msg = t('Déjà dans le deck.');
   else e.cards.push(id);
   render();
 }
 function toggleTerrain(k) {
   const e = ui.edit; ui.msg = '';
   if (e.terrains.includes(k)) e.terrains.splice(e.terrains.indexOf(k), 1);
-  else if (e.terrains.length >= DECK_TERRAINS) ui.msg = `Vous avez déjà ${DECK_TERRAINS} terrains : retirez-en un d'abord.`;
+  else if (e.terrains.length >= DECK_TERRAINS) ui.msg = t('Vous avez déjà {n} terrains : retirez-en un d\'abord.', { n: DECK_TERRAINS });
   else e.terrains.push(k);
   render();
 }
 function renderLobby() {
-  const lost = ui.offline ? '<div class="link-lost" role="status">Connexion perdue, reconnexion en cours…</div>' : '';
+  const lost = ui.offline ? `<div class="link-lost" role="status">${t('Connexion perdue, reconnexion en cours…')}</div>` : '';
   if (ui.friendFoe) return `
-  <div class="top"><span class="title">Partie entre amis</span></div>${lost}
+  <div class="top"><span class="title">${t('Partie entre amis')}</span></div>${lost}
   <div class="card-box" style="text-align:center;justify-items:center">
-    <span class="eyebrow">Contre ${esc(ui.friendFoe)}</span>
-    <p class="wait">${esc(ui.friendFoe)} choisit son deck. La partie commence dès que son choix est fait.</p>
-    <button class="btn" data-act="quit">Annuler</button>
+    <span class="eyebrow">${t('Contre {name}', { name: esc(ui.friendFoe) })}</span>
+    <p class="wait">${t('{name} choisit son deck. La partie commence dès que son choix est fait.', { name: esc(ui.friendFoe) })}</p>
+    <button class="btn" data-act="quit">${t('Annuler')}</button>
   </div>`;
   const link = `${location.origin}${location.pathname}?code=${ui.room}`;
   return `
-  <div class="top"><span class="title">Partie en attente</span></div>${lost}
+  <div class="top"><span class="title">${t('Partie en attente')}</span></div>${lost}
   <div class="card-box" style="text-align:center;justify-items:center">
-    <span class="eyebrow">Code à donner à votre ami</span>
+    <span class="eyebrow">${t('Code à donner à votre ami')}</span>
     <span class="code">${esc(ui.room)}</span>
-    <p class="hint" style="margin:0">Ou envoyez-lui ce lien :</p>
+    <p class="hint" style="margin:0">${t('Ou envoyez-lui ce lien :')}</p>
     <input id="link" readonly value="${esc(link)}" style="width:100%;font:inherit;padding:8px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg);color:var(--ink)">
-    <button class="btn" data-act="copy">Copier le lien</button>
-    <p class="wait">La partie commence dès que votre ami rejoint.</p>
-    <button class="btn" data-act="quit">Annuler</button>
+    <button class="btn" data-act="copy">${t('Copier le lien')}</button>
+    <p class="wait">${t('La partie commence dès que votre ami rejoint.')}</p>
+    <button class="btn" data-act="quit">${t('Annuler')}</button>
   </div>`;
 }
 function fullCard(id, lvl = 1, art = null, border = lvl, cls = '') { const d = CARDS[id];
   return `<div class="fc${lvCls(border)}" style="${famVar(d.kw)}">${artHTML(id, d.name, lvl, cls, art)}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
-    <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
-const genCard = (k, lvl = 1, art = null, border = lvl, cls = '') => { const g = GENERALS[k]; return `<div class="fc${lvCls(border)}" style="${famVar([g.fam])}">${artHTML(k, g.name, lvl, cls, art)}<b>${g.name}</b><span class="k">Général · ${g.kind}</span><span class="x">${rich(g.text)}</span></div>`; };
-const terrainCard = k => { const t = TERRAINS[k]; return `<div class="fc" style="${famVar([t.fam])}">${terrainHTML(k, t.name)}<b>${t.name}</b><span class="k">Terrain</span><span class="x">${rich(t.text)}</span></div>`; };
+    <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text ? rich(d.text) : t('Pas d\'effet.')}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
+const genCard = (k, lvl = 1, art = null, border = lvl, cls = '') => { const g = GENERALS[k]; return `<div class="fc${lvCls(border)}" style="${famVar([g.fam])}">${artHTML(k, g.name, lvl, cls, art)}<b>${g.name}</b><span class="k">${t('Général')} · ${t(g.kind)}</span><span class="x">${rich(g.text)}</span></div>`; };
+const terrainCard = k => { const tn = TERRAINS[k]; return `<div class="fc" style="${famVar([tn.fam])}">${terrainHTML(k, tn.name)}<b>${tn.name}</b><span class="k">${t('Terrain')}</span><span class="x">${rich(tn.text)}</span></div>`; };
 // Carte affichée en grand, avec les actions possibles sur elle pendant la planification.
-const artLine = art => (ARTS[art] ? ` · art ${esc(ARTS[art].name)} (${esc(rarityName(ARTS[art]))})` : '');
+const artLine = art => (ARTS[art] ? ` · ${t('art {name} ({rarity})', { name: esc(t(ARTS[art].name)), rarity: esc(rarityName(ARTS[art])) })}` : '');
 function zoomBtns(acts) { return acts.length ? `<div class="zacts">${acts.join('')}</div>` : ''; }
 function zoomHTML() {
   const zm = ui.zoom, play = ui.view && canPlay();
@@ -1822,42 +1822,42 @@ function zoomHTML() {
     const acts = [];
     if (play && inHand && !pend) {
       const left = sealsLeft(), cant = d.x ? left <= 0 : inHand.cost > left;
-      if (cant) acts.push(`<p class="hint">Pas assez de sceaux pour la jouer ce tour (il vous en reste ${left}).</p>`);
-      else acts.push(`<span class="eyebrow">Jouer dans la zone</span><div class="row">${[0, 1, 2].map(z => `<button class="btn" data-act="zplay" data-zone="${z}" ${freeSlots(z) > 0 ? '' : 'disabled'}>${ZONE_NAMES[z]}</button>`).join('')}</div>`);
+      if (cant) acts.push(`<p class="hint">${t('Pas assez de sceaux pour la jouer ce tour (il vous en reste {n}).', { n: left })}</p>`);
+      else acts.push(`<span class="eyebrow">${t('Jouer dans la zone')}</span><div class="row">${[0, 1, 2].map(z => `<button class="btn" data-act="zplay" data-zone="${z}" ${freeSlots(z) > 0 ? '' : 'disabled'}>${t(ZONE_NAMES[z])}</button>`).join('')}</div>`);
     }
-    if (play && pend) acts.push(`<button class="btn" data-act="zback">Reprendre en main</button>`);
+    if (play && pend) acts.push(`<button class="btn" data-act="zback">${t('Reprendre en main')}</button>`);
     if (play && onBoard && onBoard.side === 'me' && onBoard.mobile) {
       const now = planZone(zm.uid);
-      acts.push(`<span class="eyebrow">Déplacer vers</span><div class="row">${[0, 1, 2].filter(z => z !== now).map(z => `<button class="btn" data-act="zmove" data-zone="${z}" ${freeSlots(z) > 0 ? '' : 'disabled'}>${ZONE_NAMES[z]}</button>`).join('')}</div>`);
-      if (moveOf(zm.uid)) acts.push(`<button class="btn" data-act="zstay" ${freeSlots(onBoard.z) > 0 ? '' : 'disabled'}>Annuler le déplacement</button>`);
+      acts.push(`<span class="eyebrow">${t('Déplacer vers')}</span><div class="row">${[0, 1, 2].filter(z => z !== now).map(z => `<button class="btn" data-act="zmove" data-zone="${z}" ${freeSlots(z) > 0 ? '' : 'disabled'}>${t(ZONE_NAMES[z])}</button>`).join('')}</div>`);
+      if (moveOf(zm.uid)) acts.push(`<button class="btn" data-act="zstay" ${freeSlots(onBoard.z) > 0 ? '' : 'disabled'}>${t('Annuler le déplacement')}</button>`);
     }
     style = famVar(d.kw);
     body = `
-      <div class="zh"><span class="seal" title="Coût">${cost}</span><h2>${esc(d.name)}</h2>${d.type === 'C' ? `<span class="zp num ${pcls}" title="Puissance">${pw}</span>` : ''}</div>
-      <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · puissance de base ${d.power}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span>
-      <p class="x">${d.text ? rich(d.text) : 'Pas d\'effet.'}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? fxHTML(zm.id) + borderHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
+      <div class="zh"><span class="seal" title="${t('Coût')}">${cost}</span><h2>${esc(d.name)}</h2>${d.type === 'C' ? `<span class="zp num ${pcls}" title="${t('Puissance')}">${pw}</span>` : ''}</div>
+      <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · ${t('puissance de base {n}', { n: d.power })}` : ''}${lvl > 1 ? ` · ${t('niveau {n}', { n: lvl })}` : ''}${artLine(art)}</span>
+      <p class="x">${d.text ? rich(d.text) : t('Pas d\'effet.')}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? fxHTML(zm.id) + borderHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
   } else if (zm.kind === 'general') {
     const g = GENERALS[zm.id]; style = famVar([g.fam]);
     const acts = [];
     if (zm.mine && g.activate && play) {
-      if (ui.genZone !== null) acts.push(`<p class="hint">Activé ce tour${g.needsZone ? `, zone ${ZONE_NAMES[ui.genZone]}` : ''}.</p><button class="btn" data-act="zgen">Annuler l'activation</button>`);
-      else if (me().generalUsed) acts.push(`<p class="hint">Déjà utilisé dans cette partie.</p>`);
-      else if (me().seals < (g.activateCost || 0)) acts.push(`<p class="hint">Pas assez de sceaux pour l'activer ce tour.</p>`);
-      else if (g.needsZone) acts.push(`<span class="eyebrow">Activer dans la zone</span><div class="row">${[0, 1, 2].map(z => `<button class="btn primary" data-act="zgen" data-zone="${z}">${ZONE_NAMES[z]}</button>`).join('')}</div>`);
-      else acts.push(`<button class="btn primary" data-act="zgen" data-zone="0">Activer le général</button>`);
+      if (ui.genZone !== null) acts.push(`<p class="hint">${g.needsZone ? t('Activé ce tour, zone {z}.', { z: t(ZONE_NAMES[ui.genZone]) }) : t('Activé ce tour.')}</p><button class="btn" data-act="zgen">${t('Annuler l\'activation')}</button>`);
+      else if (me().generalUsed) acts.push(`<p class="hint">${t('Déjà utilisé dans cette partie.')}</p>`);
+      else if (me().seals < (g.activateCost || 0)) acts.push(`<p class="hint">${t('Pas assez de sceaux pour l\'activer ce tour.')}</p>`);
+      else if (g.needsZone) acts.push(`<span class="eyebrow">${t('Activer dans la zone')}</span><div class="row">${[0, 1, 2].map(z => `<button class="btn primary" data-act="zgen" data-zone="${z}">${t(ZONE_NAMES[z])}</button>`).join('')}</div>`);
+      else acts.push(`<button class="btn primary" data-act="zgen" data-zone="0">${t('Activer le général')}</button>`);
     }
     const deck = ui.view && (zm.mine ? me() : zm.side === 'foe' ? ui.view.foe : null)?.deckName;
     const seat = ui.view && zm.side ? (zm.mine ? ui.view.seat : 1 - ui.view.seat) : null;
     lvl = seat !== null ? levelIn(seat, zm.id) : myLevel(zm.id); border = seat !== null ? borderIn(seat, zm.id) : myBorder(zm.id);
     art = zm.art || (seat !== null ? artIn(seat, zm.id) : mySel(zm.id));
-    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">Général · ${genLine(g)}${g.activateCost ? ` · activation ${g.activateCost} sceau` : ''}${deck ? ` · deck ${esc(deck)}` : ''}${lvl > 1 ? ` · niveau ${lvl}` : ''}${artLine(art)}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? fxHTML(zm.id) + borderHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
+    body = `<div class="zh"><h2>${g.name}</h2></div><span class="k">${t('Général')} · ${genLine(g)}${g.activateCost ? ` · ${tp(g.activateCost, 'activation {n} sceau', 'activation {n} sceaux')}` : ''}${deck ? ` · ${t('deck {name}', { name: esc(deck) })}` : ''}${lvl > 1 ? ` · ${t('niveau {n}', { n: lvl })}` : ''}${artLine(art)}</span><p class="x">${rich(g.text)}</p>${zoomBtns(acts)}${ui.screen === 'collection' ? fxHTML(zm.id) + borderHTML(zm.id) + artsHTML(zm.id) + upgradeHTML(zm.id) : ''}`;
   } else {
-    const t = TERRAINS[zm.id]; style = famVar([t.fam]);
-    body = `<div class="zh"><h2>${t.name}</h2></div><span class="k">Terrain${t.fam ? ` · ${t.fam}` : ''}</span><p class="x">${rich(t.text)}</p>`;
+    const tn = TERRAINS[zm.id]; style = famVar([tn.fam]);
+    body = `<div class="zh"><h2>${tn.name}</h2></div><span class="k">${t('Terrain')}${tn.fam ? ` · ${t(tn.fam)}` : ''}</span><p class="x">${rich(tn.text)}</p>`;
   }
   const pic = zm.kind === 'terrain' ? terrainHTML(zm.id, TERRAINS[zm.id].name, 'zoomart') : artHTML(zm.id, nameOf(zm.id), lvl, 'zoomart', art);
-  return `<div class="sheet zoom" data-act="close"><div class="zoomwrap" data-stop="1" style="${style}">${pic}<div class="panel zoomcard${lvCls(border ?? lvl)}" data-stop="1" style="${style}" role="dialog" aria-label="Détail de la carte">${body}
-    <button class="btn" data-act="close">Fermer</button></div></div></div>`;
+  return `<div class="sheet zoom" data-act="close"><div class="zoomwrap" data-stop="1" style="${style}">${pic}<div class="panel zoomcard${lvCls(border ?? lvl)}" data-stop="1" style="${style}" role="dialog" aria-label="${t('Détail de la carte')}">${body}
+    <button class="btn" data-act="close">${t('Fermer')}</button></div></div></div>`;
 }
 function openZoom(zoom) { ui.zoom = zoom; ui.sheet = 'zoom'; ui.zoomBack = null; ui.fx = { list: [['.zoomcard', 'zoom-in']] }; }
 // Ferme le panneau ouvert ; une carte ouverte depuis le codex y ramène.
@@ -1877,8 +1877,8 @@ function sheetHTML() {
   if (ui.sheet === 'log' && ui.view) {
     const names = ui.view.names;
     const lines = ui.view.log.map(l => `<div class="${l.kind}">${esc(renderLog(l, ui.view.seat, names))}</div>`).join('');
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Journal</h2><button class="btn" data-act="close">Fermer</button></div>
-      <div class="log" id="logbox">${lines || '<span class="hint">Rien pour l\'instant.</span>'}</div></div></div>`;
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${t('Journal')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
+      <div class="log" id="logbox">${lines || `<span class="hint">${t('Rien pour l\'instant.')}</span>`}</div></div></div>`;
   }
   if (ui.sheet === 'set') {
     const ids = o => Object.keys(o);
@@ -1886,77 +1886,77 @@ function sheetHTML() {
     for (const fam of [...shownFamilies(), null]) {
       const cards = ids(CARDS).filter(k => !CARDS[k].token && (CARDS[k].kw[0] || null) === fam && !hiddenCard(k));
       const tokens = fam === null ? ids(CARDS).filter(k => CARDS[k].token && !unrevealed(k)) : [];
-      h += `<div class="gal-h">${fam || 'Neutres et jetons'}</div><div class="gallery">
+      h += `<div class="gal-h">${fam ? t(fam) : t('Neutres et jetons')}</div><div class="gallery">
         ${ids(GENERALS).filter(k => GENERALS[k].fam === fam && !GENERALS[k].boss && !hiddenCard(k)).map(k => genCard(k)).join('')}
         ${cards.map(k => fullCard(k)).join('')}${ids(TERRAINS).filter(k => TERRAINS[k].fam === fam && !unrevealed(k)).map(terrainCard).join('')}${tokens.map(k => fullCard(k)).join('')}</div>`;
     }
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Toutes les cartes</h2><div class="row"><button class="btn" data-act="codex">Mots-clés</button><button class="btn" data-act="close">Fermer</button></div></div>
-      <p class="hint" style="margin:0">Un deck : ${DECK_SIZE} cartes différentes de votre collection, ${DECK_TERRAINS} terrains et un général de votre collection. Terrains : les neutres et ceux des familles de vos généraux.</p>${h}</div></div>`;
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${t('Toutes les cartes')}</h2><div class="row"><button class="btn" data-act="codex">${t('Mots-clés')}</button><button class="btn" data-act="close">${t('Fermer')}</button></div></div>
+      <p class="hint" style="margin:0">${t('Un deck : {size} cartes différentes de votre collection, {terrains} terrains et un général de votre collection. Terrains : les neutres et ceux des familles de vos généraux.', { size: DECK_SIZE, terrains: DECK_TERRAINS })}</p>${h}</div></div>`;
   }
   if (ui.sheet === 'codex') {
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Codex</h2><button class="btn" data-act="close">Fermer</button></div>
-      <div class="field"><label class="eyebrow" for="codex-q">Chercher un mot-clé</label><input id="codex-q" type="search" autocomplete="off" value="${esc(ui.codexQuery)}" placeholder="Horde, Grâce, sceaux…"></div>
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${t('Codex')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
+      <div class="field"><label class="eyebrow" for="codex-q">${t('Chercher un mot-clé')}</label><input id="codex-q" type="search" autocomplete="off" value="${esc(ui.codexQuery)}" placeholder="${t('Horde, Grâce, sceaux…')}"></div>
       <div id="codex-list">${codexHTML(ui.codexQuery)}</div></div></div>`;
   }
   if (ui.sheet === 'play-friend') {
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Jouer avec un ami</h2><button class="btn" data-act="close">Fermer</button></div>
-      <div class="row"><button class="btn primary" data-act="create">Créer une partie</button><button class="btn" data-act="friends">Défier un ami${friends.pending() ? ` · ${friends.pending()}` : ''}</button></div>
-      <div class="or">ou rejoindre avec un code</div>
-      <div class="row"><div class="field" style="flex:1"><label class="eyebrow" for="code">Code de la partie</label>
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${t('Jouer avec un ami')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
+      <div class="row"><button class="btn primary" data-act="create">${t('Créer une partie')}</button><button class="btn" data-act="friends">${t('Défier un ami')}${friends.pending() ? ` · ${friends.pending()}` : ''}</button></div>
+      <div class="or">${t('ou rejoindre avec un code')}</div>
+      <div class="row"><div class="field" style="flex:1"><label class="eyebrow" for="code">${t('Code de la partie')}</label>
         <input id="code" maxlength="4" autocapitalize="characters" autocomplete="off" value="${esc(ui.joinCode)}" placeholder="ABCD"></div>
-        <button class="btn" data-act="join" style="align-self:end">Rejoindre</button></div>${errLine()}</div></div>`;
+        <button class="btn" data-act="join" style="align-self:end">${t('Rejoindre')}</button></div>${errLine()}</div></div>`;
   }
   if (ui.sheet === 'missions') {
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Missions du jour</h2><button class="btn" data-act="close">Fermer</button></div>
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${t('Missions du jour')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
       ${levelBar(prog())}${missionsHTML()}</div></div>`;
   }
   if (ui.sheet === 'gift') {
     const g = ui.account.deck?.general;
-    return `<div class="sheet"><div class="panel gift" role="dialog" aria-label="Cadeau de Séraphine">
-      <div class="gift-head"><span class="coach-face" aria-hidden="true">${portraitHTML('seraphine')}</span><h2>Un cadeau pour bien commencer</h2></div>
-      <p style="margin:0">Je vous offre un <strong>doublon</strong> de votre général${g ? `, ${esc(nameOf(g).split(',')[0])}` : ''}, et les Éclats pour l'améliorer. Les doublons font monter vos cartes de niveau : je vais vous montrer comment.</p>
+    return `<div class="sheet"><div class="panel gift" role="dialog" aria-label="${t('Cadeau de Séraphine')}">
+      <div class="gift-head"><span class="coach-face" aria-hidden="true">${portraitHTML('seraphine')}</span><h2>${t('Un cadeau pour bien commencer')}</h2></div>
+      <p style="margin:0">${t('Je vous offre un <strong>doublon</strong> de votre général{name}, et les Éclats pour l\'améliorer. Les doublons font monter vos cartes de niveau : je vais vous montrer comment.', { name: g ? `, ${esc(nameOf(g).split(',')[0])}` : '' })}</p>
       ${g ? `<div class="gift-card">${anyCard(g, myLevel(g), mySel(g), myBorder(g))}</div>` : ''}${errLine()}
-      <div class="row"><button class="btn primary" data-act="gift-take" ${ui.busy ? 'disabled' : ''}>Recevoir et l'améliorer</button></div></div></div>`;
+      <div class="row"><button class="btn primary" data-act="gift-take" ${ui.busy ? 'disabled' : ''}>${t('Recevoir et l\'améliorer')}</button></div></div></div>`;
   }
   if (ui.sheet === 'learn') {
     const done = ui.account?.tuto || [];
     const lessons = Object.entries(LESSONS).map(([k, l], i) => `<button class="lesson ${done.includes(k) ? 'done' : ''}" data-act="tuto" data-lesson="${k}"><span class="lesson-n num">${done.includes(k) ? '✓' : i + 1}</span>
-      <span class="lesson-t"><b>${esc(l.title)}</b><small>${esc(l.blurb)}</small></span>${done.includes(k) ? '' : `${ui.account?.tutoShards ? `<span class="lesson-r num">+${ui.account.tutoShards}${ico('shard')}</span>` : ''}`}</button>`).join('');
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Apprendre</h2><button class="btn" data-act="close">Fermer</button></div>
-      <p class="hint" style="margin:0">Séraphine vous guide pendant une partie contre l'IA, avec un deck prêt à jouer. Chaque leçon finie rapporte des Éclats la première fois, et un booster vous attend quand elles le sont toutes.</p>
+      <span class="lesson-t"><b>${esc(t(l.title))}</b><small>${esc(t(l.blurb))}</small></span>${done.includes(k) ? '' : `${ui.account?.tutoShards ? `<span class="lesson-r num">+${ui.account.tutoShards}${ico('shard')}</span>` : ''}`}</button>`).join('');
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${t('Apprendre')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
+      <p class="hint" style="margin:0">${t('Séraphine vous guide pendant une partie contre l\'IA, avec un deck prêt à jouer. Chaque leçon finie rapporte des Éclats la première fois, et un booster vous attend quand elles le sont toutes.')}</p>
       <div class="lessons">${lessons}</div>
-      <div class="row"><button class="btn" data-act="codex">Codex des mots-clés</button><button class="btn" data-act="set">Toutes les cartes</button></div></div></div>`;
+      <div class="row"><button class="btn" data-act="codex">${t('Codex des mots-clés')}</button><button class="btn" data-act="set">${t('Toutes les cartes')}</button></div></div></div>`;
   }
   if (ui.sheet === 'chest-info' && ui.screen === 'shop') return chestInfo(ui.shop?.arts);
   if (ui.sheet === 'booster-info' && ui.screen === 'shop') return boosterInfo(ui.shop);
   if (ui.sheet === 'need' && ui.need) {
     // Il manque des Éclats : l'offre de change fixe qui suffit (ou la plus grosse), sans choix du montant.
     const { need, offer: o, verb } = ui.need, have = ui.account.prisms || 0, short = o.prisms - have, step = EXCHANGE_TIERS.findIndex(t => t.id === o.id);
-    return `<div class="sheet" data-act="close"><div class="panel needpanel" data-stop="1"><div class="ph"><h2>Il vous manque ${fmt(need)} Éclats</h2><button class="btn" data-act="close">Fermer</button></div>
-      <div class="needoffer">${shardPileSVG(step, 'np')}<div class="needmeta"><span class="eyebrow">Bureau de change</span>
-        <b class="needgain num">+${fmt(o.shards)} ${ico('shard')}</b><span class="num">pour ${o.prisms} Prismes ${ico('prism')}</span>
-        ${o.bonus ? `<span class="needbonus num">+${o.bonus} % de bonus</span>` : ''}</div></div>
-      <p class="hint" style="margin:0">${short > 0 ? `Il vous manque ${short} Prisme${short > 1 ? 's' : ''} (vous en avez ${have}). Ils se gagnent en saison classée, avec les succès, le passe et le calendrier du mois.`
-        : `Après l'achat, il vous restera ${fmt(o.shards - need)} Éclats et ${have - o.prisms} Prisme${have - o.prisms > 1 ? 's' : ''}. Le change ne s'annule pas.`}</p>
+    return `<div class="sheet" data-act="close"><div class="panel needpanel" data-stop="1"><div class="ph"><h2>${t('Il vous manque {n} Éclats', { n: fmt(need) })}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
+      <div class="needoffer">${shardPileSVG(step, 'np')}<div class="needmeta"><span class="eyebrow">${t('Bureau de change')}</span>
+        <b class="needgain num">+${fmt(o.shards)} ${ico('shard')}</b><span class="num">${t('pour {n} Prismes', { n: o.prisms })} ${ico('prism')}</span>
+        ${o.bonus ? `<span class="needbonus num">${t('+{n} % de bonus', { n: o.bonus })}</span>` : ''}</div></div>
+      <p class="hint" style="margin:0">${short > 0 ? tp(short, 'Il vous manque {n} Prisme (vous en avez {have}). Ils se gagnent en saison classée, avec les succès, le passe et le calendrier du mois.', 'Il vous manque {n} Prismes (vous en avez {have}). Ils se gagnent en saison classée, avec les succès, le passe et le calendrier du mois.', { have })
+        : tp(have - o.prisms, 'Après l\'achat, il vous restera {shards} Éclats et {n} Prisme. Le change ne s\'annule pas.', 'Après l\'achat, il vous restera {shards} Éclats et {n} Prismes. Le change ne s\'annule pas.', { shards: fmt(o.shards - need) })}</p>
       ${errLine()}
-      <div class="row"><button class="btn primary" data-act="exchange" data-id="${o.id}" ${short > 0 || ui.busy ? 'disabled' : ''}>${ico('prism')} ${o.prisms} · Changer et ${verb}</button>
-        <button class="btn" data-act="shop-change">Toutes les offres</button></div></div></div>`;
+      <div class="row"><button class="btn primary" data-act="exchange" data-id="${o.id}" ${short > 0 || ui.busy ? 'disabled' : ''}>${ico('prism')} ${o.prisms} · ${t('Changer et {verb}', { verb })}</button>
+        <button class="btn" data-act="shop-change">${t('Toutes les offres')}</button></div></div></div>`;
   }
   if (ui.sheet === 'deck-code' && ui.shareDeck) {
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Partager « ${esc(ui.shareDeck.name)} »</h2><button class="btn" data-act="close">Fermer</button></div>
-      <p class="hint" style="margin:0">Envoyez ce code à un ami : il le colle dans « Importer un deck » de ses decks et retrouve ce deck avec les cartes qu'il possède.</p>
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${t('Partager « {name} »', { name: esc(ui.shareDeck.name) })}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
+      <p class="hint" style="margin:0">${t('Envoyez ce code à un ami : il le colle dans « Importer un deck » de ses decks et retrouve ce deck avec les cartes qu\'il possède.')}</p>
       <textarea id="deck-code" class="deckcode" readonly rows="${Math.min(10, Math.max(3, Math.ceil(ui.shareDeck.code.length / 40)))}" spellcheck="false">${esc(ui.shareDeck.code)}</textarea>
-      <div class="row"><button class="btn primary" data-act="dcode-copy">Copier le code</button></div></div></div>`;
+      <div class="row"><button class="btn primary" data-act="dcode-copy">${t('Copier le code')}</button></div></div></div>`;
   }
   if (ui.sheet === 'rename' && ui.renaming) {
-    return `<div class="sheet" data-act="close"><form class="panel" data-stop="1" id="rename-form"><div class="ph"><h2>Renommer le deck</h2><button class="btn" type="button" data-act="close">Fermer</button></div>
-      <div class="field"><label class="eyebrow" for="rename-input">Nom du deck</label><input id="rename-input" maxlength="30" value="${esc(ui.renaming.name)}"></div>
-      <div class="row"><button class="btn primary" type="submit">Renommer</button></div></form></div>`;
+    return `<div class="sheet" data-act="close"><form class="panel" data-stop="1" id="rename-form"><div class="ph"><h2>${t('Renommer le deck')}</h2><button class="btn" type="button" data-act="close">${t('Fermer')}</button></div>
+      <div class="field"><label class="eyebrow" for="rename-input">${t('Nom du deck')}</label><input id="rename-input" maxlength="30" value="${esc(ui.renaming.name)}"></div>
+      <div class="row"><button class="btn primary" type="submit">${t('Renommer')}</button></div></form></div>`;
   }
   if (ui.sheet === 'inbox') {
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Récompenses</h2><button class="btn" data-act="close">Fermer</button></div>
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${t('Récompenses')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
       ${levelBar(prog())}<div class="rewards">${prog().inbox.slice().reverse().map(rewardItem).join('')}</div>
-      <div class="row"><button class="btn primary" data-act="close">Super !</button></div></div></div>`;
+      <div class="row"><button class="btn primary" data-act="close">${t('Super !')}</button></div></div></div>`;
   }
   if (ui.sheet === 'calendar' && prog().calendar) return calendarHTML(prog().calendar);
   if (ui.sheet === 'welcome' && prog().welcome) return welcomeHTML(prog().welcome);
@@ -1964,38 +1964,38 @@ function sheetHTML() {
   if (ui.sheet === 'mail-got') return mail.gotSheet();
   if (ui.sheet === 'art' && ui.gotArt) {
     const art = ARTS[ui.gotArt.id], on = mySel(art.card) === art.id;
-    return `<div class="sheet" data-act="close"><div class="panel gotart" data-stop="1"><div class="ph"><h2>${ui.gotArt.chest ? 'Coffre d\'arts' : 'Nouvel art'}</h2><button class="btn" data-act="close">Fermer</button></div>
-      <div class="row" style="gap:8px">${rarChip(art)}<b>${esc(art.name)}</b><small class="hint">${esc(nameOf(art.card))}</small></div>
+    return `<div class="sheet" data-act="close"><div class="panel gotart" data-stop="1"><div class="ph"><h2>${ui.gotArt.chest ? t('Coffre d\'arts') : t('Nouvel art')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
+      <div class="row" style="gap:8px">${rarChip(art)}<b>${esc(t(art.name))}</b><small class="hint">${esc(nameOf(art.card))}</small></div>
       <div class="bcard gotcard">${artHTML(art.card, nameOf(art.card), myLevel(art.card), 'grand', art.id)}</div>
       ${ui.msg ? `<p class="hint" role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
-      <div class="row"><button class="btn ${on ? '' : 'primary'}" data-act="art-pick" data-card="${art.card}" data-art="${art.id}" ${on || ui.busy ? 'disabled' : ''}>${on ? 'Art utilisé ✓' : 'Utiliser cet art'}</button>
-        <button class="btn" data-act="close">Plus tard</button></div>
-      <p class="hint" style="margin:0">Vous pourrez changer d'art à tout moment depuis la carte, dans la collection.${owned(art.card) ? '' : ' Il s\'affichera dès que vous aurez la carte.'}</p></div></div>`;
+      <div class="row"><button class="btn ${on ? '' : 'primary'}" data-act="art-pick" data-card="${art.card}" data-art="${art.id}" ${on || ui.busy ? 'disabled' : ''}>${on ? t('Art utilisé ✓') : t('Utiliser cet art')}</button>
+        <button class="btn" data-act="close">${t('Plus tard')}</button></div>
+      <p class="hint" style="margin:0">${t('Vous pourrez changer d\'art à tout moment depuis la carte, dans la collection.')}${owned(art.card) ? '' : ` ${t('Il s\'affichera dès que vous aurez la carte.')}`}</p></div></div>`;
   }
   if (ui.sheet === 'booster' && ui.booster) {
     const { title, cards, fresh, shards, xp } = ui.booster, n = fresh.filter(Boolean).length;
-    const sum = [n ? `${n} nouvelle${n > 1 ? 's' : ''} carte${n > 1 ? 's' : ''} dans votre collection` : 'Aucune nouvelle carte', shards ? `${shards} Éclats${[ui.booster.essence ? `${ui.booster.essence} essence` : '', ui.booster.universal ? `${ui.booster.universal} essence universelle` : ''].filter(Boolean).map(x => ` et ${x}`).join('')} gagnés avec les doublons` : '', xp ? `${xp} XP` : ''].filter(Boolean).join(', ');
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${esc(title)}</h2><button class="btn" data-act="close">Fermer</button></div>
+    const sum = [n ? tp(n, '{n} nouvelle carte dans votre collection', '{n} nouvelles cartes dans votre collection') : t('Aucune nouvelle carte'), shards ? t('{shards} Éclats{extra} gagnés avec les doublons', { shards, extra: [ui.booster.essence ? t('{n} essence', { n: ui.booster.essence }) : '', ui.booster.universal ? t('{n} essence universelle', { n: ui.booster.universal }) : ''].filter(Boolean).map(x => t(' et {x}', { x })).join('') }) : '', xp ? `${xp} XP` : ''].filter(Boolean).join(', ');
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${esc(tField(ui.booster, 'title'))}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
       <p class="hint" style="margin:0">${sum}.</p>
-      <div class="gallery ${ui.booster.opened ? 'opened' : ''}">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? '<span class="new">Nouvelle</span>' : `<span class="new shard">${dupTag(id)}</span>`}${anyCard(id, myLevel(id), mySel(id))}</div>`).join('')}</div></div></div>`;
+      <div class="gallery ${ui.booster.opened ? 'opened' : ''}">${cards.map((id, i) => `<div class="bcard ${fresh[i] ? '' : 'dup'}" style="animation-delay:${i * 120}ms">${fresh[i] ? `<span class="new">${t('Nouvelle')}</span>` : `<span class="new shard">${dupTag(id)}</span>`}${anyCard(id, myLevel(id), mySel(id))}</div>`).join('')}</div></div></div>`;
   }
   if (ui.sheet === 'end' && ui.view?.result && ui.view.boss) return boss.endHTML(ui.view, ui.rematchAsked);
   if (ui.sheet === 'end' && ui.view?.result && ui.mode === 'story') return story.endHTML(ui.view);
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;
-    const t = r.winner === s ? 'Victoire' : r.winner < 0 ? 'Match nul' : 'Défaite';
+    const title = r.winner === s ? t('Victoire') : r.winner < 0 ? t('Match nul') : t('Défaite');
     const reason = renderLog(r.reason, s, ui.view.names);
-    const zs = [0, 1, 2].map(z => `<div class="${['', 'me', 'foe'][zoneSide(ui.view, z)]}"><div class="eyebrow">${ZONE_NAMES[z]}</div><b>${ui.view.me.zonePower[z]}</b> contre ${ui.view.foe.zonePower[z]}</div>`).join('');
-    if (ui.mode === 'tuto') return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p><div class="zs">${zs}</div>
+    const zs = [0, 1, 2].map(z => `<div class="${['', 'me', 'foe'][zoneSide(ui.view, z)]}"><div class="eyebrow">${t(ZONE_NAMES[z])}</div>${t('<b>{a}</b> contre {b}', { a: ui.view.me.zonePower[z], b: ui.view.foe.zonePower[z] })}</div>`).join('');
+    if (ui.mode === 'tuto') return `<div class="sheet"><div class="panel end"><h2>${title}</h2><p style="margin:0">${esc(reason)}.</p><div class="zs">${zs}</div>
       <p style="margin:0">${esc(ui.ctrl?.endText || '')}</p>${ui.tutoReward ? `<div class="rewards">${rewardItem(ui.tutoReward)}</div>
-      ${ui.tutoReward.boosters ? '<p class="hint" style="margin:0">Toutes les leçons sont finies : votre booster offert vous attend sur l\'accueil.</p>' : ''}` : ''}<div class="row">
-      ${nextLesson() ? `<button class="btn primary" data-act="tuto" data-lesson="${nextLesson()}">Leçon suivante : ${esc(LESSONS[nextLesson()].title)}</button>` : ''}
-      <button class="btn ${nextLesson() ? '' : 'primary'}" data-act="quit">${ui.account?.starter ? (nextLesson() ? 'Arrêter le tuto' : 'Retour à l\'accueil') : (nextLesson() ? 'Passer : choisir mon deck' : 'Choisir mon deck')}</button><button class="btn" data-act="again">Rejouer la leçon</button>
-      ${ui.account?.starter ? '<button class="btn" data-act="codex">Ouvrir le codex</button>' : ''}</div></div></div>`;
-    return `<div class="sheet"><div class="panel end"><h2>${t}</h2><p style="margin:0">${esc(reason)}.</p>
+      ${ui.tutoReward.boosters ? `<p class="hint" style="margin:0">${t('Toutes les leçons sont finies : votre booster offert vous attend sur l\'accueil.')}</p>` : ''}` : ''}<div class="row">
+      ${nextLesson() ? `<button class="btn primary" data-act="tuto" data-lesson="${nextLesson()}">${t('Leçon suivante : {title}', { title: esc(t(LESSONS[nextLesson()].title)) })}</button>` : ''}
+      <button class="btn ${nextLesson() ? '' : 'primary'}" data-act="quit">${ui.account?.starter ? (nextLesson() ? t('Arrêter le tuto') : t('Retour à l\'accueil')) : (nextLesson() ? t('Passer : choisir mon deck') : t('Choisir mon deck'))}</button><button class="btn" data-act="again">${t('Rejouer la leçon')}</button>
+      ${ui.account?.starter ? `<button class="btn" data-act="codex">${t('Ouvrir le codex')}</button>` : ''}</div></div></div>`;
+    return `<div class="sheet"><div class="panel end"><h2>${title}</h2><p style="margin:0">${esc(reason)}.</p>
       <div class="zs">${zs}</div>${endRewardHTML()}<div class="row">
-      <button class="btn primary" data-act="again" ${ui.rematchAsked ? 'disabled' : ''}>${ui.rematchAsked ? 'Revanche demandée…' : 'Revanche'}</button>
-      <button class="btn" data-act="quit">Retour à l'accueil</button><button class="btn" data-act="log">Voir le journal</button></div></div></div>`;
+      <button class="btn primary" data-act="again" ${ui.rematchAsked ? 'disabled' : ''}>${ui.rematchAsked ? t('Revanche demandée…') : t('Revanche')}</button>
+      <button class="btn" data-act="quit">${t('Retour à l\'accueil')}</button><button class="btn" data-act="log">${t('Voir le journal')}</button></div></div></div>`;
   }
   return '';
 }
@@ -2090,7 +2090,7 @@ function musicFor() {
 // ---- Animations et bruitages ----
 const SPEAKER = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/>';
 const QUIT_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>';
-const muteBtn = () => `<button class="btn icon" data-act="mute" aria-pressed="${isMuted()}" aria-label="${isMuted() ? 'Activer le son' : 'Couper le son'}" title="${isMuted() ? 'Activer le son' : 'Couper le son'}">${SPEAKER}${isMuted() ? '<path d="m16 9 5 6m0-6-5 6"/>' : '<path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>'}</svg></button>`;
+const muteBtn = () => `<button class="btn icon" data-act="mute" aria-pressed="${isMuted()}" aria-label="${isMuted() ? t('Activer le son') : t('Couper le son')}" title="${isMuted() ? t('Activer le son') : t('Couper le son')}">${SPEAKER}${isMuted() ? '<path d="m16 9 5 6m0-6-5 6"/>' : '<path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>'}</svg></button>`;
 const cardSel = uid => `[data-card="${uid}"]`;
 function cardsOf(view) {
   const m = new Map();
@@ -2119,7 +2119,7 @@ function burstAt(el) {
 // Camp qui mène une zone : 1 pour soi, 2 pour l'adversaire, 0 à égalité.
 const zoneSide = (view, z) => { const d = view.me.zonePower[z] - view.foe.zonePower[z]; return d > 0 ? 1 : d < 0 ? 2 : 0; };
 const SIDES = ['', 'me', 'foe'];
-const turnBanner = view => (view.turn === view.turns ? ['Dernier tour', `Tour ${view.turn}`, 'last'] : [`Tour ${view.turn}`, `sur ${view.turns}`, '']);
+const turnBanner = view => (view.turn === view.turns ? [t('Dernier tour'), t('Tour {n}', { n: view.turn }), 'last'] : [t('Tour {n}', { n: view.turn }), t('sur {n}', { n: view.turns }), '']);
 // Compare la vue précédente à la nouvelle : prépare les animations du prochain rendu et joue les bruitages.
 // `after` : effets posés par-dessus la table une fois le rendu fait (ils ont besoin de la place des éléments).
 function viewEffects(prev, view) {
@@ -2139,7 +2139,7 @@ function viewEffects(prev, view) {
   const before = cardsOf(prev), after2 = cardsOf(view), f = view.flash;
   // Début de la révélation : les cartes cachées de l'adversaire arrivent, les siennes sont scellées.
   if (prev.phase === 'plan' && view.phase === 'reveal') {
-    after.push(() => banner(at('.board'), 'Révélation', '', 'reveal'));
+    after.push(() => banner(at('.board'), t('Révélation'), '', 'reveal'));
     let i = 0;
     for (const [uid, b] of after2) if (!before.has(uid)) list.push(b.side === 'foe' ? [`[data-hid="${uid}"]`, 'dealt', (i++) * 90] : [cardSel(uid), 'sealed']);
     sounds.push('deal');
@@ -2313,7 +2313,7 @@ function tryPlace(z) {
     // Le déplacement s'applique tout de suite à l'aperçu ; ramener la carte dans sa zone de départ l'annule.
     const uid = ui.moveSel, now = planZone(uid);
     if (z === now) { ui.moveSel = null; ui.msg = ''; }
-    else if (freeSlots(z) <= 0) { ui.msg = `La zone ${ZONE_NAMES[z]} est pleine de votre côté.`; play('deny'); feel('deny'); msgFades(); }
+    else if (freeSlots(z) <= 0) { ui.msg = t('La zone {z} est pleine de votre côté.', { z: t(ZONE_NAMES[z]) }); play('deny'); feel('deny'); msgFades(); }
     else {
       const from = dropRect || rectOf(cardSel(uid));
       ui.moves = ui.moves.filter(m => m.uid !== uid);
@@ -2326,8 +2326,8 @@ function tryPlace(z) {
   if (!ui.sel) return;
   const c = handLeft().find(x => x.uid === ui.sel); if (!c) return;
   const d = CARDS[c.id], left = sealsLeft();
-  if (freeSlots(z) <= 0) ui.msg = `La zone ${ZONE_NAMES[z]} est pleine de votre côté.`;
-  else if (d.x ? left <= 0 : c.cost > left) ui.msg = d.x ? `Il ne vous reste aucun sceau pour ${d.name}.` : `Pas assez de sceaux : ${d.name} coûte ${c.cost}, il vous en reste ${left}.`;
+  if (freeSlots(z) <= 0) ui.msg = t('La zone {z} est pleine de votre côté.', { z: t(ZONE_NAMES[z]) });
+  else if (d.x ? left <= 0 : c.cost > left) ui.msg = d.x ? t('Il ne vous reste aucun sceau pour {name}.', { name: d.name }) : t('Pas assez de sceaux : {name} coûte {cost}, il vous en reste {left}.', { name: d.name, cost: c.cost, left });
   else {
     const from = dropRect || rectOf(`[data-hand="${c.uid}"]`);
     ui.pending.push({ uid: c.uid, id: c.id, zone: z }); ui.sel = null; ui.msg = '';
@@ -2340,7 +2340,7 @@ let msgTimer = null;
 function msgFades() { const m = ui.msg; clearTimeout(msgTimer); msgTimer = setTimeout(() => { if (ui.msg === m && ui.screen === 'game') { ui.msg = ''; render(); } }, 2600); }
 // Retour au salon : depuis une partie, sous le voile, le temps que la table laisse place aux menus.
 function quit() {
-  if (ui.screen === 'game' && !veil.covering()) { veil.cover({ label: 'Retour au salon…', tips: ['menu'], min: 500, run: leaveTable, until: () => ui.screen !== 'game' }); return; }
+  if (ui.screen === 'game' && !veil.covering()) { veil.cover({ label: t('Retour au salon…'), tips: ['menu'], min: 500, run: leaveTable, until: () => ui.screen !== 'game' }); return; }
   leaveTable();
 }
 function leaveTable() {
@@ -2374,7 +2374,7 @@ app.addEventListener('change', e => {
   if (e.target.id === 'sound-on') { setMuted(!e.target.checked); play('validate'); render(); }
   if (e.target.id === 'vibrations-on') { setVibrations(e.target.checked); buzz(40); }
   if (e.target.id === 'avatar-file') { pickAvatar(e.target.files[0]); e.target.value = ''; }
-  if (e.target.id === 'title-pick') equip({ title: e.target.value || null }, 'Titre changé.');
+  if (e.target.id === 'title-pick') equip({ title: e.target.value || null }, t('Titre changé.'));
   if (e.target.id === 'emotes-off') store.set('emotes-off', e.target.checked);
 });
 app.addEventListener('submit', e => {
@@ -2387,11 +2387,11 @@ app.addEventListener('submit', e => {
 });
 // Les missions repliées ou dépliées le restent d'un affichage à l'autre.
 app.addEventListener('click', e => {
-  const t = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-frame],[data-back],[data-theme],[data-stop]');
+  const el = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-frame],[data-back],[data-theme],[data-stop]');
   // Sélecteur d'émotes ouvert : toucher ailleurs le referme.
-  if (ui.emotePick && !e.target.closest('.emotepick,[data-act="emotes"]')) { ui.emotePick = false; if (!t) { render(); return; } }
-  if (!t) return;
-  const ds = t.dataset;
+  if (ui.emotePick && !e.target.closest('.emotepick,[data-act="emotes"]')) { ui.emotePick = false; if (!el) { render(); return; } }
+  if (!el) return;
+  const ds = el.dataset;
   if (ds.stop && !e.target.closest('[data-act]')) return;
   if (ds.act) {
     const a = ds.act;
@@ -2406,7 +2406,7 @@ app.addEventListener('click', e => {
     else if (a === 'log' || a === 'set' || a === 'learn' || a === 'missions') { ui.sheet = a; render(); }
     else if (a === 'play-friend') { ui.sheet = a; ui.error = ''; render(); }
     else if (a === 'create') goOnline('create');
-    else if (a === 'join') { if (ui.joinCode.length !== 4) { ui.error = 'Le code fait 4 lettres.'; render(); } else goOnline('join'); }
+    else if (a === 'join') { if (ui.joinCode.length !== 4) { ui.error = t('Le code fait 4 lettres.'); render(); } else goOnline('join'); }
     else if (a === 'solo') goSolo();
     else if (a === 'tuto') goTutorial(ds.lesson);
     else if (a === 'tuto-next') { if (ui.guide) ui.guide = null; else ui.ctrl?.next(); render(); }
@@ -2414,7 +2414,7 @@ app.addEventListener('click', e => {
     else if (a === 'gift-take' && !ui.busy) takeGift();
     else if (a === 'codex') { ui.sheet = 'codex'; ui.zoom = null; render(); }
     else if (a === 'copy') { const link = document.getElementById('link');
-      navigator.clipboard.writeText(link.value).then(() => { t.textContent = 'Lien copié'; }).catch(() => { link.select(); }); }
+      navigator.clipboard.writeText(link.value).then(() => { el.textContent = t('Lien copié'); }).catch(() => { link.select(); }); }
     else if (a === 'go') { if (!canPlay()) return; play('validate'); feel('validate');
       ui.ctrl.submit({ cards: ui.pending.map(p => ({ uid: p.uid, zone: p.zone })), moves: ui.moves.slice(), general: ui.genZone }); ui.sel = null; ui.moveSel = null; if (ui.offline) render(); }
     // Activer le général (ou l'annuler) depuis sa carte en grand.
@@ -2427,8 +2427,8 @@ app.addEventListener('click', e => {
       play(ui.genZone === null ? 'unplace' : 'place'); render(); }
     else if (a === 'again') { ui.tutoSent = false; ui.tutoReward = null; ui.rematchAsked = true; ui.soloReward = null; ui.ctrl.rematch(); render(); }
     else if (a === 'quit') {
-      if (ui.screen === 'game' && ui.view?.ranked && ui.view.phase !== 'over' && !confirm('Quitter une partie classée en cours compte comme une défaite. Quitter quand même ?')) return;
-      if (ui.screen === 'game' && ui.view?.boss && ui.view.phase !== 'over' && !confirm('Quitter la tentative la termine avec votre plateau actuel : elle compte comme jouée. Quitter quand même ?')) return;
+      if (ui.screen === 'game' && ui.view?.ranked && ui.view.phase !== 'over' && !confirm(t('Quitter une partie classée en cours compte comme une défaite. Quitter quand même ?'))) return;
+      if (ui.screen === 'game' && ui.view?.boss && ui.view.phase !== 'over' && !confirm(t('Quitter la tentative la termine avec votre plateau actuel : elle compte comme jouée. Quitter quand même ?'))) return;
       quit(); }
     else if (a === 'ranked') { ui.sheet = null; openRanked(); }
     else if (a === 'pass') openPass();
@@ -2439,7 +2439,7 @@ app.addEventListener('click', e => {
     else if (a === 'emote') sendEmote(ds.id);
     else if (a === 'emote-mute') toggleEmoteMute();
     else if (a === 'emote-slot' && !ui.busy) toggleEmoteSlot(ds.id);
-    else if (a === 'buy-emote' && !ui.busy) { const e = EMOTES[ds.id], go = () => buyEmote(ds.id); if (e.prisms || !lacksShards(e.price, 'acheter', go)) go(); }
+    else if (a === 'buy-emote' && !ui.busy) { const e = EMOTES[ds.id], go = () => buyEmote(ds.id); if (e.prisms || !lacksShards(e.price, t('acheter'), go)) go(); }
     else if (a === 'shop-emotes') openShop('emotes');
     else if (a === 'logout') doLogout();
     else if (a === 'retry') boot();
@@ -2448,8 +2448,8 @@ app.addEventListener('click', e => {
     else if (a === 'booster' && !ui.busy) openBoosterNow();
     else if (a === 'collection') { ui.screen = 'collection'; ui.error = ''; render(); }
     else if (a === 'shop') openShop('sets');
-    else if (a === 'buy-card' && !ui.busy) { const go = () => buy('/api/shop/card', { set: ds.set, card: ds.id }); if (!lacksShards(ui.shop?.prices.cardPrice, 'acheter', go)) go(); }
-    else if (a === 'buy-booster' && !ui.busy) { const go = () => buy('/api/shop/booster', { set: ds.set }); if (!lacksShards(boosterPriceOf(ds.set), 'acheter', go)) go(); }
+    else if (a === 'buy-card' && !ui.busy) { const go = () => buy('/api/shop/card', { set: ds.set, card: ds.id }); if (!lacksShards(ui.shop?.prices.cardPrice, t('acheter'), go)) go(); }
+    else if (a === 'buy-booster' && !ui.busy) { const go = () => buy('/api/shop/booster', { set: ds.set }); if (!lacksShards(boosterPriceOf(ds.set), t('acheter'), go)) go(); }
     else if (a === 'free-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set, free: true });
     else if (a === 'buy-art' && !ui.busy) buyArt('/api/shop/art', { art: ds.id });
     else if (a === 'chest' && !ui.busy) buyArt('/api/shop/chest', {});
@@ -2457,7 +2457,7 @@ app.addEventListener('click', e => {
     else if (a === 'shop-tab') { ui.shopTab = ds.tab; ui.msg = ''; ui.error = ''; render(); }
     else if (a === 'shop-arts') { ui.sheet = null; ui.calGot = null; openShop('arts'); }
     else if (a === 'exchange' && !ui.busy) exchange(ds.id);
-    else if (a === 'buy-dup' && !ui.busy) { const go = () => buyDup(ds.id); if (!lacksShards(ui.shop?.prices.dupPrice, 'acheter', go)) go(); }
+    else if (a === 'buy-dup' && !ui.busy) { const go = () => buyDup(ds.id); if (!lacksShards(ui.shop?.prices.dupPrice, t('acheter'), go)) go(); }
     else if (a === 'buy-ess-art' && !ui.busy) buyEssenceArt(ds.id);
     else if (a === 'uni-convert' && !ui.busy) convertEssence(ds.id, +ds.n);
     else if (a === 'shop-essence') { ui.sheet = null; ui.zoom = null; ui.msg = ''; openShop('essence'); }
@@ -2465,7 +2465,7 @@ app.addEventListener('click', e => {
     else if (a === 'chest-info') { ui.sheet = 'chest-info'; render(); }
     else if (a === 'booster-info') { ui.sheet = 'booster-info'; render(); }
     else if (a === 'calendar') { ui.sheet = 'calendar'; ui.calGot = null; render(); }
-    else if (a === 'event') { ui.sheet = 'event'; ui.evSel = t.dataset.ev; render(); }
+    else if (a === 'event') { ui.sheet = 'event'; ui.evSel = el.dataset.ev; render(); }
     else if (a === 'claim-day' && !ui.busy) claimDay();
     else if (a === 'welcome') { ui.sheet = 'welcome'; ui.welGot = null; render(); }
     else if (a === 'claim-welcome' && !ui.busy) claimWelcome();
@@ -2483,7 +2483,7 @@ app.addEventListener('click', e => {
     else if (a === 'decks-tab') { ui.decksTab = ds.tab; ui.error = ''; ui.msg = ''; render(); scrollTo(0, 0); }
     else if (a === 'recipe-use' && DECKS[ds.id]) buildFrom(DECKS[ds.id], 'recette');
     else if (a === 'recipe-share' && DECKS[ds.id]) showDeckCode(DECKS[ds.id]);
-    else if (a === 'dcode-copy' && ui.shareDeck) copyDeckCode(t);
+    else if (a === 'dcode-copy' && ui.shareDeck) copyDeckCode(el);
     else if (a.startsWith('deck-') && a !== 'deck-cancel' && !ui.busy) deckAction(a, ds.id);
     else if (a === 'deck-cancel') { ui.screen = ui.edit?.back || 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
     else if (a === 'step-next' && stepOpen(ui.edit, ui.deckStep + 1)) { ui.deckStep++; ui.msg = ''; render(); scrollTo(0, 0); }
@@ -2495,13 +2495,13 @@ app.addEventListener('click', e => {
     else if (a === 'profile-tab') { ui.profileTab = ds.tab; ui.msg = ''; ui.error = ''; render(); }
     else if (a === 'avatar-remove' && !ui.busy) call('PUT', '/api/profile', { avatar: null });
     else if (a === 'save-deck' && !ui.busy) saveDeck();
-    else if (a === 'upgrade' && !ui.busy) { const go = () => upgrade(ds.id); if (!lacksShards(nextCost(ds.id)?.shards, 'monter de niveau', go)) go(); }
+    else if (a === 'upgrade' && !ui.busy) { const go = () => upgrade(ds.id); if (!lacksShards(nextCost(ds.id)?.shards, t('monter de niveau'), go)) go(); }
     return;
   }
   if (ds.starter) { ui.starterPick = ds.starter; render(); return; }
-  if (ds.frame !== undefined && !ui.busy) { equip({ frame: ds.frame || null }, 'Cadre changé.'); return; }
-  if (ds.theme !== undefined && !ui.busy) { equip({ theme: ds.theme || null }, 'Thème changé.'); return; }
-  if (ds.back && !ui.busy) { equip({ back: ds.back }, 'Dos de carte changé.'); return; }
+  if (ds.frame !== undefined && !ui.busy) { equip({ frame: ds.frame || null }, t('Cadre changé.')); return; }
+  if (ds.theme !== undefined && !ui.busy) { equip({ theme: ds.theme || null }, t('Thème changé.')); return; }
+  if (ds.back && !ui.busy) { equip({ back: ds.back }, t('Dos de carte changé.')); return; }
   if (ds.fam !== undefined) { ui.colFam = ds.fam; render(); return; }
   if (ds.zoom) { const [kind, id, art] = ds.zoom.split(':'); const back = ui.sheet === 'codex' || ui.sheet === 'player' ? ui.sheet : null; openZoom({ kind, id, art: art || null }); ui.zoomBack = back; ui.msg = ''; render(); return; }
   if (ds.pick) { togglePick(ds.pick); return; }
@@ -2536,7 +2536,7 @@ app.addEventListener('click', e => {
   }
   if (ds.terrain && ui.sel === null && ui.moveSel === null) { if (doubleTap(`terrain:${ds.terrain}`)) { ui.focus = { kind: 'terrain', id: ds.terrain }; ui.msg = ''; openZoom({ kind: 'terrain', id: ds.terrain }); render(); } return; }
   if (ds.general) { if (doubleTap(`general:${ds.side}`)) { ui.focus = { kind: 'general', id: ds.general }; ui.msg = ''; openZoom({ kind: 'general', id: ds.general, mine: ds.side === 'me', side: ds.side }); render(); } return; }
-  const zone = t.closest('[data-z]'); if (zone) tryPlace(+zone.dataset.z);
+  const zone = el.closest('[data-z]'); if (zone) tryPlace(+zone.dataset.z);
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && ui.emotePick) { ui.emotePick = false; render(); return; }
