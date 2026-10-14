@@ -64,6 +64,8 @@ for (const f of files) {
   const src = readFileSync(f, 'utf8'), rel = relative(ROOT, f);
   for (const m of src.matchAll(RE)) {
     const name = m[1], a = argsAt(src, m.index + m[0].length);
+    // Dans un commentaire « // … » : ignoré.
+    if (/(^|[^:'"`])\/\//.test(src.slice(src.lastIndexOf('\n', m.index) + 1, m.index))) continue;
     if (name === 'log' && !/^\s*st\b/.test(src.slice(...(a[0] || [0, 0])))) continue;
     for (const k of CALLS[name]) {
       if (!a[k]) continue;

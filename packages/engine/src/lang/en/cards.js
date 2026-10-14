@@ -449,7 +449,7 @@ export default {
   'Révélation : Implant 1 sur chacune de vos autres créatures ici.': 'Reveal: Implant 1 on each of your other creatures here.',
   'Daemon racine': 'Root Daemon',
   'Sacrifice. Révélation : Malware 2.': 'Sacrifice. Reveal: Malware 2.',
-  'Grand surchauffeur': 'Grand Overheater',
+  'Grand surchauffeur': 'Grand Overclocker',
   'Révélation : Horde 2. Surcharge 1 : Horde 2 dans chacune de vos autres zones.': 'Reveal: Horde 2. Overload 1: Horde 2 in each of your other zones.',
   'Archi-technomancienne': 'Arch-Technomancer',
   'Sortilège : +1. Révélation : Piratage sur la créature adverse la plus puissante ici.': 'Spellcast: +1. Reveal: Hack the strongest enemy creature here.',
