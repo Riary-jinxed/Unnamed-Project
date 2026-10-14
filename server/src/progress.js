@@ -3,7 +3,7 @@
 // Les nombres viennent du document « recompenses » (réglé depuis /admin), complété par les valeurs par défaut de rewards.js.
 // Chaque récompense gagnée est aussi rangée dans la boîte « inbox » du compte, que l'appli affiche puis vide.
 import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, ACHIEVEMENTS, familyReward, SET_REWARDS, TITLES, FRAMES, BACKS,
-  xpToNext, familyOf, statValue, missionLabel, MAX_CARD_LEVEL, levelCost, essenceToMax, loginCalendar, loginReward, monthDays } from '@jeu/engine/rewards';
+  xpToNext, familyOf, statValue, missionLabel, MAX_CARD_LEVEL, levelCost, essenceToMax, loginCalendar, loginReward, monthDays, welcomeReward, welcomeRewards, WELCOME_STEPS } from '@jeu/engine/rewards';
 import { SETS, OWNABLE, today, setRevealed, setById } from '@jeu/engine/collection';
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { TIERS, PLACES, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics,
@@ -346,6 +346,35 @@ export function createProgress(store) {
     return { day, ...r };
   }
 
+  // ---- Bienvenue des nouveaux comptes ----
+  // Compte : welcome = { start (création du compte), days: [dates « AAAA-MM-JJ » des récompenses prises] }. Seuls les comptes créés
+  // depuis cette fonction l'ont (ou ceux à qui /admin l'offre) : les comptes plus anciens n'y ont pas droit.
+  // Une récompense par jour de connexion distinct, jusqu'à WELCOME_STEPS, tant que le délai (welcomeWindow jours, jour de création compris) court.
+  const addDays = (day, n) => new Date(Date.parse(`${day}T12:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
+  const daysBetween = (from, to) => Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86400000);
+  function welcomeView(a) {
+    const W = a.welcome; if (!W) return null;
+    const c = cfg(), day = today(), last = addDays(today(new Date(W.start)), c.welcomeWindow - 1);
+    const done = W.days.length >= WELCOME_STEPS, expired = !done && day > last, claimed = W.days.includes(day);
+    return { got: W.days.length, steps: WELCOME_STEPS, ready: !done && !expired && !claimed, claimed, done, expired, last, left: Math.max(0, daysBetween(day, last) + 1),
+      list: welcomeRewards(c).map(x => ({ ...x, got: x.n <= W.days.length, today: x.n === W.days.length + (claimed ? 0 : 1) && !expired })) };
+  }
+  // Récupère la récompense de bienvenue suivante. Renvoie ce qu'elle a donné.
+  function claimWelcome(a) {
+    if (!a.level) init(a);
+    const v = welcomeView(a);
+    if (!v) throw new HttpError(409, 'Ce compte n\'a pas de récompenses de bienvenue.');
+    if (v.done) throw new HttpError(409, 'Toutes les récompenses de bienvenue sont déjà récupérées.');
+    if (v.expired) throw new HttpError(409, 'Le délai des récompenses de bienvenue est passé.');
+    if (v.claimed) throw new HttpError(409, 'Récompense de bienvenue du jour déjà récupérée. Revenez demain pour la suivante.');
+    a.welcome.days.push(today());
+    const n = a.welcome.days.length, r = welcomeReward(n, cfg());
+    grant(a, { kind: 'welcome', label: `Bienvenue, jour ${n} sur ${WELCOME_STEPS}`, ...r }, { silent: true });
+    checkAchievements(a);
+    return { n, ...r };
+  }
+  // Nouveau compte (ou offert depuis /admin) : la bienvenue commence maintenant.
+  const startWelcome = a => { a.welcome = { start: new Date().toISOString(), days: [] }; };
 
   // ---- Passe de saison ----
   // Compte : seasonPass = { season (« AAAA-MM »), xp (XP de saison), premium, free et prem (derniers paliers donnés sur chaque piste),
@@ -567,7 +596,7 @@ export function createProgress(store) {
     return { ...levelView(a), freeBoosters: a.freeBoosters || 0,
       missions: ms.list.map(m => ({ label: missionLabel(m), n: m.n, target: m.target, done: m.done, xp: m.xp, shards: m.shards })),
       rerollsLeft: Math.max(0, c.missionRerolls - ms.rerolls), inbox: a.inbox || [], badge: badge(a), cardLevels: levelsView(), ranked: rankedView(a),
-      freeChests: a.freeChests || 0, calendar: calendarView(a), pass: passSummary(a), events: events.view(),
+      freeChests: a.freeChests || 0, calendar: calendarView(a), welcome: welcomeView(a), pass: passSummary(a), events: events.view(),
       title: a.title, frame: a.frame, back: a.back, theme: a.uiTheme ?? null, favArts: favArts(a),
       cosmetics: { titles: a.cosmetics.titles.map(id => ({ id, label: TITLES[id] || id })), frames: a.cosmetics.frames.map(id => ({ id, label: FRAMES[id] || id })),
         backs: a.cosmetics.backs.map(id => ({ id, label: BACKS[id] || id })), themes: (a.cosmetics.themes || []).map(id => ({ id, label: SEASON_THEMES[id] || id })) } };
@@ -628,6 +657,6 @@ export function createProgress(store) {
     passPool: Object.fromEntries(Object.entries(PASS_KINDS).map(([k, x]) => [k, { daily: x.daily, weekly: x.weekly }])),
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
-  return { init, grant, cfg, events, count, best, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
+  return { init, grant, cfg, events, count, best, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, claimWelcome, welcomeView, startWelcome, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings,
     seen: a => { a.inbox = []; }, setSeasonHook: f => { seasonHook = f; } };
 }

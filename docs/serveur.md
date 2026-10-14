@@ -1,6 +1,6 @@
 # Serveur (`server`)
 
-Un seul processus Node : `server/src/index.js` sert l'appli compilée, l'API JSON sous `/api` et les parties en ligne sur `/ws`. Il dépend de `ws` (WebSocket) et `pg` (PostgreSQL).
+Un seul processus Node : `server/src/index.js` sert l'appli compilée, l'API JSON sous `/api` et les parties en ligne sur `/ws`. Il dépend de `ws` (WebSocket), `pg` (PostgreSQL) et `web-push` (notifications).
 
 Au démarrage, dans l'ordre : ouverture du stockage, chargement des comptes (avec mises à niveau des anciens comptes), application du catalogue publié, vérification des complétions et succès déjà atteints (`syncAll`), puis écoute du port.
 
@@ -30,6 +30,7 @@ Documents de la table `reglages` :
 | `catalogue` | « Publier dans le jeu » | Catalogue publié, appliqué au moteur. |
 | `evenements` | onglet Événements | `{ list }` : événements temporaires (`events.js` du moteur). Absent ou vide : `DEFAULT_EVENTS`. |
 | `compteurs` | `activity.js` | Par jour (`AAAA-MM-JJ`, heure de Paris, 400 jours au plus) : boosters du jour, achetés et offerts ouverts, cartes du jour achetées, coffres d'arts ouverts, arts achetés, changes de Prismes en Éclats. Pour l'onglet Stats. |
+| `push` | `push.js` | `keys` : clés VAPID des notifications (créées au premier démarrage, sauf si `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY` sont définies) ; `sent` : envois planifiés déjà faits (`ev-<événement>-<premier jour>`, `saison-<AAAA-MM>`), 60 jours. |
 
 ## Compte joueur
 
@@ -56,6 +57,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `missions` | `{ date, rerolls, list }` : les missions du jour. |
 | `calendar` | `{ month, days }` : jours du mois dont la récompense de connexion est prise (remis à zéro chaque mois). |
 | `freeChests` | Coffres d'arts offerts à ouvrir (succès rares, dimanches du calendrier). |
+| `welcome` | Bienvenue des 7 jours : `{ start, days }` (création, dates des cadeaux pris). Posé à la création du compte ; absent des comptes plus anciens. Gardé par la remise à zéro, qui vide seulement `days`. |
 | `achievements`, `completed` | Succès obtenus ; familles (`set:famille`) et sets complétés, avec leur date. |
 | `cosmetics`, `title`, `frame`, `back`, `uiTheme` | Titres, cadres, dos et thèmes de l'interface débloqués (`cosmetics.themes`, un par passe de saison, au palier `THEME_TIER`) ; ceux qui sont portés. `uiTheme` : `null` suit la saison en cours, `base` garde le thème de base, sinon un thème débloqué. |
 | `inbox` | Récompenses gagnées à montrer au joueur (40 au plus), vidée quand il les a vues. |
@@ -81,6 +83,7 @@ Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDu
 | `notes-maj.js` | `NOTES_MAJ` : notes de mise à jour, envoyées une seule fois dans le courrier de tous les comptes existants au premier démarrage du serveur qui les contient (`publishNotes`, identifiants retenus dans `courrier.notes`). Pour une nouvelle note : l'ajouter en fin de liste avec un identifiant nouveau. |
 | `clans.js` | `createClans(store, accounts)` : clans (document `clans`), missions de clan avancées à chaque fin de partie (`accounts.setGameHook`), dons contre des Écus, magasin du clan, classement des clans figé à la fin du mois en même temps que le classement classé (`progress.setSeasonHook`, document `classement-clans`) avec ses récompenses et bannières. Comptes : `clan`, `clanCoins`, `clanReq`, `clanDon`. Rôles (`roles`, Maître = `leader`), trésor (`bank`) et projets (`boosts`, `chest`). Routes `/api/clan…` (dont `role`, `claim`, `fund`), `/api/clans`, `/api/clans/ladder`, `/api/admin/clans…`. |
 | `boss.js` | `createBoss(store, accounts)` : boss mondial (`packages/engine/src/boss.js`). Tentatives du jour (`start`, comptée dès que la partie commence), score et paliers d'une tentative (`finish`, appelé à la fin de la partie ou à l'abandon), classement de la semaine figé chaque lundi à minuit avec les récompenses de chaque tranche (`closeWeek`, appelé chaque minute et quand un joueur passe à la semaine suivante ; document `boss-classement`), magasin du boss, tuile de l'accueil (`tile`, dans `accounts.me`), réglages de `/admin` (document `boss`). Comptes : `boss` (`{ week, boss, total, best, runs, day, used, last }`), `bossCoins` (Insignes), `bossBuys`, `bossDecks`. Routes `/api/boss`, `/api/boss/ladder`, `/api/boss/avatars`, `/api/boss/buy`, `/api/admin/boss`. |
+| `push.js` | `createPush(store, accounts, { isOnline, events })` : notifications push (Web Push). Comptes : `push = { subs, off, daily }` (abonnements des appareils, 5 au plus ; sortes coupées ; jour du dernier rappel). Sortes (`PUSH_KINDS`) : `daily` (rappel à 18 h, heure de Paris, si la récompense de connexion du jour n'est pas récupérée, joueurs venus ces 14 derniers jours), `events` (début d'un événement à 10 h ; `broadcast('events', …)` pour le Boss mondial), `social` (demandes d'ami et de clan, envoyées par `friends.js` et `clans.js`), `season` (dernier jour du mois à 12 h). Rien n'est envoyé à un joueur qui a l'appli ouverte. Un appareil appartient au dernier compte qui s'y abonne ; la déconnexion le retire. Vérification toutes les 5 minutes : le serveur endormi (Render gratuit) envoie au réveil. Routes `/api/push`, `/api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/kinds`, `/api/push/test`. |
 | `cards.js` | `createCatalog(store, accounts)` : brouillon du catalogue, publication (refusée si elle retire une carte qu'un joueur possède), catalogue public. |
 | `index.js` | Assemble le tout, sert les fichiers, gère les salons et les WebSockets. |
 
@@ -119,6 +122,8 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `GET /api/pass` | Passe de saison du mois (`pass`, `null` sans saison) : paliers gratuits et premium, missions du jour, de la semaine et de la saison, arts Promo (palier de la piste gratuite), prix du premium et palier où il est remboursé. |
 | `POST /api/pass/premium` | Achète le premium en Prismes ; les récompenses premium des paliers déjà atteints sont données aussitôt. |
 | `POST /api/calendar/claim` | Récompense du jour du calendrier du mois (409 si déjà prise). Renvoie `got`. |
+| `POST /api/welcome/claim` | Cadeau de bienvenue suivant (409 sans bienvenue, si déjà pris aujourd'hui, fini ou délai passé). Renvoie `got`. |
+| `POST /api/admin/account/welcome` | Offre ou relance la bienvenue des 7 jours d'un compte : le délai repart d'aujourd'hui. |
 | `PUT /api/arts/select` | `{ card, art }` : art affiché pour cette carte (`art: null` : l'illustration d'origine). |
 | `POST /api/tuto` | `{ lesson }` : leçon du tutoriel finie (`TUTO_LESSONS` du moteur). La première fois, donne `tutoShards` Éclats ; quand toutes sont finies, `tutoBoosters` boosters offerts. Renvoie `reward` (`kind: 'tuto'`, `shards`, `boosters`, `all`) et le compte. |
 | `POST /api/tuto/gift` | Cadeau d'amélioration, une seule fois après le deck de départ (`tutoGift === false`) : un doublon du général du deck joué, et de quoi le monter au niveau 2 (Éclats et essence complétés jusqu'au coût). Renvoie `card`, `shards` et le compte. |

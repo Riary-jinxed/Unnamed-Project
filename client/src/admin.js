@@ -148,6 +148,13 @@ function renderDetail() {
   </div>
   ${artsBlock(a)}
   ${themesBlock(a)}
+  <div class="card-box">
+    <h3>Bienvenue des 7 jours</h3>
+    <p class="hint" style="margin:0">${a.welcome ? `${a.welcome.got} cadeau${a.welcome.got > 1 ? 'x' : ''} sur ${a.welcome.steps} récupéré${a.welcome.got > 1 ? 's' : ''} · ${a.welcome.done ? 'terminée' : a.welcome.expired ? `délai passé le ${esc(a.welcome.last)}` : `jusqu'au ${esc(a.welcome.last)}${a.welcome.claimed ? ' · pris aujourd\'hui' : ''}`}`
+      : 'Ce compte a été créé avant la bienvenue des 7 jours : il n\'y a pas droit.'}</p>
+    <div class="row"><button class="btn" data-act="welcome" ${dis()}>${a.welcome ? 'Relancer la bienvenue depuis aujourd\'hui' : 'Offrir la bienvenue'}</button></div>
+    <p class="hint" style="margin:0">Le délai repart d'aujourd'hui et les sept cadeaux redeviennent à prendre (le cadre et le titre déjà gagnés restent).</p>
+  </div>
   <form class="card-box" id="pass">
     <h3>Accès</h3>
     <div class="field"><label class="eyebrow" for="p-pass">Nouveau mot de passe</label><input id="p-pass" minlength="4" required autocomplete="new-password"></div>
@@ -339,6 +346,9 @@ app.addEventListener('click', e => {
       act('/api/admin/account/starter', { starter: s }, `Deck de départ : ${esc(DECKS[s].name)}.`); break;
     }
     case 'booster': act('/api/admin/account/booster', {}, 'Le booster du jour est de nouveau disponible.'); break;
+    case 'welcome':
+      if (!a.welcome || confirm(`Relancer la bienvenue de ${a.login} ? Les sept cadeaux redeviennent à prendre.`)) act('/api/admin/account/welcome', {}, 'Bienvenue des 7 jours lancée pour ce compte.');
+      break;
     case 'shop': act('/api/admin/account/shop', {}, 'Nouvelles cartes du jour tirées pour ce joueur.'); break;
     case 'cards': act('/api/admin/account/cards', { cards: [...st.cards] }, 'Collection enregistrée.'); break;
     case 'cards-undo': st.cards = new Set(a.owned); render(); break;

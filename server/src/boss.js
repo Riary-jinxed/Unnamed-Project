@@ -141,6 +141,18 @@ export function createBoss(store, accounts) {
       got: x.kind === 'art' ? { art: id } : isCosmetic(x) ? { [x.kind]: id, label: { title: TITLES, frame: FRAMES, back: BACKS }[x.kind][id] } : null };
   }
 
+  // Arrivée du boss de la semaine : une notification push (sorte « events » de push.js) dès 10 h (heure de Paris), une fois par semaine
+  // (document « boss-annonce »). Appelé chaque minute (index.js).
+  function announce(push, now = new Date()) {
+    const week = bossWeek(now), id = weekBoss(week);
+    const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: 'numeric', hourCycle: 'h23' }).formatToParts(now).find(p => p.type === 'hour').value);
+    if (!cfg().on || !id || hour < 10 || store.doc('boss-annonce')?.week === week) return;
+    store.putDoc('boss-annonce', { week }).catch(e => console.error('Annonce du boss non enregistrée :', e));
+    Promise.resolve(push.broadcast('events', { title: `Boss mondial : ${GENERALS[id].name}`, tag: 'boss', open: 'boss',
+      body: `Le boss de la semaine est arrivé : ${cfg().attempts} tentatives par jour pour grimper au classement, jusqu'à dimanche.` }))
+      .catch(e => console.error('Annonce du boss non envoyée :', e));
+  }
+
   // ---- Decks contre les boss ----
   // Un deck par boss, préparé dans l'onglet Boss mondial des decks ; complet, il est joué à la place du deck joué contre ce boss.
   const cleanDeck = (id, d) => ({ id, name: String(d.name ?? '').trim().slice(0, 30) || `Contre ${GENERALS[id].name.split(/,\s*/)[0]}`,
@@ -227,7 +239,7 @@ export function createBoss(store, accounts) {
   }
 
   return {
-    start, finish, closeWeek, tile, cfg, weekBoss, deckFor,
+    start, finish, closeWeek, announce, tile, cfg, weekBoss, deckFor,
     routes: {
       'GET /api/boss': a => view(a),
       'GET /api/boss/ladder': a => ladderView(a),

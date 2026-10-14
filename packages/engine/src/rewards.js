@@ -41,6 +41,9 @@ export const DEFAULT_REWARDS = {
   rankPlacePrismsTop10: 20, rankPlacePrismsTop3: 40, rankPlacePrismsTop1: 80, rankPlaceGames: 10,
   // Calendrier de connexion du mois (loginReward) : Éclats en semaine, coffres d'arts le dimanche, Prismes les 2e et 4e dimanches.
   loginShards: 15, loginChests: 1, loginPrisms: 5,
+  // Bienvenue des nouveaux comptes (welcomeReward) : 7 récompenses, une par jour de connexion distinct (pas forcément consécutifs),
+  // à récupérer dans les welcomeWindow jours qui suivent la création du compte. Le 7e jour donne aussi le cadre et le titre de bienvenue.
+  welcomeWindow: 14, welcomeShards1: 200, welcomeBoosters2: 1, welcomePrisms3: 10, welcomeChests4: 1, welcomeShards5: 300, welcomeBoosters6: 2, welcomePrisms7: 20,
   // Passe de saison (pass.js) : XP de saison par palier, missions du jour et de la semaine (nombre et XP), prix du premium en Prismes,
   // récompenses des paliers (gratuits : Éclats, Prismes, coffres ; premium : Prismes, coffres), mois avant que les cartes de saison
   // rejoignent le Set de base. Objectifs des missions et XP des missions de saison : passPool et passMissions.
@@ -66,6 +69,8 @@ export const REWARD_LIMITS = {
   rankPlaceShardsTop10: [0, 100000], rankPlaceShardsTop3: [0, 100000], rankPlaceShardsTop1: [0, 100000],
   rankPlacePrismsTop10: [0, 10000], rankPlacePrismsTop3: [0, 10000], rankPlacePrismsTop1: [0, 10000], rankPlaceGames: [0, 1000],
   loginShards: [0, 10000], loginChests: [0, 10], loginPrisms: [0, 10000],
+  welcomeWindow: [7, 90], welcomeShards1: [0, 100000], welcomeBoosters2: [0, 20], welcomePrisms3: [0, 10000], welcomeChests4: [0, 10],
+  welcomeShards5: [0, 100000], welcomeBoosters6: [0, 20], welcomePrisms7: [0, 10000],
   passTierXp: [10, 100000], passXpWin: [0, 10000], passXpLoss: [0, 10000], passBonusXp: [10, 100000], passBonusShards: [0, 100000], passBonusPrisms: [0, 10000], passBonusEssence: [0, 10000],
   passDaily: [0, 6], passWeekly: [0, 10], passXpDaily: [0, 100000], passXpWeekly: [0, 100000], passPrice: [0, 100000],
   passShards: [0, 100000], passPrisms: [0, 10000], passChests: [0, 10], passPremiumPrisms: [0, 10000], passPremiumChests: [0, 10], passCardMonths: [0, 60],
@@ -132,6 +137,8 @@ export const FRAMES = {
   flamme: 'Cadre de flammes', duel: 'Cadre du duelliste', tresor: 'Cadre du trésor', etoile: 'Cadre étoilé',
   base: 'Couronne du Set de base', set2: 'Couronne du Crépuscule', set3: 'Couronne de la Cité Néon',
   platine: 'Cadre de platine', diamant: 'Cadre de diamant', maitre: 'Cadre du grand maître',
+  // Bienvenue des nouveaux comptes : 7e jour (welcomeReward).
+  bienvenue: 'Cadre de bienvenue',
   // Cadres des passes de saison (pass.js).
   ...Object.fromEntries(SEASON_FRAMES),
   // Cadres du magasin de clan (clans.js).
@@ -332,6 +339,8 @@ export const ACHIEVEMENTS = [
 
 export const statValue = (stats, stat) => stat.split('.').reduce((o, k) => (o ? o[k] : 0), stats) || 0;
 
+// Titre de bienvenue (7e jour, welcomeReward).
+export const WELCOME_TITLE = 'bienvenue';
 // Tous les titres : ceux des succès, des familles et des sets.
 export const TITLES = Object.fromEntries([
   ...ACHIEVEMENTS.filter(a => a.title).map(a => [a.id, a.title]),
@@ -342,6 +351,7 @@ export const TITLES = Object.fromEntries([
   ...SEASON_TITLES,
   ...CLAN_TITLES,
   ...BOSS_TITLES,
+  [WELCOME_TITLE, 'Recrue prometteuse'],
 ]);
 
 // ---- Calendrier de connexion du mois ----
@@ -354,3 +364,13 @@ export function loginReward(month, day, r = DEFAULT_REWARDS) {
   return { sunday: true, chests: r.loginChests, prisms: Math.ceil(day / 7) % 2 === 0 ? r.loginPrisms : 0 };
 }
 export const loginCalendar = (month, r = DEFAULT_REWARDS) => Array.from({ length: monthDays(month) }, (_, i) => ({ day: i + 1, ...loginReward(month, i + 1, r) }));
+
+// ---- Bienvenue des nouveaux comptes ----
+// 7 récompenses, une par jour de connexion distinct, pas forcément consécutifs, dans les welcomeWindow jours qui suivent la création
+// du compte ; distinct du calendrier du mois, qui continue à côté. Jour 7 : Prismes, cadre et titre de bienvenue.
+export const WELCOME_STEPS = 7;
+export function welcomeReward(n, r = DEFAULT_REWARDS) {
+  return [null, { shards: r.welcomeShards1 }, { boosters: r.welcomeBoosters2 }, { prisms: r.welcomePrisms3 }, { chests: r.welcomeChests4 },
+    { shards: r.welcomeShards5 }, { boosters: r.welcomeBoosters6 }, { prisms: r.welcomePrisms7, frame: 'bienvenue', title: WELCOME_TITLE }][n] || null;
+}
+export const welcomeRewards = (r = DEFAULT_REWARDS) => Array.from({ length: WELCOME_STEPS }, (_, i) => ({ n: i + 1, ...welcomeReward(i + 1, r) }));
