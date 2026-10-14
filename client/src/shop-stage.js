@@ -11,7 +11,10 @@
 // orange, lanternes et velours violets.
 // Léger sur téléphone : définition plafonnée à 1,5, 45 images par seconde au plus, chaque boucle arrêtée hors de la
 // boutique ou quand son décor sort de l'écran. Les toiles sont gardées d'un rendu à l'autre et reposées dans les nouveaux
-// éléments (main.js reconstruit la page à chaque rendu).
+// éléments (main.js reconstruit la page à chaque rendu) : chaque décor retrouve de préférence la sienne (clé `data-scene`),
+// une toile WebGL ne fait que grandir (le décor en occupe le coin haut gauche, le reste est transparent et coupé par
+// l'élément), et les fonds peints sont gardés par taille. Changer de rayon ne réalloue ni ne repeint plus rien : c'était
+// le plus gros du temps d'un changement de rayon sur téléphone.
 import { Application, Color, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { season, palette, shopColors } from './season.js';
 
@@ -128,7 +131,7 @@ function lantern() {
 
 // ---- Une toile ----
 function makeScene(kind) {
-  const sc = { kind, app: new Application(), host: null, lay: null, objs: [], parts: [], seen: true, nextStar: 0, frame: 0, theme: null };
+  const sc = { kind, key: null, app: new Application(), host: null, lay: null, cap: { W: 0, H: 0 }, bgs: new Map(), objs: [], parts: [], seen: true, nextStar: 0, frame: 0, theme: null };
   sc.ready = sc.app.init({ backgroundAlpha: 0, width: 300, height: 200, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 1.5), preference: 'webgl' }).then(() => {
     const { app } = sc; textures();
     app.canvas.setAttribute('aria-hidden', 'true'); app.ticker.maxFPS = 45;
@@ -195,8 +198,15 @@ function fit(sc) {
   if (!sc.host) return;
   const W = sc.host.clientWidth, H = sc.host.clientHeight; if (!W || !H) return;
   if (!sc.lay || sc.lay.W !== W || sc.lay.H !== H || sc.theme !== season()) {
-    sc.app.renderer.resize(W, H); sc.lay = { W, H }; sc.theme = season();
-    sc.bg.texture?.destroy(true); sc.bg.texture = sc.kind === 'stall' ? paintStall(W, H) : paintVelvet(W, H); sc.bg.width = W; sc.bg.height = H;
+    if (W > sc.cap.W || H > sc.cap.H) { sc.cap = { W: Math.max(W, sc.cap.W), H: Math.max(H, sc.cap.H) }; sc.app.renderer.resize(sc.cap.W, sc.cap.H); }
+    sc.lay = { W, H }; sc.theme = season();
+    // Fond peint gardé par taille et par thème (trois au plus par toile) : revenir sur un rayon ne le repeint pas.
+    const k = `${W}x${H}:${sc.theme}`;
+    if (!sc.bgs.has(k)) {
+      if (sc.bgs.size >= 3) { const [old, t] = sc.bgs.entries().next().value; if (t !== sc.bg.texture) { t.destroy(true); sc.bgs.delete(old); } }
+      sc.bgs.set(k, sc.kind === 'stall' ? paintStall(W, H) : paintVelvet(W, H));
+    }
+    sc.bg.texture = sc.bgs.get(k); sc.bg.width = W; sc.bg.height = H;
   }
   if (sc.kind === 'stall') {
     sc.warm.width = W * 1.2; sc.warm.height = H * 1.1; sc.warm.position.set(W / 2, H * 0.62);
@@ -293,13 +303,16 @@ function detach(sc) {
 }
 
 // ---- API utilisée par shop.js ----
-// els : les décors du rendu courant (étal, vitrines), dans l'ordre de la page ; une toile par décor, gardées par type.
+// els : les décors du rendu courant (étal, vitrines), dans l'ordre de la page ; une toile par décor, gardées par type :
+// d'abord celle qui portait déjà ce décor (même clé), sinon une libre du même type, sinon une nouvelle.
 export function show(els) {
-  const used = new Set();
+  const used = new Set(), kindOf = el => (el.classList.contains('stall') ? 'stall' : 'vitrine'), keyOf = el => el.dataset.scene || '';
+  const mine = new Map(els.map(el => [el, scenes.find(s => s.kind === kindOf(el) && s.key && s.key === keyOf(el))]));
+  for (const sc of mine.values()) if (sc) used.add(sc);
   for (const el of els) {
-    const kind = el.classList.contains('stall') ? 'stall' : 'vitrine';
-    const sc = scenes.find(s => s.kind === kind && !used.has(s)) || makeScene(kind);
-    used.add(sc);
+    const kind = kindOf(el);
+    const sc = mine.get(el) || scenes.find(s => s.kind === kind && !used.has(s)) || makeScene(kind);
+    used.add(sc); sc.key = keyOf(el);
     sc.ready.then(() => { if (el.isConnected) attach(sc, el); }).catch(err => console.warn('Décor de la boutique indisponible', err));
   }
   for (const sc of scenes) if (!used.has(sc)) sc.ready.then(() => detach(sc)).catch(() => {});

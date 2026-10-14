@@ -1,10 +1,9 @@
 // Accueil animé : le général du deck joué respire dans la vitrine de l'accueil, devant des braises, avec un effet de profondeur.
 // Ce fichier ne fait que charger lobby-stage.js (et PixiJS) au premier passage sur l'accueil, puis lui confier la vitrine à
 // chaque rendu. Sans WebGL, avec « réduire les animations » ou si le chargement échoue, l'illustration en HTML reste telle quelle.
-import { reduceMotion } from './fx.js';
+import { reduceMotion, webgl } from './fx.js';
 
 let mod = null, loading = false, want = null;
-const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
 let able = null;
 
 // Appelé à chaque rendu : `app` contient l'accueil (`.showcase`) ou un autre écran.

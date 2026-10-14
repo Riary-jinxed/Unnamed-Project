@@ -7,7 +7,11 @@ export const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)')
 // Plateau PixiJS (stage.js) : chargé au premier écran, seulement avec WebGL et sans « réduire les animations ».
 // Tant qu'il n'est pas prêt, ou s'il ne peut pas l'être, chaque effet garde sa version en CSS ci-dessous.
 let stage = null, gens = null, coach = null, coachWant = null, scene = null, entering = Promise.resolve(false);
-const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
+// WebGL disponible ? Testé une seule fois pour toute l'appli, et le contexte d'essai est aussitôt rendu : chaque essai en
+// créait un que le navigateur ne libère qu'au ramasse-miettes, et au-delà de 16 il retire les plus anciens, ceux des décors.
+let glOk = null;
+export const webgl = () => glOk ??= (() => { try { const c = document.createElement('canvas'), x = c.getContext('webgl2') || c.getContext('webgl');
+  x?.getExtension('WEBGL_lose_context')?.loseContext(); return !!x; } catch { return false; } })();
 const staged = () => stage?.active() ? stage : null;
 // Appelé à chaque rendu : la table PixiJS en partie, le décor animé (brume, braises, étincelles, chauves-souris à Halloween) dans les menus.
 // Dans les menus, le chargement attend que la page soit affichée et au repos, pour ne pas retarder l'ouverture de l'appli.

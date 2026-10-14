@@ -3,17 +3,22 @@
 // Calque posé dans <body> (comme fx.js) : les rendus de #app pendant l'ouverture ne le coupent pas.
 import './opening.css';
 import { play, buzz } from './sfx.js';
-import { reduceMotion } from './fx.js';
+import { reduceMotion, webgl } from './fx.js';
 import { t, tp } from '@jeu/engine/i18n';
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
 // Effets PixiJS (opening-stage.js) : chargés à la première ouverture, seulement avec WebGL. Tant qu'ils ne sont pas prêts,
 // ou s'ils ne peuvent pas l'être, l'ouverture garde ses effets en CSS (opening.css) ; prêts, ils les remplacent (classe .px).
-const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
 function stageFor(root, onReady) {
   if (!webgl()) return;
   import('./opening-stage.js').then(m => m.mount(root).then(ok => { if (!ok || !root.isConnected) return; root.classList.add('px'); root._fx = m; onReady?.(m); }))
     .catch(err => console.warn('Effets PixiJS de l\'ouverture indisponibles', err));
+}
+// Prépare les effets à l'avance, quand la boutique est au repos : la première ouverture n'attend plus le chargement de
+// PixiJS ni la création de ses toiles (plus d'une demi-seconde sur téléphone, au moment où l'on touche le paquet).
+export function warmOpening() {
+  if (reduceMotion() || !webgl()) return;
+  import('./opening-stage.js').then(m => m.warm()).catch(() => { /* l'ouverture gardera ses effets CSS */ });
 }
 const cssVar = (el, name) => getComputedStyle(el).getPropertyValue(name).trim();
 
