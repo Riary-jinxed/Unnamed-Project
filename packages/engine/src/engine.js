@@ -22,8 +22,8 @@ export const CARDS = {
                  grace: (c, st) => buff(st, c, 1) },
   benediction: { name: 'Bénédiction', type: 'S', cost: 1, power: 0, kw: ['Ange'], text: 'Vos créatures ici gagnent +1.',
                  onReveal: (c, st) => creaturesAt(st, c.owner, c.zone).forEach(x => buff(st, x, 1)) },
-  priere:      { name: 'Prière', type: 'S', cost: 0, x: true, power: 0, kw: ['Ange'], text: 'Coût X : dépense tous vos sceaux restants. Votre créature la plus faible ici gagne +X.',
-                 onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, c.owner, c.zone)); if (w && c.xPaid) buff(st, w, c.xPaid); } },
+  priere:      { name: 'Prière', type: 'S', cost: 0, x: true, power: 0, kw: ['Ange'], text: 'Coût X : dépense tous vos sceaux restants. Votre créature la plus faible ici gagne +X+1.',
+                 onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, c.owner, c.zone)); if (w) buff(st, w, (c.xPaid || 0) + 1); } },
   gardien:     { name: 'Ange gardien', type: 'C', cost: 2, power: 2, kw: ['Ange'], text: 'Persistant : vos autres créatures ici ont +1.',
                  aura: (s, t) => t.owner === s.owner && t.zone === s.zone && t !== s ? 1 : 0 },
   messagere:   { name: 'Messagère', type: 'C', cost: 2, power: 2, kw: ['Ange'], text: 'Grâce : une autre de vos créatures ici gagne +1.',
@@ -539,8 +539,8 @@ export const GENERALS = {
                onEndTurn: (p, st) => { const P = st.p[p]; if (P.generalUsed) return; const h = hordes(st, p);
                  if (h.length === 3) { P.generalUsed = true; log(st, '{g} se déclenche.', 'reveal', { g: gn(P.general) }); h.forEach(x => buff(st, x, 2)); } } },
   snagg:     { name: 'Snagg, Maître de la Horde', fam: 'Gobelin', kind: 'Activable',
-               text: 'Activable, une fois par partie : détruit votre Horde la plus faible et répartit sa puissance équitablement entre vos autres Hordes.',
-               activate: (p, st) => { const h = hordes(st, p); if (h.length < 2) return; const w = weakest(st, h); const v = Math.max(0, power(st, w));
+               text: 'Activable, une fois par partie : détruit votre Horde la plus faible et répartit sa puissance, plus 3, équitablement entre vos autres Hordes.',
+               activate: (p, st) => { const h = hordes(st, p); if (h.length < 2) return; const w = weakest(st, h); const v = Math.max(0, power(st, w)) + 3;
                  const rest = h.filter(x => x !== w); destroy(st, w, p);
                  rest.forEach((x, i) => { const n = Math.floor(v / rest.length) + (i < v % rest.length ? 1 : 0); if (n) buff(st, x, n); }); } },
   sylvaen:   { name: 'Sylvaën, Voix des Bois', fam: 'Elfe', kind: 'Fin de tour',
@@ -554,10 +554,10 @@ export const GENERALS = {
                text: 'Début de partie : crée un Magot de dragon dans une zone au hasard. Magot : en fin de tour, gagne autant de puissance que vos sceaux non dépensés.',
                onStart: (p, st) => summon(st, p, pick([0, 1, 2]), 'magot') },
   ignaroth:  { name: 'Ignaroth le Dévoreur', fam: 'Dragon', kind: 'Fin de tour',
-               text: 'Fin de tour : si vous avez dépensé tous vos sceaux, les Dragons de votre main et de votre deck gagnent +1 sceau et -1 puissance ; sinon -1 sceau et +1 puissance (coût minimum 1).',
-               onEndTurn: (p, st) => { const P = st.p[p], spent = P.seals === 0, d = [...P.hand, ...P.deck].filter(c => hasKw(c, 'Dragon'));
-                 d.forEach(c => { c.costMod = (c.costMod || 0) + (spent ? 1 : -1); c.buff += spent ? -1 : 1; });
-                 if (d.length) log(st, spent ? '⟦{p}⟧ : Dragons en main et dans le deck +1 sceau, -1 puissance.' : '⟦{p}⟧ : Dragons en main et dans le deck -1 sceau, +1 puissance.', spent ? 'down' : 'up', { p }); } },
+               text: 'Fin de tour : si vous avez dépensé tous vos sceaux, un Dragon au hasard de votre main gagne +1 sceau et -1 puissance ; sinon -1 sceau et +1 puissance (coût minimum 1).',
+               onEndTurn: (p, st) => { const P = st.p[p], spent = P.seals === 0, d = P.hand.filter(c => hasKw(c, 'Dragon')); if (!d.length) return;
+                 const c = pick(d); c.costMod = (c.costMod || 0) + (spent ? 1 : -1); c.buff += spent ? -1 : 1;
+                 log(st, spent ? '⟦{p}⟧ : {card} en main +1 sceau, -1 puissance.' : '⟦{p}⟧ : {card} en main -1 sceau, +1 puissance.', spent ? 'down' : 'up', { p, card: nm(c.id) }); } },
   cartographe:{ name: 'Le Cartographe', fam: null, kind: 'Début de partie', preview: true,
                text: 'Début de partie : vous voyez tous vos terrains, et où et quand ils seront révélés.' },
   erudit:    { name: 'L\'Érudit', fam: null, kind: 'Début de partie',
@@ -1450,8 +1450,9 @@ export function applyPlan(st, p, plan) {
     seen.add(c.uid); P.moves.push({ uid: c.uid, zone: m.zone, from: c.zone });
   }
   // Une zone qui dépasserait SLOTS en fin de tour : ses derniers déplacements entrants sont refusés.
+  // Une zone déjà trop pleine sans déplacement entrant (un départ prévu qui a échoué) reste telle quelle : sans cette garde, la boucle ne finissait jamais.
   const used = () => [0, 1, 2].map(z => P.board[z].length - P.moves.filter(m => m.from === z).length + P.moves.filter(m => m.zone === z).length);
-  for (let n = used(), z; (z = n.findIndex(v => v > SLOTS)) >= 0; n = used()) P.moves.splice(P.moves.findLastIndex(m => m.zone === z), 1);
+  for (let n = used(), z; (z = n.findIndex((v, i) => v > SLOTS && P.moves.some(m => m.zone === i))) >= 0; n = used()) P.moves.splice(P.moves.findLastIndex(m => m.zone === z), 1);
   const n = used();
   for (const x of (plan && Array.isArray(plan.cards) ? plan.cards : []).slice(0, 12)) if ([0, 1, 2].includes(x.zone) && placeHidden(st, p, x.uid, x.zone, SLOTS - n[x.zone])) n[x.zone]++;
   return gz;

@@ -79,4 +79,6 @@ export default {
   '{n} Éclats de givre rejoignent le deck de ⟦{p}⟧.': '{n} Frost Slivers join ⟦{p}|@\'s|your⟧ deck.',
   '{n} créatures du deck de ⟦{p}⟧ perdent 2.': '{n} creatures in ⟦{p}|@\'s|your⟧ deck lose 2.',
   'Une créature du deck de ⟦{p}⟧ perd 2.': 'A creature in ⟦{p}|@\'s|your⟧ deck loses 2.',
+  "⟦{p}⟧ : {card} en main +1 sceau, -1 puissance.": "⟦{p}⟧: {card} in hand +1 seal, -1 power.",
+  "⟦{p}⟧ : {card} en main -1 sceau, +1 puissance.": "⟦{p}⟧: {card} in hand -1 seal, +1 power.",
 };

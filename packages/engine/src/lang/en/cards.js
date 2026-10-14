@@ -674,4 +674,7 @@ export default {
   'Morts-vivants et Vampires rejoignent la bataille, avec de nouveaux généraux pour chaque famille. Ses cartes arriveront d\'abord ici, en boosters et à l\'unité, avant de rejoindre le booster quotidien.': 'Undead and Vampires join the battle, with new generals for every family. Its cards arrive here first, in boosters and as singles, before joining the daily booster.',
   'Cité Néon': 'Neon City',
   'Hackers et Cyborgs envahissent la mégapole : Malwares glissés dans le deck adverse, Piratage, Implants et Surcharge, avec un soutien néon pour chaque famille.': 'Hackers and Cyborgs invade the megacity: Malwares slipped into the opponent\'s deck, Hack, Implants and Overload, with neon support for every family.',
+  "Coût X : dépense tous vos sceaux restants. Votre créature la plus faible ici gagne +X+1.": "X cost: spend all your remaining seals. Your weakest creature here gets +X+1.",
+  "Activable, une fois par partie : détruit votre Horde la plus faible et répartit sa puissance, plus 3, équitablement entre vos autres Hordes.": "Activate, once per match: destroys your weakest Horde and splits its power, plus 3, evenly among your other Hordes.",
+  "Fin de tour : si vous avez dépensé tous vos sceaux, un Dragon au hasard de votre main gagne +1 sceau et -1 puissance ; sinon -1 sceau et +1 puissance (coût minimum 1).": "End of turn: if you spent all your seals, a random Dragon in your hand gets +1 seal and -1 power; otherwise -1 seal and +1 power (minimum cost 1).",
 };
