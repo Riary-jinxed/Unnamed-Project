@@ -15,6 +15,8 @@ import { boost } from '@jeu/engine/events';
 import { EMOTES, EMOTE_SLOTS, ownsEmote, ownedEmotes, emoteSet } from '@jeu/engine/emotes';
 import { HttpError } from './accounts.js';
 import { createEvents } from './events.js';
+import { msg } from '@jeu/engine/i18n';
+import { inLang } from './i18n.js';
 
 const INBOX_MAX = 40;
 // Art alternatif choisi pour chacune de ces cartes, s'il est toujours possédé (arts.js).
@@ -22,6 +24,10 @@ const shownArts = (a, ids) => Object.fromEntries(ids.filter(id => id && a.artSel
 const newStats = () => ({ games: 0, wins: 0, pvpWins: 0, pveWins: 0, streak: 0, bestStreak: 0, missions: 0, famWins: {}, day: null, dayGames: 0,
   chests: 0, rankedWins: 0, bestTier: 0, friendWins: 0, loginDays: 0, perfectMonths: 0 });
 const bump = (s, k, n = 1) => { s[k] = (s[k] || 0) + n; };
+// Nom d'une saison (« octobre 2026 ») à traduire à l'affichage : msg(« {month} {year} ») avec le mois traduit par sa clé.
+// Une variable [texte] d'un msg() est traduite par sa clé (i18n.js, trMsg) : noms de sets, familles, succès…
+const MONTHS = [msg('janvier'), msg('février'), msg('mars'), msg('avril'), msg('mai'), msg('juin'), msg('juillet'), msg('août'), msg('septembre'), msg('octobre'), msg('novembre'), msg('décembre')];
+export const seasonMsg = id => { const [y, m] = id.split('-').map(Number); return msg('{month} {year}', { month: [MONTHS[m - 1]], year: y }); };
 
 export function createProgress(store) {
   // Événements temporaires (week-end double XP…) : multiplient certains gains tant qu'ils durent.
@@ -56,7 +62,7 @@ export function createProgress(store) {
     }
     const starterSize = Object.keys(DECKS[a.starter] ? DECKS[a.starter].cards : {}).length + 4;
     xp += Math.max(0, Object.keys(a.cards || {}).length - starterSize) * c.xpNewCard;
-    if (xp) { push(a, { kind: 'catchup', label: 'Rattrapage de vos parties et cartes passées', xp }); addXp(a, xp); }
+    if (xp) { push(a, { kind: 'catchup', label: msg('Rattrapage de vos parties et cartes passées'), xp }); addXp(a, xp); }
     return true;
   }
   function countGame(s, win, pvp, general) {
@@ -76,7 +82,7 @@ export function createProgress(store) {
       a.xp -= xpToNext(a.level, c); a.level++;
       const booster = c.boosterEvery > 0 && a.level % c.boosterEvery === 0 ? 1 : 0;
       a.shards = (a.shards || 0) + c.levelShards; a.freeBoosters = (a.freeBoosters || 0) + booster;
-      push(a, { kind: 'level', label: `Niveau ${a.level} atteint`, shards: c.levelShards, boosters: booster });
+      push(a, { kind: 'level', label: `Niveau ${a.level} atteint`, labelMsg: msg('Niveau {n} atteint', { n: a.level }), shards: c.levelShards, boosters: booster });
     }
     checkAchievements(a);
   }
@@ -122,7 +128,7 @@ export function createProgress(store) {
       if (a.achievements[x.id] && x.emote && !ownsEmote(a.cosmetics.emotes, x.emote)) (a.cosmetics.emotes ||= []).push(x.emote);
       if (a.achievements[x.id] || statValue(s, x.stat) < x.goal) continue;
       a.achievements[x.id] = new Date().toISOString();
-      grant(a, { kind: 'achievement', label: `Succès : ${x.label}`, shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id],
+      grant(a, { kind: 'achievement', label: `Succès : ${x.label}`, labelMsg: msg('Succès : {label}', { label: [x.label] }), shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id],
         title: x.title ? x.id : undefined, frame: x.frame, emote: x.emote });
     }
   }
@@ -144,12 +150,12 @@ export function createProgress(store) {
         if (a.completed[key] || !set.cards.filter(id => familyOf(id) === fam).every(id => a.cards[id])) continue;
         a.completed[key] = new Date().toISOString();
         const r = familyReward(set.id, fam);
-        grant(a, { kind: 'family', label: `Famille ${fam} complétée (${set.name})`, shards: c.familyShards, ...(r ? { card: r.card, title: `fam:${set.id}:${fam}`, back: r.back } : {}) });
+        grant(a, { kind: 'family', label: `Famille ${fam} complétée (${set.name})`, labelMsg: msg('Famille {fam} complétée ({set})', { fam: [fam], set: [set.name] }), shards: c.familyShards, ...(r ? { card: r.card, title: `fam:${set.id}:${fam}`, back: r.back } : {}) });
       }
       if (a.completed[set.id] || !set.cards.every(id => a.cards[id])) continue;
       a.completed[set.id] = new Date().toISOString();
       const r = SET_REWARDS[set.id];
-      grant(a, { kind: 'set', label: `Set ${set.name} complété`, shards: c.setShards, boosters: c.setBoosters, ...(r ? { card: r.card, title: `set:${set.id}`, frame: r.frame } : {}) });
+      grant(a, { kind: 'set', label: `Set ${set.name} complété`, labelMsg: msg('Set {set} complété', { set: [set.name] }), shards: c.setShards, boosters: c.setBoosters, ...(r ? { card: r.card, title: `set:${set.id}`, frame: r.frame } : {}) });
     }
     checkAchievements(a);
   }
@@ -184,16 +190,16 @@ export function createProgress(store) {
       m.n = Math.min(m.target, m.n + test(m));
       if (m.n < m.target) continue;
       m.done = true; a.stats.missions++;
-      grant(a, { kind: 'mission', label: `Mission : ${missionLabel(m)}`, xp: boost(m.xp, events.mult('xp')), shards: m.shards });
+      grant(a, { kind: 'mission', label: `Mission : ${missionLabel(m)}`, labelMsg: msg('Mission : {label}', { label: inLang(a, () => missionLabel(m)) }), xp: boost(m.xp, events.mult('xp')), shards: m.shards });
       passAdvance(a, x => (x.kind === 'missions' ? 1 : 0));
     }
   }
   async function reroll(a, { index }) {
     const ms = missions(a), c = cfg(), m = ms.list[index];
-    if (!m || m.done) throw new HttpError(400, 'Cette mission ne peut pas être remplacée.');
-    if (ms.rerolls >= c.missionRerolls) throw new HttpError(409, 'Plus de remplacement possible aujourd\'hui.');
+    if (!m || m.done) throw new HttpError(400, msg('Cette mission ne peut pas être remplacée.'));
+    if (ms.rerolls >= c.missionRerolls) throw new HttpError(409, msg('Plus de remplacement possible aujourd\'hui.'));
     const [next] = draw(a, Object.keys(MISSIONS).filter(id => c.missions[id].on && !MISSIONS[id].retired && !ms.list.some(x => x.id === id)), 1, ms.list.filter(x => x !== m));
-    if (!next) throw new HttpError(409, 'Aucune autre mission disponible.');
+    if (!next) throw new HttpError(409, msg('Aucune autre mission disponible.'));
     ms.list[index] = next; ms.rerolls++;
   }
 
@@ -253,13 +259,14 @@ export function createProgress(store) {
         if (x.title && !a.cosmetics.titles.includes(x.title)) a.cosmetics.titles.push(x.title);
         if (x.frame && !a.cosmetics.frames.includes(x.frame)) a.cosmetics.frames.push(x.frame);
       }
-      grant(a, { kind: 'season', label: `Saison ${seasonName(R.season)} terminée : ${best.label}`, shards: c[seasonShardsKey(best.tier)] || 0, prisms: c[seasonPrismsKey(best.tier)] || 0,
+      grant(a, { kind: 'season', label: `Saison ${seasonName(R.season)} terminée : ${best.label}`, labelMsg: msg('Saison {season} terminée : {rank}', { season: seasonMsg(R.season), rank: inLang(a, () => rankOf(R.best).label) }), shards: c[seasonShardsKey(best.tier)] || 0, prisms: c[seasonPrismsKey(best.tier)] || 0,
         title: t.title ? `rang:${t.id}` : undefined, frame: t.frame });
       // Place au classement final : ses Éclats et Prismes, son titre (annoncé) et ceux des places en dessous (sans bruit).
       const pos = finalLadder(R.season)?.top.find(x => x.login === a.login)?.pos, i = placeOf(pos);
       if (i >= 0) {
         for (const id of placeTitles(i).slice(1)) if (!a.cosmetics.titles.includes(id)) a.cosmetics.titles.push(id);
         grant(a, { kind: 'season', label: `Saison ${seasonName(R.season)} : ${pos === 1 ? '1re' : `${pos}e`} place du classement final`,
+          labelMsg: msg(pos === 1 ? 'Saison {season} : 1re place du classement final' : 'Saison {season} : {pos}e place du classement final', { season: seasonMsg(R.season), pos }),
           shards: c[placeShardsKey(i)] || 0, prisms: c[placePrismsKey(i)] || 0, title: `rang:${PLACES[i].id}` });
       }
     }
@@ -339,7 +346,7 @@ export function createProgress(store) {
   function claimDay(a) {
     if (!a.level) init(a);
     const cal = calendar(a), day = dayOfMonth();
-    if (cal.days.includes(day)) throw new HttpError(409, 'Récompense du jour déjà récupérée. Revenez demain.');
+    if (cal.days.includes(day)) throw new HttpError(409, msg('Récompense du jour déjà récupérée. Revenez demain.'));
     cal.days.push(day);
     bump(a.stats, 'loginDays');
     if (cal.days.length === monthDays(cal.month)) bump(a.stats, 'perfectMonths');
@@ -367,10 +374,10 @@ export function createProgress(store) {
   function claimWelcome(a) {
     if (!a.level) init(a);
     const v = welcomeView(a);
-    if (!v) throw new HttpError(409, 'Ce compte n\'a pas de récompenses de bienvenue.');
-    if (v.done) throw new HttpError(409, 'Toutes les récompenses de bienvenue sont déjà récupérées.');
-    if (v.expired) throw new HttpError(409, 'Le délai des récompenses de bienvenue est passé.');
-    if (v.claimed) throw new HttpError(409, 'Récompense de bienvenue du jour déjà récupérée. Revenez demain pour la suivante.');
+    if (!v) throw new HttpError(409, msg('Ce compte n\'a pas de récompenses de bienvenue.'));
+    if (v.done) throw new HttpError(409, msg('Toutes les récompenses de bienvenue sont déjà récupérées.'));
+    if (v.expired) throw new HttpError(409, msg('Le délai des récompenses de bienvenue est passé.'));
+    if (v.claimed) throw new HttpError(409, msg('Récompense de bienvenue du jour déjà récupérée. Revenez demain pour la suivante.'));
     a.welcome.days.push(today());
     const n = a.welcome.days.length, r = welcomeReward(n, cfg());
     grant(a, { kind: 'welcome', label: `Bienvenue, jour ${n} sur ${WELCOME_STEPS}`, ...r }, { silent: true });
@@ -421,7 +428,7 @@ export function createProgress(store) {
       P.sm[def.id] = Math.min(m.target, (P.sm[def.id] || 0) + test(m));
       if (P.sm[def.id] < m.target) continue;
       P.done.push(def.id); xp += m.xp;
-      push(a, { kind: 'pass', label: `Mission de saison : ${passMissionLabel(m)}`, passXp: m.xp });
+      push(a, { kind: 'pass', label: `Mission de saison : ${passMissionLabel(m)}`, labelMsg: msg('Mission de saison : {label}', { label: inLang(a, () => passMissionLabel(m)) }), passXp: m.xp });
     }
     gainPassXp(a, xp);
   }
@@ -432,7 +439,8 @@ export function createProgress(store) {
     const P = a.seasonPass, season = seasonById(P.season), c = cfg(), tier = passTierOf(P.xp, c).tier, track = passTrack(season, c);
     const sum = { shards: 0, prisms: 0, chests: 0 };
     const give = (t, r, premium) => {
-      if (r.card || r.art || r.title || r.frame || r.back || r.theme) grant(a, { kind: 'pass', label: `${season.name} : palier ${t}${premium ? ' premium' : ''}`, ...r });
+      if (r.card || r.art || r.title || r.frame || r.back || r.theme) grant(a, { kind: 'pass', label: `${season.name} : palier ${t}${premium ? ' premium' : ''}`,
+        labelMsg: msg('{season} : {tiers}', { season: [season.name], tiers: msg(premium ? 'palier {n} premium' : 'palier {n}', { n: t }) }), ...r });
       else { grant(a, r, { silent: true }); for (const k in sum) sum[k] += r[k] || 0; }
     };
     const from = Math.min(P.free, P.premium ? P.prem : P.free), onlyPremium = P.free >= tier;
@@ -441,7 +449,9 @@ export function createProgress(store) {
     for (const p of season.promo) if (p.tier <= P.free && ARTS[p.art] && !a.arts?.[p.art]) give(p.tier, { art: p.art }, false);
     // Thème de l'interface, pour qui avait passé son palier avant qu'il ne s'y gagne (octobre 2026).
     if (P.free >= THEME_TIER && !a.cosmetics.themes?.includes(season.theme)) give(THEME_TIER, { theme: season.theme }, false);
-    if (sum.shards || sum.prisms || sum.chests) push(a, { kind: 'pass', label: `${season.name}${onlyPremium ? ', premium' : ''} : ${tier - from > 1 ? `paliers ${from + 1} à ${tier}` : `palier ${tier}`}`, ...sum });
+    const tiers = tier - from > 1 ? msg('paliers {from} à {to}', { from: from + 1, to: tier }) : msg('palier {n}', { n: tier });
+    if (sum.shards || sum.prisms || sum.chests) push(a, { kind: 'pass', label: `${season.name}${onlyPremium ? ', premium' : ''} : ${tier - from > 1 ? `paliers ${from + 1} à ${tier}` : `palier ${tier}`}`,
+      labelMsg: msg(onlyPremium ? '{season}, premium : {tiers}' : '{season} : {tiers}', { season: [season.name], tiers }), ...sum });
     for (const bonus = passTierOf(P.xp, c).bonus; (P.bonus || 0) < bonus; P.bonus = (P.bonus || 0) + 1) openBonus(a, season, c);
     checkAchievements(a);
   }
@@ -450,24 +460,24 @@ export function createProgress(store) {
   function openBonus(a, season, c) {
     let roll = Math.random() * 100, kind = 'shards';
     for (const [k, p] of Object.entries(BONUS_ODDS)) { if (roll < p) { kind = k; break; } roll -= p; }
-    const label = `${season.name} : coffre de fin de passe`;
+    const label = `${season.name} : coffre de fin de passe`, labelMsg = msg('{season} : coffre de fin de passe', { season: [season.name] });
     if (kind === 'essence') {
       const mine = OWNABLE.filter(id => a.cards?.[id]), open = mine.filter(id => essenceRoom(a, id) > 0);
       const card = shuffle(open)[0], n = c.passBonusEssence;
       if (card) {
         const got = giveEssence(a, card, n);
-        return push(a, { kind: 'pass', label, essence: got.essence, essenceCard: card, uniEssence: got.universal });
+        return push(a, { kind: 'pass', label, labelMsg, essence: got.essence, essenceCard: card, uniEssence: got.universal });
       }
-      if (mine.length) { a.uniEssence = (a.uniEssence || 0) + n; return push(a, { kind: 'pass', label, uniEssence: n }); }
+      if (mine.length) { a.uniEssence = (a.uniEssence || 0) + n; return push(a, { kind: 'pass', label, labelMsg, uniEssence: n }); }
       kind = 'shards';
     }
-    grant(a, { kind: 'pass', label, [kind]: kind === 'shards' ? c.passBonusShards : c.passBonusPrisms });
+    grant(a, { kind: 'pass', label, labelMsg, [kind]: kind === 'shards' ? c.passBonusShards : c.passBonusPrisms });
   }
   // Achat du premium : pay(a, prix) prend les Prismes (accounts.js). Les paliers déjà atteints donnent aussitôt leur récompense premium.
   function buyPass(a, pay) {
     const P = pass(a);
-    if (!P) throw new HttpError(409, 'Pas de passe de saison en ce moment.');
-    if (P.premium) throw new HttpError(409, 'Vous avez déjà le passe premium de cette saison.');
+    if (!P) throw new HttpError(409, msg('Pas de passe de saison en ce moment.'));
+    if (P.premium) throw new HttpError(409, msg('Vous avez déjà le passe premium de cette saison.'));
     pay(a, cfg().passPrice);
     P.premium = true; P.paid = cfg().passPrice;
     payTiers(a);
@@ -501,29 +511,29 @@ export function createProgress(store) {
   // favArts : jusqu'à MAX_FAV_ARTS arts possédés, montrés sur le profil public (dans l'ordre choisi).
   // emotes : les émotes du sélecteur en partie, EMOTE_SLOTS au plus parmi celles possédées (dans l'ordre choisi).
   async function equip(a, { title, frame, back, theme, favArts, emotes }) {
-    if (theme !== undefined) { if (theme !== null && theme !== 'base' && !a.cosmetics.themes?.includes(theme)) throw new HttpError(400, 'Thème non débloqué.'); a.uiTheme = theme; }
-    if (title !== undefined) { if (title !== null && !a.cosmetics.titles.includes(title)) throw new HttpError(400, 'Titre non débloqué.'); a.title = title; }
-    if (frame !== undefined) { if (frame !== null && !a.cosmetics.frames.includes(frame)) throw new HttpError(400, 'Cadre non débloqué.'); a.frame = frame; }
-    if (back !== undefined) { if (!a.cosmetics.backs.includes(back)) throw new HttpError(400, 'Dos de carte non débloqué.'); a.back = back; }
+    if (theme !== undefined) { if (theme !== null && theme !== 'base' && !a.cosmetics.themes?.includes(theme)) throw new HttpError(400, msg('Thème non débloqué.')); a.uiTheme = theme; }
+    if (title !== undefined) { if (title !== null && !a.cosmetics.titles.includes(title)) throw new HttpError(400, msg('Titre non débloqué.')); a.title = title; }
+    if (frame !== undefined) { if (frame !== null && !a.cosmetics.frames.includes(frame)) throw new HttpError(400, msg('Cadre non débloqué.')); a.frame = frame; }
+    if (back !== undefined) { if (!a.cosmetics.backs.includes(back)) throw new HttpError(400, msg('Dos de carte non débloqué.')); a.back = back; }
     if (favArts !== undefined) {
       if (!Array.isArray(favArts) || favArts.length > MAX_FAV_ARTS || new Set(favArts).size !== favArts.length
-        || favArts.some(id => typeof id !== 'string' || !a.arts?.[id] || !artExists(id))) throw new HttpError(400, `Arts préférés : ${MAX_FAV_ARTS} de vos arts au plus.`);
+        || favArts.some(id => typeof id !== 'string' || !a.arts?.[id] || !artExists(id))) throw new HttpError(400, msg('Arts préférés : {n} de vos arts au plus.', { n: MAX_FAV_ARTS }));
       a.favArts = favArts;
     }
     if (emotes !== undefined) {
       if (!Array.isArray(emotes) || !emotes.length || emotes.length > EMOTE_SLOTS || new Set(emotes).size !== emotes.length
-        || emotes.some(id => typeof id !== 'string' || !ownsEmote(a.cosmetics.emotes, id))) throw new HttpError(400, `Émotes : de 1 à ${EMOTE_SLOTS} de vos émotes.`);
+        || emotes.some(id => typeof id !== 'string' || !ownsEmote(a.cosmetics.emotes, id))) throw new HttpError(400, msg('Émotes : de 1 à {n} de vos émotes.', { n: EMOTE_SLOTS }));
       a.emoteSet = emotes;
     }
   }
   // Émotes : achat en boutique (Éclats ou Prismes), droit d'en envoyer une en partie.
   function buyEmote(a, { emote } = {}) {
     const e = EMOTES[emote];
-    if (!e || !(e.price || e.prisms)) throw new HttpError(400, 'Cette émote n\'est pas en vente.');
-    if (!a.cosmetics) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
-    if (ownsEmote(a.cosmetics.emotes, emote)) throw new HttpError(409, 'Vous avez déjà cette émote.');
-    const [k, cost, name] = e.prisms ? ['prisms', e.prisms, 'Prismes'] : ['shards', e.price, 'Éclats'];
-    if ((a[k] || 0) < cost) throw new HttpError(409, `Il vous faut ${cost} ${name} (vous en avez ${a[k] || 0}).`);
+    if (!e || !(e.price || e.prisms)) throw new HttpError(400, msg('Cette émote n\'est pas en vente.'));
+    if (!a.cosmetics) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
+    if (ownsEmote(a.cosmetics.emotes, emote)) throw new HttpError(409, msg('Vous avez déjà cette émote.'));
+    const [k, cost] = e.prisms ? ['prisms', e.prisms] : ['shards', e.price];
+    if ((a[k] || 0) < cost) throw new HttpError(409, msg(e.prisms ? 'Il vous faut {price} Prismes (vous en avez {have}).' : 'Il vous faut {price} Éclats (vous en avez {have}).', { price: cost, have: a[k] || 0 }));
     a[k] = (a[k] || 0) - cost;
     (a.cosmetics.emotes ||= []).push(emote);
     // Le sélecteur n'est pas plein : la nouvelle émote y prend place.
@@ -540,12 +550,12 @@ export function createProgress(store) {
   const essenceRate = () => cfg().essencePerDuplicate;
   // Monte une carte possédée d'un niveau, contre son essence et des Éclats.
   async function upgradeCard(a, { card }) {
-    if (!OWNABLE.includes(card) || !a.cards?.[card]) throw new HttpError(400, 'Vous ne possédez pas cette carte.');
+    if (!OWNABLE.includes(card) || !a.cards?.[card]) throw new HttpError(400, msg('Vous ne possédez pas cette carte.'));
     const lvl = a.cardLevels?.[card] || 1;
-    if (lvl >= MAX_CARD_LEVEL) throw new HttpError(409, 'Cette carte est déjà au niveau maximum.');
+    if (lvl >= MAX_CARD_LEVEL) throw new HttpError(409, msg('Cette carte est déjà au niveau maximum.'));
     const cost = levelCost(lvl + 1, cfg()), have = a.essence?.[card] || 0;
-    if (have < cost.essence) throw new HttpError(409, `Il vous faut ${cost.essence} essence de cette carte (vous en avez ${have}).`);
-    if ((a.shards || 0) < cost.shards) throw new HttpError(409, `Il vous faut ${cost.shards} Éclats (vous en avez ${a.shards || 0}).`);
+    if (have < cost.essence) throw new HttpError(409, msg('Il vous faut {price} essence de cette carte (vous en avez {have}).', { price: cost.essence, have }));
+    if ((a.shards || 0) < cost.shards) throw new HttpError(409, msg('Il vous faut {price} Éclats (vous en avez {have}).', { price: cost.shards, have: a.shards || 0 }));
     a.essence[card] = have - cost.essence; a.shards = (a.shards || 0) - cost.shards;
     a.cardLevels = { ...(a.cardLevels || {}), [card]: lvl + 1 };
     return lvl + 1;
@@ -554,9 +564,9 @@ export function createProgress(store) {
   // son niveau actuel, la carte suit son niveau (et prend la bordure suivante quand elle monte). Le niveau reste celui de la carte,
   // quel que soit l'art choisi : seule la bordure change, pas le reflet ni le débordement.
   function chooseBorder(a, { card, level }) {
-    if (!OWNABLE.includes(card) || !a.cards?.[card]) throw new HttpError(400, 'Vous ne possédez pas cette carte.');
+    if (!OWNABLE.includes(card) || !a.cards?.[card]) throw new HttpError(400, msg('Vous ne possédez pas cette carte.'));
     const lvl = a.cardLevels?.[card] || 1, n = Number(level);
-    if (!Number.isInteger(n) || n < 1 || n > lvl) throw new HttpError(409, 'Cette carte n\'a pas encore cette bordure.');
+    if (!Number.isInteger(n) || n < 1 || n > lvl) throw new HttpError(409, msg('Cette carte n\'a pas encore cette bordure.'));
     const looks = { ...(a.lvLook || {}) };
     if (n === lvl) delete looks[card]; else looks[card] = n;
     a.lvLook = looks;
@@ -589,14 +599,14 @@ export function createProgress(store) {
   // Essence universelle échangée contre `amount` essence d'une carte possédée qui peut encore monter, au taux uniPerEssence,
   // sans dépasser ce qui manque à la carte pour atteindre le niveau maximum.
   function convertEssence(a, { card, amount }) {
-    if (!OWNABLE.includes(card) || !a.cards?.[card]) throw new HttpError(400, 'Vous ne possédez pas cette carte.');
+    if (!OWNABLE.includes(card) || !a.cards?.[card]) throw new HttpError(400, msg('Vous ne possédez pas cette carte.'));
     const lvl = a.cardLevels?.[card] || 1, c = cfg();
-    if (lvl >= MAX_CARD_LEVEL) throw new HttpError(409, 'Cette carte est déjà au niveau maximum.');
+    if (lvl >= MAX_CARD_LEVEL) throw new HttpError(409, msg('Cette carte est déjà au niveau maximum.'));
     const n = Number(amount), room = essenceToMax(lvl, a.essence?.[card] || 0, c);
-    if (!Number.isInteger(n) || n < 1) throw new HttpError(400, 'Quantité d\'essence invalide.');
-    if (n > room) throw new HttpError(409, `Cette carte n'a plus besoin que de ${room} essence pour atteindre le niveau maximum.`);
+    if (!Number.isInteger(n) || n < 1) throw new HttpError(400, msg('Quantité d\'essence invalide.'));
+    if (n > room) throw new HttpError(409, msg('Cette carte n\'a plus besoin que de {n} essence pour atteindre le niveau maximum.', { n: room }));
     const price = n * c.uniPerEssence, have = a.uniEssence || 0;
-    if (have < price) throw new HttpError(409, `Il vous faut ${price} essence universelle (vous en avez ${have}).`);
+    if (have < price) throw new HttpError(409, msg('Il vous faut {price} essence universelle (vous en avez {have}).', { price, have }));
     a.uniEssence = have - price;
     a.essence = { ...(a.essence || {}), [card]: (a.essence?.[card] || 0) + n };
     if (a.level) { bump(a.stats, 'essenceConverts'); checkAchievements(a); }
@@ -684,6 +694,7 @@ export function createProgress(store) {
     passPool: Object.fromEntries(Object.entries(PASS_KINDS).map(([k, x]) => [k, { daily: x.daily, weekly: x.weekly }])),
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
-  return { init, grant, cfg, events, count, best, onCards, passView, buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, claimWelcome, welcomeView, startWelcome, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings, buyEmote, canEmote,
+  // passView : écran du passe, missions rédigées dans la langue du joueur (aussi après un await).
+  return { init, grant, cfg, events, count, best, onCards, passView: a => inLang(a, () => passView(a)), buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, claimWelcome, welcomeView, startWelcome, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings, buyEmote, canEmote,
     seen: a => { a.inbox = []; }, setSeasonHook: f => { seasonHook = f; } };
 }

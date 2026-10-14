@@ -3,6 +3,7 @@
 import { DEFAULT_EVENTS, EVENT_EFFECTS, EVENT_WHEN, MAX_EVENTS, MULTS, occurrence, isLive, liveEvents, multiplier, daysLeft, dayEnd, periodLabel, multLabel } from '@jeu/engine/events';
 import { today } from '@jeu/engine/collection';
 import { HttpError } from './accounts.js';
+import { msg } from '@jeu/engine/i18n';
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -17,9 +18,14 @@ export function createEvents(store) {
   }
   // Un message du courrier par événement en cours (mail.js) : il apparaît au début de la période et disparaît à sa fin.
   // Son identifiant change à chaque période : un week-end double XP lu reste lu, le suivant arrive comme un nouveau message.
-  const mails = (day = today()) => view(day).live.map(ev => ({ id: `ev-${ev.id}-${ev.from}`, at: `${ev.from}T06:00:00.000Z`,
-    kind: 'event', title: `${ev.name} : ${multLabel(ev.mult)} ${EVENT_EFFECTS[ev.effect].chip}`, until: ev.to, reward: null, to: null,
-    body: `${ev.name[0].toUpperCase()}${ev.name.slice(1)} ${ev.period} : ${multLabel(ev.mult)} sur les ${EVENT_EFFECTS[ev.effect].what}.${ev.effect === 'ranked' ? ' Les défaites ne retirent toujours qu\'une étoile.' : ''} Profitez-en !` }));
+  // titleMsg, bodyMsg : les mêmes textes à traduire par l'appli (nom de l'événement, multiplicateur et effet traduits par leur clé).
+  const mails = (day = today()) => view(day).live.map(ev => { const fx = EVENT_EFFECTS[ev.effect], ranked = ev.effect === 'ranked', Name = `${ev.name[0].toUpperCase()}${ev.name.slice(1)}`;
+    return { id: `ev-${ev.id}-${ev.from}`, at: `${ev.from}T06:00:00.000Z`,
+      kind: 'event', title: `${ev.name} : ${multLabel(ev.mult)} ${fx.chip}`, until: ev.to, reward: null, to: null,
+      body: `${Name} ${ev.period} : ${multLabel(ev.mult)} sur les ${fx.what}.${ev.effect === 'ranked' ? ' Les défaites ne retirent toujours qu\'une étoile.' : ''} Profitez-en !`,
+      titleMsg: msg('{name} : {mult} {chip}', { name: [ev.name], mult: [multLabel(ev.mult)], chip: [fx.chip] }),
+      bodyMsg: msg(ranked ? '{name} {period} : {mult} sur les {what}. Les défaites ne retirent toujours qu\'une étoile. Profitez-en !' : '{name} {period} : {mult} sur les {what}. Profitez-en !',
+        { name: [Name], period: ev.period, mult: [multLabel(ev.mult)], what: [fx.what] }) }; });
 
   // ---- /admin ----
   const adminView = () => ({ list: list().map(ev => ({ ...ev, live: isLive(ev), period: occurrence(ev) })), defaults: DEFAULT_EVENTS,

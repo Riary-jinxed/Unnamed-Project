@@ -34,14 +34,14 @@ export function createArts(store, cfg) {
   // Achat d'un art du jour. pay(a, prix) refuse s'il manque des Prismes.
   function buy(a, { art: id }, pay) {
     const art = ARTS[id];
-    if (!art || !artExists(id)) throw new HttpError(400, 'Art inconnu.');
-    if (owns(a, id)) throw new HttpError(409, 'Vous avez déjà cet art.');
-    if (art.edition === 'promo') throw new HttpError(409, 'Cet art ne se vend pas : il s\'obtient en récompense.');
-    if (isEssenceArt(art)) throw new HttpError(409, 'Cet art se vend au rayon Essence, contre de l\'essence universelle.');
-    if (art.edition === 'clan') throw new HttpError(409, 'Cet art se vend au magasin de clan, contre des Écus.');
-    if (art.edition === 'boss') throw new HttpError(409, 'Cet art se vend au magasin du boss mondial, contre des Insignes.');
+    if (!art || !artExists(id)) throw new HttpError(400, msg('Art inconnu.'));
+    if (owns(a, id)) throw new HttpError(409, msg('Vous avez déjà cet art.'));
+    if (art.edition === 'promo') throw new HttpError(409, msg('Cet art ne se vend pas : il s\'obtient en récompense.'));
+    if (isEssenceArt(art)) throw new HttpError(409, msg('Cet art se vend au rayon Essence, contre de l\'essence universelle.'));
+    if (art.edition === 'clan') throw new HttpError(409, msg('Cet art se vend au magasin de clan, contre des Écus.'));
+    if (art.edition === 'boss') throw new HttpError(409, msg('Cet art se vend au magasin du boss mondial, contre des Insignes.'));
     const d = day(a);
-    if (!isClassic(art) || !d.offers.includes(id)) throw new HttpError(400, 'Cet art n\'est plus en vente aujourd\'hui.');
+    if (!isClassic(art) || !d.offers.includes(id)) throw new HttpError(400, msg('Cet art n\'est plus en vente aujourd\'hui.'));
     pay(a, artPrice(art, cfg()));
     d.bought.push(id); give(a, id);
     return art;
@@ -50,8 +50,8 @@ export function createArts(store, cfg) {
   const essenceView = a => essenceArts().map(art => ({ id: art.id, price: essenceArtPrice(art, cfg()), owned: owns(a, art.id) }));
   function buyEssence(a, { art: id }, pay) {
     const art = ARTS[id];
-    if (!art || !artExists(id) || !isEssenceArt(art)) throw new HttpError(400, 'Cet art ne se vend pas au rayon Essence.');
-    if (owns(a, id)) throw new HttpError(409, 'Vous avez déjà cet art.');
+    if (!art || !artExists(id) || !isEssenceArt(art)) throw new HttpError(400, msg('Cet art ne se vend pas au rayon Essence.'));
+    if (owns(a, id)) throw new HttpError(409, msg('Vous avez déjà cet art.'));
     pay(a, essenceArtPrice(art, cfg()));
     give(a, id);
     return art;
@@ -59,7 +59,7 @@ export function createArts(store, cfg) {
   // Coffre : un art que le joueur n'a pas encore, au hasard selon sa rareté.
   function chest(a, pay) {
     const pool = chestPool(a.arts);
-    if (!pool.length) throw new HttpError(409, 'Vous avez déjà tous les arts que contient le coffre.');
+    if (!pool.length) throw new HttpError(409, msg('Vous avez déjà tous les arts que contient le coffre.'));
     pay(a, cfg().chestPrice);
     const art = weightedPick(pool);
     give(a, art.id);
@@ -69,8 +69,8 @@ export function createArts(store, cfg) {
   function select(a, { card, art: id }) {
     if (id === null || id === undefined || id === '') { if (a.artSel) delete a.artSel[card]; return; }
     const art = ARTS[id];
-    if (!art || !artExists(id) || art.card !== card) throw new HttpError(400, 'Cet art ne va pas avec cette carte.');
-    if (!owns(a, id)) throw new HttpError(409, 'Vous n\'avez pas cet art.');
+    if (!art || !artExists(id) || art.card !== card) throw new HttpError(400, msg('Cet art ne va pas avec cette carte.'));
+    if (!owns(a, id)) throw new HttpError(409, msg('Vous n\'avez pas cet art.'));
     a.artSel = { ...(a.artSel || {}), [card]: id };
   }
   // Reflet holographique (arts alternatifs, cartes Or et Astral) : allumé par défaut, le joueur peut le couper carte par carte.
@@ -78,7 +78,7 @@ export function createArts(store, cfg) {
   // Débordement du personnage (niveau Or et plus) : allumé par défaut, le joueur peut le couper carte par carte.
   const pop = (a, body) => toggle(a, 'popOff', body);
   function toggle(a, field, { card, on }) {
-    if (!CARDS[card] && !GENERALS[card]) throw new HttpError(400, 'Carte inconnue.');
+    if (!CARDS[card] && !GENERALS[card]) throw new HttpError(400, msg('Carte inconnue.'));
     const off = { ...(a[field] || {}) };
     if (on) delete off[card]; else off[card] = true;
     a[field] = off;
@@ -93,7 +93,7 @@ export function createArts(store, cfg) {
   }
   // Donner (Promo, geste commercial) ou retirer un art.
   function adminGive(a, { art: id, give: on }) {
-    if (!ARTS[id]) throw new HttpError(400, 'Art inconnu.');
+    if (!ARTS[id]) throw new HttpError(400, msg('Art inconnu.'));
     if (on) { if (!owns(a, id)) give(a, id, { gift: true }); return; }
     if (a.arts) delete a.arts[id];
     for (const [card, sel] of Object.entries(a.artSel || {})) if (sel === id) delete a.artSel[card];

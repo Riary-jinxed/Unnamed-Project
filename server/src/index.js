@@ -12,8 +12,11 @@ import { newBossGame, bossScore } from '@jeu/engine/boss';
 import { tierOf } from '@jeu/engine/ranked';
 import { EMOTE_COOLDOWN_MS, EMOTE_MAX, aiReply } from '@jeu/engine/emotes';
 import { deckError, aiDeckKeys } from '@jeu/engine/collection';
+import { addStrings, tr, msg } from '@jeu/engine/i18n';
+import engineEn from '@jeu/engine/lang/en';
+import { langOf, validLang, withLang } from './i18n.js';
 import { openStore } from './store.js';
-import { createAccounts, apiHandler, activeDeck } from './accounts.js';
+import { createAccounts, apiHandler, activeDeck, HttpError } from './accounts.js';
 import { createGames } from './games.js';
 import { createCatalog } from './cards.js';
 import { createFriends } from './friends.js';
@@ -23,6 +26,9 @@ import { createBoss } from './boss.js';
 import { createStory } from './story.js';
 import { createPush } from './push.js';
 import { NOTES_MAJ } from './notes-maj.js';
+
+// Traductions anglaises (moteur et serveur) : messages d'erreur, notifications et textes envoyés aux joueurs dans leur langue.
+addStrings('en', engineEn);
 
 const PORT = +process.env.PORT || 8787;
 const DIST = fileURLToPath(new URL('../../client/dist/', import.meta.url));
@@ -106,6 +112,8 @@ const server = http.createServer(async (req, res) => {
 const rooms = new Map();
 const newCode = () => { let c; do { c = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join(''); } while (rooms.has(c)); return c; };
 const send = (ws, msg) => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg)); };
+// Langue d'une connexion : champ lang du premier message (create, join, rejoin…), français sans lui.
+const wsLang = ws => ws.lang || 'fr';
 
 // Niveaux et arts alternatifs des cartes de l'adversaire : seulement ceux de son général et des cartes qu'il a déjà révélées, pour ne rien dire de son deck.
 function shownBadge(b, P) {
@@ -186,9 +194,10 @@ async function endMatch(room) {
 
 // ---- Mode classé ----
 // Partie classée contre l'IA : le serveur joue l'IA, dont la force dépend du palier du joueur. Défi classé : salon d'un défi marqué « friend ».
+// Son nom (« IA Bronze ») est dans la langue du joueur.
 function aiSeat(acc) {
-  const t = tierOf(accounts.progress.ranked(acc).r);
-  return { ai: true, tries: t.ai, name: `IA ${t.name}`, login: null };
+  const tier = tierOf(accounts.progress.ranked(acc).r), lang = langOf(acc);
+  return { ai: true, tries: tier.ai, name: tr(lang, 'IA {tier}', { tier: tr(lang, tier.name) }), login: null };
 }
 // Rangs après la partie, pour chaque siège ; chaque ami est comparé au rang de l'autre avant la partie.
 function rankedResults(room, result) {
@@ -209,7 +218,7 @@ function abandonBoss(room) {
   if (!room.boss || !room.st || room.st.over) return;
   // Le joueur est déjà parti : plus rien ne lui est envoyé.
   room.seats.forEach(s => { if (s) s.ws = null; });
-  forfeitGame(room.st, 0, 'tentative abandonnée');
+  forfeitGame(room.st, 0, msg('tentative abandonnée'));
   endMatch(room).catch(e => console.error('Tentative non enregistrée :', e));
 }
 
@@ -227,7 +236,7 @@ function startAway(room, i) {
     if (room.busy) { s.awayTimer = setTimeout(fire, 1000); return; }
     stopAway(s);
     if (rooms.get(room.code) !== room || !room.st || room.st.over || !isAway(s) || isAway(room.seats[1 - i])) return;
-    forfeitGame(room.st, i, 'forfait après une déconnexion de plus de 60 secondes');
+    forfeitGame(room.st, i, msg('forfait après une déconnexion de plus de 60 secondes'));
     room.plans = [null, null];
     endMatch(room).catch(e => console.error('Forfait non enregistré :', e));
   };
@@ -237,10 +246,12 @@ function startAway(room, i) {
 const deckOf = (acc, id) => (id && (acc.decks || []).find(d => d.id === id)) || activeDeck(acc);
 // Contre le boss mondial : son deck préparé s'il est complet (boss.deckFor), sinon le deck joué.
 function seatFor(ws, msg, bossId = null) {
-  const acc = accounts.byToken(msg.auth);
-  if (!acc) { send(ws, { t: 'error', msg: 'Session expirée : reconnectez-vous.' }); return null; }
+  const acc = accounts.byToken(msg.auth), lang = wsLang(ws);
+  if (!acc) { send(ws, { t: 'error', msg: tr(lang, 'Session expirée : reconnectez-vous.') }); return null; }
+  // La langue de l'appli est rangée sur le compte (notifications, nom de l'IA).
+  if (ws.lang) accounts.setLang(acc, ws.lang);
   const deck = (bossId && boss.deckFor(acc, bossId)) || deckOf(acc, msg.deck);
-  const err = deck ? deckError(deck, acc) : 'Choisissez d\'abord votre deck de départ.';
+  const err = deck ? withLang(lang, () => deckError(deck, acc)) : tr(lang, 'Choisissez d\'abord votre deck de départ.');
   if (err) { send(ws, { t: 'error', msg: err }); return null; }
   return { name: acc.name, login: acc.login, auth: msg.auth, deck, deckId: deck.id, token: randomBytes(12).toString('hex'), ws };
 }
@@ -260,7 +271,7 @@ function inviteRoom(logins, { ranked = false } = {}) {
 function closeInvite(room, login) {
   const name = accounts.nameOf(login) || login;
   room.seats.forEach(s => { if (s && s.login !== login) send(s.ws, { t: 'left' }); });
-  for (const other of room.invite) if (other !== login) friends.notify(other, { t: 'challenge-gone', room: room.code, msg: `${name} a annulé la partie.` });
+  for (const other of room.invite) if (other !== login) friends.notify(other, { t: 'challenge-gone', room: room.code, msg: msg('{name} a annulé la partie.', { name }) });
   rooms.delete(room.code); seatsChanged(room);
 }
 function abortInvite(code, login) {
@@ -270,6 +281,7 @@ function abortInvite(code, login) {
 function handle(ws, msg) {
   // Ping de l'appli : lui permet de repérer une connexion morte sans fermeture (changement de réseau, veille).
   if (msg.t === 'ping') return send(ws, { t: 'pong' });
+  if (msg.lang && validLang(msg.lang)) ws.lang = validLang(msg.lang);
   if (friends.handle(ws, msg)) return;
   if (msg.t === 'create') {
     const seat = seatFor(ws, msg); if (!seat) return;
@@ -287,18 +299,18 @@ function handle(ws, msg) {
   if (msg.t === 'boss') {
     const seat = seatFor(ws, msg, boss.weekBoss()); if (!seat) return;
     const acc = accounts.byToken(msg.auth);
-    let id; try { id = boss.start(acc); } catch (e) { return send(ws, { t: 'error', msg: e.message }); }
-    const room = { code: newCode(), seats: [seat, { ai: true, boss: true, name: GENERALS[id].name, login: null }], plans: [null, null], st: null, busy: false, lastActive: Date.now(), boss: id };
+    let id; try { id = boss.start(acc); } catch (e) { return send(ws, { t: 'error', msg: e instanceof HttpError ? e.text(wsLang(ws)) : e.message }); }
+    const room = { code: newCode(), seats: [seat, { ai: true, boss: true, name: tr(langOf(acc), GENERALS[id].name), login: null }], plans: [null, null], st: null, busy: false, lastActive: Date.now(), boss: id };
     rooms.set(room.code, room); ws.room = room; ws.seat = 0;
     lobby(room); startMatch(room); friends.changed(seat.login); return;
   }
   if (msg.t === 'join') {
     const room = rooms.get(String(msg.room || '').toUpperCase());
-    if (!room) return send(ws, { t: 'error', msg: 'Aucune partie avec ce code.' });
+    if (!room) return send(ws, { t: 'error', msg: tr(wsLang(ws), 'Aucune partie avec ce code.') });
     // Salon d'un défi : chacun a sa place gardée, la partie commence quand les deux sont entrés.
     const i = room.invite ? room.invite.indexOf(accounts.byToken(msg.auth)?.login) : 1;
-    if (i < 0) return send(ws, { t: 'error', msg: 'Cette partie est réservée à deux amis.' });
-    if (room.seats[i]) return send(ws, { t: 'error', msg: 'Cette partie est déjà complète.' });
+    if (i < 0) return send(ws, { t: 'error', msg: tr(wsLang(ws), 'Cette partie est réservée à deux amis.') });
+    if (room.seats[i]) return send(ws, { t: 'error', msg: tr(wsLang(ws), 'Cette partie est déjà complète.') });
     const seat = seatFor(ws, msg); if (!seat) return;
     room.seats[i] = seat;
     ws.room = room; ws.seat = i; lobby(room); friends.changed(seat.login);
@@ -348,8 +360,8 @@ function handle(ws, msg) {
     if (room.boss) {
       // Nouvelle tentative contre le boss de la semaine (il peut avoir changé depuis lundi minuit).
       const acc = accounts.byToken(room.seats[0].auth); if (!acc) return;
-      try { room.boss = boss.start(acc); } catch (e) { return send(ws, { t: 'error', msg: e.message }); }
-      room.seats[1].name = GENERALS[room.boss].name;
+      try { room.boss = boss.start(acc); } catch (e) { return send(ws, { t: 'error', msg: e instanceof HttpError ? e.text(wsLang(ws)) : e.message }); }
+      room.seats[1].name = tr(langOf(acc), GENERALS[room.boss].name);
       return startMatch(room);
     }
     room.rematch[ws.seat] = true;
