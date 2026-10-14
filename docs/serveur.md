@@ -1,6 +1,6 @@
 # Serveur (`server`)
 
-Un seul processus Node : `server/src/index.js` sert l'appli compilée, l'API JSON sous `/api` et les parties en ligne sur `/ws`. Il dépend de `ws` (WebSocket) et `pg` (PostgreSQL).
+Un seul processus Node : `server/src/index.js` sert l'appli compilée, l'API JSON sous `/api` et les parties en ligne sur `/ws`. Il dépend de `ws` (WebSocket), `pg` (PostgreSQL) et `web-push` (notifications).
 
 Au démarrage, dans l'ordre : ouverture du stockage, chargement des comptes (avec mises à niveau des anciens comptes), application du catalogue publié, vérification des complétions et succès déjà atteints (`syncAll`), puis écoute du port.
 
@@ -30,6 +30,7 @@ Documents de la table `reglages` :
 | `catalogue` | « Publier dans le jeu » | Catalogue publié, appliqué au moteur. |
 | `evenements` | onglet Événements | `{ list }` : événements temporaires (`events.js` du moteur). Absent ou vide : `DEFAULT_EVENTS`. |
 | `compteurs` | `activity.js` | Par jour (`AAAA-MM-JJ`, heure de Paris, 400 jours au plus) : boosters du jour, achetés et offerts ouverts, cartes du jour achetées, coffres d'arts ouverts, arts achetés, changes de Prismes en Éclats. Pour l'onglet Stats. |
+| `push` | `push.js` | `keys` : clés VAPID des notifications (créées au premier démarrage, sauf si `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY` sont définies) ; `sent` : envois planifiés déjà faits (`ev-<événement>-<premier jour>`, `saison-<AAAA-MM>`), 60 jours. |
 
 ## Compte joueur
 
@@ -81,6 +82,7 @@ Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDu
 | `mail.js` | `createMail(store, accounts, { notify })` : courrier (messages de `/admin` à tous ou à quelques joueurs, avec récompense facultative, documents `courrier`) et codes cadeaux (document `codes`, 10 codes faux par heure au plus). Comptes : `mail = { read, got, hidden }`, `redeemed`. Routes `/api/mail…`, `/api/redeem`, `/api/admin/mail…`, `/api/admin/codes…`. |
 | `notes-maj.js` | `NOTES_MAJ` : notes de mise à jour, envoyées une seule fois dans le courrier de tous les comptes existants au premier démarrage du serveur qui les contient (`publishNotes`, identifiants retenus dans `courrier.notes`). Pour une nouvelle note : l'ajouter en fin de liste avec un identifiant nouveau. |
 | `clans.js` | `createClans(store, accounts)` : clans (document `clans`), missions de clan avancées à chaque fin de partie (`accounts.setGameHook`), dons contre des Écus, magasin du clan, classement des clans figé à la fin du mois en même temps que le classement classé (`progress.setSeasonHook`, document `classement-clans`) avec ses récompenses et bannières. Comptes : `clan`, `clanCoins`, `clanReq`, `clanDon`. Rôles (`roles`, Maître = `leader`), trésor (`bank`) et projets (`boosts`, `chest`). Routes `/api/clan…` (dont `role`, `claim`, `fund`), `/api/clans`, `/api/clans/ladder`, `/api/admin/clans…`. |
+| `push.js` | `createPush(store, accounts, { isOnline, events })` : notifications push (Web Push). Comptes : `push = { subs, off, daily }` (abonnements des appareils, 5 au plus ; sortes coupées ; jour du dernier rappel). Sortes (`PUSH_KINDS`) : `daily` (rappel à 18 h, heure de Paris, si la récompense de connexion du jour n'est pas récupérée, joueurs venus ces 14 derniers jours), `events` (début d'un événement à 10 h ; `broadcast('events', …)` pour le Boss mondial), `social` (demandes d'ami et de clan, envoyées par `friends.js` et `clans.js`), `season` (dernier jour du mois à 12 h). Rien n'est envoyé à un joueur qui a l'appli ouverte. Un appareil appartient au dernier compte qui s'y abonne ; la déconnexion le retire. Vérification toutes les 5 minutes : le serveur endormi (Render gratuit) envoie au réveil. Routes `/api/push`, `/api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/kinds`, `/api/push/test`. |
 | `cards.js` | `createCatalog(store, accounts)` : brouillon du catalogue, publication (refusée si elle retire une carte qu'un joueur possède), catalogue public. |
 | `index.js` | Assemble le tout, sert les fichiers, gère les salons et les WebSockets. |
 
