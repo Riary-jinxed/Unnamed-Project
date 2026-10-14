@@ -122,7 +122,8 @@ Réglages : 250 essais contre un joueur (`client/src/solo.js`), de 15 (Bronze) �
 - `COLLECTIBLE` (cartes hors jetons), `OWNABLE` (cartes et généraux), `BOOSTER_POOL` (contenu du booster quotidien) : tableaux mis à jour sur place quand un catalogue est appliqué.
 - `openBooster(collection)` : 3 cartes dont au moins une nouvelle tant qu'il en manque.
 - `deckError(deck, compte)` : message d'erreur ou `null` si le deck est jouable (15 cartes différentes possédées, 5 terrains autorisés, un général possédé). `draftError` accepte un deck incomplet.
-- `allowedTerrains` : terrains neutres et ceux des familles dont le joueur possède un général.
+- `allowedTerrains` : terrains neutres et ceux des familles dont le joueur possède un général, sauf ceux d'un set pas encore sorti.
+- `deckCode(deck)` / `readDeckCode(code)` : code de deck à partager (`DK1-` puis nom, général, terrains et cartes en base64url) ; il ne dépend pas de la collection. `fitDeck(deck, compte)` ramène un deck (code ou recette) à la collection : `deck` avec ce que le joueur possède, `missing` (général, terrains, cartes ; `unknown` compte les identifiants inconnus ou d'un set pas sorti, sans les nommer), `complete`. `recipeKeys()` : decks préconstruits proposés en recettes (ceux des sets sortis).
 - `SETS` / `DEFAULT_SETS` : sets (cartes, ouvert en boutique, booster quotidien, présentation) ; `dailyOffers` : cartes du jour en boutique.
 - `EXCHANGE_TIERS`, `exchangeOffers(rate)`, `exchangeFor(rate, need)` : offres fixes du change de Prismes en Éclats (bonus pour les grosses offres), et celle à proposer quand il manque `need` Éclats (la plus petite qui suffit, sinon la plus grosse).
 - `today()` : le jour à Paris (`AAAA-MM-JJ`) ; tout ce qui est quotidien bascule à minuit, heure française.
