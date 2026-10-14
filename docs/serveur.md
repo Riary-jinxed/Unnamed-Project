@@ -14,7 +14,7 @@ Au démarrage, dans l'ordre : ouverture du stockage, chargement des comptes (ave
   | --- | --- | --- |
   | `comptes` | `login` (clé), `data` (jsonb), `updated_at` | Un compte entier par ligne. |
   | `reglages` | `cle` (clé), `data` (jsonb), `updated_at` | Documents de réglages, voir ci-dessous. |
-  | `parties` | `id`, `data` (jsonb), `created_at` | Une partie terminée par ligne (stats). |
+  | `parties` | `id`, `data` (jsonb), `created_at` | Une partie terminée par ligne (stats de `/admin`, historique des joueurs : voir « Partie enregistrée »). |
 
 - **Sinon** (développement) : fichiers `server/data/comptes.json`, `reglages.json` et `parties.json`, réécrits en entier à chaque changement (écriture dans un fichier temporaire puis renommage).
 
@@ -70,13 +70,28 @@ Un compte est un objet JSON (colonne `data`) :
 
 Les anciens comptes sont mis à niveau au démarrage (`accounts.js` : `convertDuplicates`, `migrateDecks`, `grantStarterGenerals`, `progress.init`) ; rien n'est jamais supprimé de la base par ces mises à niveau.
 
+## Partie enregistrée
+
+Une ligne de `parties` (`store.addGame`), écrite à la fin de la partie, après les récompenses :
+
+| Champ | Contenu |
+| --- | --- |
+| `id`, `at` | Identifiant, date de fin. |
+| `mode`, `ranked`, `kind` | `pvp` ou `pve` ; partie classée ; type vu par le joueur : `salon` (code), `defi`, `defi-classe`, `classe-ia`, `ia` (dans l'appli). |
+| `winner`, `reason`, `forfeit` | Siège gagnant (0, 1, −1 pour un nul), raison, partie arrêtée par un abandon. |
+| `zones`, `turns`, `ms` | Gagnant de chaque zone, tours joués, durée. |
+| `trace` | Pour chaque fin de tour : puissance des 3 zones de chaque siège (`gameDetail` du moteur). |
+| `players` | Par siège : `login` (`null` pour l'IA), `name`, `general`, `deck`, `cards` (deck complet), `played` (cartes révélées), `pow` (puissance finale des zones), `terrains`, `cut` (nombre de cartes de `played` à la fin de chaque tour), `treasure`, `perfect`, `spells`, `lost`, `gen`, `genFired`, `gain` (`{ xp, shards, stars }`). |
+
+Les parties enregistrées avant l'historique n'ont que `mode`, `ranked`, `at`, `winner`, `reason` et, par siège, `login` à `played` : l'historique les montre sans détail. Pour une partie contre l'IA, l'appli envoie le détail (`detail`, `ms`) avec le résultat ; le serveur le relit et le borne (`cleanDetail`).
+
 ## Modules
 
 | Fichier | Rôle |
 | --- | --- |
 | `accounts.js` | `createAccounts(store)` : sessions, connexion, deck de départ, booster quotidien, boutique, decks, profil, administration des comptes et de la boutique. `apiHandler` : le routeur de l'API. |
 | `progress.js` | `createProgress(store)` : XP et niveaux, missions, succès, complétions, cosmétiques, rang classé et saisons, réglages des récompenses. Appelé par `accounts.js` (nouvelles cartes, booster, fin de partie). |
-| `games.js` | `createGames(store, accounts)` : enregistre les parties (JcJ par le serveur, JcE envoyées par l'appli), calcule les stats de `/admin` et du profil. |
+| `games.js` | `createGames(store, accounts)` : enregistre les parties (JcJ par le serveur, JcE envoyées par l'appli), calcule les stats de `/admin` et du profil, et l'historique de chaque joueur (`playerHistory`). |
 | `activity.js` | `createActivity(store)` : jours d'activité des joueurs (`seen`, appelé par le routeur), compteurs du jour (`count`, appelé par `accounts.js`), et leur synthèse pour l'onglet Stats (`stats`). |
 | `friends.js` | `createFriends(store, accounts, salons)` : amis et demandes, présence (qui est connecté, qui est en partie), défis entre amis. |
 | `events.js` | `createEvents(store)` : liste des événements temporaires (document `evenements`), multiplicateur du jour (`mult`), ce qu'en voit le joueur (`view` : événements en cours avec période et fin), un message du courrier par événement en cours (`mails`, ajouté par `mail.js` le temps de l'événement, identifiant `ev-<événement>-<premier jour>`) et routes `/api/admin/events`. Créé par `progress.js` (`progress.events`), qui multiplie l'XP des parties, des missions et des nouvelles cartes, les Éclats et l'XP de saison des parties, et les étoiles d'une victoire classée. |
@@ -110,6 +125,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `PUT /api/deck` | Ancienne route : enregistre le deck joué. |
 | `PUT /api/profile` | Pseudo et/ou image de profil. |
 | `GET /api/profile` | Stats du joueur (dont ses 5 cartes les plus jouées, `cards`), succès, avancement des familles et des sets. |
+| `GET /api/history` | Historique du joueur (onglet Historique du profil) : ses 100 dernières parties vues de son côté (`games` : type, résultat, durée, zones, puissance à chaque fin de tour, cartes révélées tour par tour, compteurs, gains ; de l'adversaire, seulement les cartes révélées) et un bilan sur toutes ses parties (`summary` : taux, série en cours et record, forme des 10 dernières, zones gagnées en moyenne, victoires 3 zones, durée moyenne, par type, par deck, contre chaque général). |
 | `GET /api/player?login=…` | Profil public d'un joueur (pop-up du classement) : image, cadre, titre, niveau, victoires, général et cartes les plus joués, arts préférés, rang de la saison, lien d'ami avec vous (`friend`). |
 | `GET /api/shop` | Boutique : prix et offres du jour par set. |
 | `POST /api/shop/card`, `/api/shop/booster` | Achète une carte du jour ou un booster (`free: true` : booster offert). |

@@ -1323,6 +1323,8 @@ export function endTurn(st) {
     P.treasure += P.seals; P.lastUnspent = P.seals;
     if (P.seals === 0) P.perfectTurns++;
   }
+  // Historique des joueurs : puissance de chaque zone et nombre de cartes révélées à la fin du tour (pas dans les simulations de l'IA).
+  if (!st.sim) (st.trace ||= []).push({ pow: [0, 1].map(p => [0, 1, 2].map(z => zonePower(st, p, z))), n: [0, 1].map(p => st.p[p].played.length) });
   if (st.turn >= turnsOf(st)) finish(st);
 }
 function finish(st) {
@@ -1347,6 +1349,20 @@ export function forfeitGame(st, loser, reason) {
   log(st, `${who(st, loser)} ${vb(loser, 'perd', 'perdez')} : ${reason}.`, 'turn');
 }
 
+// Détail d'une partie terminée, pour l'historique des joueurs (pas de replay) : tours joués, puissance des zones à chaque fin de tour
+// (trace, avant les effets de fin de partie), cartes révélées tour par tour (cut : nombre de cartes de played à la fin de chaque tour),
+// et pour chaque joueur la puissance finale de ses zones, ses terrains et quelques compteurs.
+export function gameDetail(st) {
+  const trace = st.trace || [];
+  return {
+    turns: st.turn, trace: trace.map(t => t.pow),
+    sides: [0, 1].map(p => { const P = st.p[p]; return {
+      pow: [0, 1, 2].map(z => zonePower(st, p, z)), terrains: P.terrains.slice(), cut: trace.map(t => t.n[p]),
+      treasure: P.treasure, perfect: P.perfectTurns, spells: P.spells, lost: P.lost, gen: !!P.generalUsed, genFired: P.genFired || 0,
+    }; }),
+  };
+}
+
 // ---- IA ----
 // Copie profonde d'objets et de tableaux simples, en gardant les références partagées (une carte n'est copiée qu'une fois).
 function copy(v, seen) {
@@ -1357,7 +1373,7 @@ function copy(v, seen) {
   return c;
 }
 // État simulé par l'IA : sans le journal (inutile et coûteux à copier), plusieurs fois plus rapide que structuredClone.
-function clone(st) { const { log: _, ...rest } = st; const c = copy(rest, new Map()); c.sim = true; c.log = []; return c; }
+function clone(st) { const { log: _, trace: __, ...rest } = st; const c = copy(rest, new Map()); c.sim = true; c.log = []; return c; }
 const deckHas = (P, fam) => [...P.hand, ...P.deck].some(c => hasKw(c, fam));
 function evalFor(st, p) {
   let s = 0;
