@@ -379,6 +379,44 @@ body:has(#app.ingame) { margin: 0; }
 .statlist .row { gap: 8px; flex-wrap: nowrap; }
 .res.wins { color: var(--up); } .res.losses { color: var(--down); } .res.draws { color: var(--muted); }
 .res { min-width: 7.5ch; }
+/* Historique des parties (history.js) : liste, filtre, panneau d'une partie */
+.hform { display: flex; gap: 4px; flex-wrap: wrap; }
+.hform .res { min-width: 0; width: 26px; height: 26px; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 50%; font-weight: 700; font-size: 12px; }
+.hrate { min-width: 5ch; text-align: right; }
+.hfilter { align-self: start; flex-wrap: wrap; }
+.hlist { display: grid; gap: 6px; }
+.hrow { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); color: var(--ink); padding: 8px 10px; font: inherit; cursor: pointer; }
+.hrow:hover, .hrow:focus-visible { border-color: var(--accent); }
+.hmid { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.hmid > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hend { display: grid; justify-items: end; gap: 2px; flex-shrink: 0; }
+.hgame { display: grid; gap: 10px; }
+.hgame h2.res { margin: 0; }
+.hvs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hvs > div { display: grid; gap: 4px; align-content: start; border: 1px solid var(--line); border-radius: var(--r); padding: 8px; background: var(--bg); min-width: 0; }
+.eyebrow.me, .hcount .me, .hzone .me { color: var(--mine); } .eyebrow.foe, .hcount .foe, .hzone .foe { color: var(--foe); }
+.hgain { display: flex; gap: 6px; flex-wrap: wrap; margin: 0; }
+.hzones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.hzone { display: grid; gap: 2px; justify-items: center; text-align: center; border: 1px solid var(--line); border-radius: var(--r); padding: 8px 4px; background: var(--bg); min-width: 0; }
+.hzone b { font-size: 18px; }
+.hzone.me { border-color: var(--up); } .hzone.foe { border-color: var(--down); }
+.hzone.me > small:first-of-type { color: var(--up); } .hzone.foe > small:first-of-type { color: var(--down); }
+.hchart { margin: 0; display: grid; gap: 4px; }
+.hchart svg { width: 100%; max-width: 480px; height: auto; display: block; margin-inline: auto; }
+.hchart path { fill: none; stroke-width: 2.5; stroke-linejoin: round; }
+.hchart path.me { stroke: var(--mine); } .hchart path.foe { stroke: var(--foe); }
+.hchart g.me { fill: var(--mine); } .hchart g.foe { fill: var(--foe); }
+.hchart .axis { stroke: var(--line); stroke-dasharray: 3 3; }
+.hchart text { fill: var(--muted); font-size: 10px; text-anchor: middle; }
+.hkey { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin: 0 4px 0 8px; }
+.hkey:first-child { margin-left: 0; } .hkey.me { background: var(--mine); } .hkey.foe { background: var(--foe); }
+.hturns { display: grid; gap: 6px; }
+.hturn { display: grid; gap: 4px; border: 1px solid var(--line); border-radius: var(--r); padding: 6px 8px; background: var(--bg); }
+.hturn .row { justify-content: space-between; }
+.hcards { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; padding-left: 8px; border-left: 3px solid var(--line); }
+.hcards.me { border-left-color: var(--mine); } .hcards.foe { border-left-color: var(--foe); }
+.chip.hcard { border-color: var(--fam, var(--line)); cursor: pointer; }
+.hcount .row b { min-width: 7ch; text-align: right; } .hcount .row small { min-width: 7ch; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* decks */
 .deckitem { border-left: 5px solid var(--fam, var(--f-neutre)); }
@@ -709,7 +747,8 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 /* Onglets du profil : sur deux rangées sur un petit écran plutôt que de couper les noms */
 .proftabs { align-self: start; }
 .proftabs button { padding: 8px 14px; font-weight: 600; white-space: nowrap; }
-@media (max-width: 480px) { .proftabs { display: grid; grid-template-columns: 1fr 1fr; align-self: stretch; } .proftabs button:nth-child(n+3) { border-top: 1px solid var(--line); } }
+@media (max-width: 480px) { .proftabs { display: grid; grid-template-columns: 1fr 1fr; align-self: stretch; } .proftabs button:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .proftabs button:last-child:nth-child(odd) { grid-column: span 2; } }
 .tabbar .badge { position: absolute; top: 4px; right: 6px; min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 11px; line-height: 18px; }
 #app:has(.tabbar) { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 #app:has(.tabbar) .fbanner { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }

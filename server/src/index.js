@@ -25,6 +25,7 @@ import { createClans } from './clans.js';
 import { createBoss } from './boss.js';
 import { createStory } from './story.js';
 import { createPush } from './push.js';
+import { createFollow } from './follow.js';
 import { NOTES_MAJ } from './notes-maj.js';
 
 // Traductions anglaises (moteur et serveur) : messages d'erreur, notifications et textes envoyés aux joueurs dans leur langue.
@@ -66,7 +67,9 @@ accounts.setBossTile(a => boss.tile(a));
 const story = createStory(store, accounts, { onChange: () => catalog.refresh() });
 catalog.setExtraCards(() => story.releasedCards());
 accounts.setStoryTile(a => story.tile(a));
-const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...accounts.progress.events.routes, ...clans.routes, ...push.routes, ...boss.routes, ...story.routes }, catalog.public);
+// Onglet Suivi de /admin : rétention et suivi du nouveau contenu.
+const follow = createFollow(store, accounts, { boss, events: accounts.progress.events });
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...accounts.progress.events.routes, ...clans.routes, ...push.routes, ...boss.routes, ...story.routes, ...follow.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
 // Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.
@@ -149,7 +152,7 @@ function startMatch(room) {
   room.st = room.boss ? newBossGame(decks[0], room.boss, room.seats[0].name)
     : newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => (typeof d === 'string' ? null : d.general)) });
   startTurn(room.st); room.st.phase = 'plan';
-  room.plans = [null, null]; room.rematch = [false, false]; room.rewards = null;
+  room.plans = [null, null]; room.rematch = [false, false]; room.rewards = null; room.startedAt = Date.now();
   room.seats.forEach((s, i) => { const acc = accounts.byToken(s.auth); if (acc) { s.badge = accounts.progress.badge(acc, decks[i]); s.avatar = acc.avatar || null; } s.avatarsSent = false; s.emotes = 0; });
   // Le boss se montre avec son art (portrait).
   if (room.boss) room.seats[1].badge = { boss: true, arts: { [room.boss]: GENERALS[room.boss].art }, looks: {}, borders: {} };
@@ -176,7 +179,6 @@ async function endMatch(room) {
     room.seats.forEach(s => s && stopAway(s));
     room.st.recorded = true;
     const mode = room.ranked === 'ai' ? 'pve' : 'pvp';
-    games.recordPvp(room.st, room.seats.map(s => s.login), room.decks, { mode, ranked: !!room.ranked });
     // Récompenses de fin de partie (et rang en classé), affichées à chacun sur l'écran de fin.
     const { winner, zones } = room.st.result;
     const result = i => (winner === i ? 'win' : winner < 0 ? 'draw' : 'loss');
@@ -188,6 +190,9 @@ async function endMatch(room) {
         zones: room.st.result.forfeit ? 0 : zones.filter(z => z === i).length, friend: !!room.invite, ranked: !!room.ranked }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
       return reward && ranks[i] ? { ...reward, ranked: ranks[i] } : reward;
     }));
+    // Enregistrée avec ce que chacun a gagné, pour l'historique des joueurs.
+    const kind = room.ranked === 'ai' ? 'classe-ia' : room.ranked === 'friend' ? 'defi-classe' : room.invite ? 'defi' : 'salon';
+    games.recordPvp(room.st, room.seats.map(s => s.login), room.decks, { mode, ranked: !!room.ranked, kind, ms: Date.now() - (room.startedAt || Date.now()), rewards: room.rewards });
   }
   broadcast(room);
 }
@@ -349,6 +354,7 @@ function handle(ws, msg) {
     if (!room.st || !s || !accounts.progress.canEmote(accounts.byToken(s.auth), id)) return;
     if (now - (s.emoteAt || 0) < EMOTE_COOLDOWN_MS || (s.emotes || 0) >= EMOTE_MAX) return;
     s.emoteAt = now; s.emotes = (s.emotes || 0) + 1;
+    accounts.activity.count(['emotesOnline', `emote:${id}`]);
     const say = (seat, e) => room.seats.forEach(x => x && send(x.ws, { t: 'emote', seat, id: e }));
     say(ws.seat, id);
     const ai = room.seats.findIndex(x => x && x.ai && !x.boss), reply = ai >= 0 ? aiReply(id) : null;

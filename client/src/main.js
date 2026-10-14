@@ -22,6 +22,7 @@ import { createNotifs } from './notifs.js';
 import { createClan, crestHTML } from './clan.js';
 import { createBoss } from './boss.js';
 import { createStory } from './story.js';
+import { createHistory } from './history.js';
 import { questOfCard } from '@jeu/engine/story';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
@@ -77,8 +78,10 @@ const boss = createBoss({ ui, render: () => render(), call: (...x) => call(...x)
 const story = createStory({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), ico: k => ico(k), play: (...x) => play(...x),
   anyCard: (...x) => anyCard(...x), zoomKey: (...x) => zoomKey(...x), rewardItem: r => rewardItem(r), setAccount: a => setAccount(a), go: (q, i) => goStory(q, i), quit: () => quit(),
   leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
+// Historique des parties (history.js) : onglet du profil et détail d'une partie.
+const gameHistory = createHistory({ ui, render: () => render(), zoomKey: (...x) => zoomKey(...x) });
 // Notifications push (notifs.js) : réglées dans le profil ; en toucher une ouvre l'écran qu'elle annonce.
-const notifs = createNotifs({ ui, render: () => render(), call: (...x) => call(...x), open: where => openFromNotif(where) });
+const notifs = createNotifs({ ui, render: () => render(), call: (...x) => call(...x), open: where => openFromNotif(where), track: (...x) => track(...x) });
 
 // ---- Contrôleurs (en ligne / IA) ----
 const handlers = {
@@ -249,6 +252,8 @@ async function call(method, path, body) {
   catch (e) { if (e.status === 401) signedOut(e.message); else ui.error = e.message; return null; }
   finally { ui.busy = false; render(); }
 }
+// Signale au serveur un geste qu'il ne voit pas passer (onglet Suivi de /admin) : code de deck copié, émote contre l'IA, notification touchée.
+const track = (what, id) => { if (ui.auth) api('POST', '/api/track', { what, id }, ui.auth).catch(() => {}); };
 // Cartes et sets publiés depuis /admin : appliqués au moteur pour l'affichage et la partie contre l'IA.
 let catalogVersion = 0;
 async function loadCatalog() {
@@ -378,7 +383,7 @@ function editBossDeck(boss) {
 }
 async function saveDeck() {
   const e = ui.edit, body = { name: e.name, general: e.general, terrains: e.terrains, cards: e.cards };
-  const r = e.boss ? await call('PUT', '/api/boss/deck', { boss: e.boss, ...body }) : await call('PUT', '/api/decks', { id: e.id, ...body });
+  const r = e.boss ? await call('PUT', '/api/boss/deck', { boss: e.boss, ...body }) : await call('PUT', '/api/decks', { id: e.id, ...body, ...(e.id ? {} : { from: e.from }) });
   if (r) { ui.screen = e.back; ui.edit = null; ui.msg = ''; render(); }
 }
 function openDecks() { ui.screen = 'decks'; ui.error = ''; ui.msg = ''; render(); }
@@ -400,6 +405,7 @@ function showDeckCode(d) { ui.shareDeck = { name: d.name, code: deckCode(d) }; u
 function copyDeckCode(btn) {
   const box = document.getElementById('deck-code');
   navigator.clipboard.writeText(ui.shareDeck.code).then(() => { btn.textContent = t('Code copié'); }).catch(() => { box?.select(); });
+  track('deckShare');
 }
 // Liste lisible de noms, raccourcie au-delà de `max`.
 const namesLine = (ids, max = 6) => ids.slice(0, max).map(nameOf).join(', ') + (ids.length > max ? ` ${tp(ids.length - max, 'et {n} autre', 'et {n} autres')}` : '');
@@ -415,7 +421,7 @@ function buildFrom(d, what) {
   if (ui.account.decks.length >= maxDecks()) { ui.error = what === 'code' ? t('{max} decks au plus : supprimez-en un pour importer ce code.', { max: maxDecks() }) : t('{max} decks au plus : supprimez-en un pour construire cette recette.', { max: maxDecks() }); render(); return; }
   const fit = fitDeck(d, ui.account), skip = fit.missing.unknown;
   editDeck(null, 'decks');
-  Object.assign(ui.edit, { ...fit.deck, name: fit.deck.name || ui.edit.name });
+  Object.assign(ui.edit, { ...fit.deck, name: fit.deck.name || ui.edit.name, from: what });
   ui.deckStep = [0, 1, 2].filter(i => stepOpen(ui.edit, i)).pop();
   ui.msg = [fit.complete ? t('Vous avez tout : vérifiez le deck puis enregistrez-le.') : t('{missing} Complétez avec vos cartes, ou enregistrez-le incomplet pour le finir plus tard.', { missing: missingLine(fit) }),
     skip ? tp(skip, '{n} élément inconnu ou pas encore sorti ignoré.', '{n} éléments inconnus ou pas encore sortis ignorés.') : ''].filter(Boolean).join(' ');
@@ -441,7 +447,7 @@ function openFromNotif(where) {
 
 // ---- Profil ----
 function openProfile(tab = 'profil') {
-  ui.screen = 'profile'; ui.profileTab = tab; ui.error = ''; ui.msg = ''; ui.nameDraft = ui.account.name; ui.profile = null; ui.notifs.note = ''; render();
+  ui.screen = 'profile'; ui.profileTab = tab; ui.error = ''; ui.msg = ''; ui.nameDraft = ui.account.name; ui.profile = null; ui.notifs.note = ''; gameHistory.reset(); render();
   notifs.load();
   call('GET', '/api/profile').then(r => { if (r) { ui.profile = r.stats; ui.progressInfo = { achievements: r.achievements, collection: r.collection }; render(); } });
 }
@@ -1046,6 +1052,8 @@ function sendEmote(id) {
   ui.emotePick = false;
   if (Date.now() - ui.emoteAt < EMOTE_COOLDOWN_MS) { ui.msg = t('Une émote à la fois : attendez un instant.'); msgFades(); render(); return; }
   ui.emoteAt = Date.now(); ui.ctrl?.emote?.(id); play('pick'); render();
+  // Une émote en ligne passe par le serveur, qui la compte ; contre l'IA, la partie tourne dans la page.
+  if (ui.ctrl && !ui.ctrl.online) track('emote', id);
 }
 function toggleEmoteMute() {
   ui.emoteMute = !ui.emoteMute; ui.emotePick = false;
@@ -1708,7 +1716,7 @@ function achievementsHTML() {
       ${x.done ? '' : `<div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(x.value, x.goal)}%"></span></div><small class="num">${x.value}/${x.goal}</small></div>`}</div>`).join('')}</div>`).join('')}</div>`;
 }
 // Profil en onglets : le haut (image, pseudo, niveau) reste, la rubrique change en dessous.
-const PROFILE_TABS = [['profil', t('Profil')], ['collection', t('Collection')], ['perso', t('Personnalisation')], ['succes', t('Succès')]];
+const PROFILE_TABS = [['profil', t('Profil')], ['historique', t('Historique')], ['collection', t('Collection')], ['perso', t('Personnalisation')], ['succes', t('Succès')]];
 function renderProfile() {
   const a = ui.account, st = ui.profile, p = prog();
   const sets = SETS.filter(s => s.cards.length && setRevealed(s)).map(s => { const n = s.cards.filter(owned).length, pct = Math.round(100 * n / s.cards.length);
@@ -1722,7 +1730,8 @@ function renderProfile() {
     <div class="gal-h">${t('Cartes')}</div>${cardStatsHTML((st.cards || []).map(c => ({ ...c, level: myLevel(c.id), border: myBorder(c.id), art: mySel(c.id) })),
       st.generals[0] && { ...st.generals[0], level: myLevel(st.generals[0].id), border: myBorder(st.generals[0].id), art: mySel(st.generals[0].id) })}
     ${st.generals.length ? `<div class="gal-h">${t('Par général')}</div><div class="statlist">${st.generals.map(g => `<div class="row"><span style="flex:1">${esc(g.name)}</span><span class="num hint">${tp(g.games, '{n} partie', '{n} parties')}</span><b class="num">${g.rate} %</b></div>`).join('')}</div>` : ''}
-    ${st.recent.length ? `<div class="gal-h">${t('Dernières parties')}</div><div class="statlist">${st.recent.map(r => `<div class="row"><b class="res ${r.result}">${RES[r.result]}</b><span style="flex:1">${t('contre {foe}', { foe: esc(r.foe) })} <small class="hint">· ${esc(r.deck || '')}</small></span><small class="hint num">${new Date(r.at).toLocaleDateString(locale())}</small></div>`).join('')}</div>`
+    ${st.recent.length ? `<div class="gal-h">${t('Dernières parties')}</div><div class="statlist">${st.recent.map(r => `<div class="row"><b class="res ${r.result}">${RES[r.result]}</b><span style="flex:1">${t('contre {foe}', { foe: esc(r.foe) })} <small class="hint">· ${esc(r.deck || '')}</small></span><small class="hint num">${new Date(r.at).toLocaleDateString(locale())}</small></div>`).join('')}</div>
+      <div class="row"><button class="btn" data-act="profile-tab" data-tab="historique">${t('Voir l\'historique détaillé')}</button></div>`
       : `<p class="hint" style="margin:0">${t('Aucune partie jouée pour l\'instant.')}</p>`}`;
   const tab = PROFILE_TABS.some(([id]) => id === ui.profileTab) ? ui.profileTab : 'profil';
   const tabBtn = ([id, label]) => `<button role="tab" data-act="profile-tab" data-tab="${id}" class="${tab === id ? 'on' : ''}" aria-selected="${tab === id}">${label}</button>`;
@@ -1745,6 +1754,7 @@ function renderProfile() {
     collection: () => `<div class="card-box"><div><span class="eyebrow">${t('Collection')}</span><h2 style="font-size:22px">${tp(complete, '{n} set complété', '{n} sets complétés')}</h2></div>
       <p class="hint" style="margin:0">${t('{n} cartes sur {total}, généraux compris.', { n: OWNABLE.filter(owned).length, total: OWNABLE.filter(id => !hiddenCard(id)).length })}</p>${sets}${ui.progressInfo ? familiesHTML() : `<p class="wait">${t('Chargement…')}</p>`}
       <div class="row"><button class="btn" data-act="collection">${t('Voir mes cartes')}</button></div></div>`,
+    historique: gameHistory.tab,
     perso: customizeHTML,
     succes: () => (ui.progressInfo ? achievementsHTML() : `<p class="wait">${t('Chargement…')}</p>`),
   }[tab]();
@@ -1879,6 +1889,7 @@ function sheetHTML() {
   const st = story.sheet(); if (st) return st;
   if (ui.sheet === 'friend-deck') return friends.deckSheet();
   if (ui.sheet === 'player' && ui.player) return playerSheet();
+  if (ui.sheet === 'game') return gameHistory.sheet();
   if (ui.sheet === 'log' && ui.view) {
     const names = ui.view.names;
     const lines = ui.view.log.map(l => `<div class="${l.kind}">${esc(renderLog(l, ui.view.seat, names))}</div>`).join('');
@@ -2401,7 +2412,7 @@ app.addEventListener('click', e => {
   if (ds.act) {
     const a = ds.act;
     if (a === 'friends' && ui.sheet === 'play-friend') { ui.sheet = null; ui.error = ''; }
-    if (friends.click(a, ds) || mail.click(a, ds) || clan.click(a, ds) || boss.click(a, ds) || story.click(a, ds) || notifs.click(a)) return;
+    if (friends.click(a, ds) || mail.click(a, ds) || clan.click(a, ds) || boss.click(a, ds) || story.click(a, ds) || gameHistory.click(a, ds) || notifs.click(a)) return;
     if (a === 'close') closeSheet();
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
@@ -2508,7 +2519,7 @@ app.addEventListener('click', e => {
   if (ds.theme !== undefined && !ui.busy) { equip({ theme: ds.theme || null }, t('Thème changé.')); return; }
   if (ds.back && !ui.busy) { equip({ back: ds.back }, t('Dos de carte changé.')); return; }
   if (ds.fam !== undefined) { ui.colFam = ds.fam; render(); return; }
-  if (ds.zoom) { const [kind, id, art] = ds.zoom.split(':'); const back = ui.sheet === 'codex' || ui.sheet === 'player' ? ui.sheet : null; openZoom({ kind, id, art: art || null }); ui.zoomBack = back; ui.msg = ''; render(); return; }
+  if (ds.zoom) { const [kind, id, art] = ds.zoom.split(':'); const back = ui.sheet === 'codex' || ui.sheet === 'player' || ui.sheet === 'game' ? ui.sheet : null; openZoom({ kind, id, art: art || null }); ui.zoomBack = back; ui.msg = ''; render(); return; }
   if (ds.pick) { togglePick(ds.pick); return; }
   if (ds.tpick) { toggleTerrain(ds.tpick); return; }
   if (ds.gpick) { ui.edit.general = ds.gpick; ui.msg = '';

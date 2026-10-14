@@ -372,6 +372,8 @@ export function createAccounts(store) {
     if (!a.active) a.active = deck.id;
     keepPlayable(a);
     await store.put(a);
+    // Nouveau deck repris d'un code partagé ou d'une recette (onglet Suivi de /admin).
+    if (!old && (body?.from === 'code' || body?.from === 'recipe')) activity.count(body.from === 'code' ? 'deckImported' : 'deckRecipe');
     return { id: deck.id, account: me(a) };
   }
   async function renameDeck(a, { id, name }) {
@@ -426,7 +428,7 @@ export function createAccounts(store) {
   async function reroll(a, body) { await progress.reroll(a, body); await store.put(a); return { account: me(a) }; }
   async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
   async function equip(a, body) { await progress.equip(a, body || {}); progress.check(a); await store.put(a); return { account: me(a) }; }
-  async function buyEmote(a, body) { const emote = progress.buyEmote(a, body || {}); await store.put(a); return { emote, account: me(a) }; }
+  async function buyEmote(a, body) { const emote = progress.buyEmote(a, body || {}); await store.put(a); activity.count('emotesBought'); return { emote, account: me(a) }; }
   // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes le sont. Affiché par le panneau de fin (silent).
   async function lessonDone(a, { lesson } = {}) {
     const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l) throw new HttpError(400, msg('Leçon inconnue.'));

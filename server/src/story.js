@@ -65,6 +65,7 @@ export function createStory(store, accounts, { onChange = () => {} } = {}) {
     const reward = { kind: 'story', label: `${q.name} : ${q.chapters[i].name}`, labelMsg: msg('{quest} : {chapter}', { quest: [q.name], chapter: [q.chapters[i].name] }), ...chapterReward(q, i, c, state === 'archive') };
     progress.grant(a, reward, { silent: true });
     progress.count(a, 'storyChapters');
+    accounts.activity.count('storyChapters');
     // Une quête d'événement rejouée dans l'histoire principale ne compte plus pour les succès de quête.
     if (done && state === 'open') progress.count(a, isLimited(q) ? 'storyLimited' : 'storyCampaigns');
     await store.put(a);

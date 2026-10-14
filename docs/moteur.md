@@ -68,6 +68,7 @@ st = {
   log: [{ turn, msg, kind }],
   nextUid, order,         // compteurs : identifiant des jetons, ordre de pose
   over, result,           // fin de partie : { winner (0, 1 ou -1), reason, zones, tot }
+  trace,                  // à chaque fin de tour : { pow: puissance des zones de chaque joueur, n: cartes révélées } (historique)
   sim,                    // true dans les copies simulées par l'IA (pas de journal)
 }
 P = {
@@ -105,6 +106,10 @@ L'ordre de résolution compte : le joueur qui mène résout d'abord, zones de ga
 ## Journal
 
 Les messages du journal sont écrits une fois pour les deux joueurs avec des marqueurs : `⟦0⟧` (nom du joueur 0, ou « Vous ») et `⟦0|révèle|révélez⟧` (verbe conjugué). `renderLog(msg, siège, noms)` les remplace pour celui qui regarde.
+
+## Détail d'une partie
+
+`gameDetail(st)` résume une partie terminée pour l'historique des joueurs (pas de replay) : tours joués, `trace` (puissance des 3 zones de chaque joueur à chaque fin de tour, avant les effets de fin de partie) et, par joueur, puissance finale des zones, terrains, `cut` (nombre de cartes révélées à la fin de chaque tour, pour découper `played` tour par tour), Trésor, tours parfaits, sorts, créatures perdues, général activé. `endTurn` remplit `st.trace` hors simulation ; la copie de l'IA (`clone`) et `npm run empreinte` la laissent de côté.
 
 ## Vue d'un joueur
 

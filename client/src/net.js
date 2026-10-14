@@ -72,6 +72,7 @@ export function connectOnline(handlers, firstMsg) {
     leave: () => { send({ t: 'leave' }); stop(); },
     // Émote envoyée à l'adversaire : le serveur la renvoie aux deux joueurs (perdue si la connexion est coupée).
     emote: id => send({ t: 'emote', id }),
+    online: true,
     // Tour validé qui attend le retour de la connexion.
     queued: () => !linked && !!plan,
   };

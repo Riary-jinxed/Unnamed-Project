@@ -53,6 +53,7 @@ export function createBoss(store, accounts) {
     if (B.used >= c.attempts) throw new HttpError(409, msg('Plus de tentative aujourd\'hui ({n} par jour) : revenez demain !', { n: c.attempts }));
     B.used++; B.boss = id;
     put(a);
+    accounts.activity.count('bossRuns');
     return id;
   }
   // Fin d'une tentative : score, paliers atteints et leurs récompenses, total de la semaine.
@@ -140,6 +141,7 @@ export function createBoss(store, accounts) {
     else progress.grant(a, { [x.kind]: x.n }, { silent: true });
     progress.check(a);
     await store.put(a);
+    accounts.activity.count('bossBuys');
     return { ...view(a), account: accounts.me(a), msg: tr(langOf(a), '{name} : à vous !', { name: tr(langOf(a), x.name) }),
       got: x.kind === 'art' ? { art: id } : isCosmetic(x) ? { [x.kind]: id, label: { title: TITLES, frame: FRAMES, back: BACKS }[x.kind][id] } : null };
   }

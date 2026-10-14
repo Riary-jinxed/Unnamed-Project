@@ -58,6 +58,7 @@ export function createPush(store, accounts, { isOnline = () => false, events } =
       .then(() => { sent++; })
       .catch(e => { if (e.statusCode === 404 || e.statusCode === 410) { s.gone = true; gone = true; } else console.error(`Notification non envoyée à ${login} :`, e.statusCode || e.message); })));
     if (gone) { a.push.subs = a.push.subs.filter(s => !s.gone); await store.put(a).catch(() => {}); }
+    if (sent && PUSH_KINDS[kind]) accounts.activity.count(`pushSent:${kind}`);
     return sent;
   }
   const sendMany = (logins, kind, note) => Promise.all([...new Set(logins)].map(l => send(l, kind, note))).then(n => n.reduce((x, y) => x + y, 0));

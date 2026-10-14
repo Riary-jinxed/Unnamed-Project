@@ -14,10 +14,12 @@ export function createActivity(store) {
     days.push(d); if (days.length > KEEP_DAYS) days.splice(0, days.length - KEEP_DAYS);
     store.put(a).catch(e => console.error('Activité non enregistrée :', e));
   }
+  // key : une clé, ou plusieurs comptées ensemble (une seule écriture).
   function count(key, n = 1) {
     if (!n) return;
     const doc = { ...store.doc('compteurs') }, d = today();
-    doc[d] = { ...doc[d], [key]: (doc[d]?.[key] || 0) + n };
+    doc[d] = { ...doc[d] };
+    for (const k of [].concat(key)) doc[d][k] = (doc[d][k] || 0) + n;
     for (const k of Object.keys(doc).sort().slice(0, -KEEP_COUNTERS)) delete doc[k];
     store.putDoc('compteurs', doc).catch(e => console.error('Compteur non enregistré :', e));
   }
