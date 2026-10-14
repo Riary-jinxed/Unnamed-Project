@@ -7,6 +7,7 @@
 // Sans WebGL ou avec « réduire les animations », rien n'est chargé et fx.js garde ses effets en CSS.
 import { Application, Color, Container, Graphics, Sprite, Text, Texture, UPDATE_PRIORITY } from 'pixi.js';
 import { palette, tableLook, season } from './season.js';
+import { t } from '@jeu/engine/i18n';
 
 let table = null, over = null, root = null, ready = null, embers = null, pools = [], parts = [], glowTex = null, sparkTex = null, shardTex = null, gameBg = null;
 let mode = null;
@@ -305,27 +306,27 @@ export function ending(result) {
     rays.addChild(new Graphics().poly([0, 0, Math.cos(a - 0.09) * len, Math.sin(a - 0.09) * len, Math.cos(a + 0.09) * len, Math.sin(a + 0.09) * len]).fill({ color: 0xffffff, alpha: 0.13 })); }
   rays.tint = tint; rays.blendMode = 'add';
   const halo = new Sprite(glowTex); halo.anchor.set(0.5); halo.position.set(x, y); halo.width = halo.height = 360; halo.tint = tint; halo.blendMode = 'add'; halo.alpha = 0.7;
-  const label = result === 'win' ? 'Victoire' : result === 'lose' ? 'Défaite' : 'Égalité';
+  const label = result === 'win' ? t('Victoire') : result === 'lose' ? t('Défaite') : t('Égalité');
   const L = tableLook(), cyber = season() === 'cyber';
-  const t = new Text({ text: label.toUpperCase(), style: { fontFamily: L.font, fontWeight: '900', fontSize: cyber ? 44 : 52, fill: result === 'win' ? (cyber ? 0xfcee0a : 0xfff0c0) : 0xf1e6cf,
+  const head = new Text({ text: label.toUpperCase(), style: { fontFamily: L.font, fontWeight: '900', fontSize: cyber ? 44 : 52, fill: result === 'win' ? (cyber ? 0xfcee0a : 0xfff0c0) : 0xf1e6cf,
     stroke: { color: cyber ? 0x05070f : 0x1a0c04, width: 6 }, letterSpacing: 6, ...(cyber ? { dropShadow: { color: 0x19e6ff, blur: 0, distance: 4, angle: Math.PI, alpha: 0.8 } } : {}) } });
-  t.anchor.set(0.5); t.position.set(x, y);
+  head.anchor.set(0.5); head.position.set(x, y);
   // Défaite : un voile rouge sombre gagne les bords de l'écran.
   const veil = result === 'lose' ? new Sprite(glowTex) : null;
   if (veil) { veil.anchor.set(0.5); veil.position.set(x, innerHeight / 2); veil.width = innerWidth * 2.4; veil.height = innerHeight * 2.4; veil.tint = 0x3a0804; veil.alpha = 0; c.addChild(veil); }
-  c.addChild(rays, halo, t);
+  c.addChild(rays, halo, head);
   if (result === 'win') {
     // Victoire : le titre frappe en grandissant, éclair doré et onde de choc.
     flash(0xffe0a0, 0.3);
-    tween(900, k => { const e = ease(k); t.scale.set(1.8 - 0.8 * e); t.alpha = e; rays.alpha = e; halo.alpha = 0.7 * e; });
+    tween(900, k => { const e = ease(k); head.scale.set(1.8 - 0.8 * e); head.alpha = e; rays.alpha = e; halo.alpha = 0.7 * e; });
     setTimeout(() => { if (c.destroyed) return; const g = new Graphics().circle(0, 0, 60).stroke({ width: 5, color: 0xffffff }); g.position.set(x, y); g.tint = tint; g.blendMode = 'add'; c.addChild(g);
       tween(700, k => { g.scale.set(0.5 + ease(k) * 4); g.alpha = 1 - k; }, () => g.destroy()); }, 260);
   } else if (result === 'lose') {
     // Défaite : le titre tombe d'en haut, lourd, rebondit à peine et secoue l'écran ; les rayons s'allument lentement.
-    tween(700, k => { const e = k < 0.7 ? Math.pow(k / 0.7, 2) : 1 - Math.sin((k - 0.7) / 0.3 * Math.PI) * 0.06; t.y = y - 120 * (1 - e); t.alpha = Math.min(1, k * 3); t.rotation = (1 - Math.min(1, k / 0.7)) * -0.08; },
+    tween(700, k => { const e = k < 0.7 ? Math.pow(k / 0.7, 2) : 1 - Math.sin((k - 0.7) / 0.3 * Math.PI) * 0.06; head.y = y - 120 * (1 - e); head.alpha = Math.min(1, k * 3); head.rotation = (1 - Math.min(1, k / 0.7)) * -0.08; },
       () => { shake(5, 320); for (let i = 0; i < 16; i++) spawn(shardTex, x + rnd(-120, 120), y + 26, { tint: 0x6a5a4a, blend: 'normal', vx: rnd(-2, 2), vy: rnd(-2.5, -0.5), g: 0.15, spin: rnd(-0.2, 0.2), rot: rnd(0, TAU), scale: rnd(0.4, 0.8), ttl: rnd(30, 50) }); });
     tween(1600, k => { const e = ease(k); rays.alpha = e * 0.7; halo.alpha = 0.5 * e; veil.alpha = 0.55 * e; });
-  } else tween(900, k => { const e = ease(k); t.alpha = e; t.scale.set(1.15 - 0.15 * e); rays.alpha = e; halo.alpha = 0.7 * e; });
+  } else tween(900, k => { const e = ease(k); head.alpha = e; head.scale.set(1.15 - 0.15 * e); rays.alpha = e; halo.alpha = 0.7 * e; });
   // Tant que le résultat reste à l'écran : poussière d'or qui monte du titre (victoire), cendres qui tombent (défaite).
   over.ticker.add(function spin(tk) {
     if (c.destroyed) { over.ticker.remove(spin); return; }
