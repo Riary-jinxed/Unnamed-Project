@@ -108,10 +108,10 @@ export function createAccounts(store) {
   // Version du catalogue de cartes publié : l'appli recharge les cartes quand elle change.
   let catalogVersion = 0;
   // Courrier (mail.js) : messages non lus ou récompenses à récupérer, pour la pastille de l'accueil.
-  let mailCount = () => 0, bossTile = () => null, storyTile = () => null;
+  let mailCount = () => 0, newsCount = () => 0, bossTile = () => null, storyTile = () => null;
   // boss : résumé du boss mondial de la semaine pour l'accueil (boss.js, branché par setBossTile) ; storyTile : la quête d'histoire à suivre (story.js).
   // Textes composés par le moteur (missions, rangs…) : dans la langue du joueur (a.lang).
-  const me = a => inLang(a, () => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), boss: bossTile(a), storyTile: storyTile(a), tutoShards: progress.cfg().tutoShards }));
+  const me = a => inLang(a, () => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), news: newsCount(a), boss: bossTile(a), storyTile: storyTile(a), tutoShards: progress.cfg().tutoShards }));
   // Langue de l'appli du joueur (en-tête X-Lang) : rangée sur son compte pour ses notifications et ses textes ; enregistrée seulement quand elle change.
   function setLang(a, lang) { if (!lang || langOf(a) === lang) return; a.lang = lang; store.put(a).catch(e => console.error('Langue non enregistrée :', e)); }
   // Les nouvelles cartes rapportent de l'XP et peuvent compléter une famille ou un set.
@@ -583,7 +583,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, buyEssenceFrame, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setNewsCount: f => { newsCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, buyEssenceFrame, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminWelcome, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
