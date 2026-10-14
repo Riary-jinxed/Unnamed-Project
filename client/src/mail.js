@@ -3,10 +3,11 @@
 // Un code cadeau se saisit dans le courrier et dans la boutique.
 import { api } from './api.js';
 import { esc } from './common.js';
+import { t, tp, tField, locale } from '@jeu/engine/i18n';
 
 const ENVELOPE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';
-const frDay = iso => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-const frDate = d => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+const frDay = iso => new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'long' });
+const frDate = d => new Date(`${d}T12:00:00Z`).toLocaleDateString(locale(), { day: 'numeric', month: 'long', timeZone: 'UTC' });
 
 // app : ce que main.js prête au courrier (état ui, render, call, errLine, rewardItem, play).
 export function createMail(app) {
@@ -48,49 +49,49 @@ export function createMail(app) {
     const on = m.open === x.id;
     return `<article class="card-box mailmsg kind-${x.kind} ${x.read ? '' : 'unread'}">
       <button class="mailhead" data-act="mail-open" data-id="${x.id}" aria-expanded="${on}">
-        <span class="eyebrow">${esc(x.kindName)} · ${frDay(x.at)}</span>
-        <b>${x.read ? '' : '<span class="mdot" aria-label="Non lu"></span>'}${esc(x.title)}</b>
-        ${pending(x) ? '<span class="chip gift">Cadeau à récupérer</span>' : x.reward ? '<span class="chip ok">Récupéré ✓</span>' : ''}</button>
-      ${on ? `${x.body ? `<p class="mailbody">${esc(x.body).replace(/\n/g, '<br>')}</p>` : ''}
-        ${x.reward ? `<div class="rewards">${app.rewardItem({ label: 'Récompense', ...x.reward })}</div>` : ''}
-        ${x.until ? `<p class="hint" style="margin:0">Jusqu'au ${frDate(x.until)}.</p>` : ''}
-        <div class="row">${pending(x) ? `<button class="btn primary" data-act="mail-claim" data-id="${x.id}" ${ui.busy ? 'disabled' : ''}>Récupérer</button>` : ''}
-          ${pending(x) ? '' : `<button class="btn sm" data-act="mail-hide" data-id="${x.id}" ${ui.busy ? 'disabled' : ''}>Supprimer</button>`}</div>` : ''}
+        <span class="eyebrow">${esc(t(x.kindName))} · ${frDay(x.at)}</span>
+        <b>${x.read ? '' : `<span class="mdot" aria-label="${t('Non lu')}"></span>`}${esc(tField(x, 'title'))}</b>
+        ${pending(x) ? `<span class="chip gift">${t('Cadeau à récupérer')}</span>` : x.reward ? `<span class="chip ok">${t('Récupéré ✓')}</span>` : ''}</button>
+      ${on ? `${x.body ? `<p class="mailbody">${esc(tField(x, 'body')).replace(/\n/g, '<br>')}</p>` : ''}
+        ${x.reward ? `<div class="rewards">${app.rewardItem({ label: t('Récompense'), ...x.reward })}</div>` : ''}
+        ${x.until ? `<p class="hint" style="margin:0">${t('Jusqu\'au {date}.', { date: frDate(x.until) })}</p>` : ''}
+        <div class="row">${pending(x) ? `<button class="btn primary" data-act="mail-claim" data-id="${x.id}" ${ui.busy ? 'disabled' : ''}>${t('Récupérer')}</button>` : ''}
+          ${pending(x) ? '' : `<button class="btn sm" data-act="mail-hide" data-id="${x.id}" ${ui.busy ? 'disabled' : ''}>${t('Supprimer')}</button>`}</div>` : ''}
     </article>`;
   }
 
   // Formulaire du code cadeau, dans le courrier et dans la boutique.
   const codeForm = () => `<form class="card-box codeform" id="gift-form">
-    <div class="field"><label class="eyebrow" for="gift-code">Code cadeau</label>
-      <input id="gift-code" maxlength="24" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Entrez votre code" value="${esc(m.code)}"></div>
-    <p class="hint" style="margin:0">Les codes sont donnés pendant les événements et sur nos réseaux. Chacun ne sert qu'une fois par compte.</p>
-    <div class="row"><button class="btn primary" type="submit" ${ui.busy || !m.code.trim() ? 'disabled' : ''}>Valider le code</button></div></form>`;
+    <div class="field"><label class="eyebrow" for="gift-code">${t('Code cadeau')}</label>
+      <input id="gift-code" maxlength="24" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${t('Entrez votre code')}" value="${esc(m.code)}"></div>
+    <p class="hint" style="margin:0">${t('Les codes sont donnés pendant les événements et sur nos réseaux. Chacun ne sert qu\'une fois par compte.')}</p>
+    <div class="row"><button class="btn primary" type="submit" ${ui.busy || !m.code.trim() ? 'disabled' : ''}>${t('Valider le code')}</button></div></form>`;
 
   function screen() {
     const L = m.list, waiting = L ? L.filter(pending).length : 0;
-    return `<div class="top"><span class="title">Courrier</span><button class="btn" data-act="home">Retour</button></div>
+    return `<div class="top"><span class="title">${t('Courrier')}</span><button class="btn" data-act="home">${t('Retour')}</button></div>
     ${app.errLine()}
-    ${waiting > 1 ? `<div class="card-box booster ready"><div><span class="eyebrow">Cadeaux</span><h2 style="font-size:20px">${waiting} récompenses à récupérer</h2></div>
-      <button class="btn primary" data-act="mail-claim-all" ${ui.busy ? 'disabled' : ''}>Tout récupérer</button></div>` : ''}
-    ${!L ? '<p class="wait">Chargement…</p>' : L.length ? `<div class="maillist">${L.map(item).join('')}</div>`
-      : '<div class="card-box"><p class="hint" style="margin:0">Aucun message pour l\'instant. Les annonces, les événements et les cadeaux de l\'équipe arriveront ici.</p></div>'}
+    ${waiting > 1 ? `<div class="card-box booster ready"><div><span class="eyebrow">${t('Cadeaux')}</span><h2 style="font-size:20px">${tp(waiting, '{n} récompense à récupérer', '{n} récompenses à récupérer')}</h2></div>
+      <button class="btn primary" data-act="mail-claim-all" ${ui.busy ? 'disabled' : ''}>${t('Tout récupérer')}</button></div>` : ''}
+    ${!L ? `<p class="wait">${t('Chargement…')}</p>` : L.length ? `<div class="maillist">${L.map(item).join('')}</div>`
+      : `<div class="card-box"><p class="hint" style="margin:0">${t('Aucun message pour l\'instant. Les annonces, les événements et les cadeaux de l\'équipe arriveront ici.')}</p></div>`}
     ${codeForm()}`;
   }
 
   // Ce qu'on vient de recevoir (message ou code cadeau).
   function gotSheet() {
-    const extra = r => (r.card && r.cardFresh === false ? `<p class="hint" style="margin:0">Vous aviez déjà cette carte : elle devient ${r.cardShards} Éclats et de l'essence.</p>` : '');
-    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1" role="dialog" aria-label="Récompenses reçues"><div class="ph"><h2>Récupéré</h2><button class="btn" data-act="close">Fermer</button></div>
+    const extra = r => (r.card && r.cardFresh === false ? `<p class="hint" style="margin:0">${t('Vous aviez déjà cette carte : elle devient {n} Éclats et de l\'essence.', { n: r.cardShards })}</p>` : '');
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1" role="dialog" aria-label="${t('Récompenses reçues')}"><div class="ph"><h2>${t('Récupéré')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
       <div class="rewards">${(m.got || []).map(r => app.rewardItem(r) + extra(r)).join('')}</div>
-      ${(m.got || []).some(r => r.boosters) ? '<p class="hint" style="margin:0">Les boosters offerts s\'ouvrent dans la boutique, les coffres d\'arts dans son onglet Arts.</p>'
-        : (m.got || []).some(r => r.chests) ? '<p class="hint" style="margin:0">Les coffres d\'arts offerts s\'ouvrent dans la boutique, onglet Arts.</p>' : ''}
-      <div class="row"><button class="btn primary" data-act="close">Super !</button></div></div></div>`;
+      ${(m.got || []).some(r => r.boosters) ? `<p class="hint" style="margin:0">${t('Les boosters offerts s\'ouvrent dans la boutique, les coffres d\'arts dans son onglet Arts.')}</p>`
+        : (m.got || []).some(r => r.chests) ? `<p class="hint" style="margin:0">${t('Les coffres d\'arts offerts s\'ouvrent dans la boutique, onglet Arts.')}</p>` : ''}
+      <div class="row"><button class="btn primary" data-act="close">${t('Super !')}</button></div></div></div>`;
   }
 
   // Enveloppe de l'accueil.
   function button() {
     const n = ui.account?.mail || 0;
-    return `<button class="btn icon mailbtn" data-act="mail" aria-label="Courrier${n ? `, ${n} nouveau${n > 1 ? 'x' : ''}` : ''}" title="Courrier">${ENVELOPE}${n ? `<span class="badge num">${n}</span>` : ''}</button>`;
+    return `<button class="btn icon mailbtn" data-act="mail" aria-label="${n ? tp(n, 'Courrier, {n} nouveau', 'Courrier, {n} nouveaux') : t('Courrier')}" title="${t('Courrier')}">${ENVELOPE}${n ? `<span class="badge num">${n}</span>` : ''}</button>`;
   }
 
   function click(a, ds) {
