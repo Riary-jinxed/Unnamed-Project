@@ -33,4 +33,23 @@ Cartes renforcées
 
 Les decks préconstruits sont désormais bien plus proches les uns des autres. Dites-nous ce que vous en pensez en jeu !`,
   },
+  {
+    id: 'maj-equilibrage-2',
+    title: 'Mise à jour : équilibrage des sets 1 et 2',
+    body: `Deuxième passe d'équilibrage, d'après vos parties et de nouvelles simulations entre IA.
+
+Correctifs
+• Les effets « Début de partie » des généraux (Vael'Thar, L'Érudit, Ysmera, L'Intendant) se déclenchent bien.
+• Une partie pouvait se figer quand une zone se retrouvait avec 5 créatures après un déplacement : c'est corrigé.
+
+Généraux
+• Ignaroth le Dévoreur : 3 fois par partie, si vous gardez au moins 1 sceau, le Dragon le plus cher de votre main coûte 1 de moins et gagne +1. Il ne touche plus tous les Dragons de la main et du deck à chaque tour.
+• Snagg, Maître de la Horde : répartit la puissance de la Horde détruite, plus 3, entre vos autres Hordes.
+
+Cartes
+• Seigneur des os : puissance 7 (au lieu de 8).
+• Prière : la créature gagne +X+1 (au lieu de +X).
+
+Dites-nous ce que vous en pensez en jeu !`,
+  },
 ];
