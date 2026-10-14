@@ -13,6 +13,7 @@ import { startTutorial, LESSONS } from './tutorial.js';
 import { codexHTML } from './codex.js';
 import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
+import { createNotifs } from './notifs.js';
 import { createClan, crestHTML } from './clan.js';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
@@ -60,6 +61,8 @@ const friends = createFriends({ ui, render: () => render(), call: (...x) => call
 const mail = createMail({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), rewardItem: r => rewardItem(r), play: (...x) => play(...x) });
 // Clans (clan.js) : création, adhésion, missions de clan, dons, magasin et classement des clans.
 const clan = createClan({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), avatarHTML: (...x) => avatarHTML(...x), ico: k => ico(k), play: (...x) => play(...x) });
+// Notifications push (notifs.js) : réglées dans le profil ; en toucher une ouvre l'écran qu'elle annonce.
+const notifs = createNotifs({ ui, render: () => render(), call: (...x) => call(...x), open: where => openFromNotif(where) });
 
 // ---- Contrôleurs (en ligne / IA) ----
 const handlers = {
@@ -187,7 +190,7 @@ const MENU = ['loading', 'login', 'starter'];
 const menuScreen = () => (ui.account ? (ui.account.starter ? 'home' : 'starter') : ui.auth ? 'loading' : 'login');
 function setAccount(a) {
   ui.account = a;
-  friends.start();
+  friends.start(); notifs.sync();
   if (a.catalog !== catalogVersion) loadCatalog();
   if (MENU.includes(ui.screen)) ui.screen = a.starter ? 'home' : 'starter';
 }
@@ -232,7 +235,8 @@ async function doLogin() {
 }
 function doLogout() {
   const token = ui.auth; signedOut(); render();
-  api('POST', '/api/logout', {}, token).catch(() => {});
+  // Cet appareil cesse d'abord de recevoir les notifications du compte (il faut encore la session pour le dire au serveur).
+  notifs.forget(token).finally(() => api('POST', '/api/logout', {}, token).catch(() => {}));
 }
 // Affiche les cartes reçues (booster du jour, booster ou carte achetés en boutique).
 // Un booster s'ouvre d'abord comme en vrai (opening.js) : paquet à déchirer, cartes retournées une à une ; le récapitulatif suit.
@@ -332,9 +336,21 @@ async function renameDeck() {
   await call('POST', '/api/decks/rename', r);
 }
 
+// Notification touchée (notifs.js) : l'écran qu'elle annonce, sauf en pleine partie ou dans un salon.
+function openFromNotif(where) {
+  if (!ui.account?.starter || ['game', 'lobby'].includes(ui.screen)) return;
+  ui.sheet = null; ui.error = ''; ui.msg = '';
+  if (where === 'friends' || where === 'clan') { (where === 'clan' ? clan : friends).click(where, {}); return; }
+  if (where === 'ranked') { openRanked(); return; }
+  ui.screen = 'home';
+  if (where === 'calendar') { ui.sheet = 'calendar'; ui.calGot = null; }
+  render();
+}
+
 // ---- Profil ----
 function openProfile(tab = 'profil') {
-  ui.screen = 'profile'; ui.profileTab = tab; ui.error = ''; ui.msg = ''; ui.nameDraft = ui.account.name; ui.profile = null; render();
+  ui.screen = 'profile'; ui.profileTab = tab; ui.error = ''; ui.msg = ''; ui.nameDraft = ui.account.name; ui.profile = null; ui.notifs.note = ''; render();
+  notifs.load();
   call('GET', '/api/profile').then(r => { if (r) { ui.profile = r.stats; ui.progressInfo = { achievements: r.achievements, collection: r.collection }; render(); } });
 }
 async function saveName() {
@@ -1454,6 +1470,7 @@ function renderProfile() {
         <input id="music-volume" type="range" min="0" max="100" step="5" value="${Math.round(musicVolume() * 100)}" ${isMuted() ? 'disabled' : ''}></div>
       ${canVibrate() ? `<label class="check"><input type="checkbox" id="vibrations-on" ${vibrations() ? 'checked' : ''}> Vibrations en partie</label>`
         : '<p class="hint" style="margin:0">Les vibrations ne marchent que sur un téléphone Android : ni sur ordinateur, ni sur iPhone.</p>'}</div>
+    ${notifs.html()}
     <div class="card-box"><div><span class="eyebrow">Statistiques</span><h2 style="font-size:22px">Victoires</h2></div>${stats}</div>`,
     collection: () => `<div class="card-box"><div><span class="eyebrow">Collection</span><h2 style="font-size:22px">${complete} set${complete > 1 ? 's' : ''} complété${complete > 1 ? 's' : ''}</h2></div>
       <p class="hint" style="margin:0">${OWNABLE.filter(owned).length} cartes sur ${OWNABLE.filter(id => !hiddenCard(id)).length}, généraux compris.</p>${sets}${ui.progressInfo ? familiesHTML() : '<p class="wait">Chargement…</p>'}
@@ -2068,6 +2085,7 @@ app.addEventListener('input', e => {
 });
 app.addEventListener('change', e => {
   // Réglages du son : on fait entendre (ou sentir) le résultat tout de suite.
+  if (notifs.change(e)) return;
   if (e.target.id === 'sfx-volume') play('place');
   if (e.target.id === 'sound-on') { setMuted(!e.target.checked); play('validate'); render(); }
   if (e.target.id === 'vibrations-on') { setVibrations(e.target.checked); buzz(40); }
@@ -2090,7 +2108,7 @@ app.addEventListener('click', e => {
   if (ds.act) {
     const a = ds.act;
     if (a === 'friends' && ui.sheet === 'play-friend') { ui.sheet = null; ui.error = ''; }
-    if (friends.click(a, ds) || mail.click(a, ds) || clan.click(a, ds)) return;
+    if (friends.click(a, ds) || mail.click(a, ds) || clan.click(a, ds) || notifs.click(a)) return;
     if (a === 'close') closeSheet();
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
@@ -2223,5 +2241,6 @@ app.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') 
 const saved = store.get('session', null);
 if (saved && saved.room && saved.token) { ui.mode = 'online'; ui.room = saved.room; ui.friendFoe = saved.foe || null; ui.ctrl = connectOnline(handlers, { t: 'rejoin', room: saved.room, token: saved.token }); }
 boot();
+notifs.listen();
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register('/sw.js').catch(() => {});

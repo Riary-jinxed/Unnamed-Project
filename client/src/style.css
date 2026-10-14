@@ -986,3 +986,10 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 @keyframes evpulse { 50% { transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { .evmult, .medal { animation: none; } }
 .evtag { display: inline-block; padding: 0 6px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #2a1606; background: #f0b04a; }
+
+/* Réglages des notifications (notifs.js) : une case par sorte, avec son explication dessous. */
+.notif-kinds { display: grid; gap: 10px; }
+.notif-kind { align-items: flex-start; }
+.notif-kind input { margin-top: 2px; flex: none; }
+.notif-kind span { display: grid; gap: 2px; }
+.notif-kind small { line-height: 1.35; }

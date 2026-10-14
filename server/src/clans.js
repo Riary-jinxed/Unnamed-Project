@@ -19,13 +19,15 @@ const now = () => new Date().toISOString();
 const avatarKey = a => (a.avatar ? createHash('sha1').update(a.avatar).digest('hex').slice(0, 12) : null);
 const plural = (n, w) => `${n} ${w}${n > 1 ? 's' : ''}`;
 
-export function createClans(store, accounts) {
+// push : les notifications push (push.js), pour les demandes d'entrée et leur réponse.
+export function createClans(store, accounts, push = null) {
   const clans = store.doc('clans') || {};
   const progress = accounts.progress;
   const save = () => store.putDoc('clans', clans).catch(e => console.error('Clans non enregistrés :', e));
   const put = a => store.put(a).catch(e => console.error('Compte non enregistré :', e));
   const log = (c, text) => { c.log = [{ at: now(), text }, ...(c.log || [])].slice(0, LOG_MAX); };
   const nameOf = login => store.get(login)?.name || login;
+  const pushTo = (logins, msg) => push?.sendMany(logins, 'social', { tag: 'clan', open: 'clan', ...msg }).catch(e => console.error('Notification :', e));
   const level = c => clanLevelOf(c.xp || 0);
   const isFull = c => c.members.length >= maxMembers(level(c));
 
@@ -288,6 +290,7 @@ export function createClans(store, accounts) {
       if (c.requests.length >= MAX_CLAN_REQUESTS) throw new HttpError(409, `${c.name} a déjà trop de demandes en attente.`);
       c.requests.push(a.login); a.clanReq.push(c.id);
       msg = `Demande envoyée à ${c.name}. Le Maître, un adjoint ou un sous-chef doit l'accepter.`;
+      pushTo(c.members.filter(l => canDo(roleOf(c, l), 'requests')), { title: `Demande d'entrée dans ${c.name}`, body: `${a.name} veut rejoindre votre clan.` });
     }
     await Promise.all([save(), store.put(a)]);
     return done(a, msg);
@@ -330,6 +333,7 @@ export function createClans(store, accounts) {
     enter(c, b);
     progress.grant(b, { kind: 'clan', label: `Vous avez rejoint le clan ${c.name}` });
     await Promise.all([save(), store.put(b)]);
+    pushTo([b.login], { title: `Bienvenue dans ${c.name} !`, body: `${a.name} a accepté votre demande d'entrée.` });
     return done(a, `${b.name} a rejoint le clan.`);
   }
   async function refuse(a, { login }) {

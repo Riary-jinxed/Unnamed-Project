@@ -18,6 +18,9 @@ export function createFriends(store, accounts, rooms) {
   const online = new Map(); // identifiant → connexions de présence ouvertes
   const challenges = new Map(); // id → { id, from, to, at }
   const notify = (login, msg) => { for (const ws of online.get(login) || []) send(ws, msg); };
+  // Notifications push (push.js) : un joueur absent apprend ainsi qu'on lui demande d'être ami.
+  let push = null;
+  const pushTo = (login, msg) => push?.send(login, 'social', { tag: 'friends', open: 'friends', ...msg }).catch(e => console.error('Notification :', e));
   const status = login => (rooms.playing(login) ? 'game' : online.has(login) ? 'online' : 'off');
   // Les images de profil sont lourdes : la liste n'en donne qu'une empreinte, l'appli les demande quand elle change.
   const avatarKey = a => (a.avatar ? createHash('sha1').update(a.avatar).digest('hex').slice(0, 12) : null);
@@ -62,6 +65,7 @@ export function createFriends(store, accounts, rooms) {
     a.friendsOut.push(b.login); list(b, 'friendsIn').push(a.login);
     await save(a, b);
     notify(b.login, { t: 'friends', msg: `${a.name} vous demande en ami.` });
+    pushTo(b.login, { title: 'Demande d\'ami', body: `${a.name} vous demande en ami.` });
     return { ...view(a), msg: `Demande envoyée à ${b.name}.` };
   }
   async function accept(a, { login }) {
@@ -74,6 +78,7 @@ export function createFriends(store, accounts, rooms) {
     }
     await save(a, b);
     notify(b.login, { t: 'friends', msg: `${a.name} a accepté votre demande d'ami.` });
+    pushTo(b.login, { title: 'Nouvel ami', body: `${a.name} a accepté votre demande d'ami.` });
     return { ...view(a), msg: `${b.name} est maintenant votre ami.` };
   }
   // Refuser une demande, annuler la sienne ou retirer un ami : le lien disparaît des deux côtés.
@@ -174,6 +179,8 @@ export function createFriends(store, accounts, rooms) {
 
   return {
     handle, gone, changed, notify,
+    online: login => online.has(login),
+    setPush: p => { push = p; },
     routes: {
       'GET /api/friends': a => view(a),
       'GET /api/friends/avatars': a => avatars(a),
