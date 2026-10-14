@@ -570,7 +570,7 @@ function missionsHTML() {
     <p class="hint" style="margin:0">${t('Nouvelles missions chaque jour à minuit.')}${p.rerollsLeft ? ` ${t('Vous pouvez en changer {n} aujourd\'hui.', { n: p.rerollsLeft })}` : ''}</p>` : '';
   if (!W?.list.length) return daily;
   const bonus = gains(W.bonus);
-  return `${daily}<div class="gal-h">${t('De la semaine')}</div><p class="hint" style="margin:0">${t('Jusqu\'au {date} à minuit.', { date: esc(frDate(W.ends)) })}</p>
+  return `${daily}<div class="gal-h" id="m-week">${t('De la semaine')}</div><p class="hint" style="margin:0">${t('Jusqu\'au {date} à minuit.', { date: esc(frDate(W.ends)) })}</p>
     <div class="missions">${W.list.map((m, i) => missionRow(m, i, false)).join('')}</div>
     ${bonus ? `<p class="hint" style="margin:0">${W.bonus.got ? `✓ ${t('Bonus de la semaine reçu : {gains}', { gains: bonus })}` : t('Toutes accomplies : {gains} en bonus.', { gains: bonus })}</p>` : ''}`;
 }
@@ -1274,8 +1274,11 @@ function renderHome() {
   const quick = (act, icon, label, sub, dot = false, extra = '') => `<button class="qk ${dot ? 'todo' : ''}" data-act="${act}" ${extra}>
     <span class="qk-ico">${tabIcon(icon)}${dot ? `<span class="qk-dot${dot === true ? '' : ' num'}">${dot === true ? '' : dot}</span>` : ''}</span><b>${label}</b><small class="num">${sub}</small></button>`;
   const daily = [
-    p.missions.length || p.weekly?.list.length ? quick('missions', 'M9 4h6M9 4a2 2 0 0 0-2 2H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1a2 2 0 0 0-2-2M9 13l2 2 4-4',
+    p.missions.length ? quick('missions', 'M9 4h6M9 4a2 2 0 0 0-2 2H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1a2 2 0 0 0-2-2M9 13l2 2 4-4',
       t('Missions'), `${p.missions.length - left}/${p.missions.length}`, left || false) : '',
+    // Missions de la semaine : leur propre icône (même feuille que celles du jour, partie « De la semaine »).
+    p.weekly?.list.length ? quick('missions', 'M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
+      t('Semaine'), `${p.weekly.list.length - weekLeft}/${p.weekly.list.length}`, weekLeft || false, 'data-week="1"') : '',
     // Calendrier et bienvenue : seulement quand une récompense attend (ils s'ouvrent d'eux-mêmes une fois par visite).
     cal?.ready ? quick('calendar', 'M4 6a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 10h16M8 3v4M16 3v4',
       t('Calendrier'), cal.ready ? t('À récupérer') : `${cal.got}/${cal.days.length}`, !!cal.ready) : '',
@@ -2499,7 +2502,7 @@ app.addEventListener('click', e => {
       tryPlace(+ds.zone); }
     else if (a === 'zback') { unplace(ui.zoom.uid); ui.sheet = null; ui.zoom = null; ui.msg = ''; render(); }
     else if (a === 'zstay') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null; ui.moveSel = uid; ui.sel = null; tryPlace(boardZone(uid)); }
-    else if (a === 'log' || a === 'set' || a === 'learn' || a === 'missions') { ui.sheet = a; render(); }
+    else if (a === 'log' || a === 'set' || a === 'learn' || a === 'missions') { ui.sheet = a; render(); if (ds.week) document.getElementById('m-week')?.scrollIntoView({ block: 'start' }); }
     else if (a === 'play-friend') { ui.sheet = a; ui.error = ''; render(); }
     else if (a === 'create') goOnline('create');
     else if (a === 'join') { if (ui.joinCode.length !== 4) { ui.error = t('Le code fait 4 lettres.'); render(); } else goOnline('join'); }

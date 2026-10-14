@@ -187,4 +187,5 @@ export default {
   'Toutes les missions du passe sont faites ✓': 'All pass missions done ✓',
   'Premium ✓': 'Premium ✓',
   'Voir le passe': 'View the pass',
+  'Semaine': 'Week',
 };
