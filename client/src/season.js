@@ -1,6 +1,13 @@
 // Saison en cours (thème du passe du mois, par exemple « halloween »), écrite par main.js dans <body data-season>.
 // Les décors PixiJS (lobby-stage.js, stage-menu.js) la lisent à chaque image : changer de saison ne demande pas de recharger.
 export const season = () => document.body.dataset.season || '';
+import { MAT_LOOKS } from './mats.js';
+// Tapis de jeu choisi (mats.js), écrit par main.js dans <body data-mat> pendant une partie seulement.
+const mat = () => MAT_LOOKS[document.body.dataset.mat || ''] || null;
+// Le même objet tant que le thème et le tapis ne changent pas : stage.js redessine la table quand tableLook() change.
+const memo = new Map();
+const mixed = (kind, base, over) => { const k = `${kind}|${season()}|${document.body.dataset.mat || ''}`;
+  if (!memo.has(k)) memo.set(k, over ? { ...base, ...over } : base); return memo.get(k); };
 
 // Couleurs des décors : thème de base (braises dorées), Halloween (citrouille, violet, feux follets verts)
 // et Néon 2099 (étincelles cyan, magenta et jaune signalétique, foyer cyan).
@@ -10,10 +17,11 @@ export const PALETTE = {
   halloween: { embers: [0xff8a2a, 0xb070ff, 0x7dffb0], sparks: [0xff6a10, 0x8a3cff, 0x40d080], hearth: 0x8a3cff, spark: [0xff8a2a, 0xc890ff], fog: [0x6a4a9a, 0x3a7a5a] },
   cyber: { embers: [0x19e6ff, 0xff2bd6, 0xfcee0a], sparks: [0x0aa0c0, 0xd42bb8, 0xc8b800], hearth: 0x19e6ff, spark: [0xfcee0a, 0x60f0ff], fog: [0x1a3a7a, 0x6a1a6a] },
 };
-export const palette = () => PALETTE[season()] || PALETTE[''];
+export const palette = () => mixed('p', PALETTE[season()] || PALETTE[''], mat()?.palette);
 
 // Table de partie (stage.js) : sol, planches (deux teintes et joint), lampe au-dessus du plateau et seconde lueur en bas,
 // grille néon (cyber), pleine lune (Halloween), police et couleurs des annonces et du titre de fin.
+// Un tapis de jeu remplace la surface (sol, planches, lampe, lueurs) et ajoute son motif (draw) ; les annonces gardent le thème.
 const TABLE = {
   '': { ground: 0x140e0a, planks: [0x1c140e, 0x19110c], seam: 0x0a0604, lamp: 0xffc070, low: null, grid: null,
     font: 'Cinzel, Alegreya SC, serif', text: 0xffe8b0, stroke: 0x2a1606, band: 0x0c0806, edge: null },
@@ -22,7 +30,7 @@ const TABLE = {
   cyber: { ground: 0x05070f, planks: null, seam: null, lamp: 0x19e6ff, low: 0xff2bd6, grid: 0x19e6ff,
     font: 'Orbitron, Rajdhani, sans-serif', text: 0xfcee0a, stroke: 0x05070f, band: 0x060a16, edge: 0x19e6ff },
 };
-export const tableLook = () => TABLE[season()] || TABLE[''];
+export const tableLook = () => { const m = mat(); return mixed('t', TABLE[season()] || TABLE[''], m && { ...m.table, draw: m.draw }); };
 
 // Boutique (shop-stage.js) : velours de la vitrine (haut, bas), bandes de l'auvent, lueur de l'étal, flamme des lanternes, lueur de la vitrine.
 const SHOP = {

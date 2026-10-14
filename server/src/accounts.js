@@ -76,7 +76,7 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   // Decks préparés contre chaque boss ({ [boss]: deck }) : joués à sa place pendant les tentatives contre lui.
   bossDecks: Object.fromEntries(Object.entries(a.bossDecks || {}).map(([k, d]) => [k, cleanDeck(d)])) });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift', 'uniEssence', 'dupShop', 'lvLook', 'clanCoins', 'clanDon', 'boss', 'bossCoins', 'bossBuys', 'emoteSet', 'story'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift', 'uniEssence', 'dupShop', 'lvLook', 'clanCoins', 'clanDon', 'boss', 'bossCoins', 'bossBuys', 'emoteSet', 'story', 'mat', 'pose'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte
 // (giveEssence : au-delà du plafond, de quoi monter la carte jusqu'au niveau maximum, de l'essence universelle).
@@ -429,6 +429,7 @@ export function createAccounts(store) {
   async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
   async function equip(a, body) { await progress.equip(a, body || {}); progress.check(a); await store.put(a); return { account: me(a) }; }
   async function buyEmote(a, body) { const emote = progress.buyEmote(a, body || {}); await store.put(a); activity.count('emotesBought'); return { emote, account: me(a) }; }
+  async function buyBoard(a, body) { const got = progress.buyBoard(a, body || {}); await store.put(a); activity.count(['boardBought', `board:${got.kind}:${got.id}`]); return { got, account: me(a) }; }
   // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes le sont. Affiché par le panneau de fin (silent).
   async function lessonDone(a, { lesson } = {}) {
     const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l) throw new HttpError(400, msg('Leçon inconnue.'));
@@ -572,7 +573,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, buyBoard, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminWelcome, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -612,6 +613,7 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/shop/dup': (a, body) => accounts.buyDup(a, body || {}),
     'POST /api/shop/essence-art': (a, body) => accounts.buyEssenceArt(a, body),
     'POST /api/shop/emote': (a, body) => accounts.buyEmote(a, body),
+    'POST /api/shop/board': (a, body) => accounts.buyBoard(a, body),
     'POST /api/essence/convert': (a, body) => accounts.convertEssence(a, body),
     'POST /api/calendar/claim': a => accounts.claimDay(a),
     'POST /api/welcome/claim': a => accounts.claimWelcome(a),

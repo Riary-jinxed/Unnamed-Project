@@ -6,7 +6,7 @@ export const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)')
 
 // Plateau PixiJS (stage.js) : chargé au premier écran, seulement avec WebGL et sans « réduire les animations ».
 // Tant qu'il n'est pas prêt, ou s'il ne peut pas l'être, chaque effet garde sa version en CSS ci-dessous.
-let stage = null, gens = null, coach = null, coachWant = null, scene = null, entering = Promise.resolve(false);
+let stage = null, gens = null, cards = null, coach = null, coachWant = null, scene = null, entering = Promise.resolve(false);
 // WebGL disponible ? Testé une seule fois pour toute l'appli, et le contexte d'essai est aussitôt rendu : chaque essai en
 // créait un que le navigateur ne libère qu'au ramasse-miettes, et au-delà de 16 il retire les plus anciens, ceux des décors.
 let glOk = null;
@@ -23,7 +23,7 @@ export function setInGame(app, on) {
     if (scene !== want) return;
     // Les généraux (portrait vivant, effet de pouvoir propre à chacun), les effets des cartes et le décor des menus viennent avec le plateau.
     entering = Promise.all([import('./stage.js'), import('./stage-generals.js'), import('./stage-menu.js'), import('./stage-cards.js'), import('./stage-coach.js')])
-      .then(([m, g, mm, mc, co]) => m.enter(app, scene).then(ok => { if (!ok) return; stage = m; gens = g; coach = co; g.start(); mm.start(); mc.start(); if (scene !== want) m.enter(app, scene); coachGuide(coachWant); }))
+      .then(([m, g, mm, mc, co]) => m.enter(app, scene).then(ok => { if (!ok) return; stage = m; gens = g; cards = mc; coach = co; g.start(); mm.start(); mc.start(); if (scene !== want) m.enter(app, scene); coachGuide(coachWant); }))
       .catch(err => { console.warn('Plateau PixiJS indisponible', err); return false; });
   };
   if (stage || on) go(); else (window.requestIdleCallback || (f => setTimeout(f, 1200)))(go, { timeout: 2500 });
@@ -123,6 +123,8 @@ export function confetti() {
 // Effets sans équivalent CSS, joués seulement sur le plateau PixiJS : étincelles et impact d'une carte révélée
 // (tremblement si sa puissance est grande), éclats d'une carte détruite, traînée d'une carte glissée, fin de partie.
 export function sparkle(el, power = 0) { const st = staged(); if (st && el) { st.reveal(el, famOf(el) || null); st.impact(el, famOf(el) || null, power); } }
+// Effet de pose (board.js) d'une carte déjà à l'écran : celui de l'adversaire, quand sa carte se révèle (stage-cards.js).
+export function poseAt(el, style) { if (staged() && cards && el) cards.poseAt(el, style); }
 export function shards(rect) { const st = staged(); if (st && rect) st.shatter(rect); }
 export function trail(x, y) { if (Math.random() < 0.5) staged()?.trail(x, y); }
 export function ending(result) { staged()?.ending(result); }

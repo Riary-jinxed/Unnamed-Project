@@ -269,6 +269,16 @@ EMBLEMS.croc = () => { const g = new Graphics();
   g.rect(-38, -62, 76, 14).fill(0x4a4a56).stroke(ink(3.5)); for (const x of [-26, 0, 26]) g.circle(x, -55, 3.5).fill(0xd8dde4).stroke(ink(1.5));
   return g; };
 
+// Grimoire (rayon Plateau) : un livre ouvert, un signet rouge et une étoile qui s'en échappe.
+EMBLEMS.livre = () => { const g = new Graphics();
+  g.moveTo(0, -30).quadraticCurveTo(-30, -44, -60, -36).lineTo(-60, 34).quadraticCurveTo(-30, 26, 0, 40).closePath().fill(0xf4ead2).stroke(ink(4));
+  g.moveTo(0, -30).quadraticCurveTo(30, -44, 60, -36).lineTo(60, 34).quadraticCurveTo(30, 26, 0, 40).closePath().fill(0xe8dcc0).stroke(ink(4));
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++) g.moveTo(s * 10, -18 + i * 13).quadraticCurveTo(s * 30, -26 + i * 13, s * 50, -22 + i * 13).stroke({ width: 2.5, color: 0x8a7a5a, cap: 'round' });
+  g.moveTo(0, -30).lineTo(0, 40).stroke(ink(3));
+  g.rect(18, 26, 9, 34).fill(0xb0282a).stroke(ink(2.5)); g.poly([18, 60, 22.5, 54, 27, 60]).fill(INK);
+  star(g, 0, -62, 14, 5, 0.42).fill(0xfff3cf).stroke(ink(3));
+  return g; };
+
 // ---- Dos de carte (240 × 336) ----
 // bg : dégradé du fond (haut, bas) ; ray : rayons ; rim : filet ; med : fond du médaillon ; pattern : motif sous la trame ; night : voile du Crépuscule.
 const FAMILY_BACKS = {
@@ -296,6 +306,11 @@ FAMILY_BACKS.clan_forteresse = { bg: [0x5a6070, 0x16181e], ray: 0x7a8090, rim: 0
 
 // Boss mondial : le croc du trophée sur fond de braises.
 FAMILY_BACKS.boss_trophee = { bg: [0x6a1e10, 0x140504], ray: 0x9a3418, rim: 0xffb04a, med: 0x2a0806, emblem: 'croc', glow: 0xff7a2a };
+
+// Rayon Plateau de la boutique (board.js) : velours et sceau d'or, grimoire sous les étoiles, vitrail aux ailes d'ange.
+FAMILY_BACKS.velours = { bg: [0x7a1424, 0x22040a], ray: 0xa02a3a, rim: 0xf3d27a, med: 0x3a0812, emblem: 'sceau', glow: 0xf3d27a };
+FAMILY_BACKS.grimoire = { bg: [0x2a3a5a, 0x0a1020], ray: 0x3a4a70, rim: 0xc8d8ff, med: 0x141c34, emblem: 'livre', night: true, pattern: null };
+FAMILY_BACKS.vitrail = { bg: [0x1a2a4a, 0x0a0a18], ray: 0, rim: 0xf3d27a, med: 0x1a1a3a, emblem: 'ailes', pattern: 'vitrail', glow: 0xfff3cf };
 
 function panelShape(g, inset, r) { return g.roundRect(inset, inset, BACK_W - inset * 2, BACK_H - inset * 2, r); }
 function backFrame(c, t, inner) {
@@ -325,6 +340,13 @@ function pattern(body, t) {
     for (let i = 0; i < 26; i++) { let x = Math.round(rnd() * 12) * 20, y = Math.round(rnd() * 17) * 20; g.moveTo(x, y);
       for (let s = 0; s < 3; s++) { rnd() < 0.5 ? (x += (rnd() < 0.5 ? -1 : 1) * 40) : (y += (rnd() < 0.5 ? -1 : 1) * 40); g.lineTo(x, y); }
       g.stroke({ width: 2, color: 0x19c8e6, alpha: 0.45 }); g.circle(x, y, 3.5).fill({ color: 0x7cffff, alpha: 0.7 }); }
+  } else if (t.pattern === 'vitrail') {
+    // verre coloré en losanges, sertis de plomb, plus clair au centre comme traversé par le jour
+    const cols = [0xc8283a, 0x2a5ac8, 0xe8b830, 0x2a9a5a, 0x7a3ac8], S = 30;
+    for (let y = -S, r = 0; y < BACK_H + S; y += S / 2, r++) for (let x = r % 2 ? 0 : S / 2; x < BACK_W + S; x += S) {
+      const d = Math.hypot(x - BACK_W / 2, y - BACK_H / 2) / 200;
+      g.poly([x, y - S / 2, x + S / 2, y, x, y + S / 2, x - S / 2, y]).fill({ color: cols[Math.floor(rnd() * cols.length)], alpha: 0.85 - d * 0.4 }).stroke({ width: 3, color: INK, alpha: 0.9 });
+    }
   } else rays(g, t);
   if (t.night) {
     for (let i = 0; i < 40; i++) { const x = rnd() * BACK_W, y = rnd() * BACK_H, r = 0.8 + rnd() * 1.6; g.circle(x, y, r).fill({ color: 0xffffff, alpha: 0.5 + rnd() * 0.5 }); }

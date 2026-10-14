@@ -69,7 +69,7 @@ async function init() {
   const cloud = cloudTexture();
   fog = [0, 1].map(i => { const f = new Sprite(cloud); f.anchor.set(0.5); f.alpha = 0.09; f.tint = i ? 0xd8b890 : 0xa0b0c0; table.stage.addChild(f); return Object.assign(f, { phase: i * 3, speed: i ? 0.00011 : 0.00007 }); });
   embers = new Container(); table.stage.addChild(embers);
-  // Table du thème affiché (tableLook de season.js) : planches de bois, ou grille néon pour Néon 2099. Redessinée quand le thème change.
+  // Table du thème affiché (tableLook de season.js) : planches de bois, grille néon pour Néon 2099, ou le tapis de jeu choisi. Redessinée quand le thème ou le tapis change.
   let drawnLook = null;
   const drawTable = () => {
     const w = innerWidth, h = innerHeight, L = drawnLook = tableLook(); wood.clear().rect(0, 0, w, h).fill({ color: L.ground });
@@ -83,6 +83,8 @@ async function init() {
       for (let y = 0, k = 0; y < h; k++, y += 18 + k * 1.5) wood.rect(0, h - y, w, 1).fill({ color: L.grid, alpha: 0.05 + 0.1 * (1 - y / h) });
       for (let x = (w / 2) % 32; x < w; x += 32) wood.rect(x, 0, 1, h).fill({ color: L.grid, alpha: 0.06 });
     }
+    // tapis de jeu choisi (mats.js) : son motif par-dessus le sol
+    L.draw?.(wood, w, h);
     lamp.tint = L.lamp; lamp.position.set(w / 2, h * 0.42); lamp.width = w * 1.6; lamp.height = h * 1.1;
     low.visible = !!L.low; if (L.low) { low.tint = L.low; low.position.set(w / 2, h * 1.02); low.width = w * 1.8; low.height = h * 0.7; }
     if (L.moon) {

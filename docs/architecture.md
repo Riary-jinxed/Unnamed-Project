@@ -21,6 +21,7 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `@jeu/engine/arts` | `arts.js` | Arts alternatifs : catalogue, raretés, arts Promo, offres du jour, coffre, prix en Prismes. |
 | `@jeu/engine/events` | `events.js` | Événements temporaires : bonus (XP, points de classé, Éclats, XP de saison), périodes (week-end, dernier week-end, dernière semaine du mois, dates), multiplicateur du jour. |
 | `@jeu/engine/emotes` | `emotes.js` | Émotes en partie : catalogue (offertes, boutique, succès), taille du sélecteur, limites d'envoi, réponses de l'IA. |
+| `@jeu/engine/board` | `board.js` | Cosmétiques du plateau : tapis de jeu, effets de pose et dos du rayon Plateau (prix, objets gagnés par succès), possession et choix par défaut. |
 | `@jeu/engine/pass` | `pass.js` | Passe de saison : saisons (cartes, cosmétiques, missions, arts Promo), paliers gratuits et premium, missions du jour et de la semaine. |
 
 ## Carte des fichiers
