@@ -429,15 +429,15 @@ export function createAccounts(store) {
   async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
   async function equip(a, body) { await progress.equip(a, body || {}); progress.check(a); await store.put(a); return { account: me(a) }; }
   async function buyEmote(a, body) { const emote = progress.buyEmote(a, body || {}); await store.put(a); activity.count('emotesBought'); return { emote, account: me(a) }; }
-  // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes celles de son groupe le sont (leçons de base,
-  // tutoriel avancé). Affiché par le panneau de fin (silent).
+  // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes les leçons de base le sont (le tutoriel avancé
+  // ne rapporte que des Éclats). Affiché par le panneau de fin (silent).
   async function lessonDone(a, { lesson } = {}) {
     const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l) throw new HttpError(400, msg('Leçon inconnue.'));
     progress.init(a);
     const done = a.tuto ||= [];
     if (done.includes(l.id)) return { reward: null, account: me(a) };
     done.push(l.id);
-    const r = progress.cfg(), all = TUTO_LESSONS.filter(x => !!x.advanced === !!l.advanced).every(x => done.includes(x.id));
+    const r = progress.cfg(), all = !l.advanced && TUTO_LESSONS.filter(x => !x.advanced).every(x => done.includes(x.id));
     const reward = { kind: 'tuto', label: `Leçon finie : ${l.name}`, labelMsg: msg('Leçon finie : {name}', { name: [l.name] }), shards: r.tutoShards, boosters: all ? r.tutoBoosters : 0, all };
     progress.grant(a, reward, { silent: true });
     await store.put(a);

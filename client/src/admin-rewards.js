@@ -23,7 +23,7 @@ const GROUPS = [
     ['weeklyBonusPrisms', 'Prismes : toutes les missions de la semaine accomplies'],
     ['familyShards', 'Éclats : famille complétée dans un set'],
     ['setShards', 'Éclats : set complété'], ['setBoosters', 'Boosters offerts : set complété'],
-    ['tutoShards', 'Éclats : leçon du tutoriel finie (une fois par leçon)'], ['tutoBoosters', 'Boosters offerts : toutes les leçons finies (de base, puis du tutoriel avancé)'],
+    ['tutoShards', 'Éclats : leçon du tutoriel finie (une fois par leçon)'], ['tutoBoosters', 'Boosters offerts : toutes les leçons de base finies'],
   ]],
   ['Niveaux de carte', 'Purement cosmétiques. Chaque doublon donne de l\'essence de la carte (en plus des Éclats par doublon de l\'onglet Boutique) ; essence et Éclats font monter la carte : bronze, argent, or, puis astral avec un effet de mise en jeu. Une fois l\'essence d\'une carte au plafond (de quoi la monter au niveau 5), ses doublons donnent de l\'essence universelle.', [
     ['essencePerDuplicate', 'Essence par doublon'],

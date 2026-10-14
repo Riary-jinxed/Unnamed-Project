@@ -58,7 +58,7 @@ export const DEFAULT_REWARDS = {
   passTierXp: 400, passXpWin: 60, passXpLoss: 30, passBonusXp: 800, passBonusShards: 100, passBonusPrisms: 6, passBonusEssence: 10, passDaily: 2, passWeekly: 4, passXpDaily: 150, passXpWeekly: 500, passPrice: 100,
   passShards: 40, passPrisms: 10, passChests: 1, passPremiumPrisms: 4, passPremiumChests: 1, passCardMonths: 3,
   // Tutoriel : Éclats pour chaque leçon finie la première fois, boosters offerts quand toutes le sont (TUTO_LESSONS).
-  tutoShards: 25, tutoBoosters: 1,  // tutoBoosters : une fois pour les leçons de base, une fois pour celles du tutoriel avancé.
+  tutoShards: 25, tutoBoosters: 1,
 };
 export const REWARD_LIMITS = {
   xpBase: [10, 100000], xpStep: [0, 100000], xpCap: [10, 1000000], levelShards: [0, 100000], boosterEvery: [0, 100],
@@ -83,7 +83,8 @@ export const REWARD_LIMITS = {
 };
 
 // Leçons du tutoriel (client/src/tutorial.js, mêmes identifiants), dans l'ordre d'« Apprendre ». Chacune récompensée une fois.
-// advanced : tutoriel avancé, dont les leçons finies toutes ensemble offrent leurs propres boosters.
+// advanced : tutoriel avancé (une mécanique de famille par leçon), qui ne compte pas pour les boosters offerts.
+// Une nouvelle mécanique de famille mérite sa leçon : voir docs/recettes.md.
 export const TUTO_LESSONS = [
   { id: 'initiation', name: 'Initiation' }, { id: 'effets', name: 'Effets et sorts' }, { id: 'terrains', name: 'Terrains et déplacements' },
   { id: 'generaux', name: 'Généraux' }, { id: 'complet', name: 'Partie complète' },

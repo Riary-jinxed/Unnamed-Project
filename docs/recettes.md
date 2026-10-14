@@ -30,6 +30,11 @@ Les données locales sont dans `server/data/` : supprimez ce dossier pour repart
 Une carte qui reprend simplement l'effet d'une carte existante avec d'autres chiffres peut aussi se créer depuis `/admin` (onglet Cartes), sans toucher au code.
 
 Une nouvelle mécanique se décrit aussi dans le codex (`client/src/codex.js`) et dans `KEYWORDS` (`client/src/common.js`).
+Une nouvelle mécanique de famille mérite aussi sa leçon dans le tutoriel avancé : une entrée `advanced: true` dans `LESSONS`
+(`client/src/tutorial.js`, sur le modèle des leçons existantes : 4 tours, decks et pioches fixés, adversaire qui joue toujours pareil)
+et la même dans `TUTO_LESSONS` (`packages/engine/src/rewards.js`), puis ses textes anglais (`npm run i18n`). Rejouez la leçon en
+suivant le guide pour vérifier que chaque consigne correspond à ce qui se passe. Les leçons ne sont pas cachées avant la sortie d'un
+set : n'ajoutez celle d'un set qu'à sa sortie.
 
 Une carte ne doit jamais être retirée du code tant que des joueurs la possèdent : leurs collections et leurs decks la référencent par son identifiant.
 

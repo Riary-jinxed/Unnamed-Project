@@ -1972,7 +1972,7 @@ function sheetHTML() {
       <p class="hint" style="margin:0">${t('Séraphine vous guide pendant une partie contre l\'IA, avec un deck prêt à jouer. Chaque leçon finie rapporte des Éclats la première fois, et un booster vous attend quand elles le sont toutes.')}</p>
       <div class="lessons">${lessons(false)}</div>
       <div class="gal-h">${t('Tutoriel avancé')}</div>
-      <p class="hint" style="margin:0">${t('Une mécanique de famille par leçon : Trésor, Sacrifice, Relève, Drain, Sortilège… Un autre booster vous attend quand vous les avez toutes finies.')}</p>
+      <p class="hint" style="margin:0">${t('Une mécanique de famille par leçon : Trésor, Sacrifice, Relève, Drain, Sortilège…')}</p>
       <div class="lessons">${lessons(true)}</div>
       <div class="row"><button class="btn" data-act="codex">${t('Codex des mots-clés')}</button><button class="btn" data-act="set">${t('Toutes les cartes')}</button></div></div></div>`;
   }
@@ -2037,7 +2037,7 @@ function sheetHTML() {
     const zs = [0, 1, 2].map(z => `<div class="${['', 'me', 'foe'][zoneSide(ui.view, z)]}"><div class="eyebrow">${t(ZONE_NAMES[z])}</div>${t('<b>{a}</b> contre {b}', { a: ui.view.me.zonePower[z], b: ui.view.foe.zonePower[z] })}</div>`).join('');
     if (ui.mode === 'tuto') return `<div class="sheet"><div class="panel end"><h2>${title}</h2><p style="margin:0">${esc(reason)}.</p><div class="zs">${zs}</div>
       <p style="margin:0">${esc(ui.ctrl?.endText || '')}</p>${ui.tutoReward ? `<div class="rewards">${rewardItem(ui.tutoReward)}</div>
-      ${ui.tutoReward.boosters ? `<p class="hint" style="margin:0">${LESSONS[ui.ctrl?.lesson]?.advanced ? t('Toutes les leçons du tutoriel avancé sont finies : votre booster offert vous attend sur l\'accueil.') : t('Toutes les leçons sont finies : votre booster offert vous attend sur l\'accueil.')}</p>` : ''}` : ''}<div class="row">
+      ${ui.tutoReward.boosters ? `<p class="hint" style="margin:0">${t('Toutes les leçons sont finies : votre booster offert vous attend sur l\'accueil.')}</p>` : ''}` : ''}<div class="row">
       ${nextLesson() ? `<button class="btn primary" data-act="tuto" data-lesson="${nextLesson()}">${t('Leçon suivante : {title}', { title: esc(t(LESSONS[nextLesson()].title)) })}</button>` : ''}
       <button class="btn ${nextLesson() ? '' : 'primary'}" data-act="quit">${ui.account?.starter ? (nextLesson() ? t('Arrêter le tuto') : t('Retour à l\'accueil')) : (nextLesson() ? t('Passer : choisir mon deck') : t('Choisir mon deck'))}</button><button class="btn" data-act="again">${t('Rejouer la leçon')}</button>
       ${ui.account?.starter ? `<button class="btn" data-act="codex">${t('Ouvrir le codex')}</button>` : ''}</div></div></div>`;
