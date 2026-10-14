@@ -1,0 +1,41 @@
+/* Cadres animés : un calque ::before posé sur le cadre (l'anneau fixe vient de cosmetics-art.js, ou du dégradé ci-dessous sans WebGL).
+   Seuls transform et opacity bougent : le navigateur anime le calque sur la carte graphique, sans redessiner la page,
+   ce qui reste léger sur téléphone même avec plusieurs cadres à l'écran (classements, membres du clan).
+   Le calque déborde de 14 % comme l'image du cadre : dans son masque (closest-side), le trou du portrait s'arrête à 66 %
+   et l'anneau à 82 %. Rien ne bouge dans les petites pastilles (.swatch) ni avec « réduire les animations ». */
+.frame.frame-boss_comete, .frame.frame-boss_brasier { position: relative; isolation: isolate; }
+.frame.frame-boss_comete::before, .frame.frame-boss_brasier::before { content: ""; position: absolute; inset: -14%; border-radius: 50%; pointer-events: none; }
+.frame.swatch::before { display: none; }
+
+/* Comète : une tête claire et sa traîne font le tour de l'anneau, par-dessus. */
+.frame-boss_comete { background: radial-gradient(circle, #fff 0 1px, transparent 2px) 0 0 / 6px 6px, linear-gradient(135deg, #141c44, #2a3a7a 50%, #6a7ad0); box-shadow: 0 0 9px rgb(106 138 255 / .6); }
+.frame.frame-boss_comete::before {
+  z-index: 1;
+  background:
+    radial-gradient(4.5% 4.5% at 50% 13.1%, #fff 0 30%, rgb(255 240 190 / .9) 55%, transparent),
+    conic-gradient(transparent 0 55%, rgb(120 150 255 / .05) 62%, rgb(170 200 255 / .4) 88%, rgb(255 244 210 / .95) 99.6%, transparent 99.7%);
+  -webkit-mask: radial-gradient(closest-side, transparent 62%, #000 67%, #000 81%, transparent 86%);
+  mask: radial-gradient(closest-side, transparent 62%, #000 67%, #000 81%, transparent 86%);
+  animation: frame-orbit 3.6s linear infinite;
+}
+
+/* Brasier : derrière l'anneau, une lueur qui vacille et des braises qui tourbillonnent autour. */
+.frame-boss_brasier { background: conic-gradient(from 180deg, #ffcf4a, #f06a1f, #4a3a34, #f06a1f, #ffcf4a); box-shadow: 0 0 10px rgb(255 90 26 / .65); }
+.frame.frame-boss_brasier::before {
+  z-index: -1;
+  background:
+    radial-gradient(3.4% 3.4% at 65.4% 7.7%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
+    radial-gradient(2.8% 2.8% at 95.9% 37.7%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
+    radial-gradient(3.2% 3.2% at 83.7% 78.3%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
+    radial-gradient(2.7% 2.7% at 41.8% 96.3%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
+    radial-gradient(3.6% 3.6% at 9.2% 69.0%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
+    radial-gradient(2.9% 2.9% at 8.4% 26.0%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
+    radial-gradient(2.6% 2.6% at 34.3% 6.8%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
+    radial-gradient(closest-side, transparent 76%, rgb(255 130 30 / .9) 85%, rgb(255 80 20 / .45) 93%, transparent);
+  animation: frame-orbit 9s linear infinite, frame-flicker 1.7s steps(1, end) infinite;
+}
+
+@keyframes frame-orbit { to { transform: rotate(1turn); } }
+@keyframes frame-flicker { 0% { opacity: 1; } 18% { opacity: .72; } 30% { opacity: .95; } 47% { opacity: .6; } 60% { opacity: .9; } 78% { opacity: .7; } 88% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) { .frame.frame-boss_comete::before, .frame.frame-boss_brasier::before { animation: none; } }

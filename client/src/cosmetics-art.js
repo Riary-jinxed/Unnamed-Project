@@ -662,6 +662,21 @@ FRAMES.boss_crocs = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 4)
     const [x, y] = pt(C, C, RB - 4, a); k.position.set(x, y); k.rotation = a + Math.PI / 2; g.addChild(k); }
   ring(g, METAL.fer); beads(g, 10, (RH + RB) / 2, 0xd8dde4, 3, -Math.PI / 2);
   gem(g, C, C - RB + 2, 15, 0xff6a1a, 0xffd080); };
+// Cadres animés du magasin du boss : l'anneau fixe est dessiné ici, le mouvement (comète qui tourne, braises qui
+// tourbillonnent et lueur qui vacille) est un calque CSS posé par frames-anim.css.
+FRAMES.boss_comete = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2).stroke({ width: 12, color: 0xffffff }), 0x6a8aff, 10, 0.7));
+  ring(g, METAL.nuit); const rnd = seeded(5);
+  for (let i = 0; i < 30; i++) { const [x, y] = pt(C, C, RH + 3 + rnd() * (RB - RH - 6), rnd() * TAU); g.circle(x, y, 0.7 + rnd() * 1.4).fill(0xffffff); }
+  beads(g, 8, (RH + RB) / 2, 0xe3b552, 3.5, Math.PI / 8);
+  star(g, C, C - RB + 2, 16, 4, 0.35).fill(0xfff3cf).stroke(ink(2.5)); };
+FRAMES.boss_brasier = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 6).stroke({ width: 16, color: 0xffffff }), 0xff5a1a, 14, 0.8));
+  ring(g, METAL.fer);
+  // Fêlures de lave sur l'anneau, et le bord intérieur en fusion.
+  for (const [a0, a1] of [[0.2, 0.75], [1.3, 1.9], [2.5, 3.0], [3.6, 4.3], [4.8, 5.5]]) {
+    add(g, glow(() => arc(new Graphics(), C, C, (RH + RB) / 2, a0, a1).stroke({ width: 6, color: 0xffffff, cap: 'round' }), 0xff8a2a, 5, 1));
+    arc(g, C, C, (RH + RB) / 2, a0, a1).stroke({ width: 3, color: 0xffcf4a, cap: 'round' }); }
+  g.circle(C, C, RH + 3).stroke({ width: 3, color: 0xffb02a });
+  gem(g, C, C - RB + 2, 14, 0xff6a1a, 0xffd080); };
 export function drawFrame(id) {
   const f = FRAMES[id]; if (!f) return null;
   const c = new Container(), g = layers(); f(g); c.addChild(g.root);

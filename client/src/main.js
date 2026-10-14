@@ -9,6 +9,7 @@ import './halloween.css';
 import './clan.css';
 import './boss.css';
 import './story.css';
+import './frames-anim.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog, bossBoost } from '@jeu/engine';
 import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, setById, setOf, setRevealed, unrevealed, allowedGenerals, allowedTerrains, starterGenerals, deckError, deckCode, readDeckCode, fitDeck, recipeKeys, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder, today } from '@jeu/engine/collection';
 import { api } from './api.js';

@@ -125,6 +125,8 @@ export default {
   'Cadre du blason': 'Crest frame',
   'Cadre du héraut': "Herald's frame",
   'Cadre des crocs': 'Fang frame',
+  'Cadre de la comète': 'Comet frame',
+  'Cadre du brasier': 'Blaze frame',
   'Cadre du vitrail': 'Stained-glass frame',
   'Cadre des saisons': 'Seasons frame',
   "Cadre de l'Éclipse": 'Eclipse frame',
