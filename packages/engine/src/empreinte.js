@@ -12,7 +12,7 @@ Math.random = () => {
 };
 const { DECKS, GENERALS, newGame, startTurn, aiPlan, runTurn, viewFor } = await import('./engine.js');
 
-const rounds = +process.argv[2] || 1, keys = Object.keys(DECKS), gens = Object.keys(GENERALS);
+const rounds = +process.argv[2] || 1, keys = Object.keys(DECKS), gens = Object.keys(GENERALS).filter(g => !GENERALS[g].boss);
 const hash = createHash('sha256'), t0 = Date.now();
 let n = 0;
 for (let r = 0; r < rounds; r++) for (const a of keys) for (const b of keys) {
