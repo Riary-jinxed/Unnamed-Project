@@ -46,7 +46,7 @@ const gainOf = r => (r ? { xp: r.xp || 0, shards: r.shards || 0, ...(r.ranked ? 
 // Partie enregistrée : champs de base (stats de /admin) plus le détail pour l'historique des joueurs.
 function withDetail(game, detail, { kind, ms, rewards = [], result = {} } = {}) {
   const d = detail && cleanDetail(detail);
-  return { id: gameId(), ...game, kind, ...(ms > 0 ? { ms: Math.round(ms) } : {}), ...(result.forfeit ? { forfeit: true } : {}),
+  return { id: gameId(), ...game, kind, ...(ms > 0 ? { ms: Math.round(ms) } : {}), ...(result.forfeit ? { forfeit: true } : {}), ...(result.interrupted ? { interrupted: true } : {}),
     ...(Array.isArray(result.zones) ? { zones: result.zones.slice(0, 3).map(z => ([0, 1, -1].includes(z) ? z : -1)) } : {}),
     ...(d ? { turns: d.turns, trace: d.trace } : {}),
     players: game.players.map((P, i) => ({ ...P, ...(d ? (({ pow, terrains, cut, treasure, perfect, spells, lost, gen, genFired }) => ({ pow, terrains, cut, treasure, perfect, spells, lost, gen, genFired }))(d.sides[i]) : {}),
@@ -83,7 +83,8 @@ export function createGames(store, accounts) {
   // Statistiques : mode « all », « pvp » ou « pve », sur les `days` derniers jours (0 = tout l'historique).
   function stats({ mode = 'all', days = 0 } = {}) {
     const since = days > 0 ? Date.now() - days * 86_400_000 : 0;
-    const games = store.games().filter(g => (mode === 'all' || g.mode === mode) && Date.parse(g.at) >= since);
+    // Parties interrompues par une mise à jour : comptées à part, hors des bilans.
+    const all = store.games().filter(g => (mode === 'all' || g.mode === mode) && Date.parse(g.at) >= since), games = all.filter(g => !g.interrupted);
     const score = (g, i) => (g.winner === i ? 1 : g.winner < 0 ? 0.5 : 0);
     const rec = () => ({ games: 0, wins: 0, losses: 0, draws: 0 });
     const tally = (r, s) => { r.games++; if (s === 1) r.wins++; else if (s === 0) r.losses++; else r.draws++; };
@@ -103,7 +104,7 @@ export function createGames(store, accounts) {
     const pct = (n, d) => (d ? Math.round(100 * n / d) : null);
     const rate = r => pct(r.wins + r.draws / 2, r.games);
     return {
-      total: games.length, pvp: games.filter(g => g.mode === 'pvp').length, pve: games.filter(g => g.mode === 'pve').length,
+      total: games.length, interrupted: all.length - games.length, pvp: games.filter(g => g.mode === 'pvp').length, pve: games.filter(g => g.mode === 'pve').length,
       vsAi: { ...vsAi, rate: rate(vsAi) },
       players: Object.values(players).map(p => ({ ...p, pvp: { ...p.pvp, rate: rate(p.pvp) }, pve: { ...p.pve, rate: rate(p.pve) } }))
         .sort((a, b) => b.pvp.games + b.pve.games - (a.pvp.games + a.pve.games)),
@@ -120,7 +121,7 @@ export function createGames(store, accounts) {
     const rec = () => ({ games: 0, wins: 0, losses: 0, draws: 0 });
     const out = { pvp: rec(), pve: rec(), all: rec() }, gens = {}, cards = {}, recent = [];
     for (const g of store.games()) {
-      const i = g.players.findIndex(P => P.login === a.login); if (i < 0) continue;
+      const i = g.players.findIndex(P => P.login === a.login); if (i < 0 || g.interrupted) continue;
       const k = g.winner === i ? 'wins' : g.winner < 0 ? 'draws' : 'losses', P = g.players[i], foe = g.players[1 - i];
       for (const r of [out[g.mode], out.all, P.general && (gens[P.general] ||= { id: P.general, name: GENERALS[P.general]?.name || P.general, ...rec() })]) if (r) { r.games++; r[k]++; }
       for (const id of P.played) if (CARDS[id] && !CARDS[id].token) cards[id] = (cards[id] || 0) + 1;
@@ -147,7 +148,9 @@ export function createGames(store, accounts) {
     // Bilan : par type de partie, par deck joué, contre chaque général adverse, séries, zones gagnées.
     const total = rec(), byKind = {}, byDeck = {}, vsGen = {};
     let best = 0, run = 0, zonesWon = 0, zonesGames = 0, sweeps = 0, time = 0, timed = 0;
-    for (const [g, i] of mine) {
+    // Une partie interrompue par une mise à jour apparaît dans la liste, mais ne compte ni dans le bilan ni dans les séries.
+    const played = mine.filter(([g]) => !g.interrupted);
+    for (const [g, i] of played) {
       const k = resOf(g, i), P = g.players[i], foe = g.players[1 - i];
       const deckKey = `${P.deck || ''}|${P.general || ''}`;
       for (const r of [total, byKind[kindOf(g)] ||= rec(), byDeck[deckKey] ||= { deck: P.deck || null, general: P.general || null, ...rec() },
@@ -158,7 +161,7 @@ export function createGames(store, accounts) {
     }
     const rate = r => ({ ...r, rate: r.games ? Math.round(100 * (r.wins + r.draws / 2) / r.games) : null });
     const games = mine.slice(-HISTORY_GAMES).reverse().map(([g, i]) => ({
-      id: g.id || `${g.at}-${i}`, at: g.at, kind: kindOf(g), mode: g.mode, ranked: !!g.ranked, result: resOf(g, i), reason: g.reason || '', ...(g.reasonMsg ? { reasonMsg: g.reasonMsg } : {}),
+      id: g.id || `${g.at}-${i}`, at: g.at, kind: kindOf(g), mode: g.mode, ranked: !!g.ranked, result: g.interrupted ? 'interrupted' : resOf(g, i), reason: g.reason || '', ...(g.reasonMsg ? { reasonMsg: g.reasonMsg } : {}),
       ...(g.forfeit ? { forfeit: true } : {}), ...(g.ms ? { ms: g.ms } : {}), ...(g.turns ? { turns: g.turns } : {}),
       // Zones et trace vues du joueur : « me », « foe » ou « tie » ; puissance [à moi, à l'adversaire].
       ...(Array.isArray(g.zones) ? { zones: g.zones.map(z => (z === i ? 'me' : z < 0 ? 'tie' : 'foe')) } : {}),
@@ -167,7 +170,7 @@ export function createGames(store, accounts) {
     }));
     return {
       games,
-      summary: { ...rate(total), streak: run, best, form: mine.slice(-10).map(([g, i]) => resOf(g, i)[0]).join(''),
+      summary: { ...rate(total), streak: run, best, form: played.slice(-10).map(([g, i]) => resOf(g, i)[0]).join(''),
         zones: zonesGames ? Math.round(10 * zonesWon / zonesGames) / 10 : null, sweeps, avgMs: timed ? Math.round(time / timed) : null,
         kinds: Object.fromEntries(Object.entries(byKind).map(([k, r]) => [k, rate(r)])),
         decks: Object.values(byDeck).map(rate).sort((x, y) => y.games - x.games).slice(0, 10),

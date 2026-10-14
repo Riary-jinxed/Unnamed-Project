@@ -377,7 +377,7 @@ body:has(#app.ingame) { margin: 0; }
 .stat b { font-family: var(--display); font-size: 26px; }
 .statlist { display: grid; gap: 6px; }
 .statlist .row { gap: 8px; flex-wrap: nowrap; }
-.res.wins { color: var(--up); } .res.losses { color: var(--down); } .res.draws { color: var(--muted); }
+.res.wins { color: var(--up); } .res.losses { color: var(--down); } .res.draws, .res.interrupted { color: var(--muted); }
 .res { min-width: 7.5ch; }
 /* Historique des parties (history.js) : liste, filtre, panneau d'une partie */
 .hform { display: flex; gap: 4px; flex-wrap: wrap; }

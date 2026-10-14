@@ -226,6 +226,8 @@ Le serveur envoie aussi `friends` (avec parfois `msg`) quand la liste d'un joueu
 
 Un salon (`rooms` dans `index.js`) garde ses deux sièges (compte, deck, jeton, socket), l'état de la partie `st`, les plans reçus et les demandes de revanche. Chaque joueur joue le deck enregistré sur son compte au début de chaque partie (revanche comprise). Les plans reçus sont nettoyés par `applyPlan` : une carte absente de la main, trop chère, ou posée dans une zone pleine est ignorée, de même qu'un déplacement impossible. Les salons inactifs depuis 2 heures sont supprimés chaque minute ; ils ne survivent pas à un redémarrage du serveur.
 
+Arrêt du serveur (`SIGTERM` d'un redéploiement, ou `SIGINT`) : les parties en cours (hors boss mondial) s'arrêtent avec `interruptGame` du moteur, sont enregistrées dans l'historique avec `interrupted: true` (sans gagnant, récompense ni changement de rang, hors des bilans et des statistiques) et un dernier `state` montre l'écran « Partie interrompue » aux joueurs.
+
 ## Progression
 
 - **Fin de partie** (`progress.onGame`) : statistiques, XP et Éclats selon le mode et le résultat (pour les `gamesPerDay` premières parties du jour), avancement des missions, montée de niveau (Éclats à chaque niveau, booster offert tous les `boosterEvery` niveaux), succès.

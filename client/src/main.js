@@ -1999,7 +1999,7 @@ function sheetHTML() {
   if (ui.sheet === 'end' && ui.view?.result && ui.mode === 'story') return story.endHTML(ui.view);
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;
-    const title = r.winner === s ? t('Victoire') : r.winner < 0 ? t('Match nul') : t('Défaite');
+    const title = r.interrupted ? t('Partie interrompue') : r.winner === s ? t('Victoire') : r.winner < 0 ? t('Match nul') : t('Défaite');
     const reason = renderLog(r.reason, s, ui.view.names);
     const zs = [0, 1, 2].map(z => `<div class="${['', 'me', 'foe'][zoneSide(ui.view, z)]}"><div class="eyebrow">${t(ZONE_NAMES[z])}</div>${t('<b>{a}</b> contre {b}', { a: ui.view.me.zonePower[z], b: ui.view.foe.zonePower[z] })}</div>`).join('');
     if (ui.mode === 'tuto') return `<div class="sheet"><div class="panel end"><h2>${title}</h2><p style="margin:0">${esc(reason)}.</p><div class="zs">${zs}</div>
@@ -2010,8 +2010,8 @@ function sheetHTML() {
       ${ui.account?.starter ? `<button class="btn" data-act="codex">${t('Ouvrir le codex')}</button>` : ''}</div></div></div>`;
     return `<div class="sheet"><div class="panel end"><h2>${title}</h2><p style="margin:0">${esc(reason)}.</p>
       <div class="zs">${zs}</div>${endRewardHTML()}<div class="row">
-      <button class="btn primary" data-act="again" ${ui.rematchAsked ? 'disabled' : ''}>${ui.rematchAsked ? t('Revanche demandée…') : t('Revanche')}</button>
-      <button class="btn" data-act="quit">${t('Retour à l\'accueil')}</button><button class="btn" data-act="log">${t('Voir le journal')}</button></div></div></div>`;
+      ${r.interrupted ? '' : `<button class="btn primary" data-act="again" ${ui.rematchAsked ? 'disabled' : ''}>${ui.rematchAsked ? t('Revanche demandée…') : t('Revanche')}</button>`}
+      <button class="btn ${r.interrupted ? 'primary' : ''}" data-act="quit">${t('Retour à l\'accueil')}</button><button class="btn" data-act="log">${t('Voir le journal')}</button></div></div></div>`;
   }
   return '';
 }

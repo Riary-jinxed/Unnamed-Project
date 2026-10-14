@@ -1358,6 +1358,15 @@ export function forfeitGame(st, loser, reason) {
   log(st, '⟦{p}⟧ ⟦{p}|perd|perdez⟧ : {reason}.', 'turn', { p: loser, reason: asMsg(reason) });
 }
 
+// Partie interrompue (serveur arrêté pour une mise à jour) : elle s'arrête sans gagnant ni perdant, avec le plateau du moment.
+export function interruptGame(st, reason) {
+  st.over = true; st.phase = 'over';
+  const zones = [0, 1, 2].map(z => zoneWinner(st, z));
+  const tot = [0, 1].map(p => [0, 1, 2].reduce((s, z) => s + zonePower(st, p, z), 0));
+  st.result = { winner: -1, reason, zones, tot, interrupted: true };
+  log(st, 'Partie interrompue : {reason}.', 'turn', { reason: asMsg(reason) });
+}
+
 // Détail d'une partie terminée, pour l'historique des joueurs (pas de replay) : tours joués, puissance des zones à chaque fin de tour
 // (trace, avant les effets de fin de partie), cartes révélées tour par tour (cut : nombre de cartes de played à la fin de chaque tour),
 // et pour chaque joueur la puissance finale de ses zones, ses terrains et quelques compteurs.
@@ -1468,11 +1477,14 @@ export async function runTurn(st, plans, emit, wait) {
   const steps = revealSteps(st, gen);
   // Le bandeau « Révélation » (1,5 s côté appli) disparaît avant que la première carte soit révélée.
   emit(null); await wait(1600);
-  for (const s of steps) { const c = guard(() => doStep(st, s), s); emit(c ? c.uid : null); await wait(850); }
+  // Partie arrêtée pendant la révélation (forfait, serveur interrompu) : le tour s'arrête là, sans écraser son résultat.
+  for (const s of steps) { if (st.over) return; const c = guard(() => doStep(st, s), s); emit(c ? c.uid : null); await wait(850); }
+  if (st.over) return;
   guard(() => endTurn(st), 'endTurn');
   if (!st.over && st.turn >= turnsOf(st)) guard(() => finish(st), 'finish');
   if (st.over) { st.phase = 'over'; emit(null); return; }
   emit(null); await wait(350);
+  if (st.over) return;
   guard(() => startTurn(st), 'startTurn'); st.phase = 'plan'; emit(null);
 }
 function guard(fn, what) {

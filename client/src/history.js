@@ -8,7 +8,7 @@ import { t, tp, tMsg, locale, getLang } from '@jeu/engine/i18n';
 const KINDS = { salon: t('En ligne'), defi: t('Défi entre amis'), 'defi-classe': t('Défi classé'), 'classe-ia': t('Classé'), ia: t('Contre l\'IA') };
 const FILTERS = [['all', t('Toutes')], ['online', t('En ligne')], ['ranked', t('Classées')], ['ia', t('Contre l\'IA')]];
 const IN_FILTER = { all: () => true, online: g => g.mode === 'pvp', ranked: g => g.ranked, ia: g => g.kind === 'ia' };
-const RES = { wins: t('Victoire'), losses: t('Défaite'), draws: t('Match nul') };
+const RES = { wins: t('Victoire'), losses: t('Défaite'), draws: t('Match nul'), interrupted: t('Interrompue') };
 // Initiales de victoire, défaite, match nul.
 const [W1, L1, D1] = t('V,D,N').split(',');
 const FORM = { w: ['wins', W1], l: ['losses', L1], d: ['draws', D1] };
