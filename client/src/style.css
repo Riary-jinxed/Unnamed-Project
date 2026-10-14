@@ -380,6 +380,19 @@ body:has(#app.ingame) { margin: 0; }
 /* decks */
 .deckitem { border-left: 5px solid var(--fam, var(--f-neutre)); }
 .deckitem.active { border-color: var(--accent); border-left-color: var(--fam, var(--f-neutre)); box-shadow: inset 0 0 0 1px var(--accent); }
+.dtabs { align-self: start; }
+/* Codes de deck et recettes */
+.deckcode { box-sizing: border-box; width: 100%; font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; resize: none; background: var(--sunk); color: inherit; border: 1px solid var(--line); border-radius: var(--r); padding: 8px; }
+.recipe .rbar { height: 6px; border-radius: 3px; background: var(--sunk); overflow: hidden; }
+.recipe .rbar span { display: block; height: 100%; background: var(--fam, var(--accent)); }
+.recipe.ready .rbar span { background: var(--accent); }
+.recipe .rlist summary { cursor: pointer; font-weight: 600; }
+.recipe .rlist[open] { display: grid; gap: 6px; }
+.recipe .rlist ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px 12px; }
+.recipe .rlist li { display: flex; align-items: center; gap: 6px; }
+.recipe .rlist li .seal { width: 20px; height: 20px; font-size: 12px; flex: none; }
+.recipe .miss { opacity: .55; }
+.recipe .rlist li small { color: var(--muted, inherit); }
 .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .step { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 6px 8px; min-width: 0; text-align: left; }
 .step .sn { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--sunk); font-weight: 700; font-size: 13px; flex: none; }

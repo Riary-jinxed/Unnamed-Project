@@ -5,7 +5,7 @@ import './cyber.css';
 import './halloween.css';
 import './clan.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog } from '@jeu/engine';
-import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, setById, setRevealed, unrevealed, allowedGenerals, allowedTerrains, starterGenerals, deckError, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder, today } from '@jeu/engine/collection';
+import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, setById, setOf, setRevealed, unrevealed, allowedGenerals, allowedTerrains, starterGenerals, deckError, deckCode, readDeckCode, fitDeck, recipeKeys, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder, today } from '@jeu/engine/collection';
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
@@ -315,7 +315,8 @@ const maxDecks = () => ui.account?.maxDecks ?? MAX_DECKS;
 const stepOpen = (e, i) => i === 0 || (i === 1 ? !!e.general : !!e.general && e.terrains.length === DECK_TERRAINS);
 function editDeck(id = ui.account.active, back = 'home') {
   const d = id && deckById(id);
-  ui.edit = d ? { id: d.id, name: d.name, cards: d.cards.slice(), terrains: d.terrains.slice(), general: d.general, back }
+  // Un terrain d'un set pas encore sorti (choisi avant qu'il soit caché) est retiré : il n'apparaît pas parmi les choix.
+  ui.edit = d ? { id: d.id, name: d.name, cards: d.cards.slice(), terrains: d.terrains.filter(t => !unrevealed(t)), general: d.general, back }
     : { id: null, name: `Deck ${ui.account.decks.length + 1}`, cards: [], terrains: [], general: null, back };
   // Un deck commencé reprend à la dernière étape accessible.
   ui.deckStep = [0, 1, 2].filter(i => stepOpen(ui.edit, i)).pop();
@@ -339,6 +340,37 @@ async function renameDeck() {
   const r = ui.renaming; if (!r) return;
   ui.sheet = null; ui.renaming = null;
   await call('POST', '/api/decks/rename', r);
+}
+// Codes de deck : partager un deck (le sien ou une recette) en copiant son code, en créer un en collant celui d'un autre.
+function showDeckCode(d) { ui.shareDeck = { name: d.name, code: deckCode(d) }; ui.sheet = 'deck-code'; render(); }
+function copyDeckCode(btn) {
+  const box = document.getElementById('deck-code');
+  navigator.clipboard.writeText(ui.shareDeck.code).then(() => { btn.textContent = 'Code copié'; }).catch(() => { box?.select(); });
+}
+// Liste lisible de noms, raccourcie au-delà de `max`.
+const namesLine = (ids, max = 6) => ids.slice(0, max).map(nameOf).join(', ') + (ids.length > max ? ` et ${ids.length - max} autre${ids.length - max > 1 ? 's' : ''}` : '');
+// Ce qui manque pour reconstruire un deck avec sa collection, en une phrase.
+function missingLine({ missing: m }) {
+  const parts = [m.general && `le général ${nameOf(m.general)}`,
+    m.terrains.length && `${m.terrains.length > 1 ? 'les terrains' : 'le terrain'} ${m.terrains.map(t => TERRAINS[t].name).join(', ')} (il faut un général de leur famille)`,
+    m.cards.length && `${m.cards.length} carte${m.cards.length > 1 ? 's' : ''} : ${namesLine(m.cards)}`].filter(Boolean);
+  return parts.length ? `Il vous manque ${parts.join(' ; ')}.` : '';
+}
+// Ouvre le constructeur sur un nouveau deck rempli avec ce que la collection permet de reprendre d'un code ou d'une recette.
+function buildFrom(d, what) {
+  if (ui.account.decks.length >= maxDecks()) { ui.error = `${maxDecks()} decks au plus : supprimez-en un pour ${what === 'code' ? 'importer ce code' : 'construire cette recette'}.`; render(); return; }
+  const fit = fitDeck(d, ui.account), skip = fit.missing.unknown;
+  editDeck(null, 'decks');
+  Object.assign(ui.edit, { ...fit.deck, name: fit.deck.name || ui.edit.name });
+  ui.deckStep = [0, 1, 2].filter(i => stepOpen(ui.edit, i)).pop();
+  ui.msg = [fit.complete ? 'Vous avez tout : vérifiez le deck puis enregistrez-le.' : `${missingLine(fit)} Complétez avec vos cartes, ou enregistrez-le incomplet pour le finir plus tard.`,
+    skip ? `${skip} élément${skip > 1 ? 's' : ''} inconnu${skip > 1 ? 's' : ''} ou pas encore sorti${skip > 1 ? 's' : ''} ignoré${skip > 1 ? 's' : ''}.` : ''].filter(Boolean).join(' ');
+  ui.importCode = ''; ui.importErr = ''; render(); scrollTo(0, 0);
+}
+function importDeck() {
+  const d = readDeckCode(ui.importCode);
+  if (!d) { ui.importErr = 'Ce code de deck est illisible : copiez-le en entier, il commence par DK1-.'; render(); return; }
+  buildFrom(d, 'code');
 }
 
 // Notification touchée (notifs.js) : l'écran qu'elle annonce, sauf en pleine partie ou dans un salon.
@@ -1350,9 +1382,13 @@ function exchangeHTML(A) {
   </section>`;
 }
 
-// Liste des decks du joueur : jouer, modifier, renommer, remettre à zéro, supprimer, créer.
+// Liste des decks du joueur : jouer, modifier, renommer, partager, remettre à zéro, supprimer, créer ou importer.
+// Onglets de l'écran des decks : les decks du joueur, et les recettes (decks préconstruits à reconstruire).
+const decksTabs = cur => `<div class="seg dtabs" role="tablist" aria-label="Decks">${[['mine', 'Mes decks'], ['recettes', 'Recettes']].map(([id, label]) =>
+  `<button role="tab" data-act="decks-tab" data-tab="${id}" class="${cur === id ? 'on' : ''}" aria-selected="${cur === id}">${label}</button>`).join('')}</div>`;
 function renderDecks() {
   const a = ui.account, full = a.decks.length >= maxDecks();
+  if (ui.decksTab === 'recettes') return renderRecipes();
   const item = d => {
     const err = deckError(d, a), g = GENERALS[d.general], on = d.id === a.active;
     return `<div class="card-box deckitem ${on ? 'active' : ''}" style="${famVar([g?.fam])}">
@@ -1363,15 +1399,53 @@ function renderDecks() {
         ${on ? '' : `<button class="btn ${err ? '' : 'primary'}" data-act="deck-play" data-id="${d.id}" ${err || ui.busy ? 'disabled' : ''}>Jouer ce deck</button>`}
         <button class="btn" data-act="deck-edit" data-id="${d.id}">Modifier</button>
         <button class="btn" data-act="deck-rename" data-id="${d.id}">Renommer</button>
+        ${d.general || d.cards.length || d.terrains.length ? `<button class="btn" data-act="deck-share" data-id="${d.id}">Partager</button>` : ''}
         <button class="btn" data-act="deck-reset" data-id="${d.id}" ${ui.busy ? 'disabled' : ''}>Remettre à 0</button>
         <button class="btn" data-act="deck-delete" data-id="${d.id}" ${a.decks.length <= 1 || ui.busy ? 'disabled' : ''}>Supprimer</button>
       </div></div>`;
   };
   return `<div class="top"><span class="title">Mes decks</span><span class="chip num">${a.decks.length}/${maxDecks()}</span></div>
+  ${decksTabs('mine')}
   <p class="hint" style="margin:0">Jusqu'à ${maxDecks()} decks. Le deck joué sert en ligne et contre l'IA ; un deck incomplet est gardé mais ne peut pas être joué.</p>
   ${errLine()}
   ${a.decks.map(item).join('')}
-  <div class="row"><button class="btn primary" data-act="deck-new" ${full ? 'disabled' : ''}>Nouveau deck</button>${full ? `<span class="hint">Supprimez un deck pour en créer un autre.</span>` : ''}</div>`;
+  <div class="row"><button class="btn primary" data-act="deck-new" ${full ? 'disabled' : ''}>Nouveau deck</button>${full ? `<span class="hint">Supprimez un deck pour en créer un autre.</span>` : ''}</div>
+  <form class="card-box deckimport" id="deck-import-form">
+    <div><span class="eyebrow">Code de deck</span><h2 style="font-size:22px">Importer un deck</h2></div>
+    <p class="hint" style="margin:0">Collez le code qu'un joueur vous a partagé (bouton Partager de ses decks). Le deck est repris avec les cartes de votre collection ; ce qui vous manque est indiqué.</p>
+    <div class="field"><label class="eyebrow" for="deck-import">Code</label><input id="deck-import" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="DK1-…" value="${esc(ui.importCode || '')}"></div>
+    ${ui.importErr ? `<p class="err" role="alert" style="margin:0">${esc(ui.importErr)}</p>` : ''}
+    <div class="row"><button class="btn primary" type="submit" ${full ? 'disabled' : ''}>Importer</button>${full ? `<span class="hint">Supprimez un deck pour en importer un.</span>` : ''}</div>
+  </form>`;
+}
+// Recettes : les decks préconstruits des sets sortis, avec ce que le joueur en possède. Les plus proches d'être complets d'abord.
+function renderRecipes() {
+  const a = ui.account, full = a.decks.length >= maxDecks();
+  const list = recipeKeys().map(k => ({ k, d: DECKS[k], fit: fitDeck(DECKS[k], a) }))
+    .map(x => ({ ...x, have: x.fit.deck.cards.length + x.fit.deck.terrains.length + (x.fit.deck.general ? 1 : 0) }))
+    .sort((x, y) => y.have - x.have);
+  const item = ({ k, d, fit, have }) => {
+    const g = GENERALS[d.general], own = id => !!owned(id), tOk = t => fit.deck.terrains.includes(t);
+    return `<div class="card-box deckitem recipe ${fit.complete ? 'ready' : ''}" style="${famVar([d.fam])}">
+      <div><span class="eyebrow">${esc(d.fam)} · ${esc(setById(d.set || setOf(d.general))?.name || 'Set de base')}</span><h2 style="font-size:22px">${esc(d.name)}</h2></div>
+      <p style="margin:0">${esc(g.name)} · <span class="num">${have}/${1 + DECK_TERRAINS + DECK_SIZE}</span> en votre possession${fit.complete ? ' · <b>complet</b>' : ''}</p>
+      <div class="rbar" aria-hidden="true"><span style="width:${Math.round(100 * have / (1 + DECK_TERRAINS + DECK_SIZE))}%"></span></div>
+      ${fit.complete ? '' : `<p class="hint" style="margin:0">${esc(missingLine(fit))}</p>`}
+      <details class="rlist"><summary>Voir la recette</summary>
+        <p class="hint" style="margin:0">Général : <span class="${own(d.general) ? '' : 'miss'}">${esc(g.name)}</span></p>
+        <p class="hint" style="margin:0">Terrains : ${d.terrains.map(t => `<span class="${tOk(t) ? '' : 'miss'}">${esc(TERRAINS[t].name)}</span>`).join(', ')}</p>
+        <ul>${d.cards.slice().sort(byFamCost).map(id => `<li class="${own(id) ? '' : 'miss'}"><span class="seal">${CARDS[id].x ? 'X' : CARDS[id].cost}</span>${esc(nameOf(id))}${own(id) ? '' : ' <small>à obtenir</small>'}</li>`).join('')}</ul>
+      </details>
+      <div class="row">
+        <button class="btn ${fit.complete ? 'primary' : ''}" data-act="recipe-use" data-id="${k}" ${full ? 'disabled' : ''}>Construire ce deck</button>
+        <button class="btn" data-act="recipe-share" data-id="${k}">Partager</button>
+      </div></div>`;
+  };
+  return `<div class="top"><span class="title">Recettes</span><span class="chip num">${a.decks.length}/${maxDecks()}</span></div>
+  ${decksTabs('recettes')}
+  <p class="hint" style="margin:0">Les decks préconstruits du jeu, ceux que joue l'IA. Construisez-en un : il est repris avec les cartes de votre collection, et vous complétez ce qui manque.${full ? ` Vous avez déjà ${maxDecks()} decks : supprimez-en un pour en construire un autre.` : ''}</p>
+  ${errLine()}
+  ${list.map(item).join('')}`;
 }
 
 // Constructeur de deck en trois étapes : le général, puis les terrains, puis les cartes de la collection.
@@ -1708,6 +1782,12 @@ function sheetHTML() {
       ${errLine()}
       <div class="row"><button class="btn primary" data-act="exchange" data-id="${o.id}" ${short > 0 || ui.busy ? 'disabled' : ''}>${ico('prism')} ${o.prisms} · Changer et ${verb}</button>
         <button class="btn" data-act="shop-change">Toutes les offres</button></div></div></div>`;
+  }
+  if (ui.sheet === 'deck-code' && ui.shareDeck) {
+    return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Partager « ${esc(ui.shareDeck.name)} »</h2><button class="btn" data-act="close">Fermer</button></div>
+      <p class="hint" style="margin:0">Envoyez ce code à un ami : il le colle dans « Importer un deck » de ses decks et retrouve ce deck avec les cartes qu'il possède.</p>
+      <textarea id="deck-code" class="deckcode" readonly rows="4" spellcheck="false">${esc(ui.shareDeck.code)}</textarea>
+      <div class="row"><button class="btn primary" data-act="dcode-copy">Copier le code</button></div></div></div>`;
   }
   if (ui.sheet === 'rename' && ui.renaming) {
     return `<div class="sheet" data-act="close"><form class="panel" data-stop="1" id="rename-form"><div class="ph"><h2>Renommer le deck</h2><button class="btn" type="button" data-act="close">Fermer</button></div>
@@ -2112,6 +2192,7 @@ app.addEventListener('input', e => {
   if (e.target.id === 'login-pass') ui.loginPass = e.target.value;
   if (e.target.id === 'deck-name' && ui.edit) ui.edit.name = e.target.value;
   if (e.target.id === 'rename-input' && ui.renaming) ui.renaming.name = e.target.value;
+  if (e.target.id === 'deck-import') { ui.importCode = e.target.value; if (ui.importErr) { ui.importErr = ''; e.target.closest('form')?.querySelector('.err')?.remove(); } }
   if (e.target.id === 'profile-name') { ui.nameDraft = e.target.value; const b = e.target.form?.querySelector('[type=submit]');
     if (b) b.disabled = ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === ui.account.name; }
   if (e.target.id === 'codex-q') { ui.codexQuery = e.target.value; document.getElementById('codex-list').innerHTML = codexHTML(ui.codexQuery); }
@@ -2134,6 +2215,7 @@ app.addEventListener('submit', e => {
   if (e.target.id === 'login-form') doLogin();
   else if (e.target.id === 'name-form') saveName();
   else if (e.target.id === 'rename-form') renameDeck();
+  else if (e.target.id === 'deck-import-form') importDeck();
 });
 // Les missions repliées ou dépliées le restent d'un affichage à l'autre.
 app.addEventListener('click', e => {
@@ -2219,6 +2301,11 @@ app.addEventListener('click', e => {
     else if (a === 'home') { ui.screen = 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
     else if (a === 'decks') openDecks();
     else if (a === 'deck-new') { if (ui.account.decks.length < maxDecks()) { editDeck(null, 'decks'); render(); } }
+    else if (a === 'deck-share') { const d = deckById(ds.id); if (d) showDeckCode(d); }
+    else if (a === 'decks-tab') { ui.decksTab = ds.tab; ui.error = ''; ui.msg = ''; render(); scrollTo(0, 0); }
+    else if (a === 'recipe-use' && DECKS[ds.id]) buildFrom(DECKS[ds.id], 'recette');
+    else if (a === 'recipe-share' && DECKS[ds.id]) showDeckCode(DECKS[ds.id]);
+    else if (a === 'dcode-copy' && ui.shareDeck) copyDeckCode(t);
     else if (a.startsWith('deck-') && a !== 'deck-cancel' && !ui.busy) deckAction(a, ds.id);
     else if (a === 'deck-cancel') { ui.screen = ui.edit?.back || 'home'; ui.edit = null; ui.error = ''; ui.msg = ''; render(); }
     else if (a === 'step-next' && stepOpen(ui.edit, ui.deckStep + 1)) { ui.deckStep++; ui.msg = ''; render(); scrollTo(0, 0); }
