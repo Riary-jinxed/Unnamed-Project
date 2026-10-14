@@ -69,10 +69,12 @@ export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, n
   clan: a.clan || null, clanCoins: a.clanCoins || 0,
   // Boss mondial (boss.js) : Insignes, la monnaie de son magasin.
   bossCoins: a.bossCoins || 0,
+  // Quêtes d'histoire (story.js) : chapitres gagnés de chaque quête.
+  story: a.story || {},
   // Decks préparés contre chaque boss ({ [boss]: deck }) : joués à sa place pendant les tentatives contre lui.
   bossDecks: Object.fromEntries(Object.entries(a.bossDecks || {}).map(([k, d]) => [k, cleanDeck(d)])) });
 // Champs de progression remis à zéro avec le compte.
-const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift', 'uniEssence', 'dupShop', 'lvLook', 'clanCoins', 'clanDon', 'boss', 'bossCoins', 'bossBuys', 'emoteSet'];
+const PROGRESS_FIELDS = ['level', 'xp', 'freeBoosters', 'stats', 'achievements', 'completed', 'cosmetics', 'title', 'frame', 'back', 'uiTheme', 'inbox', 'missions', 'essence', 'cardLevels', 'prisms', 'arts', 'artSel', 'holoOff', 'popOff', 'artShop', 'freeChests', 'calendar', 'seasonPass', 'mail', 'redeemed', 'tuto', 'tutoGift', 'uniEssence', 'dupShop', 'lvLook', 'clanCoins', 'clanDon', 'boss', 'bossCoins', 'bossBuys', 'emoteSet', 'story'];
 
 // Ajoute des cartes à la collection : la première copie est gardée, chaque doublon devient des Éclats et de l'essence de la carte
 // (giveEssence : au-delà du plafond, de quoi monter la carte jusqu'au niveau maximum, de l'essence universelle).
@@ -104,9 +106,9 @@ export function createAccounts(store) {
   // Version du catalogue de cartes publié : l'appli recharge les cartes quand elle change.
   let catalogVersion = 0;
   // Courrier (mail.js) : messages non lus ou récompenses à récupérer, pour la pastille de l'accueil.
-  let mailCount = () => 0, bossTile = () => null;
-  // boss : résumé du boss mondial de la semaine pour l'accueil (boss.js, branché par setBossTile).
-  const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), boss: bossTile(a), tutoShards: progress.cfg().tutoShards });
+  let mailCount = () => 0, bossTile = () => null, storyTile = () => null;
+  // boss : résumé du boss mondial de la semaine pour l'accueil (boss.js, branché par setBossTile) ; storyTile : la quête d'histoire à suivre (story.js).
+  const me = a => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), boss: bossTile(a), storyTile: storyTile(a), tutoShards: progress.cfg().tutoShards });
   // Les nouvelles cartes rapportent de l'XP et peuvent compléter une famille ou un set.
   const add = (a, ids) => { const got = addCards(a, ids, cfg().shardsPerDuplicate, progress.essenceRate(), progress.giveEssence); return { ...got, xp: progress.onCards(a, got.fresh) }; };
   // Arts retirés du jeu (RETIRED_ARTS) : l'art quitte le compte, ses Prismes arrivent dans la boîte de récompenses.
@@ -562,7 +564,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminWelcome, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),

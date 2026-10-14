@@ -41,6 +41,7 @@ export const ART_THEMES = {
   astral: { name: 'Astrale', style: 'constellations, nébuleuses et poussière d\'étoiles, bleu nuit et or', title: 'Tisseur d\'étoiles' },
   bannieres: { name: 'Bannières', style: 'héraldique, étendards et blasons de clan, rouge, bleu et or', title: 'Seigneur des bannières' },
   chasse: { name: 'Chasse aux boss', style: 'trophées de chasse, crocs, braises et givre, lumière de forge', title: 'Tueur de boss' },
+  chroniques: { name: 'Chroniques', style: 'enluminure de manuscrit, parchemin, encre et feuille d\'or', title: 'Enlumineur' },
 };
 export const THEME_IDS = Object.keys(ART_THEMES);
 
@@ -100,6 +101,14 @@ export const ARTS = Object.fromEntries([
   A('grisk_farce', 'grisk', 'Grisk, farce ou friandise', 'legendaire', { edition: 'promo', season: '2026-10', how: 'Passe de saison Nuit des citrouilles : palier 38.' }),
   A('lirael_neon', 'lirael', 'Lirael sous les néons', 'epique', { edition: 'promo', season: '2026-11', how: 'Passe de saison Néon 2099 : palier 18.' }),
   A('vaelthar_chrome', 'vaelthar', 'Vael\'Thar chromé', 'legendaire', { edition: 'promo', season: '2026-11', how: 'Passe de saison Néon 2099 : palier 38.' }),
+  // Promo des quêtes d'histoire (story.js) : le dernier chapitre de chaque quête. Les campagnes forment la famille Chroniques ;
+  // les quêtes à durée limitée restent hors famille, pour qu'une quête manquée n'empêche jamais de compléter une famille.
+  A('grisk_razzia', 'grisk', 'Grisk, la Grande Razzia', 'epique', { edition: 'promo', theme: 'chroniques', how: 'Quête d\'histoire La Grande Razzia : dernier chapitre.' }),
+  A('sylvaen_racines', 'sylvaen', 'Sylvaën, le chant des racines', 'epique', { edition: 'promo', theme: 'chroniques', how: 'Quête d\'histoire Le Chant des Racines : dernier chapitre.' }),
+  A('morgrath_pacte', 'morgrath', 'Morgrath, le pacte des Fosses', 'epique', { edition: 'promo', theme: 'chroniques', how: 'Quête d\'histoire Le Pacte des Fosses : dernier chapitre.' }),
+  A('citrouille_lanterne', 'citrouille', 'Lanterne, la citrouille de Grisk', 'epique', { edition: 'promo', season: '2026-10', how: 'Quête La Nuit des citrouilles (octobre 2026) : dernier chapitre.' }),
+  A('seraphine_eclipse', 'seraphine', 'Séraphine, l\'aube noire', 'legendaire', { edition: 'promo', season: '2026-10', how: 'Quête L\'Éclipse noire (octobre et novembre 2026) : dernier chapitre.' }),
+  A('kaia_signal', 'kaia', 'Kaïa, signal perdu', 'legendaire', { edition: 'promo', season: '2026-11', how: 'Quête Signal perdu (novembre 2026) : dernier chapitre.' }),
 ]);
 
 // Arts retirés du jeu : les joueurs qui en avaient un le perdent et reçoivent ces Prismes (accounts.js, au démarrage du serveur).

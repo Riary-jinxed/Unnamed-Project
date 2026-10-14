@@ -20,6 +20,7 @@ import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
 import { createClans } from './clans.js';
 import { createBoss } from './boss.js';
+import { createStory } from './story.js';
 import { createPush } from './push.js';
 import { NOTES_MAJ } from './notes-maj.js';
 
@@ -55,7 +56,10 @@ games.routes['GET /api/player'] = (...x) => { const r = playerRoute(...x); r.pla
 // Boss mondial : tentatives jouées dans un salon du serveur (message « boss »), classement de la semaine, magasin.
 const boss = createBoss(store, accounts);
 accounts.setBossTile(a => boss.tile(a));
-const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...accounts.progress.events.routes, ...clans.routes, ...push.routes, ...boss.routes }, catalog.public);
+// Quêtes d'histoire : combats joués dans la page, progression et récompenses des chapitres, quêtes à durée limitée.
+const story = createStory(store, accounts);
+accounts.setStoryTile(a => story.tile(a));
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...accounts.progress.events.routes, ...clans.routes, ...push.routes, ...boss.routes, ...story.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
 // Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.
