@@ -9,6 +9,7 @@ import { gzipSync } from 'node:zlib';
 import { WebSocketServer } from 'ws';
 import { DECKS, newGame, startTurn, runTurn, viewFor, aiPlan, pick, forfeitGame } from '@jeu/engine';
 import { tierOf } from '@jeu/engine/ranked';
+import { EMOTE_COOLDOWN_MS, EMOTE_MAX, aiReply } from '@jeu/engine/emotes';
 import { deckError, aiDeckKeys } from '@jeu/engine/collection';
 import { openStore } from './store.js';
 import { createAccounts, apiHandler, activeDeck } from './accounts.js';
@@ -128,7 +129,7 @@ function startMatch(room) {
   room.st = newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => (typeof d === 'string' ? null : d.general)) });
   startTurn(room.st); room.st.phase = 'plan';
   room.plans = [null, null]; room.rematch = [false, false]; room.rewards = null;
-  room.seats.forEach((s, i) => { const acc = accounts.byToken(s.auth); if (acc) { s.badge = accounts.progress.badge(acc, decks[i]); s.avatar = acc.avatar || null; } s.avatarsSent = false; });
+  room.seats.forEach((s, i) => { const acc = accounts.byToken(s.auth); if (acc) { s.badge = accounts.progress.badge(acc, decks[i]); s.avatar = acc.avatar || null; } s.avatarsSent = false; s.emotes = 0; });
   broadcast(room);
 }
 async function resolve(room) {
@@ -285,6 +286,19 @@ function handle(ws, msg) {
     const ai = room.seats.findIndex(s => s && s.ai);
     if (ai >= 0) room.plans[ai] = aiPlan(room.st, ai, room.seats[ai].tries);
     if (room.plans[0] && room.plans[1]) resolve(room); else broadcast(room);
+    return;
+  }
+  // Émote : seulement une émote possédée, pendant la partie (fin comprise), une toutes les EMOTE_COOLDOWN_MS et EMOTE_MAX par partie.
+  // Elle part aux deux joueurs ; chacun peut couper celles de l'adversaire dans l'appli. L'IA répond parfois aux politesses.
+  if (msg.t === 'emote') {
+    const s = room.seats[ws.seat], id = String(msg.id || ''), now = Date.now();
+    if (!room.st || !s || !accounts.progress.canEmote(accounts.byToken(s.auth), id)) return;
+    if (now - (s.emoteAt || 0) < EMOTE_COOLDOWN_MS || (s.emotes || 0) >= EMOTE_MAX) return;
+    s.emoteAt = now; s.emotes = (s.emotes || 0) + 1;
+    const say = (seat, e) => room.seats.forEach(x => x && send(x.ws, { t: 'emote', seat, id: e }));
+    say(ws.seat, id);
+    const ai = room.seats.findIndex(x => x && x.ai), reply = ai >= 0 ? aiReply(id) : null;
+    if (reply) setTimeout(() => { if (rooms.get(room.code) === room) say(ai, reply); }, 1200 + Math.random() * 800);
     return;
   }
   if (msg.t === 'rematch') {

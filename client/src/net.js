@@ -21,6 +21,7 @@ export function connectOnline(handlers, firstMsg) {
       tries = 0; link(true);
       if (m.t === 'lobby') { session = { room: m.room, token: m.token }; handlers.onLobby(m); }
       else if (m.t === 'state') { view = m.view; settle(); handlers.onView(m.view, m.room); }
+      else if (m.t === 'emote') handlers.onEmote?.(m.seat, m.id);
       else if (m.t === 'error') { stop(); handlers.onError(m.msg); }
       else if (m.t === 'gone') { stop(); handlers.onGone(); }
       else if (m.t === 'left') { stop(); handlers.onLeft(); }
@@ -67,6 +68,8 @@ export function connectOnline(handlers, firstMsg) {
     submit: p => { plan = { ...p, turn: view?.turn }; send({ t: 'plan', ...plan }); },
     rematch: () => { rematch = true; send({ t: 'rematch' }); },
     leave: () => { send({ t: 'leave' }); stop(); },
+    // Émote envoyée à l'adversaire : le serveur la renvoie aux deux joueurs (perdue si la connexion est coupée).
+    emote: id => send({ t: 'emote', id }),
     // Tour validé qui attend le retour de la connexion.
     queued: () => !linked && !!plan,
   };

@@ -28,7 +28,8 @@ import { TABS, screenDir, slides, ghostScreen, ghostSheet } from './transition.j
 import { openPack, openChest } from './opening.js';
 import { setHome } from './lobby.js';
 import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
-import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL, FAMILY_REWARDS, SET_REWARDS } from '@jeu/engine/rewards';
+import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL, FAMILY_REWARDS, SET_REWARDS, ACHIEVEMENTS } from '@jeu/engine/rewards';
+import { EMOTES, EMOTE_SLOTS, EMOTE_COOLDOWN_MS, EMOTE_SHOW_MS, SHOP_EMOTES, FREE_EMOTES } from '@jeu/engine/emotes';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { EVENT_EFFECTS, multLabel } from '@jeu/engine/events';
 import { SEASONS, PASS_TIERS, SEASON_THEMES, seasonOfCard, seasonStarted, seasonStart, currentSeason, releaseMonth } from '@jeu/engine/pass';
@@ -51,7 +52,7 @@ const ui = {
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
   drag: null, fx: null, zoom: null, soloReward: null, avatars: null, player: null, friendFoe: null, rankedAi: false, rankedData: null,
-  codexQuery: '', zoomBack: null, coach: null, coachShown: null, gotArt: null, offline: false,
+  codexQuery: '', zoomBack: null, coach: null, coachShown: null, gotArt: null, offline: false, bubbles: {}, emotePick: false, emoteMute: false, emoteAt: 0,
 };
 const app = document.getElementById('app');
 // Amis et défis (friends.js) : écran, bandeau de défi, choix du deck pour une partie entre amis.
@@ -74,6 +75,8 @@ const handlers = {
     if (view.avatars) ui.avatars = view.avatars;
     ui.awayUntil = (view.away || []).map(ms => (ms == null ? null : Date.now() + ms));
     const prev = ui.screen === 'game' ? ui.view : null;
+    // Arrivée à la table : pas de bulle, sélecteur fermé ; les émotes de l'adversaire coupées si le joueur l'a choisi (Profil).
+    if (!prev) { ui.bubbles = {}; ui.emotePick = false; ui.emoteMute = !!store.get('emotes-off', false); }
     if (view.phase !== 'plan' || view.turn !== ui.lastTurn) { ui.pending = []; ui.moves = []; ui.moveSel = null; ui.genZone = null; ui.sel = null; }
     if (view.phase === 'plan' && view.turn !== ui.lastTurn) ui.msg = '';
     ui.lastTurn = view.turn; ui.view = view; ui.screen = 'game';
@@ -82,6 +85,16 @@ const handlers = {
     if (view.phase !== 'over') { ui.rematchAsked = false; if (ui.sheet === 'end') ui.sheet = null; }
     viewEffects(prev, view);
     render();
+  },
+  // Émote reçue (la sienne comprise) : une bulle à côté du joueur, sauf celles de l'adversaire quand il les a coupées.
+  onEmote(seat, id) {
+    if (!EMOTES[id] || ui.screen !== 'game' || !ui.view) return;
+    const mine = seat === ui.view.seat;
+    if (!mine && ui.emoteMute) return;
+    const b = ui.bubbles[seat] = { id, at: Date.now() };
+    if (!mine) play('emote');
+    render();
+    setTimeout(() => { if (ui.bubbles[seat] === b) { delete ui.bubbles[seat]; if (ui.screen === 'game') render(); } }, EMOTE_SHOW_MS + 30);
   },
   onError(msg) { ui.error = msg; ui.offline = false; render(); },
   // Partie en ligne : connexion perdue ou retrouvée (net.js se reconnecte seul et reprend la partie).
@@ -467,7 +480,8 @@ function missionsHTML() {
 function rewardItem(r) {
   const art = r.art && ARTS[r.art];
   const extra = [r.title ? `Titre « ${esc(titleLabel(r.title) || r.title)} »` : '', r.frame ? esc(FRAMES[r.frame] || r.frame) : '', r.back ? esc(BACKS[r.back] || r.back) : '',
-    art ? `Art Promo « ${esc(art.name)} »` : '', r.theme ? `Thème de l'interface « ${esc(SEASON_THEMES[r.theme] || r.theme)} » (Profil, Personnalisation)` : ''].filter(Boolean).join(' · ');
+    art ? `Art Promo « ${esc(art.name)} »` : '', r.theme ? `Thème de l'interface « ${esc(SEASON_THEMES[r.theme] || r.theme)} » (Profil, Personnalisation)` : '',
+    r.emote && EMOTES[r.emote] ? `Émote ${EMOTES[r.emote].icon} « ${esc(EMOTES[r.emote].text)} » (Profil, Personnalisation)` : ''].filter(Boolean).join(' · ');
   return `<div class="reward"><div><b>${esc(r.label)}</b>${gains(r) ? `<div class="num">${gains(r)}</div>` : ''}${extra ? `<div class="hint">${extra}</div>` : ''}</div>
     ${r.card ? `<button class="ccard" data-zoom="${zoomKey(r.card)}">${anyCard(r.card)}</button>` : ''}
     ${art ? `<button class="ccard" data-zoom="${zoomKey(art.card, art.id)}">${anyCard(art.card, myLevel(art.card), art.id, myBorder(art.card))}</button>` : ''}</div>`;
@@ -916,11 +930,45 @@ function pbar(side, isMe, connected, canGen = false) {
     side.perfectTurns ? `<span class="num" title="Tours finis avec tous les sceaux dépensés">Grâce ${side.perfectTurns}</span>` : '',
   ].filter(Boolean).join('');
   const ready = !isMe && ui.view.phase === 'plan' && ui.view.ready.foe;
+  const av = `${avatarHTML(who, 'pa')}${!isMe && ui.mode === 'online' ? `<span class="dot ${connected ? '' : 'off'}" title="${connected ? 'Connecté' : 'Déconnecté'}"></span>` : ''}`;
+  // Émotes (pas dans le tutoriel) : votre portrait ouvre le sélecteur, celui de l'adversaire coupe ou rétablit ses émotes.
+  const emo = ui.mode === 'online' || ui.mode === 'solo';
+  const pav = !emo ? `<span class="pav">${av}</span>` : isMe
+    ? `<button class="pav emobtn ${ui.emotePick ? 'on' : ''}" data-act="emotes" aria-haspopup="menu" aria-expanded="${ui.emotePick}" aria-label="Envoyer une émote" title="Émotes">${av}<span class="emohint" aria-hidden="true">${EMO_ICON}</span></button>`
+    : `<button class="pav emobtn" data-act="emote-mute" aria-pressed="${ui.emoteMute}" aria-label="${ui.emoteMute ? 'Rétablir' : 'Couper'} les émotes de ${esc(side.name)}" title="${ui.emoteMute ? 'Émotes coupées' : 'Couper ses émotes'}">${av}${ui.emoteMute ? `<span class="emohint off" aria-hidden="true">${MUTED_ICON}</span>` : ''}</button>`;
   return `<div class="pbar ${isMe ? 'me' : 'foe'}">
-    <span class="pav">${avatarHTML(who, 'pa')}${!isMe && ui.mode === 'online' ? `<span class="dot ${connected ? '' : 'off'}" title="${connected ? 'Connecté' : 'Déconnecté'}"></span>` : ''}</span>
+    ${pav}${bubbleHTML(seat, isMe)}${isMe && emo && ui.emotePick ? emotePickHTML() : ''}
     <div class="pid"><div class="pline"><span class="who">${isMe ? 'Vous' : esc(side.name)}</span>${b ? `<small class="lv num">niv. ${b.level}</small>` : ''}${ready ? '<span class="chip ok">Prêt</span>' : ''}${b?.title ? `<span class="ptitle">${esc(b.title)}</span>` : ''}</div>
       <div class="pstats">${stats}</div></div>
     ${ui.view.noGeneral ? '' : genSlot(side, isMe, canGen)}</div>`;
+}
+// ---- Émotes en partie ----
+const EMO_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>';
+const MUTED_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="currentColor" stroke="none" opacity=".35"/><path d="M3 3l18 18"/></svg>';
+const emoteBody = id => `<span class="ei" aria-hidden="true">${EMOTES[id].icon}</span><span class="et">${esc(EMOTES[id].text)}</span>`;
+// Bulle d'une émote à côté du joueur. Son animation (pop, puis fondu) reprend où elle en était quand la partie se redessine.
+function bubbleHTML(seat, isMe) {
+  const b = ui.bubbles[seat], t = b ? Date.now() - b.at : 0;
+  if (!b || t >= EMOTE_SHOW_MS) return '';
+  return `<div class="ebubble ${isMe ? 'me' : 'foe'}" role="status" style="animation-delay:-${t}ms">${emoteBody(b.id)}</div>`;
+}
+// Sélecteur, au-dessus de votre bandeau : vos émotes (Profil, Personnalisation), et de quoi couper celles de l'adversaire.
+function emotePickHTML() {
+  const list = prog().emotes?.length ? prog().emotes : FREE_EMOTES;
+  return `<div class="emotepick" role="menu" aria-label="Émotes">
+    <div class="emogrid">${list.filter(id => EMOTES[id]).map(id => `<button class="emo" role="menuitem" data-act="emote" data-id="${id}">${emoteBody(id)}</button>`).join('')}</div>
+    <button class="emomute ${ui.emoteMute ? 'on' : ''}" data-act="emote-mute" aria-pressed="${ui.emoteMute}">${ui.emoteMute ? MUTED_ICON : EMO_ICON}${ui.emoteMute ? 'Émotes de l\'adversaire coupées' : 'Couper les émotes de l\'adversaire'}</button></div>`;
+}
+function sendEmote(id) {
+  ui.emotePick = false;
+  if (Date.now() - ui.emoteAt < EMOTE_COOLDOWN_MS) { ui.msg = 'Une émote à la fois : attendez un instant.'; msgFades(); render(); return; }
+  ui.emoteAt = Date.now(); ui.ctrl?.emote?.(id); play('pick'); render();
+}
+function toggleEmoteMute() {
+  ui.emoteMute = !ui.emoteMute; ui.emotePick = false;
+  if (ui.emoteMute && ui.view) delete ui.bubbles[1 - ui.view.seat];
+  ui.msg = ui.emoteMute ? `Émotes de ${ui.view?.foe.name || 'l\'adversaire'} coupées pour cette partie.` : `Émotes de ${ui.view?.foe.name || 'l\'adversaire'} rétablies.`;
+  msgFades(); render();
 }
 // Tour en cours, dans la barre du haut sous le type de partie : numéro et un point par tour.
 function turnHTML(label) {
@@ -1194,13 +1242,14 @@ function renderCollection() {
 // Cadenas d'un rayon fermé.
 const LOCK = '<svg class="lockico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 function renderShop() {
-  const sh = ui.shop, a = ui.account, tab = ['arts', 'essence', 'change'].includes(ui.shopTab) && sh?.arts ? ui.shopTab : ui.shopTab === 'clan' && a.clan ? 'clan' : 'sets';
+  const sh = ui.shop, a = ui.account, tab = ['arts', 'essence', 'change'].includes(ui.shopTab) && sh?.arts ? ui.shopTab : ui.shopTab === 'emotes' ? 'emotes' : ui.shopTab === 'clan' && a.clan ? 'clan' : 'sets';
   const tabBtn = (id, label, badge) => `<button role="tab" data-act="shop-tab" data-tab="${id}" class="${tab === id ? 'on' : ''}" aria-selected="${tab === id}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
   // Rayon du clan : verrouillé (cadenas) tant que le joueur n'a pas de clan ; le toucher mène alors à l'écran des clans.
   const clanTab = a.clan ? tabBtn('clan', `${ico('ecu')}Clan`) : `<button role="tab" class="locked" data-act="clan" aria-disabled="true" title="Rejoignez un clan pour l'ouvrir">${LOCK}Clan</button>`;
   const top = `<div class="top"><span class="title">Boutique</span><span class="chip num cur" title="Éclats" aria-label="${a.shards} Éclats">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="Prismes" aria-label="${sh.arts.prisms} Prismes">${ico('prism')}${sh.arts.prisms}</span>` : ''}${tab === 'essence' && sh?.essence ? `<span class="chip num cur uni" title="Essence universelle" aria-label="${sh.essence.universal} essence universelle">${ico('essence')}${fmt(sh.essence.universal)}</span>` : ''}</div>
-    ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}${sh.essence ? tabBtn('essence', 'Essence') : ''}${tabBtn('change', 'Change')}${clanTab}</div>` : ''}`;
+    ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="Rayons de la boutique">${tabBtn('sets', 'Sets')}${tabBtn('arts', 'Arts', sh.arts.chest.free)}${sh.essence ? tabBtn('essence', 'Essence') : ''}${tabBtn('change', 'Change')}${tabBtn('emotes', 'Émotes')}${clanTab}</div>` : ''}`;
   if (tab === 'clan') return `${top}${clan.shopTab()}`;
+  if (tab === 'emotes') return `${top}${errLine()}${emoteShopHTML()}`;
   if (!sh) return `${top}${errLine()}<p class="wait">Chargement…</p>`;
   if (tab === 'arts') return `${top}${artStall(sh.arts)}${errLine()}${artShopHTML(sh.arts)}`;
   if (tab === 'change') return `${top}${errLine()}${exchangeHTML(sh.arts)}`;
@@ -1276,6 +1325,34 @@ async function buyDup(id) {
   if (!r) return;
   ui.shop = r.shop;
   ui.msg = `+${r.essence} essence de ${nameOf(id)}${r.universal ? ` et ${r.universal} essence universelle` : ''}.${myLevel(id) < MAX_CARD_LEVEL && missingEssence(id) === 0 ? ' Elle peut monter de niveau dans la collection.' : ''}`;
+  play('reveal'); render();
+}
+// Rayon Émotes : les émotes en vente (Éclats ou Prismes), puis celles des succès et celles offertes à tous.
+function emoteShopHTML() {
+  const a = ui.account, mine = prog().cosmetics.emotes || [];
+  const bubble = id => `<span class="ebubble static">${emoteBody(id)}</span>`;
+  const sale = id => { const e = EMOTES[id], own = mine.includes(id), price = e.prisms ? `${ico('prism')}${e.prisms}` : `${ico('shard')}${e.price}`;
+    const off = ui.busy || (e.prisms ? (a.prisms || 0) < e.prisms : !canPay(e.price));
+    return `<li class="emoitem ${own ? 'owned' : ''}">${bubble(id)}${own ? '<span class="chip ok">Possédée</span>'
+      : `<button class="btn primary num" data-act="buy-emote" data-id="${id}" ${off ? 'disabled' : ''} aria-label="Acheter l'émote « ${esc(e.text)} » pour ${e.prisms ? `${e.prisms} Prismes` : `${e.price} Éclats`}">${price}</button>`}</li>`; };
+  const won = ACHIEVEMENTS.filter(x => x.emote && EMOTES[x.emote]).map(x => `<li class="emoitem ${mine.includes(x.emote) ? 'owned' : ''}">${bubble(x.emote)}
+    ${mine.includes(x.emote) ? '<span class="chip ok">Possédée</span>' : `<small class="hint">Succès : ${esc(x.label)}</small>`}</li>`).join('');
+  return `<section class="card-box shopset emoshop">
+    <div><span class="eyebrow">Cosmétique</span><h2 style="font-size:22px">Émotes</h2></div>
+    <p class="hint" style="margin:0">Une icône et une phrase courte pour saluer, féliciter ou taquiner votre adversaire : en partie, touchez votre portrait pour en envoyer une. Chacun peut couper les émotes de l'autre en touchant son portrait.</p>
+    ${ui.msg && !ui.sheet ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
+    <ul class="emolist">${SHOP_EMOTES.map(sale).join('')}</ul>
+    <div class="gal-h">À gagner avec les succès</div>
+    <ul class="emolist">${won}</ul>
+    <div class="gal-h">Offertes à tous</div>
+    <ul class="emolist free">${FREE_EMOTES.map(id => `<li>${bubble(id)}</li>`).join('')}</ul>
+    <p class="hint" style="margin:0">Choisissez les ${EMOTE_SLOTS} émotes de votre sélecteur dans votre profil, rubrique Personnalisation.</p>
+  </section>`;
+}
+async function buyEmote(id) {
+  const r = await call('POST', '/api/shop/emote', { emote: id });
+  if (!r) return;
+  ui.msg = `Émote « ${EMOTES[id].text} » obtenue${prog().emotes?.includes(id) ? ', déjà dans votre sélecteur' : ' : ajoutez-la à votre sélecteur depuis votre profil'}.`;
   play('reveal'); render();
 }
 // Prix d'un booster d'un set (le serveur l'envoie avec chaque set de la boutique).
@@ -1424,7 +1501,7 @@ function themePicks(p) {
 }
 function customizeHTML() {
   const a = ui.account, p = prog(), c = p.cosmetics;
-  return `<div class="card-box"><div><span class="eyebrow">Personnalisation</span><h2 style="font-size:22px">Thème, titre, cadre et dos de carte</h2></div>
+  return `<div class="card-box"><div><span class="eyebrow">Personnalisation</span><h2 style="font-size:22px">Thème, titre, cadre, dos de carte et émotes</h2></div>
     ${themePicks(p)}
     <div class="field"><label class="eyebrow" for="title-pick">Titre affiché sous votre pseudo</label>
       <select id="title-pick" ${c.titles.length ? '' : 'disabled'}><option value="">Aucun titre</option>${c.titles.map(t => `<option value="${esc(t.id)}" ${p.title === t.id ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
@@ -1437,7 +1514,24 @@ function customizeHTML() {
     <div class="picks">${Object.entries(BACKS).filter(([id]) => !futureCosmetic(id) || c.backs.some(b => b.id === id)).map(([id, label]) => { const ok = c.backs.some(b => b.id === id);
       return `<button class="pickc ${p.back === id ? 'on' : ''} ${ok ? '' : 'locked'}" ${ok ? `data-back="${id}"` : 'disabled'}><span class="mc back back-${id}"></span><small>${esc(label)}</small></button>`; }).join('')}</div>
     ${favArtsHTML()}
+    ${emotesHTML()}
   </div>`;
+}
+// Émotes du sélecteur en partie : EMOTE_SLOTS au plus parmi celles possédées, dans l'ordre choisi (au moins une).
+function emotesHTML() {
+  const p = prog(), set = p.emotes || [], mine = p.cosmetics.emotes || [];
+  return `<div class="gal-h">Émotes en partie · <span class="num">${set.length}/${EMOTE_SLOTS}</span></div>
+    <p class="hint" style="margin:0">En partie, touchez votre portrait pour envoyer une émote. Touchez-en une ici pour l'ajouter à votre sélecteur ou l'en retirer.</p>
+    <div class="emopick">${mine.map(id => { const i = set.indexOf(id), full = i < 0 && set.length >= EMOTE_SLOTS, last = i >= 0 && set.length === 1;
+      return `<button class="emo ${i >= 0 ? 'on' : ''}" data-act="emote-slot" data-id="${id}" aria-pressed="${i >= 0}" ${ui.busy || full || last ? 'disabled' : ''}>
+        ${emoteBody(id)}${i >= 0 ? `<span class="favn num" aria-label="Choix ${i + 1}">${i + 1}</span>` : ''}</button>`; }).join('')}</div>
+    <label class="check"><input type="checkbox" id="emotes-off" ${store.get('emotes-off', false) ? 'checked' : ''}> Couper les émotes de mes adversaires à chaque partie</label>
+    <div class="row"><button class="btn" data-act="shop-emotes">D'autres émotes en boutique</button></div>`;
+}
+function toggleEmoteSlot(id) {
+  const set = (prog().emotes || []).slice(), i = set.indexOf(id);
+  if (i >= 0) { if (set.length === 1) return; set.splice(i, 1); } else if (set.length < EMOTE_SLOTS) set.push(id); else return;
+  equip({ emotes: set }, i >= 0 ? 'Émote retirée du sélecteur.' : 'Émote ajoutée au sélecteur.');
 }
 // Arts préférés : jusqu'à MAX_FAV_ARTS arts possédés, montrés dans cet ordre sur le profil public.
 const favArts = () => prog().favArts || [];
@@ -1468,7 +1562,7 @@ function achievementsHTML() {
   const groups = [...new Set(list.map(x => x.group))], done = list.filter(x => x.done).length;
   return `<div class="card-box"><div><span class="eyebrow">Succès</span><h2 style="font-size:22px">${done} sur ${list.length}</h2></div>
     ${groups.map(g => `<div class="gal-h">${esc(g)}</div><div class="achs">${list.filter(x => x.group === g).map(x => `<div class="ach ${x.done ? 'done' : ''}">
-      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(x.label)}</span><small class="hint">${[x.shards ? `${x.shards} Éclats` : '', x.prisms ? `${x.prisms} Prisme${x.prisms > 1 ? 's' : ''}` : '', x.chests ? `${x.chests} coffre${x.chests > 1 ? 's' : ''} d'arts` : '', x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? `${x.frameId ? `<span class="frame frame-${esc(x.frameId)} swatch"></span>` : ''}${esc(x.frame)}` : ''].filter(Boolean).join(' · ')}</small></div>
+      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(x.label)}</span><small class="hint">${[x.shards ? `${x.shards} Éclats` : '', x.prisms ? `${x.prisms} Prisme${x.prisms > 1 ? 's' : ''}` : '', x.chests ? `${x.chests} coffre${x.chests > 1 ? 's' : ''} d'arts` : '', x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? `${x.frameId ? `<span class="frame frame-${esc(x.frameId)} swatch"></span>` : ''}${esc(x.frame)}` : '', x.emote && EMOTES[x.emote] ? `émote ${EMOTES[x.emote].icon} « ${esc(EMOTES[x.emote].text)} »` : ''].filter(Boolean).join(' · ')}</small></div>
       ${x.done ? '' : `<div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(x.value, x.goal)}%"></span></div><small class="num">${x.value}/${x.goal}</small></div>`}</div>`).join('')}</div>`).join('')}</div>`;
 }
 // Profil en onglets : le haut (image, pseudo, niveau) reste, la rubrique change en dessous.
@@ -2127,6 +2221,7 @@ app.addEventListener('change', e => {
   if (e.target.id === 'vibrations-on') { setVibrations(e.target.checked); buzz(40); }
   if (e.target.id === 'avatar-file') { pickAvatar(e.target.files[0]); e.target.value = ''; }
   if (e.target.id === 'title-pick') equip({ title: e.target.value || null }, 'Titre changé.');
+  if (e.target.id === 'emotes-off') store.set('emotes-off', e.target.checked);
 });
 app.addEventListener('submit', e => {
   e.preventDefault(); if (ui.busy) return;
@@ -2138,6 +2233,8 @@ app.addEventListener('submit', e => {
 // Les missions repliées ou dépliées le restent d'un affichage à l'autre.
 app.addEventListener('click', e => {
   const t = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-frame],[data-back],[data-theme],[data-stop]');
+  // Sélecteur d'émotes ouvert : toucher ailleurs le referme.
+  if (ui.emotePick && !e.target.closest('.emotepick,[data-act="emotes"]')) { ui.emotePick = false; if (!t) { render(); return; } }
   if (!t) return;
   const ds = t.dataset;
   if (ds.stop && !e.target.closest('[data-act]')) return;
@@ -2182,6 +2279,12 @@ app.addEventListener('click', e => {
     else if (a === 'pass-buy' && !ui.busy) buyPass();
     else if (a === 'ranked-play') goRanked();
     else if (a === 'mute') { setMuted(!isMuted()); render(); }
+    else if (a === 'emotes') { ui.emotePick = !ui.emotePick; if (ui.emotePick) play('pick'); render(); }
+    else if (a === 'emote') sendEmote(ds.id);
+    else if (a === 'emote-mute') toggleEmoteMute();
+    else if (a === 'emote-slot' && !ui.busy) toggleEmoteSlot(ds.id);
+    else if (a === 'buy-emote' && !ui.busy) { const e = EMOTES[ds.id], go = () => buyEmote(ds.id); if (e.prisms || !lacksShards(e.price, 'acheter', go)) go(); }
+    else if (a === 'shop-emotes') openShop('emotes');
     else if (a === 'logout') doLogout();
     else if (a === 'retry') boot();
     else if (a === 'starter' && ui.starterPick && !ui.busy) call('POST', '/api/starter', { starter: ui.starterPick });
@@ -2273,7 +2376,10 @@ app.addEventListener('click', e => {
   if (ds.general) { if (doubleTap(`general:${ds.side}`)) { ui.focus = { kind: 'general', id: ds.general }; ui.msg = ''; openZoom({ kind: 'general', id: ds.general, mine: ds.side === 'me', side: ds.side }); render(); } return; }
   const zone = t.closest('[data-z]'); if (zone) tryPlace(+zone.dataset.z);
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.sheet && ui.sheet !== 'friend-deck') closeSheet(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && ui.emotePick) { ui.emotePick = false; render(); return; }
+  if (e.key === 'Escape' && ui.sheet && ui.sheet !== 'friend-deck') closeSheet();
+});
 app.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.zone.target')) { e.preventDefault(); tryPlace(+e.target.dataset.z); } });
 
 // Reprise d'une partie en ligne après rechargement de la page

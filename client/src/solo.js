@@ -1,6 +1,7 @@
 // Partie contre l'IA : le même moteur tourne directement dans le navigateur.
 import { newGame, startTurn, runTurn, aiSearch, viewFor, pick } from '@jeu/engine';
 import { aiDeckKeys } from '@jeu/engine/collection';
+import { aiReply } from '@jeu/engine/emotes';
 
 // L'IA essaie 250 plans au hasard et garde le meilleur. Elle les essaie pendant que le joueur prépare son tour,
 // par petites tranches entre deux images : valider ne bloque plus l'écran le temps qu'elle réfléchisse.
@@ -41,6 +42,12 @@ export function startSolo(handlers, { name, deck }) {
       // Fin de partie : résultat envoyé au serveur pour les statistiques.
       if (st.over && !stopped && handlers.onSoloOver) handlers.onSoloOver({ winner: st.result.winner, reason: st.result.reason, zones: st.result.zones, played: st.p[0].played,
         ai: { deckKey: st.p[1].deckKey, general: st.p[1].general, played: st.p[1].played } });
+    },
+    // Émote du joueur : montrée tout de suite ; l'IA répond parfois aux politesses.
+    emote(id) {
+      handlers.onEmote?.(0, id);
+      const reply = aiReply(id);
+      if (reply) setTimeout(() => { if (!stopped) handlers.onEmote?.(1, reply); }, 1200 + Math.random() * 800);
     },
     rematch: begin,
     leave() { stopped = true; },

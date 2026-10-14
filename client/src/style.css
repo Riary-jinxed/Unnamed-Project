@@ -1010,3 +1010,55 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .notif-kind input { margin-top: 2px; flex: none; }
 .notif-kind span { display: grid; gap: 2px; }
 .notif-kind small { line-height: 1.35; }
+
+/* émotes en partie : votre portrait ouvre le sélecteur, celui de l'adversaire coupe ses émotes ; bulle à côté de celui qui parle */
+.pbar { position: relative; }
+.pav.emobtn { border: 0; padding: 0; background: none; color: inherit; cursor: pointer; border-radius: 50%; }
+.pav.emobtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pav .emohint { position: absolute; left: -3px; bottom: -3px; z-index: 2; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--gold, var(--accent)); color: #1c1006; box-shadow: 0 0 0 2px var(--surface), 0 2px 4px rgb(0 0 0 / .5); }
+.pav .emohint.off { background: var(--foe, #c0392b); color: #fff; }
+.pav.emobtn.on .emohint { background: var(--ink); }
+.ebubble { display: inline-flex; align-items: center; gap: 7px; max-width: min(78vw, 300px); padding: 7px 13px 7px 9px; border-radius: 16px;
+  background: #fbf3dc; color: #2a1a0a; font-family: var(--display); font-size: 15px; line-height: 1.2; box-shadow: 0 0 0 1px #4a3214, 0 6px 16px rgb(0 0 0 / .55); }
+.ebubble .ei { font-size: 22px; line-height: 1; font-family: initial; }
+.pbar > .ebubble { position: absolute; left: 6px; z-index: 30; pointer-events: none; transform-origin: 22px 0; animation: ebub 3.2s cubic-bezier(.2, .9, .3, 1.3) both; }
+.pbar > .ebubble.foe { top: calc(100% + 9px); }
+.pbar > .ebubble.me { bottom: calc(100% + 9px); transform-origin: 22px 100%; }
+/* la pointe de la bulle montre le portrait */
+.pbar > .ebubble::after { content: ''; position: absolute; left: 16px; width: 12px; height: 12px; background: inherit; transform: rotate(45deg); box-shadow: 1px 1px 0 #4a3214; }
+.pbar > .ebubble.foe::after { top: -6px; box-shadow: -1px -1px 0 #4a3214; }
+.pbar > .ebubble.me::after { bottom: -6px; }
+@keyframes ebub { 0% { opacity: 0; transform: scale(.4); } 8% { opacity: 1; transform: scale(1.06); } 13% { transform: scale(1); } 88% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(.94); } }
+@media (prefers-reduced-motion: reduce) { .pbar > .ebubble { animation-name: ebubfade; animation-timing-function: linear; } }
+@keyframes ebubfade { 0% { opacity: 0; } 6%, 90% { opacity: 1; } 100% { opacity: 0; } }
+.emotepick { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 40; display: grid; gap: 8px; padding: 10px; border-radius: var(--r);
+  background: var(--surface); border: 1px solid var(--rim, var(--line)); box-shadow: 0 10px 30px rgb(0 0 0 / .6); animation: emopop .16s ease-out both; }
+@keyframes emopop { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .emotepick { animation: none; } }
+.emogrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.emo { position: relative; display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 6px 10px 6px 8px; text-align: left; border-radius: 12px;
+  border: 1px solid var(--line); background: color-mix(in srgb, #fbf3dc 7%, var(--surface)); color: var(--ink); font-size: 13px; line-height: 1.2; cursor: pointer; }
+.emo .ei { font-size: 20px; line-height: 1; flex: none; }
+.emo .et { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.emo:hover:not(:disabled) { border-color: var(--accent); }
+.emo:active:not(:disabled) { transform: scale(.97); }
+.emomute { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; border: 1px dashed var(--line); border-radius: 10px; background: none; color: var(--muted); font-size: 12px; cursor: pointer; }
+.emomute.on { border-style: solid; color: var(--ink); }
+/* profil : choix du sélecteur */
+.emopick { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.emopick .emo.on { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); padding-right: 30px; }
+.emopick .emo:disabled:not(.on) { opacity: .45; }
+.emopick .emo .favn { position: absolute; right: 5px; top: 50%; translate: 0 -50%; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 11px; }
+/* boutique : rayon Émotes */
+.emolist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.emoitem { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 8px; min-height: 52px; padding: 8px; border: 1px solid var(--line); border-radius: var(--r); background: color-mix(in srgb, #000 12%, var(--surface)); }
+.emoitem .ebubble.static { font-size: 14px; padding: 6px 11px 6px 8px; min-width: 0; }
+.emoitem .ebubble.static .ei { font-size: 20px; }
+.emoitem .ebubble.static { max-width: 100%; }
+.emoitem.owned .ebubble.static { opacity: .92; }
+.emoitem small.hint { flex: 1 1 100%; padding-left: 4px; font-size: 12px; }
+.emolist.free { display: flex; flex-wrap: wrap; gap: 8px; }
+.emolist.free .ebubble.static { font-size: 13px; padding: 5px 10px 5px 7px; box-shadow: 0 0 0 1px #4a3214; }
+.emolist.free .ebubble.static .ei { font-size: 17px; }
+.emoitem .btn { flex: none; display: inline-flex; align-items: center; gap: 4px; }

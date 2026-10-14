@@ -89,6 +89,8 @@ const SOUNDS = {
   flip: () => { noise({ dur: 0.07, freq: 2600, to: 1100, q: 1.2, vol: 0.18 }); },
   toss: () => { noise({ dur: 0.16, freq: 700, to: 3200, q: 1, vol: 0.12 }); },
   // Tutoriel : nouvelle consigne de Séraphine, deux notes douces.
+  // Émote de l'adversaire : petite bulle qui éclot.
+  emote: () => { tone(740, { to: 990, dur: 0.1, type: 'sine', vol: 0.08 }); tone(1320, { dur: 0.16, type: 'triangle', vol: 0.05, at: 0.07 }); },
   coach: () => { tone(1047, { dur: 0.16, type: 'triangle', vol: 0.06 }); tone(1568, { dur: 0.3, type: 'triangle', vol: 0.05, at: 0.09 }); },
   shimmer: () => { [1568, 2093, 2637].forEach((f, i) => tone(f, { dur: 0.3, vol: 0.035, at: i * 0.07 })); },
   fresh: () => { noise({ dur: 0.1, freq: 2600, to: 1100, q: 1.2, vol: 0.18 }); [659, 880, 1319].forEach((f, i) => tone(f, { dur: 0.35, type: 'triangle', vol: 0.12, at: 0.05 + i * 0.06 })); },
