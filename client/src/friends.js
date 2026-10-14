@@ -55,6 +55,8 @@ export function createFriends(app) {
     if (m.t === 'hello' || m.t === 'friends') { if (m.msg) setNote(m); refresh(); return; }
     // Nouveau message au courrier (mail.js).
     if (m.t === 'mail') { app.onMail?.(); return; }
+    // Nouvelle annonce parue (news.js).
+    if (m.t === 'news') { app.onNews?.(); return; }
     if (m.t === 'challenge') { f.challengeIn = { id: m.id, from: m.from, ranked: m.ranked }; app.play('reveal'); }
     else if (m.t === 'challenge-sent') f.challengeOut = { id: m.id, to: m.to, ranked: m.ranked };
     else if (m.t === 'challenge-error') setNote(m);

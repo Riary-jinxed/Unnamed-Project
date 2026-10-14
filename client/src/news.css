@@ -1,0 +1,54 @@
+/* Nouveautés (news.js) : une couleur par sorte d'annonce (--nw), reprise par la pastille, le liseré et le compte à rebours. */
+.nw, .nw-banner { --nw: var(--accent); }
+.nw-update { --nw: #6cc583; }
+.nw-set { --nw: var(--accent); }
+.nw-teaser { --nw: #3ad7ff; }
+.nw-event { --nw: #b48af0; }
+
+.nwlist { display: grid; gap: 10px; }
+.nw { gap: 0; padding: 0; overflow: hidden; border-left: 4px solid var(--nw); }
+.nw.unread { background: color-mix(in srgb, var(--nw) 8%, var(--surface)); }
+.nw-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; width: 100%; padding: 14px; margin: 0;
+  border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.nw-head:disabled { cursor: default; opacity: 1; }
+.nw-txt { display: grid; gap: 3px; min-width: 0; }
+.nw-txt b { font-family: var(--display); font-size: 17px; line-height: 1.2; display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+.nw-txt small { color: var(--muted); font-size: 14px; line-height: 1.35; }
+.nw .mdot, .nw-banner .mdot { background: var(--nw); }
+.nw-badge { flex: none; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; color: var(--nw);
+  background: color-mix(in srgb, var(--nw) 16%, transparent); border: 1px solid color-mix(in srgb, var(--nw) 55%, transparent); }
+.nw-ico { width: 22px; height: 22px; }
+.nw-count { display: grid; justify-items: end; gap: 1px; text-align: right; white-space: nowrap; }
+.nw-count b { font-size: 15px; color: var(--nw); }
+.nw-count small { font-size: 11.5px; color: var(--muted); }
+.nw-count.now b { color: var(--up); }
+.nw-body { padding: 0 14px 14px; display: grid; gap: 10px; line-height: 1.5; }
+.nw-body p, .nw-body ul { margin: 0; }
+.nw-body ul { padding-left: 20px; display: grid; gap: 4px; }
+.nw-body li::marker { color: var(--nw); }
+
+/* La plus récente (ou épinglée), en tête : plus grande, avec un halo de sa couleur. */
+.nw-hero { border-left-width: 0; border-top: 3px solid var(--nw);
+  background: radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--nw) 20%, transparent), transparent 60%), var(--surface); }
+.nw-hero .nw-head { padding-top: 18px; }
+.nw-hero .nw-badge { width: 52px; height: 52px; }
+.nw-hero .nw-ico { width: 26px; height: 26px; }
+.nw-hero .nw-txt b { font-size: 21px; }
+.nw-hero .nw-count b { font-size: 18px; }
+
+/* Bandeau « À la une » de l'accueil : la dernière annonce pas encore vue. */
+.nw-banner { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; margin: 0;
+  font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: var(--r); border: 1px solid color-mix(in srgb, var(--nw) 60%, var(--line));
+  background: linear-gradient(100deg, color-mix(in srgb, var(--nw) 18%, var(--surface)), var(--surface) 70%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--nw) 25%, transparent), 0 6px 18px -8px color-mix(in srgb, var(--nw) 60%, transparent); }
+.nw-banner .nw-txt b { font-size: 16px; }
+.nw-banner .nw-txt small { font-size: 13px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.nw-banner .eyebrow { color: var(--nw); }
+@media (max-width: 420px) {
+  .nw-head, .nw-banner { grid-template-columns: auto 1fr; }
+  .nw-count { grid-column: 2; justify-items: start; text-align: left; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nw-banner .nw-badge { animation: nw-pulse 2.4s ease-in-out infinite; }
+}
+@keyframes nw-pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--nw) 18%, transparent); } }

@@ -21,6 +21,7 @@ import { createGames } from './games.js';
 import { createCatalog } from './cards.js';
 import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
+import { createNews } from './news.js';
 import { createClans } from './clans.js';
 import { createBoss } from './boss.js';
 import { createStory } from './story.js';
@@ -49,9 +50,12 @@ const friends = createFriends(store, accounts, { playing, inviteRoom, abortInvit
 // Courrier : un joueur connecté voit aussitôt arriver un nouveau message (par sa connexion de présence).
 const mail = createMail(store, accounts, { notify: logins => logins.forEach(l => friends.notify(l, { t: 'mail' })) });
 await mail.publishNotes(NOTES_MAJ);
+// Nouveautés : annonces des mises à jour majeures et des sets ; la pastille de l'accueil se met à jour dès qu'une annonce paraît.
+const news = createNews(store, accounts, { notify: logins => logins.forEach(l => friends.notify(l, { t: 'news' })) });
 // Notifications push : rien n'est envoyé à un joueur qui a l'appli ouverte (sa connexion de présence le prévient déjà).
 const push = createPush(store, accounts, { isOnline: friends.online, events: accounts.progress.events });
 friends.setPush(push);
+news.setPush(push);
 push.start();
 // Clans : les parties font avancer les missions du clan ; la fin du mois fige aussi le classement des clans.
 const clans = createClans(store, accounts, push);
@@ -69,7 +73,7 @@ catalog.setExtraCards(() => story.releasedCards());
 accounts.setStoryTile(a => story.tile(a));
 // Onglet Suivi de /admin : rétention et suivi du nouveau contenu.
 const follow = createFollow(store, accounts, { boss, events: accounts.progress.events });
-const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...accounts.progress.events.routes, ...clans.routes, ...push.routes, ...boss.routes, ...story.routes, ...follow.routes }, catalog.public);
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...news.routes, ...accounts.progress.events.routes, ...clans.routes, ...push.routes, ...boss.routes, ...story.routes, ...follow.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
 // Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.
@@ -417,6 +421,7 @@ setInterval(() => {
   // Fin de semaine : le classement du boss mondial est figé et ses récompenses données.
   boss.closeWeek();
   boss.announce(push);
+  news.announce().catch(e => console.error('Nouveautés en erreur :', e));
   const now = Date.now();
   for (const [code, r] of rooms) {
     if (now - r.lastActive <= ROOM_TTL_MS) continue;
