@@ -174,4 +174,11 @@ export default {
   'Quitter une partie classée en cours compte comme une défaite. Quitter quand même ?': 'Leaving a ranked match in progress counts as a defeat. Leave anyway?',
   'Quitter la tentative la termine avec votre plateau actuel : elle compte comme jouée. Quitter quand même ?': 'Leaving ends the attempt with your current board: it counts as played. Leave anyway?',
   'Partie interrompue': 'Game interrupted',
+  // Accueil refait
+  'Missions': 'Missions',
+  'À récupérer': 'Ready to claim',
+  'Tuto, codex': 'Tutorial, codex',
+  'Quotidien': 'Daily',
+  'Modes de jeu': 'Game modes',
+  'Niveau du joueur': 'Player level',
 };

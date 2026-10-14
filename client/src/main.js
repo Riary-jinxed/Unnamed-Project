@@ -1257,40 +1257,59 @@ function renderHome() {
     : giftBtns ? `<div class="card-box booster ready gifts">
       <div><span class="eyebrow">${t('Récompense')}</span><h2>${giftTitle}</h2></div>
       <div class="giftbtns">${giftBtns}</div></div>` : '';
-  // Salon de jeu, à la manière des jeux de cartes mobiles : le général du deck joué en grand, un gros bouton Jouer,
-  // et autour des tuiles (passe, missions, calendrier) qui ouvrent chacune leur écran ou leur feuille.
+  // Salon de jeu, à la manière des jeux de cartes mobiles. Trois blocs :
+  // - le jeu : le général du deck joué en grand, le gros bouton Jouer, contre l'IA et avec un ami ;
+  // - le quotidien : une rangée d'icônes (missions, calendrier, bienvenue, apprendre), pastille quand quelque chose attend ;
+  // - les modes de jeu (histoire ou événement, boss, classé, clan) en tuiles illustrées, puis la progression (passe, niveau) en lignes.
+  // Téléphone : tout en une colonne (.home-play et .home-side en display: contents, l'ordre vient de style.css).
+  // Ordinateur : le jeu à gauche, qui reste en place au défilement, le reste à droite.
   const hero = g ? heroHTML(d.general, mySel(d.general)) : '';
-  const cal = p.calendar;
+  const cal = p.calendar, wel = p.welcome && !p.welcome.expired && (!p.welcome.done || p.welcome.claimed) ? p.welcome : null;
+  const quick = (act, icon, label, sub, dot = false, extra = '') => `<button class="qk ${dot ? 'todo' : ''}" data-act="${act}" ${extra}>
+    <span class="qk-ico">${tabIcon(icon)}${dot ? `<span class="qk-dot${dot === true ? '' : ' num'}">${dot === true ? '' : dot}</span>` : ''}</span><b>${label}</b><small class="num">${sub}</small></button>`;
+  const daily = [
+    p.missions.length || p.weekly?.list.length ? quick('missions', 'M9 4h6M9 4a2 2 0 0 0-2 2H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1a2 2 0 0 0-2-2M9 13l2 2 4-4',
+      t('Missions'), `${p.missions.length - left}/${p.missions.length}`, left || false) : '',
+    cal ? quick('calendar', 'M4 6a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 10h16M8 3v4M16 3v4',
+      t('Calendrier'), cal.ready ? t('À récupérer') : `${cal.got}/${cal.days.length}`, !!cal.ready) : '',
+    wel ? quick('welcome', 'M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 7h18v4H3zM12 7v14M12 7c-1.5-3-5-3-5-1s3 1 5 1c2 0 5 1 5-1s-3.5-2-5 1',
+      t('Bienvenue'), wel.ready ? t('À récupérer') : `${wel.got}/${wel.steps}`, !!wel.ready) : '',
+    quick('learn', 'M4 5a1 1 0 0 1 1-1h5a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 5a1 1 0 0 0-1-1h-5a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', t('Apprendre'), t('Tuto, codex')),
+  ].join('');
+  const modes = [
+    story.tile(a), boss.tile(a),
+    p.ranked ? `<button class="tile rtile" data-act="ranked"><span class="eyebrow">${t('Classé')}</span><b>${esc(t(p.ranked.seasonName))}</b>
+      <span class="tile-foot">${rankHTML(p.ranked.rank)}</span></button>` : '',
+    clan.tile(a),
+  ].filter(Boolean).join('');
+  const rows = [
+    p.pass ? `<button class="tile hrow passline theme-${p.pass.theme}" data-act="pass"><span class="hrow-txt"><span class="eyebrow">${t('Passe · {n} j', { n: p.pass.daysLeft })}</span><b>${esc(t(p.pass.name))}</b></span>
+      <span class="hrow-end num">${t('Palier {tier}/{tiers}', { tier: p.pass.tier, tiers: p.pass.tiers })}</span><span class="bar" aria-hidden="true"><span style="width:${pct(p.pass.xp, p.pass.next)}%"></span></span></button>` : '',
+    `<button class="tile hrow" data-act="profile" data-tab="succes"><span class="hrow-txt"><span class="eyebrow">${p.title ? esc(t(titleLabel(p.title))) : t('Niveau du joueur')}</span><b class="num">${t('Niv. {n}', { n: p.level })}</b></span>
+      <span class="hrow-end num">${t('{xp}/{next} XP · Succès', { xp: p.xp, next: p.xpNext })}</span><span class="bar" aria-hidden="true"><span style="width:${pct(p.xp, p.xpNext)}%"></span></span></button>`,
+  ].join('');
   return `
   <div class="top hometop hud"><button class="profile-btn" data-act="profile" aria-label="${t('Mon profil')}">${avatarHTML(a)}</button>
     <button class="hud-id" data-act="profile"><b>${esc(a.name)}</b><span class="hud-lv num">${t('Niv. {n}', { n: p.level })}<span class="bar" aria-hidden="true"><span style="width:${pct(p.xp, p.xpNext)}%"></span></span></span></button>
     <span class="wallet">${walletHTML()}</span>${mail.button()}${muteBtn()}</div>
   <div class="setup home lobby">
-    ${gift}
-    <section class="showcase" style="${g ? famVar([g.fam]) : ''}" data-fam="${esc(g?.fam || '')}">
-      <div class="sc-art">${hero || `<span class="sc-init" aria-hidden="true">${esc((g?.name || '?')[0])}</span>`}</div>
-      ${eventChips(p.events?.live || [])}
-      ${p.ranked ? `<button class="sc-rank" data-act="ranked" aria-label="${t('Classement')}">${rankHTML(p.ranked.rank)}<small>${esc(t(p.ranked.seasonName))}</small></button>` : ''}
-      <button class="sc-deck" data-act="decks"><span class="eyebrow">${t('Deck joué')}</span><b>${esc(d ? d.name : t('Aucun deck'))}</b>${g ? `<small>${esc(g.name)}</small>` : ''}<span class="sc-change">${t('Changer')}</span></button>
-    </section>
-    ${deckErr ? `<p class="err" style="margin:0">${esc(deckErr)}</p>` : ''}
-    <button class="playbtn" data-act="${p.ranked ? 'ranked-play' : 'solo'}"><span>${t('Jouer')}</span><small>${p.ranked ? t('Partie classée') : t("Contre l'IA")}</small></button>
-    <div class="duo">${p.ranked ? `<button class="btn" data-act="solo">${t("Contre l'IA")}</button>` : `<button class="btn" data-act="learn">${t('Apprendre')}</button>`}<button class="btn" data-act="play-friend">${t('Avec un ami')}</button></div>
-    ${errLine()}
-    <div class="tiles">
-      ${p.pass ? `<button class="tile passline theme-${p.pass.theme}" data-act="pass"><span class="eyebrow">${t('Passe · {n} j', { n: p.pass.daysLeft })}</span><b>${esc(t(p.pass.name))}</b>
-        <span class="tile-foot num">${t('Palier {tier}/{tiers}', { tier: p.pass.tier, tiers: p.pass.tiers })}</span><span class="bar" aria-hidden="true"><span style="width:${pct(p.pass.xp, p.pass.next)}%"></span></span></button>` : ''}
-      ${p.missions.length || p.weekly?.list.length ? `<button class="tile ${left ? 'todo' : ''}" data-act="missions"><span class="eyebrow">${t('Missions du jour')}</span><b class="num">${p.missions.length - left}/${p.missions.length}</b>
-        <span class="tile-foot">${left ? t('{n} à faire', { n: left }) : t('Toutes faites ✓')}${p.weekly?.list.length ? ` · ${t('Semaine {done}/{total}', { done: p.weekly.list.length - weekLeft, total: p.weekly.list.length })}` : ''}</span></button>` : ''}
-      ${cal ? `<button class="tile ${cal.ready ? 'todo' : ''}" data-act="calendar"><span class="eyebrow">${t('Calendrier')}</span><b>${esc(t(cal.name).split(' ')[0])}</b>
-        <span class="tile-foot num">${cal.ready ? t('Récompense à récupérer') : tp(cal.got, '{n} jour sur {days}', '{n} jours sur {days}', { days: cal.days.length })}</span></button>` : ''}
-      ${p.welcome && !p.welcome.expired && (!p.welcome.done || p.welcome.claimed) ? `<button class="tile welcometile ${p.welcome.ready ? 'todo' : ''}" data-act="welcome"><span class="eyebrow">${t('Bienvenue · {n} j', { n: p.welcome.left })}</span><b class="num">${p.welcome.got}/${p.welcome.steps}</b>
-        <span class="tile-foot">${p.welcome.ready ? t('Cadeau à récupérer') : p.welcome.done ? t('Terminée ✓') : t('Revenez demain')}</span></button>` : ''}
-      ${story.tile(a)}${boss.tile(a)}${clan.tile(a)}
-      <button class="tile" data-act="profile" data-tab="succes"><span class="eyebrow">${t('Progression')}${p.title ? ` · ${esc(t(titleLabel(p.title)))}` : ''}</span><b class="num">${t('Niv. {n}', { n: p.level })}</b>
-        <span class="tile-foot num">${t('{xp}/{next} XP · Succès', { xp: p.xp, next: p.xpNext })}</span></button>
+    <div class="home-play">
+      <section class="showcase" style="${g ? famVar([g.fam]) : ''}" data-fam="${esc(g?.fam || '')}">
+        <div class="sc-art">${hero || `<span class="sc-init" aria-hidden="true">${esc((g?.name || '?')[0])}</span>`}</div>
+        ${eventChips(p.events?.live || [])}
+        <button class="sc-deck" data-act="decks"><span class="eyebrow">${t('Deck joué')}</span><b>${esc(d ? d.name : t('Aucun deck'))}</b>${g ? `<small>${esc(g.name)}</small>` : ''}<span class="sc-change">${t('Changer')}</span></button>
+      </section>
+      ${deckErr ? `<p class="err home-err" style="margin:0">${esc(deckErr)}</p>` : ''}
+      <button class="playbtn" data-act="${p.ranked ? 'ranked-play' : 'solo'}"><span>${t('Jouer')}</span><small>${p.ranked ? t('Partie classée') : t("Contre l'IA")}</small></button>
+      <div class="duo">${p.ranked ? `<button class="btn" data-act="solo">${t("Contre l'IA")}</button>` : `<button class="btn" data-act="learn">${t('Apprendre')}</button>`}<button class="btn" data-act="play-friend">${t('Avec un ami')}</button></div>
+      ${errLine()}
     </div>
-    ${p.ranked ? `<button class="learnline" data-act="learn">${t('Apprendre à jouer : tutoriel et codex des mots-clés')}</button>` : ''}
+    <div class="home-side">
+      ${gift}
+      <nav class="quick" aria-label="${t('Quotidien')}">${daily}</nav>
+      ${modes ? `<section class="home-sec modes-sec"><h3 class="home-h">${t('Modes de jeu')}</h3><div class="tiles modes">${modes}</div></section>` : ''}
+      <section class="home-sec prog-sec"><h3 class="home-h">${t('Progression')}</h3><div class="hrows">${rows}</div></section>
+    </div>
   </div>`;
 }
 // ---- Événements temporaires ----
