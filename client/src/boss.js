@@ -182,14 +182,22 @@ export function createBoss(app) {
   // Bandeau du boss au-dessus du plateau : son action de ce tour (avant ou après votre révélation) et votre score du moment.
   function tableHTML(v) {
     const s = v.boss?.step; if (!v.boss) return '';
-    // Boss de clan : il ne tient qu'une seule zone, en travers du plateau, avec sa barre de PV (après les dégâts du moment).
-    if (v.boss.clan) {
-      const c = v.boss.clan, g = GENERALS[v.boss.id], hp = Math.max(0, c.hp - v.boss.score.total);
-      return `<div class="bbar cbzone" role="status" style="${famStyle(g?.fam)}"><span class="bbar-step">${s ? `<b>${esc(t(s.name))}</b><small>${WHEN[s.when]} · ${esc(t(s.text))}</small>` : `<b>${t('Le boss attend')}</b>`}</span>
-        <span class="bbar-score num"><small>${t('Dégâts')}</small><b>${v.boss.score.total}</b></span>${hpBarHTML(hp, c.max, 'sm')}</div>`;
-    }
+    // Boss de clan : pas de bandeau, il occupe la place des trois zones d'en face (clanZoneHTML).
+    if (v.boss.clan) return '';
     return `<div class="bbar" role="status"><span class="bbar-step">${s ? `<b>${esc(t(s.name))}</b><small>${WHEN[s.when]} · ${esc(t(s.text))}</small>` : `<b>${t('Le boss attend')}</b>`}</span>
       <span class="bbar-score num"><small>${t('Score')}</small><b>${v.boss.score.total}</b></span></div>`;
+  }
+  // Boss de clan : il tient à lui seul les trois zones d'en face, en travers du plateau (main.js, renderGame) : son illustration,
+  // son action de ce tour, les dégâts du moment et sa barre de PV après ces dégâts.
+  function clanZoneHTML(v) {
+    const s = v.boss.step, c = v.boss.clan, g = GENERALS[v.boss.id], hp = Math.max(0, c.hp - v.boss.score.total);
+    const art = heroHTML(v.boss.id, g?.art) || `<span class="cbzone-init" aria-hidden="true">${esc(t(g?.name || '?')[0])}</span>`;
+    return `<div class="cbzone" role="status" style="${famStyle(g?.fam)}" aria-label="${t('Boss de clan : {name}', { name: esc(t(g?.name || '')) })}">
+      <div class="cbzone-art">${art}</div>
+      <div class="cbzone-tx"><b class="cbzone-name">${esc(t(g?.name || '').split(/,\s*/)[0])}</b>
+        <span class="bbar-step">${s ? `<b>${esc(t(s.name))}</b><small>${WHEN[s.when]} · ${esc(t(s.text))}</small>` : `<b>${t('Le boss attend')}</b>`}</span>
+        ${hpBarHTML(hp, c.max, 'sm')}</div>
+      <span class="bbar-score num"><small>${t('Dégâts')}</small><b>${v.boss.score.total}</b></span></div>`;
   }
   // Bonus d'une carte de la main contre le boss (famille ou carte renforcée).
   const handChip = (v, id) => { const n = v.boss ? bossBoost(v.boss.id, id) : 0; return n ? `<span class="bboost-tag num" title="${t('Renforcée contre le boss : +{n} sur le plateau', { n })}">+${n}</span>` : ''; };
@@ -252,7 +260,7 @@ export function createBoss(app) {
   }
 
   return {
-    screen, click, tableHTML, handChip, endHTML, decksHTML, bossDeck,
+    screen, click, tableHTML, clanZoneHTML, handChip, endHTML, decksHTML, bossDeck,
     // Onglet Boss de la boutique : le magasin du boss (chargé au besoin).
     shopTab() {
       if (!B.data) { load(); return `<p class="wait">${t('Chargement…')}</p>`; }

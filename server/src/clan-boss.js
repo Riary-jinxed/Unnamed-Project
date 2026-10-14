@@ -6,7 +6,7 @@
 // raidLast (le dernier boss fermé : { boss, level, max, hp, pct, closed, defeated, top }), raidWeek (semaine de la dernière ouverture).
 import { randomBytes } from 'node:crypto';
 import { GENERALS } from '@jeu/engine';
-import { CLAN_BOSS_IDS, CLAN_BOSS_DAYS, CLAN_BOSS_TRIES, CLAN_BOSS_LEVELS, CLAN_BOSS_REWARDS, CLAN_BOSS_SCORING, isClanBoss, clanBossLevel, clanBossDamage,
+import { CLAN_BOSS_IDS, CLAN_BOSS_DAYS, CLAN_BOSS_TRIES, CLAN_BOSS_LEVELS, clanBossRewards, CLAN_BOSS_SCORING, isClanBoss, clanBossLevel, clanBossDamage,
   clanBossPct, clanBossTier, clanBossReward, clanBossWeek } from '@jeu/engine/clan-boss';
 import { bossInfo } from '@jeu/engine/boss';
 import { canDo } from '@jeu/engine/clans';
@@ -18,8 +18,8 @@ const now = () => new Date().toISOString();
 // Une tentative commencée juste avant la fin du temps compte encore : la fermeture l'attend jusqu'à LIVE_GRACE_MS.
 const LIVE_GRACE_MS = 20 * 60_000;
 const bossName = id => GENERALS[id]?.name || 'Boss de clan';
-// Ce que l'appli montre d'un boss de clan : comme un boss mondial (script, cartes renforcées), avec son identifiant de clan.
-const info = id => ({ ...bossInfo(GENERALS[id].from), id, text: GENERALS[id].text });
+// Ce que l'appli montre d'un boss de clan : comme un boss mondial (script, cartes renforcées), et ses récompenses.
+const info = id => ({ ...bossInfo(id), rewards: clanBossRewards(id) });
 
 export function createClanBoss(store, accounts, clans) {
   const progress = accounts.progress, C = clans.internals;
@@ -93,7 +93,7 @@ export function createClanBoss(store, accounts, clans) {
   function close(c, current = null) {
     const r = c.raid; if (!live(r)) return;
     r.closed = now();
-    const pct = clanBossPct(r.hp, r.max), tier = clanBossTier(pct), { reward, clanXp } = clanBossReward(tier, r.level), defeated = r.hp <= 0, name = bossName(r.boss);
+    const pct = clanBossPct(r.hp, r.max), tier = clanBossTier(pct, r.boss), { reward, clanXp } = clanBossReward(r.boss, tier, r.level), defeated = r.hp <= 0, name = bossName(r.boss);
     const top = Object.entries(r.dmg).sort(([, x], [, y]) => y - x).slice(0, 5).map(([login, n]) => ({ login, name: store.get(login)?.name || login, dmg: n }));
     c.raidLast = { boss: r.boss, level: r.level, max: r.max, hp: Math.max(0, r.hp), pct, tier, defeated, closed: r.closed, top, players: Object.keys(r.tries).length, reward, clanXp };
     C.log(c, defeated ? msg('Boss de clan {boss} vaincu (niveau {n}) !', { boss: [name], n: r.level })
@@ -102,6 +102,8 @@ export function createClanBoss(store, accounts, clans) {
       if (!r.tries[login] && (c.joined?.[login] || c.created) > r.opened) continue;
       const b = login === current?.login ? current : store.get(login); if (!b) continue;
       if (!b.level) progress.init(b);
+      // L'essence universelle n'est pas comptée par grant : ajoutée ici, et montrée avec le reste.
+      if (reward.uniEssence) b.uniEssence = (b.uniEssence || 0) + reward.uniEssence;
       progress.grant(b, { kind: 'clan', label: `Boss de clan ${name} : ${pct} %`, labelMsg: msg('Boss de clan {boss} : {pct} %', { boss: [name], pct }), ...reward });
       if (defeated) b.stats.clanBossWins = (b.stats.clanBossWins || 0) + 1;
       progress.check(b);
@@ -138,7 +140,7 @@ export function createClanBoss(store, accounts, clans) {
     const row = ([login, n]) => ({ login, name: store.get(login)?.name || login, dmg: n, tries: r.tries[login] || 0 });
     return {
       clan: { id: c.id, name: c.name, level: lv }, role: C.roleOf(c, a.login), canOpen: !r && canOpen(c, a.login), thisWeek: c.raidWeek === clanBossWeek(),
-      tries: CLAN_BOSS_TRIES, days: CLAN_BOSS_DAYS, levels: CLAN_BOSS_LEVELS, rewards: CLAN_BOSS_REWARDS, scoring: CLAN_BOSS_SCORING, bosses: CLAN_BOSS_IDS.map(info),
+      tries: CLAN_BOSS_TRIES, days: CLAN_BOSS_DAYS, levels: CLAN_BOSS_LEVELS, scoring: CLAN_BOSS_SCORING, bosses: CLAN_BOSS_IDS.map(info),
       raid: r ? { boss: info(r.boss), level: r.level, max: r.max, hp: r.hp, pct: clanBossPct(r.hp, r.max), opened: r.opened, ends: r.ends, by: store.get(r.by)?.name || r.by,
         left: Math.max(0, CLAN_BOSS_TRIES - (r.tries[a.login] || 0)), mine: r.dmg[a.login] || 0,
         ladder: Object.entries(r.dmg).sort(([, x], [, y]) => y - x).map(row), players: Object.keys(r.tries).length } : null,

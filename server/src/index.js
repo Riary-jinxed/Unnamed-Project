@@ -153,7 +153,7 @@ function lobby(room) {
 function startMatch(room) {
   if (room.ranked === 'ai') { const acc = accounts.byToken(room.seats[0].auth); if (acc) room.seats[1] = aiSeat(acc); }
   const decks = room.seats.map(s => { if (s.boss) return null; if (s.ai) return pick(aiDeckKeys());
-    const acc = accounts.byToken(s.auth), d = acc && ((room.boss && boss.deckFor(acc, GENERALS[room.boss].from || room.boss)) || deckOf(acc, s.deckId)); return d && !deckError(d, acc) ? d : s.deck; });
+    const acc = accounts.byToken(s.auth), d = acc && ((room.boss && boss.deckFor(acc, room.boss)) || deckOf(acc, s.deckId)); return d && !deckError(d, acc) ? d : s.deck; });
   room.decks = decks.map(d => (!d ? [] : typeof d === 'string' ? DECKS[d].cards : d.cards));
   room.st = room.boss ? newBossGame(decks[0], room.boss, room.seats[0].name)
     : newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => (typeof d === 'string' ? null : d.general)) });
@@ -327,8 +327,7 @@ function handle(ws, msg) {
   // Boss de clan : une tentative contre le boss ouvert du clan, comptée dès que la partie commence.
   if (msg.t === 'clanboss') {
     const acc = accounts.byToken(msg.auth);
-    const open = acc && clans.clanOf(acc)?.raid;
-    const seat = seatFor(ws, msg, open ? GENERALS[open.boss]?.from : null); if (!seat) return;
+    const seat = seatFor(ws, msg); if (!seat) return;
     let run; try { run = clanRunFor(acc); } catch (e) { return send(ws, { t: 'error', msg: e instanceof HttpError ? e.text(wsLang(ws)) : e.message }); }
     const room = { code: newCode(), seats: [seat, { ai: true, boss: true, name: tr(langOf(acc), GENERALS[run.boss].name), login: null }], plans: [null, null], st: null, busy: false, lastActive: Date.now(), boss: run.boss, clanRun: run };
     rooms.set(room.code, room); ws.room = room; ws.seat = 0;

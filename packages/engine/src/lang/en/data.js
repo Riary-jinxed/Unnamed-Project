@@ -576,4 +576,8 @@ export default {
   '10 à 25 %': '10 to 25%',
   '25 à 50 %': '25 to 50%',
   '50 à 100 %': '50 to 100%',
+  // Boss de clan : titres et écran (clan-boss.js)
+  'Briseur d\'abysses': 'Abyss Breaker',
+  'Fossoyeur de liches': 'Lich Gravedigger',
+  'Élagueur de ronces': 'Bramble Pruner',
 };

@@ -97,8 +97,19 @@
 .cbhp.sm { height: 18px; flex-basis: 100%; }
 .cbhp.sm .cbhp-tx { font-size: 11px; line-height: 16px; }
 @media (prefers-reduced-motion: reduce) { .cbhp-fill { transition: none; } }
-/* À la table : le boss ne tient qu'une seule zone, en travers du plateau ; vos zones n'ont que votre côté. */
-.bbar.cbzone { flex-wrap: wrap; row-gap: 6px; padding: 8px 10px; border-width: 2px; border-color: color-mix(in srgb, var(--fam, var(--foe)) 60%, var(--line)); }
+/* À la table : le boss tient à lui seul les trois zones d'en face, en travers du plateau ; vos zones n'ont que votre côté. */
+#app.ingame > .board.oneboss, .board.oneboss { grid-template-rows: minmax(0, 1fr) minmax(0, 1.25fr); }
+.cbzone { grid-column: 1 / -1; position: relative; overflow: hidden; isolation: isolate; display: flex; align-items: flex-end; gap: 10px; min-height: 120px;
+  padding: 10px; border-radius: var(--r); border: 2px solid color-mix(in srgb, var(--fam, var(--foe)) 65%, var(--line));
+  background: radial-gradient(circle at 70% 30%, color-mix(in srgb, var(--fam, var(--foe)) 45%, #000), #0a0608 80%); font-size: 12.5px; }
+.cbzone-art { position: absolute; inset: 0; z-index: -1; }
+.cbzone-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 20%, rgb(0 0 0 / .78)); }
+.cbzone-init { position: absolute; right: 12%; top: 50%; transform: translateY(-55%); font-family: var(--display); font-size: clamp(72px, 22vw, 140px); line-height: 1;
+  color: color-mix(in srgb, var(--fam, var(--foe)) 70%, #fff); opacity: .45; }
+.cbzone-tx { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.cbzone-name { font-family: var(--famfont, var(--display)); font-size: clamp(17px, 5vw, 22px); line-height: 1.1; text-shadow: 0 2px 6px rgb(0 0 0 / .8); }
+.cbzone .bbar-step small { color: #e6dccf; }
+.cbzone .bbar-score { align-self: flex-start; padding: 4px 8px; border-radius: var(--r); background: rgb(0 0 0 / .45); }
 #app.ingame .zone.oneboss { grid-template-rows: auto minmax(0, 1fr) auto; }
 /* Ouverture : choix du boss et du niveau. */
 .cbpicks { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }

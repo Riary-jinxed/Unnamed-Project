@@ -1,9 +1,9 @@
 // Boss de clan : données partagées par le serveur (server/src/clan-boss.js) et l'appli (client/src/clan-boss.js).
 // Le Maître ou un adjoint ouvre un boss pour tout le clan, au niveau de son choix (jusqu'au niveau du clan). Il reste ouvert
 // CLAN_BOSS_DAYS jours ; chaque membre a CLAN_BOSS_TRIES tentatives. Une tentative est une partie de 7 tours contre lui (un
-// général clan: true de engine.js : le script d'un boss mondial, sans Sbire). En face, le boss ne tient qu'une seule zone :
+// général clan: true de engine.js, propre aux clans, avec son script). En face, le boss tient à lui seul les trois zones :
 // sa barre de PV. Les points de vos 3 zones à la fin de la partie lui sont retirés. À la fermeture (PV à zéro ou fin du temps),
-// chaque membre reçoit la récompense du pourcentage de PV retiré, avec un minimum même à 0 %.
+// chaque membre reçoit la récompense du pourcentage de PV retiré, avec un minimum même à 0 %. Chaque boss a ses récompenses.
 import { GENERALS, CARDS, zonePower, SLOTS } from './engine.js';
 import { clanWeek } from './clans.js';
 
@@ -34,24 +34,46 @@ export function clanBossDamage(st, cfg = CLAN_BOSS_SCORING) {
   return { zones, total: zones.reduce((s, z) => s + z.points, 0) };
 }
 
-// Récompenses à la fermeture, selon la part des PV retirés (pct : au moins ce pourcentage). La première vaut même à 0 %.
-// Multipliées par le niveau du boss (sauf le booster). clanXp : XP de clan, donnée une fois au clan.
-export const CLAN_BOSS_REWARDS = [
-  { pct: 0, coins: 10, shards: 30, clanXp: 0 },
-  { pct: 25, coins: 25, shards: 60, clanXp: 25 },
-  { pct: 50, coins: 45, shards: 100, prisms: 2, clanXp: 50 },
-  { pct: 75, coins: 70, shards: 150, prisms: 4, clanXp: 100 },
-  { pct: 100, coins: 100, shards: 200, prisms: 8, boosters: 1, clanXp: 150 },
-];
+// Récompenses à la fermeture, propres à chaque boss, selon la part des PV retirés (pct : au moins ce pourcentage). La première vaut
+// même à 0 %. Seule celle du palier atteint est donnée. Écus (coins), Éclats, Prismes et essence universelle sont multipliés par le
+// niveau du boss ; coffres d'arts (chests), boosters et titre (à 100 %) ne le sont pas. clanXp : XP de clan, donnée une fois au clan.
+// Thalassor : les Écus. Velmor : les Prismes et les coffres d'arts. Ysolde : les Éclats, l'essence et les boosters.
+const XP = [0, 25, 50, 100, 150], PCTS = [0, 25, 50, 75, 100];
+const tiers = list => list.map((r, i) => ({ pct: PCTS[i], clanXp: XP[i], ...r }));
+export const CLAN_BOSS_REWARDS = {
+  clan_thalassor: tiers([
+    { coins: 20, shards: 20 },
+    { coins: 45, shards: 40 },
+    { coins: 80, shards: 60 },
+    { coins: 120, shards: 80 },
+    { coins: 180, shards: 100, title: 'clanboss:thalassor' },
+  ]),
+  clan_velmor: tiers([
+    { coins: 10, prisms: 1 },
+    { coins: 20, prisms: 3 },
+    { coins: 30, prisms: 5 },
+    { coins: 40, prisms: 8, chests: 1 },
+    { coins: 50, prisms: 12, chests: 1, title: 'clanboss:velmor' },
+  ]),
+  clan_ysolde: tiers([
+    { coins: 10, shards: 50 },
+    { coins: 20, shards: 100, uniEssence: 10 },
+    { coins: 30, shards: 160, uniEssence: 20 },
+    { coins: 40, shards: 220, uniEssence: 30, boosters: 1 },
+    { coins: 50, shards: 300, uniEssence: 40, boosters: 2, title: 'clanboss:ysolde' },
+  ]),
+};
+// Titres gagnés en venant à bout de chaque boss (ajoutés à TITLES, rewards.js).
+export const CLAN_BOSS_TITLES = [['clanboss:thalassor', 'Briseur d\'abysses'], ['clanboss:velmor', 'Fossoyeur de liches'], ['clanboss:ysolde', 'Élagueur de ronces']];
+export const clanBossRewards = id => CLAN_BOSS_REWARDS[id] || CLAN_BOSS_REWARDS.clan_thalassor;
 // Part des PV retirés, de 0 à 100 (arrondie vers le bas : 100 seulement si le boss est vaincu).
 export const clanBossPct = (hp, max) => (max > 0 ? Math.max(0, Math.min(100, Math.floor(100 * (max - hp) / max))) : 0);
-export const clanBossTier = pct => CLAN_BOSS_REWARDS.reduce((x, r, i) => (pct >= r.pct ? i : x), 0);
-// Récompense d'un palier au niveau donné : Écus (clanCoins), Éclats, Prismes, booster ; et l'XP du clan.
-export function clanBossReward(i, level) {
-  const r = CLAN_BOSS_REWARDS[i], m = clanBossLevel(level).mult, out = {};
+export const clanBossTier = (pct, id) => clanBossRewards(id).reduce((x, r, i) => (pct >= r.pct ? i : x), 0);
+// Récompense d'un palier d'un boss au niveau donné : Écus (clanCoins), Éclats, Prismes, essence, coffre, booster, titre ; et l'XP du clan.
+export function clanBossReward(id, i, level) {
+  const r = clanBossRewards(id)[i], m = clanBossLevel(level).mult, out = {};
   if (r.coins) out.clanCoins = Math.round(r.coins * m);
-  if (r.shards) out.shards = Math.round(r.shards * m);
-  if (r.prisms) out.prisms = Math.round(r.prisms * m);
-  if (r.boosters) out.boosters = r.boosters;
+  for (const k of ['shards', 'prisms', 'uniEssence']) if (r[k]) out[k] = Math.round(r[k] * m);
+  for (const k of ['chests', 'boosters', 'title']) if (r[k]) out[k] = r[k];
   return { reward: out, clanXp: Math.round((r.clanXp || 0) * m) };
 }

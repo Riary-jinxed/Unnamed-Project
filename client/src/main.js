@@ -1122,7 +1122,7 @@ function sealsHTML(seals) {
 function renderGame() {
   const v = ui.view, m = v.me, f = v.foe, g = GENERALS[m.general];
   const play = canPlay();
-  // Boss de clan : il ne tient qu'une seule zone, au-dessus du plateau (boss.js, tableHTML) ; vos 3 zones n'ont que votre côté.
+  // Boss de clan : il prend la place des trois zones d'en face (boss.js, clanZoneHTML) ; vos 3 zones n'ont que votre côté.
   const one = !!v.boss?.clan;
   let board = '';
   for (const z of [0, 1, 2]) {
@@ -1155,7 +1155,7 @@ function renderGame() {
   ${linkHTML(v)}
   ${pbar(f, false, v.connected[1 - v.seat])}
   ${boss.tableHTML(v)}
-  <div class="board">${board}</div>
+  <div class="board ${one ? 'oneboss' : ''}">${one ? boss.clanZoneHTML(v) : ''}${board}</div>
   ${pbar(m, true, true, canGen)}
   ${ui.coach ? coachHTML(ui.coach) : ''}
   <div class="hand" id="hand">${hand || `<span class="empty">${t('Main vide.')}</span>`}</div>
