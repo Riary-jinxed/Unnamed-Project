@@ -34,6 +34,11 @@ const GROUPS = [
   ['Calendrier du mois', 'Une récompense par jour de connexion, à récupérer le jour même ; tout repart le 1er du mois. Dimanche : des coffres d\'arts offerts, plus des Prismes les 2e et 4e dimanches.', [
     ['loginShards', 'Éclats : jour de semaine'], ['loginChests', 'Coffres d\'arts : dimanche'], ['loginPrisms', 'Prismes : 2e et 4e dimanches'],
   ]],
+  ['Bienvenue des nouveaux comptes', 'Sept cadeaux, un par jour de connexion distinct (pas forcément consécutifs), à récupérer avant la fin du délai compté depuis la création du compte. Seuls les comptes créés depuis cette fonction y ont droit (ou ceux à qui la fiche du compte l\'offre). Le 7e jour donne aussi le cadre et le titre de bienvenue.', [
+    ['welcomeWindow', 'Délai en jours (jour de création compris)', 'Entre 7 et 90.'],
+    ['welcomeShards1', 'Jour 1 : Éclats'], ['welcomeBoosters2', 'Jour 2 : boosters offerts'], ['welcomePrisms3', 'Jour 3 : Prismes'], ['welcomeChests4', 'Jour 4 : coffres d\'arts'],
+    ['welcomeShards5', 'Jour 5 : Éclats'], ['welcomeBoosters6', 'Jour 6 : boosters offerts'], ['welcomePrisms7', 'Jour 7 : Prismes (avec le cadre et le titre)'],
+  ]],
   ['Passe de saison', `Une saison par mois, ${PASS_TIERS} paliers. Les missions donnent l'XP de saison. Piste gratuite : des Éclats à chaque palier, des Prismes aux paliers 15 et 35, un coffre d'arts aux paliers 20 et 40, plus les cartes uniques et les cosmétiques. Piste premium : des Prismes à chaque palier, un coffre tous les 10 paliers, plus ses cosmétiques.`, [
     ['passTierXp', 'XP de saison par palier'], ['passXpWin', 'XP de saison : victoire'], ['passXpLoss', 'XP de saison : défaite ou nul'], ['passDaily', 'Missions du passe par jour', 'Entre 0 et 6.'], ['passWeekly', 'Missions du passe par semaine', 'Entre 0 et 10.'],
     ['passXpDaily', 'XP de saison : mission du jour'], ['passXpWeekly', 'XP de saison : mission de la semaine'],

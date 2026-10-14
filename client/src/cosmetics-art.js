@@ -588,6 +588,19 @@ FRAMES.clan_heraut = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2
   t.moveTo(C - 30, y + 10).lineTo(C - 22, y + 30).lineTo(C + 4, y + 30).lineTo(C + 8, y + 8).closePath().fill(0xb0282a).stroke(ink(2.5));
   star(t, C - 9, y + 20, 6, 5, 0.45).fill(0xf5d27a);
   g.addChild(t); };
+// Cadre de bienvenue (7e jour de la bienvenue des nouveaux comptes) : anneau d'or et d'émeraude, rameaux de laurier en bas,
+// ruban vert qui barre le sommet et étoile à sept branches (les sept jours), petites étincelles autour.
+FRAMES.bienvenue = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2).stroke({ width: 12, color: 0xffffff }), 0x7fe0a0, 10, 0.7));
+  laurel(g, 0x6cc070, 0x3a8a4a);
+  ring(g, METAL.or); beads(g, 14, (RH + RB) / 2, 0x3a9a5a, 3, TAU / 28);
+  const y = C - RB + 4, r = new Graphics();
+  for (const s of [-1, 1]) r.poly([C + s * 46, y - 12, C + s * 74, y - 14, C + s * 64, y - 2, C + s * 76, y + 10, C + s * 46, y + 10]).fill(0x2a7a44).stroke(ink(3));
+  r.moveTo(C - 50, y - 16).quadraticCurveTo(C, y - 26, C + 50, y - 16).lineTo(C + 50, y + 12).quadraticCurveTo(C, y + 2, C - 50, y + 12).closePath().fill(0x3aa25a).stroke(ink(3));
+  r.moveTo(C - 44, y - 11).quadraticCurveTo(C, y - 20, C + 44, y - 11).stroke({ width: 2.5, color: 0xf5d27a });
+  g.addChild(r);
+  add(g, glow(() => new Graphics().circle(C, y - 6, 24).fill(0xffffff), 0xfff0a0, 10, 0.9));
+  star(g, C, y - 6, 26, 7, 0.5).fill(0xffd45a).stroke(ink(3)); g.circle(C, y - 6, 8).fill(0xfff3cf).stroke(ink(2));
+  [[C - 92, C - 40, 7], [C + 94, C - 30, 6], [C - 70, C + 96, 5], [C + 72, C + 94, 6]].forEach(([x, yy, rr]) => sparkle(g, x, yy, rr)); };
 // Cadres des paliers des familles d'arts (rewards.js : art_<famille>_<set>). Éclipse : anneau d'ombre, soleil noir couronné de flammes
 // d'or au sommet, croissants et étoiles. Butin : anneau d'or, coffre ouvert qui déborde de lumière au sommet, rang de perles, piles de pièces.
 // Les autres familles ont un rendu provisoire à leurs couleurs, en attendant leur dessin.

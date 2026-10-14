@@ -299,6 +299,11 @@ async function claimDay() {
   const r = await call('POST', '/api/calendar/claim');
   if (r) { ui.calGot = r.got; play('reveal'); render(); }
 }
+// Bienvenue des nouveaux comptes : récompense suivante (une par jour de connexion distinct).
+async function claimWelcome() {
+  const r = await call('POST', '/api/welcome/claim');
+  if (r) { ui.welGot = r.got; play('reveal'); if (r.got.frame) confetti(); render(); }
+}
 // Decks : jusqu'à MAX_DECKS. Création et modification en trois étapes : général, terrains, cartes.
 const deckById = id => ui.account.decks.find(d => d.id === id);
 const maxDecks = () => ui.account?.maxDecks ?? MAX_DECKS;
@@ -469,6 +474,32 @@ function calendarHTML(cal) {
     ${errLine()}
     <div class="row">${cal.ready ? `<button class="btn primary" data-act="claim-day" ${ui.busy ? 'disabled' : ''}>Récupérer la récompense du jour</button>`
       : g?.chests ? `<button class="btn primary" data-act="${chestPool(ui.account.arts).length && prog().freeChests ? 'chest-free' : 'shop-arts'}" ${ui.busy ? 'disabled' : ''}>Ouvrir le coffre</button>` : '<span class="hint">Revenez demain pour la suite.</span>'}
+      <button class="btn" data-act="close">Fermer</button></div></div></div>`;
+}
+// Bienvenue des 7 jours : une case par récompense, prise un jour de connexion distinct (pas forcément consécutif) avant la date limite.
+const fmtDay = d => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+function welcomeWhat(x) {
+  const chip = (n, icon) => `<span class="calgain"><small class="num">${n}</small>${ico(icon)}</span>`;
+  return [x.shards ? chip(x.shards, 'shard') : '', x.prisms ? chip(x.prisms, 'prism') : '', x.chests ? `${x.chests > 1 ? `<small class="num">${x.chests}</small>` : ''}${ico('chest')}` : '',
+    x.boosters ? `<span class="welbooster" aria-hidden="true"></span>${x.boosters > 1 ? `<small class="num">×${x.boosters}</small>` : ''}` : '',
+    x.frame ? `<span class="frame frame-${x.frame} swatch"></span>` : ''].join('');
+}
+const welcomeLabel = x => [x.shards ? `${x.shards} Éclats` : '', x.prisms ? `${x.prisms} Prismes` : '', x.chests ? `${x.chests} coffre${x.chests > 1 ? 's' : ''} d'arts` : '',
+  x.boosters ? `${x.boosters} booster${x.boosters > 1 ? 's' : ''} offert${x.boosters > 1 ? 's' : ''}` : '', x.frame ? FRAMES[x.frame] : '', x.title ? `titre « ${TITLES[x.title] || x.title} »` : ''].filter(Boolean).join(', ');
+function welcomeHTML(w) {
+  const cell = x => `<div class="welday ${x.n === w.steps ? 'last' : ''} ${x.got ? 'got' : ''} ${x.today && !x.got ? 'today' : ''}" aria-label="Jour ${x.n} : ${esc(welcomeLabel(x))}${x.got ? ', récupéré' : ''}">
+    <span class="eyebrow">Jour ${x.n}</span><span class="welgain">${welcomeWhat(x)}</span>${x.n === w.steps ? `<small>${esc(TITLES[x.title] || '')}</small>` : ''}${x.got ? '<span class="ok">✓</span>' : ''}</div>`;
+  const g = ui.welGot;
+  const foot = w.done ? 'Bienvenue terminée : merci de votre fidélité !' : w.expired ? 'Le délai de la bienvenue est passé.'
+    : `${w.got} sur ${w.steps} récupérées · jusqu'au ${fmtDay(w.last)} (${w.left} jour${w.left > 1 ? 's' : ''})`;
+  return `<div class="sheet" data-act="close"><div class="panel welcome" data-stop="1" role="dialog" aria-label="Bienvenue"><div class="ph"><h2>Bienvenue à la taverne</h2><button class="btn" data-act="close">Fermer</button></div>
+    <p class="hint" style="margin:0">Pour vos débuts, sept cadeaux vous attendent : un par jour où vous vous connectez, pas besoin que ce soit d'affilée. Le septième vous offre le ${esc(FRAMES.bienvenue)} et le titre « ${esc(TITLES.bienvenue)} ». Le calendrier du mois continue à côté.</p>
+    <div class="welgrid">${w.list.map(cell).join('')}</div>
+    <p class="hint num" style="margin:0">${foot}</p>
+    ${g ? `<p role="status" style="margin:0"><b>Récupéré : ${esc(welcomeLabel(g))}.</b>${g.boosters ? ' Vos boosters vous attendent à l\'accueil.' : g.chests ? ' Le coffre vous attend à l\'accueil et dans la boutique, onglet Arts.' : g.frame ? ' Équipez votre cadre et votre titre depuis votre profil.' : ''}</p>` : ''}
+    ${errLine()}
+    <div class="row">${w.ready ? `<button class="btn primary" data-act="claim-welcome" ${ui.busy ? 'disabled' : ''}>Récupérer le cadeau du jour ${w.got + 1}</button>`
+      : g?.frame ? '<button class="btn primary" data-act="welcome-profile">Voir mon profil</button>' : w.done || w.expired ? '' : '<span class="hint">Revenez demain pour le cadeau suivant.</span>'}
       <button class="btn" data-act="close">Fermer</button></div></div></div>`;
 }
 function closeInbox() {
@@ -1058,6 +1089,8 @@ function renderHome() {
         <span class="tile-foot">${left ? `${left} à faire` : 'Toutes faites ✓'}</span></button>` : ''}
       ${cal ? `<button class="tile ${cal.ready ? 'todo' : ''}" data-act="calendar"><span class="eyebrow">Calendrier</span><b>${esc(cal.name.split(' ')[0])}</b>
         <span class="tile-foot num">${cal.ready ? 'Récompense à récupérer' : `${cal.got} jour${cal.got > 1 ? 's' : ''} sur ${cal.days.length}`}</span></button>` : ''}
+      ${p.welcome && !p.welcome.expired && (!p.welcome.done || p.welcome.claimed) ? `<button class="tile welcometile ${p.welcome.ready ? 'todo' : ''}" data-act="welcome"><span class="eyebrow">Bienvenue · ${p.welcome.left} j</span><b class="num">${p.welcome.got}/${p.welcome.steps}</b>
+        <span class="tile-foot">${p.welcome.ready ? 'Cadeau à récupérer' : p.welcome.done ? 'Terminée ✓' : 'Revenez demain'}</span></button>` : ''}
       ${clan.tile(a)}
       <button class="tile" data-act="profile" data-tab="succes"><span class="eyebrow">Progression${p.title ? ` · ${esc(titleLabel(p.title))}` : ''}</span><b class="num">Niv. ${p.level}</b>
         <span class="tile-foot num">${p.xp}/${p.xpNext} XP · Succès</span></button>
@@ -1583,7 +1616,7 @@ function closeSheet() {
   if (ui.sheet === 'need') { leaveNeed(); ui.error = ''; render(); return; }
   if (ui.sheet === 'inbox') closeInbox();
   if (ui.sheet === 'mail-got') mail.closeGot();
-  ui.sheet = ui.sheet === 'zoom' && ui.zoomBack ? ui.zoomBack : null; ui.zoom = null; ui.zoomBack = null; ui.renaming = null; ui.gotArt = null; ui.calGot = null; ui.msg = '';
+  ui.sheet = ui.sheet === 'zoom' && ui.zoomBack ? ui.zoomBack : null; ui.zoom = null; ui.zoomBack = null; ui.renaming = null; ui.gotArt = null; ui.calGot = null; ui.welGot = null; ui.msg = '';
   if (ui.sheet !== 'player') ui.player = null;
   render();
 }
@@ -1670,6 +1703,7 @@ function sheetHTML() {
       <div class="row"><button class="btn primary" data-act="close">Super !</button></div></div></div>`;
   }
   if (ui.sheet === 'calendar' && prog().calendar) return calendarHTML(prog().calendar);
+  if (ui.sheet === 'welcome' && prog().welcome) return welcomeHTML(prog().welcome);
   if (ui.sheet === 'event') { const ev = prog().events?.live.find(x => x.id === ui.evSel); if (ev) return eventSheet(ev); }
   if (ui.sheet === 'mail-got') return mail.gotSheet();
   if (ui.sheet === 'art' && ui.gotArt) {
@@ -1719,6 +1753,8 @@ function render() {
   const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, pass: renderPass, lobby: renderLobby, game: renderGame, friends: friends.screen, mail: mail.screen, clan: clan.screen };
   // Récompenses gagnées (niveau, missions, succès, familles et sets complétés) : affichées en revenant à l'accueil.
   if (ui.screen === 'home' && !ui.sheet && prog().inbox.length) ui.sheet = 'inbox';
+  // Cadeau de bienvenue du jour pas encore récupéré : la bienvenue s'ouvre une fois par visite, avant le calendrier.
+  if (ui.screen === 'home' && !ui.sheet && prog().welcome?.ready && !ui.welShown) { ui.welShown = true; ui.welGot = null; ui.sheet = 'welcome'; }
   // Récompense du jour du calendrier pas encore récupérée : le calendrier s'ouvre une fois par visite.
   if (ui.screen === 'home' && !ui.sheet && prog().calendar?.ready && !ui.calShown) { ui.calShown = true; ui.calGot = null; ui.sheet = 'calendar'; }
   // Cadeau de Séraphine, une fois par compte : un doublon du général joué, à améliorer aussitôt (guide « Améliorer une carte »).
@@ -2153,6 +2189,9 @@ app.addEventListener('click', e => {
     else if (a === 'calendar') { ui.sheet = 'calendar'; ui.calGot = null; render(); }
     else if (a === 'event') { ui.sheet = 'event'; ui.evSel = t.dataset.ev; render(); }
     else if (a === 'claim-day' && !ui.busy) claimDay();
+    else if (a === 'welcome') { ui.sheet = 'welcome'; ui.welGot = null; render(); }
+    else if (a === 'claim-welcome' && !ui.busy) claimWelcome();
+    else if (a === 'welcome-profile') { ui.sheet = null; ui.welGot = null; openProfile(); }
     else if (a === 'art-pick' && !ui.busy) selectArt(ds.card, ds.art);
     else if (a === 'holo-toggle' && !ui.busy) toggleHolo(ds.card);
     else if (a === 'border-pick' && !ui.busy) chooseBorder(ds.card, +ds.lv);

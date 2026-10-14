@@ -309,6 +309,13 @@ export function createAccounts(store) {
     await store.put(a);
     return { got, account: me(a) };
   }
+  // Bienvenue des nouveaux comptes : récompense suivante, une par jour de connexion distinct.
+  async function claimWelcome(a) {
+    if (!a.starter) throw new HttpError(409, 'Choisissez d\'abord votre deck de départ.');
+    const got = progress.claimWelcome(a);
+    await store.put(a);
+    return { got, account: me(a) };
+  }
   // Passe de saison : écran du passe, achat du premium en Prismes.
   async function passView(a) { const r = progress.passView(a); await store.put(a); return r; }
   async function buyPass(a) {
@@ -445,6 +452,8 @@ export function createAccounts(store) {
     const old = store.get(login);
     if (old && create) throw new HttpError(409, 'Cet identifiant existe déjà : ouvrez le compte pour changer son mot de passe.');
     const a = old || { login, name: '', starter: null, cards: {}, shards: 0, decks: [], active: null, lastBooster: null, tokens: [], created: new Date().toISOString() };
+    // Bienvenue des 7 jours : seulement pour les comptes créés à partir de maintenant.
+    if (!old) progress.startWelcome(a);
     a.name = String(name || a.name || login).trim().slice(0, 20) || login;
     a.pass = await hashPass(String(password));
     if (old) { for (const t of a.tokens || []) sessions.delete(t); a.tokens = []; }
@@ -457,7 +466,7 @@ export function createAccounts(store) {
   // inDecks : cartes présentes dans au moins un deck du joueur (elles ne peuvent pas être retirées de sa collection).
   const adminDetail = a => ({ ...adminView(a), owned: Object.keys(a.cards).filter(id => a.cards[id]), deck: activeDeck(a), decks: (a.decks || []).length,
     inDecks: [...new Set((a.decks || []).flatMap(d => [...d.cards, d.general].filter(Boolean)))],
-    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? deckError(activeDeck(a), a) : null, arts: a.arts || {}, themes: a.cosmetics?.themes || [] });
+    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? deckError(activeDeck(a), a) : null, arts: a.arts || {}, themes: a.cosmetics?.themes || [], welcome: a.welcome ? progress.welcomeView(a) : null });
   const target = login => { const a = store.get(cleanLogin(login)); if (!a) throw new HttpError(404, 'Compte introuvable.'); return a; };
   const closeSessions = a => { for (const t of a.tokens || []) sessions.delete(t); a.tokens = []; };
   const done = async a => { await store.put(a); return { account: adminDetail(a) }; };
@@ -504,9 +513,13 @@ export function createAccounts(store) {
     const a = target(login);
     Object.assign(a, { starter: null, cards: {}, shards: 0, decks: [], active: null, lastBooster: null, shop: {} });
     for (const k of PROGRESS_FIELDS) delete a[k];
+    // La bienvenue repart du premier jour, avec le même délai depuis la création.
+    if (a.welcome) a.welcome.days = [];
     progress.init(a);
     return done(a);
   }
+  // Offre (ou relance) la bienvenue des 7 jours : le délai repart d'aujourd'hui, aucune récompense prise.
+  async function adminWelcome({ login }) { const a = target(login); progress.startWelcome(a); return done(a); }
   async function adminBooster({ login }) { const a = target(login); a.lastBooster = null; return done(a); }
   async function adminShopReset({ login }) { const a = target(login); a.shop = {}; delete a.artShop; delete a.dupShop; return done(a); }
   // Donner (Promo) ou retirer un art alternatif.
@@ -542,9 +555,9 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
-    adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminBooster, adminShopReset, adminLogout, adminDelete,
+    adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminWelcome, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
     nameOf: login => store.get(login)?.name, ownersOf: id => store.all().filter(a => a.cards[id]).map(a => a.login),
     setCatalogVersion: v => { catalogVersion = v; } };
@@ -578,6 +591,7 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/shop/essence-art': (a, body) => accounts.buyEssenceArt(a, body),
     'POST /api/essence/convert': (a, body) => accounts.convertEssence(a, body),
     'POST /api/calendar/claim': a => accounts.claimDay(a),
+    'POST /api/welcome/claim': a => accounts.claimWelcome(a),
     'GET /api/pass': a => accounts.passView(a),
     'POST /api/pass/premium': a => accounts.buyPass(a),
     'PUT /api/arts/select': (a, body) => accounts.selectArt(a, body),
@@ -598,6 +612,7 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/admin/account/starter': (_, body) => accounts.adminStarter(body),
     'POST /api/admin/account/reset': (_, body) => accounts.adminReset(body),
     'POST /api/admin/account/booster': (_, body) => accounts.adminBooster(body),
+    'POST /api/admin/account/welcome': (_, body) => accounts.adminWelcome(body),
     'POST /api/admin/account/shop': (_, body) => accounts.adminShopReset(body),
     'POST /api/admin/account/logout': (_, body) => accounts.adminLogout(body),
     'POST /api/admin/account/delete': (_, body) => accounts.adminDelete(body),
