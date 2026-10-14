@@ -44,10 +44,10 @@ import { SEASONS, PASS_TIERS, SEASON_THEMES, seasonOfCard, seasonStarted, season
 import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName, chestPool, MAX_FAV_ARTS } from '@jeu/engine/arts';
 
 const famVar = kw => famStyle(kw[0]);
-const kwLine = d => (d.token ? 'Jeton · ' : '') + (d.kw.join(' · ') || 'Neutre');
-const typeName = d => d.type === 'C' ? 'Créature' : 'Sort';
+const kwLine = d => (d.token ? `${t('Jeton')} · ` : '') + (d.kw.map(k => t(k)).join(' · ') || t('Neutre'));
+const typeName = d => d.type === 'C' ? t('Créature') : t('Sort');
 const costLabel = (d, cost) => d.x ? 'X' : cost ?? d.cost;
-const genLine = g => `${g.fam || 'Générique'} · ${g.kind}`;
+const genLine = g => `${g.fam ? t(g.fam) : t('Générique')} · ${t(g.kind)}`;
 const store = {
   get(k, d) { try { const v = localStorage.getItem('jeu-' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('jeu-' + k, JSON.stringify(v)); } catch { /* stockage indisponible */ } },
@@ -65,7 +65,7 @@ const ui = {
 const app = document.getElementById('app');
 // Amis et défis (friends.js) : écran, bandeau de défi, choix du deck pour une partie entre amis.
 const friends = createFriends({ ui, render: () => render(), call: (...x) => call(...x), avatarHTML: (...x) => avatarHTML(...x), errLine: () => errLine(),
-  deckError, play: (...x) => play(...x), generalName: id => GENERALS[id]?.name || 'Sans général', startFriendMatch: (...x) => startFriendMatch(...x), onMail: () => mail.pushed() });
+  deckError, play: (...x) => play(...x), generalName: id => GENERALS[id]?.name || t('Sans général'), startFriendMatch: (...x) => startFriendMatch(...x), onMail: () => mail.pushed() });
 // Courrier et codes cadeaux (mail.js).
 const mail = createMail({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), rewardItem: r => rewardItem(r), play: (...x) => play(...x) });
 // Clans (clan.js) : création, adhésion, missions de clan, dons, magasin et classement des clans.
@@ -119,18 +119,18 @@ const handlers = {
     if (!ui.auth) return;
     api('POST', '/api/games/solo', result, ui.auth).then(r => { ui.soloReward = r.reward; if (r.account) ui.account = r.account; render(); }).catch(() => {});
   },
-  onGone() { store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.error = 'La partie a expiré.'; ui.ctrl = null; ui.friendFoe = null; render(); },
+  onGone() { store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.error = t('La partie a expiré.'); ui.ctrl = null; ui.friendFoe = null; render(); },
   onLeft() {
     // Défi : l'ami a renoncé avant le début de la partie.
-    ui.error = ui.friendFoe && ui.screen === 'lobby' ? `${ui.friendFoe} a annulé la partie.`
-      : ui.view?.ranked && ui.view.phase !== 'over' ? 'Votre adversaire a quitté la partie classée : la victoire vous revient.' : 'Votre adversaire a quitté la partie.';
+    ui.error = ui.friendFoe && ui.screen === 'lobby' ? t('{name} a annulé la partie.', { name: ui.friendFoe })
+      : ui.view?.ranked && ui.view.phase !== 'over' ? t('Votre adversaire a quitté la partie classée : la victoire vous revient.') : t('Votre adversaire a quitté la partie.');
     store.set('session', null); ui.screen = menuScreen(); ui.view = null; ui.ctrl = null; ui.friendFoe = null; render();
   },
 };
 // On joue toujours le deck enregistré sur le compte.
 function deckReady() {
   const err = deckError(ui.account.deck, ui.account);
-  if (err) { ui.error = `Votre deck n'est pas jouable : ${err}`; render(); }
+  if (err) { ui.error = t('Votre deck n\'est pas jouable : {err}', { err }); render(); }
   return !err;
 }
 // Entrée en partie sous le voile (veil.js) : il monte, la partie démarre dessous, puis il s'efface une fois la table prête
@@ -142,14 +142,14 @@ function toTable(label, start) {
 }
 function goOnline(action) {
   if (!deckReady()) return;
-  toTable(action === 'create' ? 'Ouverture du salon…' : 'Vous rejoignez la table…', () => {
+  toTable(action === 'create' ? t('Ouverture du salon…') : t('Vous rejoignez la table…'), () => {
     ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = false; ui.sheet = null;
     ui.offline = false; ui.ctrl = connectOnline(handlers, action === 'create' ? { t: 'create', auth: ui.auth } : { t: 'join', room: ui.joinCode, auth: ui.auth });
   });
 }
 // Défi accepté : on entre dans le salon réservé avec le deck choisi.
 function startFriendMatch(room, deck, foe) {
-  toTable(`${foe} vous attend…`, () => {
+  toTable(t('{foe} vous attend…', { foe }), () => {
     ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = foe; ui.rankedAi = false; ui.sheet = null;
     ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'join', room, auth: ui.auth, deck });
   });
@@ -157,7 +157,7 @@ function startFriendMatch(room, deck, foe) {
 // Partie classée contre l'IA : jouée par le serveur, l'IA est plus forte à chaque palier.
 function goRanked() {
   if (!deckReady()) return;
-  toTable('Votre adversaire s\'installe…', () => {
+  toTable(t('Votre adversaire s\'installe…'), () => {
     ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = true; ui.sheet = null; ui.lastTurn = 0;
     ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'ranked', auth: ui.auth });
   });
@@ -165,21 +165,21 @@ function goRanked() {
 // Boss mondial : une tentative contre le boss de la semaine, jouée par le serveur. Elle compte dès que la partie commence.
 function goBoss() {
   if (!boss.bossDeck(ui.account.boss?.id) && !deckReady()) return;
-  toTable('Le boss se dresse devant vous…', () => {
+  toTable(t('Le boss se dresse devant vous…'), () => {
     ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = false; ui.bossRun = true; ui.sheet = null; ui.lastTurn = 0;
     ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'boss', auth: ui.auth });
   });
 }
 function goSolo() {
   if (!deckReady()) return;
-  toTable('La table se prépare…', () => {
+  toTable(t('La table se prépare…'), () => {
     ui.mode = 'solo'; ui.sheet = null; ui.lastTurn = 0; ui.soloReward = null;
     ui.ctrl = startSolo(handlers, { name: ui.account.name, deck: ui.account.deck });
   });
 }
 // Quête d'histoire : un chapitre contre l'IA, dans la page, avec le deck du héros (story.js). Pas besoin d'un deck jouable.
 function goStory(quest, i) {
-  toTable('Le récit se poursuit…', () => {
+  toTable(t('Le récit se poursuit…'), () => {
     ui.mode = 'story'; ui.sheet = null; ui.lastTurn = 0; ui.soloReward = null; ui.error = '';
     const ctrl = startSolo(handlers, story.gameOpts(quest, i, ui.account.name)), rematch = ctrl.rematch;
     ui.ctrl = { ...ctrl, rematch: () => { story.rematched(); rematch(); } };
@@ -190,12 +190,12 @@ function goStory(quest, i) {
 const tutoKey = () => `tuto-${ui.account?.login || ''}`;
 function goTutorial(lesson = 'initiation') {
   store.set(tutoKey(), true); ui.tutoReward = null; ui.tutoSent = false;
-  toTable('Séraphine vous attend…', () => {
+  toTable(t('Séraphine vous attend…'), () => {
     // Depuis la fin d'une leçon (leçon suivante) ou depuis Passer en pleine leçon : on quitte proprement la précédente.
     if (ui.ctrl) ui.ctrl.leave();
     ui.view = null; ui.pending = []; ui.sel = null; ui.moveSel = null; ui.genZone = null;
     ui.mode = 'tuto'; ui.sheet = null; ui.lastTurn = 0; ui.error = '';
-    ui.ctrl = startTutorial(handlers, { name: ui.account?.name || 'Vous', lesson });
+    ui.ctrl = startTutorial(handlers, { name: ui.account?.name || t('Vous'), lesson });
     render();
   });
 }
@@ -217,9 +217,9 @@ async function takeGift() {
 function guideCoach() {
   const g = ui.guide; if (!g) return null;
   const name = nameOf(g.gen).split(',')[0], at = `[data-zoom="${zoomKey(g.gen)}"]`;
-  if (myLevel(g.gen) >= 2) return { done: true, info: true, hl: [], text: `Bravo ! ${name} passe au niveau 2 et gagne sa bordure de bronze. Chaque doublon de vos cartes donne de l'essence pour monter plus haut.` };
-  if (ui.sheet === 'zoom' && ui.zoom?.id === g.gen) return { hl: ['[data-act="upgrade"]'], text: 'Touchez **Passer au niveau 2**. Le niveau ne change pas la façon de jouer : c\'est la parure de la carte.' };
-  if (ui.screen === 'collection' && !ui.sheet) return { hl: [at], tap: at, text: `Votre doublon de ${name} donne de l'**essence**. Touchez ${name} pour l'ouvrir en grand.` };
+  if (myLevel(g.gen) >= 2) return { done: true, info: true, hl: [], text: t('Bravo ! {name} passe au niveau 2 et gagne sa bordure de bronze. Chaque doublon de vos cartes donne de l\'essence pour monter plus haut.', { name }) };
+  if (ui.sheet === 'zoom' && ui.zoom?.id === g.gen) return { hl: ['[data-act="upgrade"]'], text: t('Touchez **Passer au niveau 2**. Le niveau ne change pas la façon de jouer : c\'est la parure de la carte.') };
+  if (ui.screen === 'collection' && !ui.sheet) return { hl: [at], tap: at, text: t('Votre doublon de {name} donne de l\'**essence**. Touchez {name} pour l\'ouvrir en grand.', { name }) };
   return null;
 }
 // Appelé à chaque rendu : lance l'initiation au premier lancement (hors du rendu en cours).
@@ -261,14 +261,14 @@ async function boot() {
   ui.error = '';
   // Premier lancement sur cet appareil : choix de la langue d'abord (la page se recharge dans la langue choisie).
   if (!langChosen()) { veil.cover({ until: () => true }); ui.screen = 'lang'; render(); return; }
-  veil.cover({ label: 'Chargement des cartes…', until: () => ui.screen !== 'loading' || !!ui.error, ready: () => {
-    veil.step(1, 'Préparation du salon…');
+  veil.cover({ label: t('Chargement des cartes…'), until: () => ui.screen !== 'loading' || !!ui.error, ready: () => {
+    veil.step(1, t('Préparation du salon…'));
     return Promise.race([document.fonts?.ready, new Promise(r => setTimeout(r, 1500))]).then(() => (ui.screen === 'game' ? stageReady() : null));
   } });
   veil.step(0.25);
   await loadCatalog();
   if (!ui.auth) { signedOut(); render(); return; }
-  veil.step(0.6, 'Connexion à votre compte…');
+  veil.step(0.6, t('Connexion à votre compte…'));
   await call('GET', '/api/me');
 }
 async function doLogin() {
@@ -289,9 +289,9 @@ function doLogout() {
 function showCards(r, set = 'base') {
   const summary = () => { ui.booster = { ...r, opened: r.cards.length > 1 }; ui.sheet = 'booster'; render(); };
   if (r.cards.length < 2) { play('reveal'); summary(); return; }
-  openPack({ title: r.title, set, setName: esc(SETS.find(x => x.id === set)?.name || ''), back: prog().back,
+  openPack({ title: tField(r, 'title'), set, setName: esc(SETS.find(x => x.id === set)?.name || ''), back: prog().back,
     cards: r.cards.map((id, i) => ({ html: anyCard(id, myLevel(id), mySel(id), myBorder(id), 'grand'), fresh: !!r.fresh[i], general: !!GENERALS[id],
-      tag: r.fresh[i] ? (GENERALS[id] ? 'Nouveau général !' : 'Nouvelle carte !') : dupTag(id) })) }, summary);
+      tag: r.fresh[i] ? (GENERALS[id] ? t('Nouveau général !') : t('Nouvelle carte !')) : dupTag(id) })) }, summary);
 }
 async function openBoosterNow() {
   const r = await call('POST', '/api/booster');
@@ -313,7 +313,7 @@ async function buyArt(path, body) {
   ui.shop = r.shop; ui.msg = '';
   const art = ARTS[r.art], show = () => { ui.gotArt = { id: r.art, chest: !!r.chest }; ui.sheet = 'art'; render(); };
   // Coffre : on le frappe, il s'ouvre (opening.js), puis l'art s'affiche, prêt à être choisi.
-  if (r.chest) { openChest({ rarity: art.rarity, html: artHTML(art.card, nameOf(art.card), myLevel(art.card), 'grand', art.id), chip: rarChip(art), name: esc(art.name), sub: esc(nameOf(art.card)) }, show); return; }
+  if (r.chest) { openChest({ rarity: art.rarity, html: artHTML(art.card, nameOf(art.card), myLevel(art.card), 'grand', art.id), chip: rarChip(art), name: esc(t(art.name)), sub: esc(nameOf(art.card)) }, show); return; }
   play(['epique', 'legendaire'].includes(art.rarity) ? 'astral' : 'reveal'); show();
 }
 // ---- Change de devises : Prismes en Éclats, par offres fixes (exchangeOffers du moteur), jamais l'inverse ----
@@ -342,7 +342,7 @@ async function exchange(id) {
   if (r.shop) ui.shop = r.shop;
   play('reveal');
   if (ui.sheet === 'need') { leaveNeed(); render(); then?.(); return; }
-  ui.msg = `+${fmt(r.shards)} Éclats.`; render();
+  ui.msg = t('+{n} Éclats.', { n: fmt(r.shards) }); render();
 }
 // Calendrier de connexion du mois : récompense du jour.
 async function claimDay() {
@@ -371,7 +371,7 @@ function editDeck(id = ui.account.active, back = 'home') {
 // Deck préparé contre un boss mondial (boss.js) : le sien, sinon une copie du deck joué à ajuster.
 function editBossDeck(boss) {
   const d = ui.account.bossDecks?.[boss] || ui.account.deck;
-  ui.edit = { boss, id: null, name: ui.account.bossDecks?.[boss]?.name || `Contre ${GENERALS[boss].name.split(/,\s*/)[0]}`,
+  ui.edit = { boss, id: null, name: ui.account.bossDecks?.[boss]?.name || t('Contre {name}', { name: GENERALS[boss].name.split(/,\s*/)[0] }),
     cards: d ? d.cards.slice() : [], terrains: d ? d.terrains.slice() : [], general: d?.general || null, back: 'decks' };
   ui.deckStep = [0, 1, 2].filter(i => stepOpen(ui.edit, i)).pop();
   ui.screen = 'deck'; ui.error = ''; ui.msg = '';
@@ -385,8 +385,8 @@ function openDecks() { ui.screen = 'decks'; ui.error = ''; ui.msg = ''; render()
 async function deckAction(act, id) {
   const d = deckById(id); if (!d) return;
   if (act === 'deck-play') call('POST', '/api/decks/play', { id });
-  else if (act === 'deck-reset' && confirm(`Remettre « ${d.name} » à zéro ? Son général, ses terrains et ses cartes seront retirés.`)) call('POST', '/api/decks/reset', { id });
-  else if (act === 'deck-delete' && confirm(`Supprimer « ${d.name} » ?`)) call('POST', '/api/decks/delete', { id });
+  else if (act === 'deck-reset' && confirm(t('Remettre « {name} » à zéro ? Son général, ses terrains et ses cartes seront retirés.', { name: d.name }))) call('POST', '/api/decks/reset', { id });
+  else if (act === 'deck-delete' && confirm(t('Supprimer « {name} » ?', { name: d.name }))) call('POST', '/api/decks/delete', { id });
   else if (act === 'deck-rename') { ui.renaming = { id, name: d.name }; ui.sheet = 'rename'; render(); }
   else if (act === 'deck-edit') { editDeck(id, 'decks'); render(); }
 }
@@ -399,31 +399,31 @@ async function renameDeck() {
 function showDeckCode(d) { ui.shareDeck = { name: d.name, code: deckCode(d) }; ui.sheet = 'deck-code'; render(); }
 function copyDeckCode(btn) {
   const box = document.getElementById('deck-code');
-  navigator.clipboard.writeText(ui.shareDeck.code).then(() => { btn.textContent = 'Code copié'; }).catch(() => { box?.select(); });
+  navigator.clipboard.writeText(ui.shareDeck.code).then(() => { btn.textContent = t('Code copié'); }).catch(() => { box?.select(); });
 }
 // Liste lisible de noms, raccourcie au-delà de `max`.
-const namesLine = (ids, max = 6) => ids.slice(0, max).map(nameOf).join(', ') + (ids.length > max ? ` et ${ids.length - max} autre${ids.length - max > 1 ? 's' : ''}` : '');
+const namesLine = (ids, max = 6) => ids.slice(0, max).map(nameOf).join(', ') + (ids.length > max ? ` ${tp(ids.length - max, 'et {n} autre', 'et {n} autres')}` : '');
 // Ce qui manque pour reconstruire un deck avec sa collection, en une phrase.
 function missingLine({ missing: m }) {
-  const parts = [m.general && `le général ${nameOf(m.general)}`,
-    m.terrains.length && `${m.terrains.length > 1 ? 'les terrains' : 'le terrain'} ${m.terrains.map(t => TERRAINS[t].name).join(', ')} (il faut un général de leur famille)`,
-    m.cards.length && `${m.cards.length} carte${m.cards.length > 1 ? 's' : ''} : ${namesLine(m.cards)}`].filter(Boolean);
-  return parts.length ? `Il vous manque ${parts.join(' ; ')}.` : '';
+  const parts = [m.general && t('le général {name}', { name: nameOf(m.general) }),
+    m.terrains.length && tp(m.terrains.length, 'le terrain {list} (il faut un général de leur famille)', 'les terrains {list} (il faut un général de leur famille)', { list: m.terrains.map(x => TERRAINS[x].name).join(', ') }),
+    m.cards.length && tp(m.cards.length, '{n} carte : {list}', '{n} cartes : {list}', { list: namesLine(m.cards) })].filter(Boolean);
+  return parts.length ? t('Il vous manque {list}.', { list: parts.join(getLang() === 'fr' ? ' ; ' : '; ') }) : '';
 }
 // Ouvre le constructeur sur un nouveau deck rempli avec ce que la collection permet de reprendre d'un code ou d'une recette.
 function buildFrom(d, what) {
-  if (ui.account.decks.length >= maxDecks()) { ui.error = `${maxDecks()} decks au plus : supprimez-en un pour ${what === 'code' ? 'importer ce code' : 'construire cette recette'}.`; render(); return; }
+  if (ui.account.decks.length >= maxDecks()) { ui.error = what === 'code' ? t('{max} decks au plus : supprimez-en un pour importer ce code.', { max: maxDecks() }) : t('{max} decks au plus : supprimez-en un pour construire cette recette.', { max: maxDecks() }); render(); return; }
   const fit = fitDeck(d, ui.account), skip = fit.missing.unknown;
   editDeck(null, 'decks');
   Object.assign(ui.edit, { ...fit.deck, name: fit.deck.name || ui.edit.name });
   ui.deckStep = [0, 1, 2].filter(i => stepOpen(ui.edit, i)).pop();
-  ui.msg = [fit.complete ? 'Vous avez tout : vérifiez le deck puis enregistrez-le.' : `${missingLine(fit)} Complétez avec vos cartes, ou enregistrez-le incomplet pour le finir plus tard.`,
-    skip ? `${skip} élément${skip > 1 ? 's' : ''} inconnu${skip > 1 ? 's' : ''} ou pas encore sorti${skip > 1 ? 's' : ''} ignoré${skip > 1 ? 's' : ''}.` : ''].filter(Boolean).join(' ');
+  ui.msg = [fit.complete ? t('Vous avez tout : vérifiez le deck puis enregistrez-le.') : t('{missing} Complétez avec vos cartes, ou enregistrez-le incomplet pour le finir plus tard.', { missing: missingLine(fit) }),
+    skip ? tp(skip, '{n} élément inconnu ou pas encore sorti ignoré.', '{n} éléments inconnus ou pas encore sortis ignorés.') : ''].filter(Boolean).join(' ');
   ui.importCode = ''; ui.importErr = ''; render(); scrollTo(0, 0);
 }
 function importDeck() {
   const d = readDeckCode(ui.importCode);
-  if (!d) { ui.importErr = 'Ce code de deck est illisible : copiez-le en entier, il commence par DK1-.'; render(); return; }
+  if (!d) { ui.importErr = t('Ce code de deck est illisible : copiez-le en entier, il commence par DK1-.'); render(); return; }
   buildFrom(d, 'code');
 }
 
@@ -446,13 +446,13 @@ function openProfile(tab = 'profil') {
   call('GET', '/api/profile').then(r => { if (r) { ui.profile = r.stats; ui.progressInfo = { achievements: r.achievements, collection: r.collection }; render(); } });
 }
 async function saveName() {
-  if (await call('PUT', '/api/profile', { name: ui.nameDraft })) { ui.msg = 'Pseudo enregistré.'; render(); }
+  if (await call('PUT', '/api/profile', { name: ui.nameDraft })) { ui.msg = t('Pseudo enregistré.'); render(); }
 }
 // Image de profil : recadrée au centre en carré et réduite à 160 px avant l'envoi (affichée en cercle).
 const AVATAR_SIZE = 160;
 async function pickAvatar(file) {
   if (!file) return;
-  if (!file.type.startsWith('image/')) { ui.error = 'Choisissez une image.'; render(); return; }
+  if (!file.type.startsWith('image/')) { ui.error = t('Choisissez une image.'); render(); return; }
   let url;
   try {
     const img = new Image(); url = URL.createObjectURL(file); img.src = url; await img.decode();
@@ -461,8 +461,8 @@ async function pickAvatar(file) {
     c.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, AVATAR_SIZE, AVATAR_SIZE);
     let data = c.toDataURL('image/webp', 0.85);
     if (!data.startsWith('data:image/webp')) data = c.toDataURL('image/jpeg', 0.85);
-    if (await call('PUT', '/api/profile', { avatar: data })) { ui.msg = 'Image de profil changée.'; render(); }
-  } catch { ui.error = 'Impossible de lire cette image.'; render(); }
+    if (await call('PUT', '/api/profile', { avatar: data })) { ui.msg = t('Image de profil changée.'); render(); }
+  } catch { ui.error = t('Impossible de lire cette image.'); render(); }
   finally { if (url) URL.revokeObjectURL(url); }
 }
 const initials = name => (String(name || '?').trim().match(/\S/g) || ['?'])[0].toUpperCase();
@@ -470,29 +470,29 @@ const avatarBare = (a, cls = '') => (a.avatar ? `<img class="avatar ${cls}" src=
 // Le cadre choisi entoure l'image de profil.
 const avatarHTML = (a, cls = '', frame = a.progress?.frame) => (frame ? `<span class="frame frame-${frame} ${cls}">${avatarBare(a, cls)}</span>` : avatarBare(a, cls));
 // Bilan de victoires d'un mode (Mon profil et profil public).
-const winTile = (label, r) => `<div class="stat"><span class="eyebrow">${label}</span><b class="num">${r.rate === null ? '–' : `${r.rate} %`}</b>
-  <small class="hint num">${r.games} partie${r.games > 1 ? 's' : ''} · ${r.wins} V · ${r.losses} D${r.draws ? ` · ${r.draws} N` : ''}</small></div>`;
-const winTiles = st => `<div class="stats">${winTile('Toutes les parties', st.all)}${winTile('En ligne', st.pvp)}${winTile('Contre l\'IA', st.pve)}</div>`;
+const winTile = (label, r) => `<div class="stat"><span class="eyebrow">${label}</span><b class="num">${r.rate === null ? '–' : t('{n} %', { n: r.rate })}</b>
+  <small class="hint num">${tp(r.games, '{n} partie', '{n} parties')} · ${t('{w} V · {l} D', { w: r.wins, l: r.losses })}${r.draws ? ` · ${t('{n} N', { n: r.draws })}` : ''}</small></div>`;
+const winTiles = st => `<div class="stats">${winTile(t('Toutes les parties'), st.all)}${winTile(t('En ligne'), st.pvp)}${winTile(t('Contre l\'IA'), st.pve)}</div>`;
 // Général et cartes les plus joués : { id, games | plays, level, art }, en version réduite comme sur le plateau
 // (illustration, nom, puissance, sans le texte) ; touchée, la carte s'ouvre en grand.
 function smallCard(c) {
   const d = CARDS[c.id], g = GENERALS[c.id], name = (d || g).name;
-  const p = g ? '<span class="p sm">Général</span>' : d.type === 'C' ? `<span class="p num">${d.power}</span>` : '<span class="p sm">Sort</span>';
-  return `<button class="mc topmc${lvCls(c.border || c.level)}" style="${famVar(g ? [g.fam] : d.kw)}" data-zoom="${zoomKey(c.id, c.art || '')}" aria-label="${esc(name)} : voir en grand">
+  const p = g ? `<span class="p sm">${t('Général')}</span>` : d.type === 'C' ? `<span class="p num">${d.power}</span>` : `<span class="p sm">${t('Sort')}</span>`;
+  return `<button class="mc topmc${lvCls(c.border || c.level)}" style="${famVar(g ? [g.fam] : d.kw)}" data-zoom="${zoomKey(c.id, c.art || '')}" aria-label="${t('{name} : voir en grand', { name: esc(name) })}">
     ${artBg(c.id, c.art)}<span class="n">${esc(name)}</span>${p}</button>`;
 }
 const topCard = (c, n) => `<div class="topcard">${smallCard(c)}<small class="hint num">${n}</small></div>`;
 // Art préféré : l'illustration seule (avec le nom de la carte), sans le texte de la carte ; touché, il s'ouvre en grand.
 // lvl : niveau de la carte (le même pour tous ses arts) ; par défaut, celui de votre carte.
 const artOnly = (id, lvl = myLevel(ARTS[id].card)) => artHTML(ARTS[id].card, nameOf(ARTS[id].card), lvl, '', id);
-const favArt = (id, n, lvl) => `<div class="topcard"><button class="favart" data-zoom="${zoomKey(ARTS[id].card, id)}" aria-label="${esc(ARTS[id].name)} : voir en grand">${artOnly(id, lvl)}</button>
+const favArt = (id, n, lvl) => `<div class="topcard"><button class="favart" data-zoom="${zoomKey(ARTS[id].card, id)}" aria-label="${t('{name} : voir en grand', { name: esc(t(ARTS[id].name)) })}">${artOnly(id, lvl)}</button>
   <small class="hint">${n}</small></div>`;
-const plays = n => `${n} partie${n > 1 ? 's' : ''}`;
+const plays = n => tp(n, '{n} partie', '{n} parties');
 function cardStatsHTML(cards, gen) {
-  if (!cards.length && !gen) return '<p class="hint" style="margin:0">Aucune carte jouée pour l\'instant.</p>';
-  return `<div class="topcards">${gen ? `<div class="topgen"><span class="eyebrow">Général le plus joué</span><div class="topgenrow">${smallCard(gen)}
-      <span><b>${esc(GENERALS[gen.id].name)}</b><br><small class="hint num">${plays(gen.games)}${gen.rate !== null ? ` · ${gen.rate} % de victoires` : ''}</small></span></div></div>` : ''}
-    ${cards.length ? `<div class="topfive"><span class="eyebrow">${cards.length > 1 ? `Les ${cards.length} cartes les plus jouées` : 'Carte la plus jouée'}</span>
+  if (!cards.length && !gen) return `<p class="hint" style="margin:0">${t('Aucune carte jouée pour l\'instant.')}</p>`;
+  return `<div class="topcards">${gen ? `<div class="topgen"><span class="eyebrow">${t('Général le plus joué')}</span><div class="topgenrow">${smallCard(gen)}
+      <span><b>${esc(GENERALS[gen.id].name)}</b><br><small class="hint num">${plays(gen.games)}${gen.rate !== null ? ` · ${t('{n} % de victoires', { n: gen.rate })}` : ''}</small></span></div></div>` : ''}
+    ${cards.length ? `<div class="topfive"><span class="eyebrow">${cards.length > 1 ? t('Les {n} cartes les plus jouées', { n: cards.length }) : t('Carte la plus jouée')}</span>
       <div class="topgrid">${cards.map(c => topCard(c, plays(c.plays))).join('')}</div></div>` : ''}</div>`;
 }
 
@@ -510,54 +510,54 @@ async function playerFriend(accept) {
   if (r && ui.player?.data === P) { P.friend = accept || P.friend === 'in' ? 'friend' : 'out'; render(); }
 }
 function playerSheet() {
-  const P = ui.player.data, close = '<button class="btn" data-act="close">Fermer</button>';
-  if (!P) return `<div class="sheet" data-act="close"><div class="panel" data-stop="1" role="dialog" aria-label="Profil du joueur"><div class="ph"><h2>Profil</h2>${close}</div>
-    ${ui.error ? errLine() : '<p class="wait">Chargement…</p>'}</div></div>`;
-  const friend = { me: '<span class="hint">C\'est votre profil.</span>', friend: '<span class="hint">✓ Vous êtes amis.</span>', out: '<span class="hint">Demande d\'ami envoyée.</span>',
-    in: `<button class="btn primary" data-act="player-accept" ${ui.busy ? 'disabled' : ''}>Accepter sa demande d'ami</button>` }[P.friend]
-    || `<button class="btn primary" data-act="player-add" ${ui.busy ? 'disabled' : ''}>Envoyer une demande d'ami</button>`;
+  const P = ui.player.data, close = `<button class="btn" data-act="close">${t('Fermer')}</button>`;
+  if (!P) return `<div class="sheet" data-act="close"><div class="panel" data-stop="1" role="dialog" aria-label="${t('Profil du joueur')}"><div class="ph"><h2>${t('Profil')}</h2>${close}</div>
+    ${ui.error ? errLine() : `<p class="wait">${t('Chargement…')}</p>`}</div></div>`;
+  const friend = { me: `<span class="hint">${t('C\'est votre profil.')}</span>`, friend: `<span class="hint">${t('✓ Vous êtes amis.')}</span>`, out: `<span class="hint">${t('Demande d\'ami envoyée.')}</span>`,
+    in: `<button class="btn primary" data-act="player-accept" ${ui.busy ? 'disabled' : ''}>${t('Accepter sa demande d\'ami')}</button>` }[P.friend]
+    || `<button class="btn primary" data-act="player-add" ${ui.busy ? 'disabled' : ''}>${t('Envoyer une demande d\'ami')}</button>`;
   const favs = P.favArts.filter(x => ARTS[x.id]);
-  return `<div class="sheet" data-act="close"><div class="panel pprofile" data-stop="1" role="dialog" aria-label="Profil de ${esc(P.name)}">
-    <div class="ph"><h2>Profil</h2>${close}</div>
+  return `<div class="sheet" data-act="close"><div class="panel pprofile" data-stop="1" role="dialog" aria-label="${t('Profil de {name}', { name: esc(P.name) })}">
+    <div class="ph"><h2>${t('Profil')}</h2>${close}</div>
     <div class="card-box profile">${avatarHTML(P, 'big', P.frame)}
-      <div style="display:grid;gap:6px"><div><b style="font-size:20px">${esc(P.name)}</b>${P.title ? `<div class="ptitle">${esc(P.title)}</div>` : ''}</div>
-        <span class="hint">Niveau <span class="num">${P.level}</span></span>
-        ${P.clan ? `<span class="pclan">${crestHTML(P.clan, 'sm')}<b>${esc(P.clan.name)}</b> <span class="ctag">[${esc(P.clan.tag)}]</span>${P.clan.role ? ` <small class="hint">· ${esc(P.clan.role)}</small>` : ''}</span>` : ''}
-        ${P.ranked ? `<span>${rankHTML(P.ranked.rank)} <small class="hint num">· ${P.ranked.pos}${P.ranked.pos === 1 ? 'er' : 'e'} du classement</small></span>` : ''}</div></div>
+      <div style="display:grid;gap:6px"><div><b style="font-size:20px">${esc(P.name)}</b>${P.title ? `<div class="ptitle">${esc(t(P.title))}</div>` : ''}</div>
+        <span class="hint">${t('Niveau <span class="num">{n}</span>', { n: P.level })}</span>
+        ${P.clan ? `<span class="pclan">${crestHTML(P.clan, 'sm')}<b>${esc(P.clan.name)}</b> <span class="ctag">[${esc(P.clan.tag)}]</span>${P.clan.role ? ` <small class="hint">· ${esc(t(P.clan.role))}</small>` : ''}</span>` : ''}
+        ${P.ranked ? `<span>${rankHTML(P.ranked.rank)} <small class="hint num">· ${P.ranked.pos === 1 ? t('1er du classement') : t('{n}e du classement', { n: P.ranked.pos })}</small></span>` : ''}</div></div>
     <div class="row" role="status">${friend}</div>${errLine()}
-    <span class="eyebrow">Victoires</span>${winTiles(P.stats)}
+    <span class="eyebrow">${t('Victoires')}</span>${winTiles(P.stats)}
     ${cardStatsHTML(P.cards, P.general)}
-    <span class="eyebrow">Arts préférés</span>${favs.length ? `<div class="favgrid">${favs.map(x => favArt(x.id, esc(ARTS[x.id].name), x.level || 1)).join('')}</div>`
-      : '<p class="hint" style="margin:0">Pas encore d\'arts préférés.</p>'}
+    <span class="eyebrow">${t('Arts préférés')}</span>${favs.length ? `<div class="favgrid">${favs.map(x => favArt(x.id, esc(t(ARTS[x.id].name)), x.level || 1)).join('')}</div>`
+      : `<p class="hint" style="margin:0">${t('Pas encore d\'arts préférés.')}</p>`}
   </div></div>`;
 }
 
 // ---- Progression : niveau, missions, récompenses, personnalisation ----
 const prog = () => ui.account?.progress || { level: 1, xp: 0, xpNext: 1, missions: [], inbox: [], cosmetics: { titles: [], frames: [], backs: [] }, freeBoosters: 0 };
 const pct = (n, d) => Math.max(0, Math.min(100, Math.round(100 * n / (d || 1))));
-const levelBar = p => `<div class="lvl"><span class="lvlnum num">Niv. ${p.level}</span><div class="bar" role="progressbar" aria-valuenow="${p.xp}" aria-valuemin="0" aria-valuemax="${p.xpNext}" aria-label="Expérience"><span style="width:${pct(p.xp, p.xpNext)}%"></span></div><small class="hint num">${p.xp}/${p.xpNext} XP</small></div>`;
-const gains = r => [r.xp ? `+${r.xp} XP` : '', r.shards ? `+${r.shards} Éclats` : '', r.prisms ? `+${r.prisms} Prisme${r.prisms > 1 ? 's' : ''}` : '',
-  r.chests ? `+${r.chests} coffre${r.chests > 1 ? 's' : ''} d'arts offert${r.chests > 1 ? 's' : ''}` : '', r.boosters ? `+${r.boosters} booster${r.boosters > 1 ? 's' : ''} offert${r.boosters > 1 ? 's' : ''}` : '',
-  r.passXp ? `+${r.passXp} XP de saison` : '', r.essence ? `+${r.essence} essence${r.essenceCard ? ` de ${nameOf(r.essenceCard)}` : ''}` : '',
-  r.uniEssence ? `+${r.uniEssence} essence universelle` : '', r.clanCoins ? `+${r.clanCoins} Écu${r.clanCoins > 1 ? 's' : ''} de clan` : '',
-  r.bossCoins ? `+${r.bossCoins} Insigne${r.bossCoins > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
-const titleLabel = id => prog().cosmetics.titles.find(t => t.id === id)?.label || '';
+const levelBar = p => `<div class="lvl"><span class="lvlnum num">${t('Niv. {n}', { n: p.level })}</span><div class="bar" role="progressbar" aria-valuenow="${p.xp}" aria-valuemin="0" aria-valuemax="${p.xpNext}" aria-label="${t('Expérience')}"><span style="width:${pct(p.xp, p.xpNext)}%"></span></div><small class="hint num">${p.xp}/${p.xpNext} XP</small></div>`;
+const gains = r => [r.xp ? `+${r.xp} XP` : '', r.shards ? t('+{n} Éclats', { n: r.shards }) : '', r.prisms ? tp(r.prisms, '+{n} Prisme', '+{n} Prismes') : '',
+  r.chests ? tp(r.chests, '+{n} coffre d\'arts offert', '+{n} coffres d\'arts offerts') : '', r.boosters ? tp(r.boosters, '+{n} booster offert', '+{n} boosters offerts') : '',
+  r.passXp ? t('+{n} XP de saison', { n: r.passXp }) : '', r.essence ? (r.essenceCard ? t('+{n} essence de {card}', { n: r.essence, card: nameOf(r.essenceCard) }) : t('+{n} essence', { n: r.essence })) : '',
+  r.uniEssence ? t('+{n} essence universelle', { n: r.uniEssence }) : '', r.clanCoins ? tp(r.clanCoins, '+{n} Écu de clan', '+{n} Écus de clan') : '',
+  r.bossCoins ? tp(r.bossCoins, '+{n} Insigne', '+{n} Insignes') : ''].filter(Boolean).join(' · ');
+const titleLabel = id => t(prog().cosmetics.titles.find(x => x.id === id)?.label || '');
 function missionsHTML() {
   const p = prog();
   if (!p.missions.length) return '';
   return `<div class="missions">${p.missions.map((m, i) => `<div class="mission ${m.done ? 'done' : ''}">
-    <div class="row" style="justify-content:space-between;gap:8px"><span>${m.done ? '✓ ' : ''}${esc(m.label)}</span><small class="hint num">${gains(m)}</small></div>
+    <div class="row" style="justify-content:space-between;gap:8px"><span>${m.done ? '✓ ' : ''}${esc(tField(m, 'label'))}</span><small class="hint num">${gains(m)}</small></div>
     <div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(m.n, m.target)}%"></span></div><small class="num">${m.n}/${m.target}</small>
-      ${!m.done && p.rerollsLeft ? `<button class="btn sm" data-act="reroll" data-i="${i}" ${ui.busy ? 'disabled' : ''}>Changer</button>` : ''}</div></div>`).join('')}</div>
-    <p class="hint" style="margin:0">Nouvelles missions chaque jour à minuit.${p.rerollsLeft ? ` Vous pouvez en changer ${p.rerollsLeft} aujourd'hui.` : ''}</p>`;
+      ${!m.done && p.rerollsLeft ? `<button class="btn sm" data-act="reroll" data-i="${i}" ${ui.busy ? 'disabled' : ''}>${t('Changer')}</button>` : ''}</div></div>`).join('')}</div>
+    <p class="hint" style="margin:0">${t('Nouvelles missions chaque jour à minuit.')}${p.rerollsLeft ? ` ${t('Vous pouvez en changer {n} aujourd\'hui.', { n: p.rerollsLeft })}` : ''}</p>`;
 }
 // Ce que contient une récompense : gains, carte, titre, cadre, dos de carte, art Promo.
 function rewardItem(r) {
   const art = r.art && ARTS[r.art];
-  const extra = [r.title ? `Titre « ${esc(titleLabel(r.title) || r.title)} »` : '', r.frame ? esc(FRAMES[r.frame] || r.frame) : '', r.back ? esc(BACKS[r.back] || r.back) : '',
-    art ? `Art Promo « ${esc(art.name)} »` : '', r.theme ? `Thème de l'interface « ${esc(SEASON_THEMES[r.theme] || r.theme)} » (Profil, Personnalisation)` : '',
-    r.emote && EMOTES[r.emote] ? `Émote ${EMOTES[r.emote].icon} « ${esc(EMOTES[r.emote].text)} » (Profil, Personnalisation)` : ''].filter(Boolean).join(' · ');
-  return `<div class="reward"><div><b>${esc(r.label)}</b>${gains(r) ? `<div class="num">${gains(r)}</div>` : ''}${extra ? `<div class="hint">${extra}</div>` : ''}</div>
+  const extra = [r.title ? t('Titre « {name} »', { name: esc(titleLabel(r.title) || t(r.title)) }) : '', r.frame ? esc(t(FRAMES[r.frame] || r.frame)) : '', r.back ? esc(t(BACKS[r.back] || r.back)) : '',
+    art ? t('Art Promo « {name} »', { name: esc(t(art.name)) }) : '', r.theme ? t('Thème de l\'interface « {name} » (Profil, Personnalisation)', { name: esc(t(SEASON_THEMES[r.theme] || r.theme)) }) : '',
+    r.emote && EMOTES[r.emote] ? t('Émote {icon} « {text} » (Profil, Personnalisation)', { icon: EMOTES[r.emote].icon, text: esc(t(EMOTES[r.emote].text)) }) : ''].filter(Boolean).join(' · ');
+  return `<div class="reward"><div><b>${esc(tField(r, 'label'))}</b>${gains(r) ? `<div class="num">${gains(r)}</div>` : ''}${extra ? `<div class="hint">${extra}</div>` : ''}</div>
     ${r.card ? `<button class="ccard" data-zoom="${zoomKey(r.card)}">${anyCard(r.card)}</button>` : ''}
     ${art ? `<button class="ccard" data-zoom="${zoomKey(art.card, art.id)}">${anyCard(art.card, myLevel(art.card), art.id, myBorder(art.card))}</button>` : ''}</div>`;
 }
@@ -568,54 +568,54 @@ function calendarHTML(cal) {
   const [y, m] = cal.month.split('-').map(Number), lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
   const what = d => (d.chests ? `${ico('chest')}${d.prisms ? `<span class="calgain"><small class="num">+${d.prisms}</small>${ico('prism')}</span>` : ''}`
     : `<span class="calgain"><small class="num">${d.shards}</small>${ico('shard')}</span>`);
-  const label = d => [`${d.day}`, d.chests ? `coffre d'arts${d.prisms ? ` et ${d.prisms} Prismes` : ''}` : `${d.shards} Éclats`, d.got ? 'récupéré' : d.missed ? 'manqué' : d.day === cal.today ? 'aujourd\'hui' : ''].filter(Boolean).join(', ');
+  const label = d => [`${d.day}`, d.chests ? (d.prisms ? t('coffre d\'arts et {n} Prismes', { n: d.prisms }) : t('coffre d\'arts')) : t('{n} Éclats', { n: d.shards }), d.got ? t('récupéré') : d.missed ? t('manqué') : d.day === cal.today ? t('aujourd\'hui') : ''].filter(Boolean).join(', ');
   const cell = d => `<div class="calday ${d.chests ? 'sun' : ''} ${d.got ? 'got' : ''} ${d.missed ? 'missed' : ''} ${d.day === cal.today ? 'today' : ''}" aria-label="${label(d)}">
     <span class="num cdn">${d.day}</span>${what(d)}${d.got ? '<span class="ok">✓</span>' : ''}</div>`;
   const g = ui.calGot;
-  return `<div class="sheet" data-act="close"><div class="panel calendar" data-stop="1" role="dialog" aria-label="Calendrier du mois"><div class="ph"><h2>Calendrier de ${esc(cal.name)}</h2><button class="btn" data-act="close">Fermer</button></div>
-    <p class="hint" style="margin:0">Connectez-vous chaque jour pour récupérer sa récompense : des Éclats ${ico('shard')} en semaine, un coffre d'arts ${ico('chest')} chaque dimanche, et des Prismes ${ico('prism')} en plus un dimanche sur deux. Un jour manqué est perdu ; tout repart le 1er du mois.</p>
-    <div class="calgrid">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span class="calh">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${cal.days.map(cell).join('')}</div>
-    ${g ? `<p role="status" style="margin:0"><b>Récupéré : ${gains(g)}.</b>${g.chests ? ' Le coffre vous attend à l\'accueil et dans la boutique, onglet Arts.' : ''}</p>` : ''}
+  return `<div class="sheet" data-act="close"><div class="panel calendar" data-stop="1" role="dialog" aria-label="${t('Calendrier du mois')}"><div class="ph"><h2>${t('Calendrier de {name}', { name: esc(seasonName(cal.month)) })}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
+    <p class="hint" style="margin:0">${t('Connectez-vous chaque jour pour récupérer sa récompense : des Éclats {shard} en semaine, un coffre d\'arts {chest} chaque dimanche, et des Prismes {prism} en plus un dimanche sur deux. Un jour manqué est perdu ; tout repart le 1er du mois.', { shard: ico('shard'), chest: ico('chest'), prism: ico('prism') })}</p>
+    <div class="calgrid">${t('L,M,M,J,V,S,D').split(',').map(x => `<span class="calh">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${cal.days.map(cell).join('')}</div>
+    ${g ? `<p role="status" style="margin:0"><b>${t('Récupéré : {what}.', { what: gains(g) })}</b>${g.chests ? ` ${t('Le coffre vous attend à l\'accueil et dans la boutique, onglet Arts.')}` : ''}</p>` : ''}
     ${errLine()}
-    <div class="row">${cal.ready ? `<button class="btn primary" data-act="claim-day" ${ui.busy ? 'disabled' : ''}>Récupérer la récompense du jour</button>`
-      : g?.chests ? `<button class="btn primary" data-act="${chestPool(ui.account.arts).length && prog().freeChests ? 'chest-free' : 'shop-arts'}" ${ui.busy ? 'disabled' : ''}>Ouvrir le coffre</button>` : '<span class="hint">Revenez demain pour la suite.</span>'}
-      <button class="btn" data-act="close">Fermer</button></div></div></div>`;
+    <div class="row">${cal.ready ? `<button class="btn primary" data-act="claim-day" ${ui.busy ? 'disabled' : ''}>${t('Récupérer la récompense du jour')}</button>`
+      : g?.chests ? `<button class="btn primary" data-act="${chestPool(ui.account.arts).length && prog().freeChests ? 'chest-free' : 'shop-arts'}" ${ui.busy ? 'disabled' : ''}>${t('Ouvrir le coffre')}</button>` : `<span class="hint">${t('Revenez demain pour la suite.')}</span>`}
+      <button class="btn" data-act="close">${t('Fermer')}</button></div></div></div>`;
 }
 // Bienvenue des 7 jours : une case par récompense, prise un jour de connexion distinct (pas forcément consécutif) avant la date limite.
-const fmtDay = d => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+const fmtDay = d => new Date(`${d}T12:00:00Z`).toLocaleDateString(locale(), { day: 'numeric', month: 'long', timeZone: 'UTC' });
 function welcomeWhat(x) {
   const chip = (n, icon) => `<span class="calgain"><small class="num">${n}</small>${ico(icon)}</span>`;
   return [x.shards ? chip(x.shards, 'shard') : '', x.prisms ? chip(x.prisms, 'prism') : '', x.chests ? `${x.chests > 1 ? `<small class="num">${x.chests}</small>` : ''}${ico('chest')}` : '',
     x.boosters ? `<span class="welbooster" aria-hidden="true"></span>${x.boosters > 1 ? `<small class="num">×${x.boosters}</small>` : ''}` : '',
     x.frame ? `<span class="frame frame-${x.frame} swatch"></span>` : ''].join('');
 }
-const welcomeLabel = x => [x.shards ? `${x.shards} Éclats` : '', x.prisms ? `${x.prisms} Prismes` : '', x.chests ? `${x.chests} coffre${x.chests > 1 ? 's' : ''} d'arts` : '',
-  x.boosters ? `${x.boosters} booster${x.boosters > 1 ? 's' : ''} offert${x.boosters > 1 ? 's' : ''}` : '', x.frame ? FRAMES[x.frame] : '', x.title ? `titre « ${TITLES[x.title] || x.title} »` : ''].filter(Boolean).join(', ');
+const welcomeLabel = x => [x.shards ? t('{n} Éclats', { n: x.shards }) : '', x.prisms ? t('{n} Prismes', { n: x.prisms }) : '', x.chests ? tp(x.chests, '{n} coffre d\'arts', '{n} coffres d\'arts') : '',
+  x.boosters ? tp(x.boosters, '{n} booster offert', '{n} boosters offerts') : '', x.frame ? t(FRAMES[x.frame]) : '', x.title ? t('titre « {name} »', { name: t(TITLES[x.title] || x.title) }) : ''].filter(Boolean).join(', ');
 function welcomeHTML(w) {
-  const cell = x => `<div class="welday ${x.n === w.steps ? 'last' : ''} ${x.got ? 'got' : ''} ${x.today && !x.got ? 'today' : ''}" aria-label="Jour ${x.n} : ${esc(welcomeLabel(x))}${x.got ? ', récupéré' : ''}">
-    <span class="eyebrow">Jour ${x.n}</span><span class="welgain">${welcomeWhat(x)}</span>${x.n === w.steps ? `<small>${esc(TITLES[x.title] || '')}</small>` : ''}${x.got ? '<span class="ok">✓</span>' : ''}</div>`;
+  const cell = x => `<div class="welday ${x.n === w.steps ? 'last' : ''} ${x.got ? 'got' : ''} ${x.today && !x.got ? 'today' : ''}" aria-label="${t('Jour {n} : {what}', { n: x.n, what: esc(welcomeLabel(x)) })}${x.got ? `, ${t('récupéré')}` : ''}">
+    <span class="eyebrow">${t('Jour {n}', { n: x.n })}</span><span class="welgain">${welcomeWhat(x)}</span>${x.n === w.steps ? `<small>${esc(t(TITLES[x.title] || ''))}</small>` : ''}${x.got ? '<span class="ok">✓</span>' : ''}</div>`;
   const g = ui.welGot;
-  const foot = w.done ? 'Bienvenue terminée : merci de votre fidélité !' : w.expired ? 'Le délai de la bienvenue est passé.'
-    : `${w.got} sur ${w.steps} récupérées · jusqu'au ${fmtDay(w.last)} (${w.left} jour${w.left > 1 ? 's' : ''})`;
-  return `<div class="sheet" data-act="close"><div class="panel welcome" data-stop="1" role="dialog" aria-label="Bienvenue"><div class="ph"><h2>Bienvenue à la taverne</h2><button class="btn" data-act="close">Fermer</button></div>
-    <p class="hint" style="margin:0">Pour vos débuts, sept cadeaux vous attendent : un par jour où vous vous connectez, pas besoin que ce soit d'affilée. Le septième vous offre le ${esc(FRAMES.bienvenue)} et le titre « ${esc(TITLES.bienvenue)} ». Le calendrier du mois continue à côté.</p>
+  const foot = w.done ? t('Bienvenue terminée : merci de votre fidélité !') : w.expired ? t('Le délai de la bienvenue est passé.')
+    : t('{got} sur {steps} récupérées · jusqu\'au {date} ({days})', { got: w.got, steps: w.steps, date: fmtDay(w.last), days: tp(w.left, '{n} jour', '{n} jours') });
+  return `<div class="sheet" data-act="close"><div class="panel welcome" data-stop="1" role="dialog" aria-label="${t('Bienvenue')}"><div class="ph"><h2>${t('Bienvenue à la taverne')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
+    <p class="hint" style="margin:0">${t('Pour vos débuts, sept cadeaux vous attendent : un par jour où vous vous connectez, pas besoin que ce soit d\'affilée. Le septième vous offre le {frame} et le titre « {title} ». Le calendrier du mois continue à côté.', { frame: esc(t(FRAMES.bienvenue)), title: esc(t(TITLES.bienvenue)) })}</p>
     <div class="welgrid">${w.list.map(cell).join('')}</div>
     <p class="hint num" style="margin:0">${foot}</p>
-    ${g ? `<p role="status" style="margin:0"><b>Récupéré : ${esc(welcomeLabel(g))}.</b>${g.boosters ? ' Vos boosters vous attendent à l\'accueil.' : g.chests ? ' Le coffre vous attend à l\'accueil et dans la boutique, onglet Arts.' : g.frame ? ' Équipez votre cadre et votre titre depuis votre profil.' : ''}</p>` : ''}
+    ${g ? `<p role="status" style="margin:0"><b>${t('Récupéré : {what}.', { what: esc(welcomeLabel(g)) })}</b>${g.boosters ? ` ${t('Vos boosters vous attendent à l\'accueil.')}` : g.chests ? ` ${t('Le coffre vous attend à l\'accueil et dans la boutique, onglet Arts.')}` : g.frame ? ` ${t('Équipez votre cadre et votre titre depuis votre profil.')}` : ''}</p>` : ''}
     ${errLine()}
-    <div class="row">${w.ready ? `<button class="btn primary" data-act="claim-welcome" ${ui.busy ? 'disabled' : ''}>Récupérer le cadeau du jour ${w.got + 1}</button>`
-      : g?.frame ? '<button class="btn primary" data-act="welcome-profile">Voir mon profil</button>' : w.done || w.expired ? '' : '<span class="hint">Revenez demain pour le cadeau suivant.</span>'}
-      <button class="btn" data-act="close">Fermer</button></div></div></div>`;
+    <div class="row">${w.ready ? `<button class="btn primary" data-act="claim-welcome" ${ui.busy ? 'disabled' : ''}>${t('Récupérer le cadeau du jour {n}', { n: w.got + 1 })}</button>`
+      : g?.frame ? `<button class="btn primary" data-act="welcome-profile">${t('Voir mon profil')}</button>` : w.done || w.expired ? '' : `<span class="hint">${t('Revenez demain pour le cadeau suivant.')}</span>`}
+      <button class="btn" data-act="close">${t('Fermer')}</button></div></div></div>`;
 }
 function closeInbox() {
   ui.sheet = null; ui.account.progress.inbox = [];
   api('POST', '/api/rewards/seen', {}, ui.auth).then(r => { if (r.account) { ui.account = r.account; render(); } }).catch(() => {});
 }
 // ---- Mode classé ----
-const rankHTML = k => `<span class="rank rank-${k.id}">${esc(k.label)}</span>${k.max ? ` <span class="rstars" role="img" aria-label="${k.stars} étoile${k.stars > 1 ? 's' : ''} sur ${k.max}">${'★'.repeat(k.stars)}<span class="off">${'★'.repeat(k.max - k.stars)}</span></span>` : ''}`;
+const rankHTML = k => `<span class="rank rank-${k.id}">${esc(t(k.label))}</span>${k.max ? ` <span class="rstars" role="img" aria-label="${tp(k.stars, '{n} étoile sur {max}', '{n} étoiles sur {max}', { max: k.max })}">${'★'.repeat(k.stars)}<span class="off">${'★'.repeat(k.max - k.stars)}</span></span>` : ''}`;
 function rankedLine(k) {
-  const d = k.delta > 0 ? `+${k.delta} étoile${k.delta > 1 ? 's' : ''}${k.bonus ? ' (bonus compris)' : ''}${k.mult ? ` · <span class="evtag">${multLabel(k.mult)} événement</span>` : ''}` : k.delta < 0 ? `${k.delta} étoile` : 'rang inchangé';
-  return `<p style="margin:0">Classé : ${rankHTML(k.after)} · ${d}${k.promoted ? ' · <b>Promotion !</b>' : ''}</p>`;
+  const d = k.delta > 0 ? `${tp(k.delta, '+{n} étoile', '+{n} étoiles')}${k.bonus ? ` ${t('(bonus compris)')}` : ''}${k.mult ? ` · <span class="evtag">${t('{mult} événement', { mult: multLabel(k.mult) })}</span>` : ''}` : k.delta < 0 ? t('{n} étoile', { n: k.delta }) : t('rang inchangé');
+  return `<p style="margin:0">${t('Classé : {rank} · {delta}', { rank: rankHTML(k.after), delta: d })}${k.promoted ? ` · <b>${t('Promotion !')}</b>` : ''}</p>`;
 }
 async function openRanked() {
   ui.screen = 'ranked'; ui.error = ''; ui.rankedData = null; render();
@@ -624,41 +624,41 @@ async function openRanked() {
 }
 function renderRanked() {
   const D = ui.rankedData, R = D ? D.ranked : prog().ranked;
-  const head = `<div class="top"><span class="title">Mode classé</span><button class="btn" data-act="home">Retour</button></div>${errLine()}`;
-  if (!R) return `${head}<p class="wait">Chargement…</p>`;
+  const head = `<div class="top"><span class="title">${t('Mode classé')}</span><button class="btn" data-act="home">${t('Retour')}</button></div>${errLine()}`;
+  if (!R) return `${head}<p class="wait">${t('Chargement…')}</p>`;
   // Un joueur du classement s'ouvre en pop-up (profil public) ; le top 10 montre son image et son cadre.
-  const who = p => `<button class="lwho" data-act="player" data-login="${esc(p.login)}" aria-label="Profil de ${esc(p.name)}">${'avatar' in p ? avatarHTML(p, 'lav', p.frame) : ''}
-      <span class="fname"><b>${esc(p.name)}</b>${p.title ? ` <small class="ptitle">${esc(p.title)}</small>` : ''}</span></button>`;
-  const ladder = !D ? '<p class="wait">Chargement…</p>' : D.ladder.length ? `<ol class="ladder">${D.ladder.map(p => `<li class="${p.login === ui.account.login ? 'me' : ''} ${'avatar' in p ? 'top' : ''}">
+  const who = p => `<button class="lwho" data-act="player" data-login="${esc(p.login)}" aria-label="${t('Profil de {name}', { name: esc(p.name) })}">${'avatar' in p ? avatarHTML(p, 'lav', p.frame) : ''}
+      <span class="fname"><b>${esc(p.name)}</b>${p.title ? ` <small class="ptitle">${esc(t(p.title))}</small>` : ''}</span></button>`;
+  const ladder = !D ? `<p class="wait">${t('Chargement…')}</p>` : D.ladder.length ? `<ol class="ladder">${D.ladder.map(p => `<li class="${p.login === ui.account.login ? 'me' : ''} ${'avatar' in p ? 'top' : ''}">
       <span class="lpos num">${p.pos}</span>${who(p)}
-      <span class="lrank">${rankHTML(p.rank)}</span><small class="hint num">${p.wins} V · ${p.games - p.wins} D/N</small></li>`).join('')}</ol>`
-    : '<p class="hint" style="margin:0">Personne n\'a encore joué en classé cette saison. Soyez le premier !</p>';
-  const rewards = !D ? '' : `<div class="card-box"><span class="eyebrow">Récompenses de fin de saison</span>
-    <p class="hint" style="margin:0">Selon le meilleur palier atteint pendant la saison. Les titres et cadres des paliers en dessous sont aussi débloqués.</p>
-    <ul class="tiers">${D.rewards.map(t => `<li class="${R.best.id === t.id ? 'on' : ''}"><span class="rank rank-${t.id}">${esc(t.name)}</span>
-      <span>${[t.shards ? `${t.shards} Éclats` : '', t.prisms ? `${t.prisms} Prismes` : '', t.title ? `titre « ${esc(t.title)} »` : '', t.frame ? esc(t.frame) : ''].filter(Boolean).join(' · ') || '–'}</span></li>`).join('')}</ul>
-    ${D.places ? `<span class="eyebrow">En plus, selon la place au classement final</span>
-    <p class="hint" style="margin:0">Le classement est figé à la fin du mois. Il faut avoir joué au moins ${D.places.games} partie${D.places.games > 1 ? 's' : ''} classée${D.places.games > 1 ? 's' : ''} dans la saison.</p>
-    <ul class="tiers">${D.places.list.map(p => `<li><b>${esc(p.name)}</b>
-      <span>${[p.shards ? `${p.shards} Éclats` : '', p.prisms ? `${p.prisms} Prismes` : '', `titre « ${esc(p.title)} »`].filter(Boolean).join(' · ')}</span></li>`).join('')}</ul>` : ''}</div>`;
+      <span class="lrank">${rankHTML(p.rank)}</span><small class="hint num">${t('{w} V · {l} D/N', { w: p.wins, l: p.games - p.wins })}</small></li>`).join('')}</ol>`
+    : `<p class="hint" style="margin:0">${t('Personne n\'a encore joué en classé cette saison. Soyez le premier !')}</p>`;
+  const rewards = !D ? '' : `<div class="card-box"><span class="eyebrow">${t('Récompenses de fin de saison')}</span>
+    <p class="hint" style="margin:0">${t('Selon le meilleur palier atteint pendant la saison. Les titres et cadres des paliers en dessous sont aussi débloqués.')}</p>
+    <ul class="tiers">${D.rewards.map(x => `<li class="${R.best.id === x.id ? 'on' : ''}"><span class="rank rank-${x.id}">${esc(t(x.name))}</span>
+      <span>${[x.shards ? t('{n} Éclats', { n: x.shards }) : '', x.prisms ? t('{n} Prismes', { n: x.prisms }) : '', x.title ? t('titre « {name} »', { name: esc(t(x.title)) }) : '', x.frame ? esc(t(x.frame)) : ''].filter(Boolean).join(' · ') || '–'}</span></li>`).join('')}</ul>
+    ${D.places ? `<span class="eyebrow">${t('En plus, selon la place au classement final')}</span>
+    <p class="hint" style="margin:0">${t('Le classement est figé à la fin du mois.')} ${tp(D.places.games, 'Il faut avoir joué au moins {n} partie classée dans la saison.', 'Il faut avoir joué au moins {n} parties classées dans la saison.')}</p>
+    <ul class="tiers">${D.places.list.map(p => `<li><b>${esc(t(p.name))}</b>
+      <span>${[p.shards ? t('{n} Éclats', { n: p.shards }) : '', p.prisms ? t('{n} Prismes', { n: p.prisms }) : '', t('titre « {name} »', { name: esc(t(p.title)) })].filter(Boolean).join(' · ')}</span></li>`).join('')}</ul>` : ''}</div>`;
   // Podium figé de la saison précédente.
-  const last = D?.last?.top.length ? `<div class="card-box"><span class="eyebrow">Podium de ${esc(D.last.seasonName)}</span>
+  const last = D?.last?.top.length ? `<div class="card-box"><span class="eyebrow">${t('Podium de {name}', { name: esc(D.last.seasonName) })}</span>
     <ol class="ladder">${D.last.top.map(p => `<li class="${p.login === ui.account.login ? 'me' : ''}"><span class="lpos num">${p.pos}</span>
       ${who({ ...p, title: null })}<span class="lrank">${rankHTML(p.rank)}</span></li>`).join('')}</ol></div>` : '';
   const evs = (prog().events?.live || []).filter(ev => ev.effect === 'ranked');
   return `${head}
-  ${evs.map(ev => eventCard(ev, `Chaque victoire classée rapporte ${multLabel(ev.mult)} étoiles, bonus de série compris. Une défaite n'en retire toujours qu'une.`)).join('')}
+  ${evs.map(ev => eventCard(ev, t('Chaque victoire classée rapporte {mult} étoiles, bonus de série compris. Une défaite n\'en retire toujours qu\'une.', { mult: multLabel(ev.mult) }))).join('')}
   <div class="card-box">
-    <span class="eyebrow">Saison ${esc(R.seasonName)} · encore ${R.daysLeft} jour${R.daysLeft > 1 ? 's' : ''}</span>
+    <span class="eyebrow">${t('Saison {name} · encore {days}', { name: esc(R.seasonName), days: tp(R.daysLeft, '{n} jour', '{n} jours') })}</span>
     <h2 style="font-size:24px">${rankHTML(R.rank)}</h2>
-    <p class="hint" style="margin:0">${R.games} partie${R.games > 1 ? 's' : ''} classée${R.games > 1 ? 's' : ''} · ${R.wins} victoire${R.wins > 1 ? 's' : ''}${R.streak > 1 ? ` · série de ${R.streak}` : ''} · meilleur rang : ${esc(R.best.label)}</p>
-    <div class="row"><button class="btn primary" data-act="ranked-play">Partie classée contre l'IA ${esc(R.ai)}</button><button class="btn" data-act="friends">Défier un ami en classé</button></div>
-    <p class="hint" style="margin:0">Une victoire donne une étoile, une défaite en retire une, sans jamais redescendre sous le début de votre palier.
-      ${STREAK_BONUS} victoires d'affilée ou plus donnent une étoile de plus, jusqu'au Diamant. L'IA devient plus forte à chaque palier.
-      En défi classé, battre un ami mieux classé que vous donne une étoile de plus. Quitter une partie classée en cours compte comme une défaite.
-      À la fin du mois, vous recevez les récompenses de votre meilleur palier (et de votre place si vous finissez dans le top 10), puis vous redescendez d'un palier.</p>
+    <p class="hint" style="margin:0">${tp(R.games, '{n} partie classée', '{n} parties classées')} · ${tp(R.wins, '{n} victoire', '{n} victoires')}${R.streak > 1 ? ` · ${t('série de {n}', { n: R.streak })}` : ''} · ${t('meilleur rang : {rank}', { rank: esc(t(R.best.label)) })}</p>
+    <div class="row"><button class="btn primary" data-act="ranked-play">${t('Partie classée contre l\'IA {ai}', { ai: esc(t(R.ai)) })}</button><button class="btn" data-act="friends">${t('Défier un ami en classé')}</button></div>
+    <p class="hint" style="margin:0">${t('Une victoire donne une étoile, une défaite en retire une, sans jamais redescendre sous le début de votre palier.')}
+      ${t('{n} victoires d\'affilée ou plus donnent une étoile de plus, jusqu\'au Diamant. L\'IA devient plus forte à chaque palier.', { n: STREAK_BONUS })}
+      ${t('En défi classé, battre un ami mieux classé que vous donne une étoile de plus. Quitter une partie classée en cours compte comme une défaite.')}
+      ${t('À la fin du mois, vous recevez les récompenses de votre meilleur palier (et de votre place si vous finissez dans le top 10), puis vous redescendez d\'un palier.')}</p>
   </div>
-  <div class="card-box"><span class="eyebrow">Classement de la saison</span>${ladder}</div>
+  <div class="card-box"><span class="eyebrow">${t('Classement de la saison')}</span>${ladder}</div>
   ${rewards}
   ${last}`;
 }
@@ -672,14 +672,14 @@ async function openPass() {
 }
 async function buyPass() {
   const P = ui.passData; if (!P) return;
-  if (!confirm(`Acheter le passe premium ${P.name} pour ${P.price} Prismes ?`)) return;
+  if (!confirm(t('Acheter le passe premium {name} pour {price} Prismes ?', { name: t(P.name), price: P.price }))) return;
   const r = await call('POST', '/api/pass/premium');
-  if (r) { ui.passData = r.pass; ui.msg = 'Passe premium activé : les récompenses premium des paliers déjà atteints vous attendent à l\'accueil.'; render(); }
+  if (r) { ui.passData = r.pass; ui.msg = t('Passe premium activé : les récompenses premium des paliers déjà atteints vous attendent à l\'accueil.'); render(); }
 }
 // Pas de passe aujourd'hui : celui du mois se dévoile bientôt (début décalé, voir start dans pass.js), ou il n'y en a pas ce mois-ci.
 function nextPassLine() {
   const x = SEASONS.find(s => s.id === seasonId() && !seasonStarted(s.id, today()));
-  return x ? `Le passe « ${esc(x.name)} » se dévoile le ${esc(frDate(seasonStart(x)))}. Revenez vite !` : 'Pas de passe de saison ce mois-ci. Revenez le mois prochain !';
+  return x ? t('Le passe « {name} » se dévoile le {date}. Revenez vite !', { name: esc(t(x.name)), date: esc(frDate(seasonStart(x))) }) : t('Pas de passe de saison ce mois-ci. Revenez le mois prochain !');
 }
 // Cosmétiques et cartes des saisons pas encore commencées : cachés tant qu'on ne les a pas.
 const futureSeasons = () => SEASONS.filter(x => !seasonStarted(x.id, today()));
@@ -695,77 +695,77 @@ const shownFamilies = () => FAMILIES.filter(f => OWNABLE.some(id => famOfCard(id
 // Une récompense de palier, en court (un palier peut en avoir plusieurs, comme un coffre et un cadre).
 function passGift(r) {
   const parts = [
-    r.card ? `<button class="chip pgift" data-zoom="${zoomKey(r.card)}">Carte · ${esc(nameOf(r.card))}</button>` : '',
-    r.art && ARTS[r.art] ? `<button class="chip pgift" data-zoom="${zoomKey(ARTS[r.art].card, r.art)}">Art Promo · ${esc(ARTS[r.art].name)}</button>` : '',
-    r.title ? `<span class="pgift">Titre « ${esc(TITLES[r.title] || r.title)} »</span>` : '',
-    r.frame ? `<span class="pgift"><span class="frame frame-${r.frame} swatch"></span>${esc(FRAMES[r.frame] || r.frame)}</span>` : '',
-    r.back ? `<span class="pgift"><span class="mc back back-${r.back}"></span>${esc(BACKS[r.back] || r.back)}</span>` : '',
-    r.theme ? `<span class="pgift"><span class="theme-swatch theme-${r.theme}"></span>Thème « ${esc(SEASON_THEMES[r.theme] || r.theme)} »</span>` : '',
+    r.card ? `<button class="chip pgift" data-zoom="${zoomKey(r.card)}">${t('Carte · {name}', { name: esc(nameOf(r.card)) })}</button>` : '',
+    r.art && ARTS[r.art] ? `<button class="chip pgift" data-zoom="${zoomKey(ARTS[r.art].card, r.art)}">${t('Art Promo · {name}', { name: esc(t(ARTS[r.art].name)) })}</button>` : '',
+    r.title ? `<span class="pgift">${t('Titre « {name} »', { name: esc(t(TITLES[r.title] || r.title)) })}</span>` : '',
+    r.frame ? `<span class="pgift"><span class="frame frame-${r.frame} swatch"></span>${esc(t(FRAMES[r.frame] || r.frame))}</span>` : '',
+    r.back ? `<span class="pgift"><span class="mc back back-${r.back}"></span>${esc(t(BACKS[r.back] || r.back))}</span>` : '',
+    r.theme ? `<span class="pgift"><span class="theme-swatch theme-${r.theme}"></span>${t('Thème « {name} »', { name: esc(t(SEASON_THEMES[r.theme] || r.theme)) })}</span>` : '',
     r.shards ? `<span class="pgift">${ico('shard')}<span class="num">${r.shards}</span></span>` : '',
     r.prisms ? `<span class="pgift">${ico('prism')}<span class="num">${r.prisms}</span></span>` : '',
-    r.chests ? `<span class="pgift">${ico('chest')}<span>${r.chests > 1 ? `${r.chests} coffres` : 'Coffre'} d'arts</span></span>` : '',
+    r.chests ? `<span class="pgift">${ico('chest')}<span>${r.chests > 1 ? t('{n} coffres d\'arts', { n: r.chests }) : t('Coffre d\'arts')}</span></span>` : '',
   ].filter(Boolean);
   return parts.length ? `<span class="pgifts">${parts.join('')}</span>` : '<span class="pgift">–</span>';
 }
 function passMissions(list) {
   return `<div class="missions">${list.map(m => `<div class="mission ${m.done ? 'done' : ''}">
-    <div class="row" style="justify-content:space-between;gap:8px"><span>${m.done ? '✓ ' : ''}${esc(m.label)}</span><small class="hint num">${m.xp} XP de saison</small></div>
+    <div class="row" style="justify-content:space-between;gap:8px"><span>${m.done ? '✓ ' : ''}${esc(tField(m, 'label'))}</span><small class="hint num">${t('{n} XP de saison', { n: m.xp })}</small></div>
     ${m.done ? '' : `<div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(m.n, m.target)}%"></span></div><small class="num">${m.n}/${m.target}</small></div>`}</div>`).join('')}</div>`;
 }
-const frDate = d => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+const frDate = d => new Date(`${d}T12:00:00Z`).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
 function renderPass() {
   const P = ui.passData, a = ui.account;
-  const head = `<div class="top"><span class="title">Passe de saison</span><span class="chip num cur prism" title="Prismes" aria-label="${a.prisms} Prismes">${ico('prism')}${a.prisms}</span><button class="btn" data-act="home">Retour</button></div>${errLine()}`;
-  if (!P) return `${head}${ui.error ? '' : prog().pass === null ? `<p class="hint">${nextPassLine()}</p>` : '<p class="wait">Chargement…</p>'}`;
+  const head = `<div class="top"><span class="title">${t('Passe de saison')}</span><span class="chip num cur prism" title="${t('Prismes')}" aria-label="${t('{n} Prismes', { n: a.prisms })}">${ico('prism')}${a.prisms}</span><button class="btn" data-act="home">${t('Retour')}</button></div>${errLine()}`;
+  if (!P) return `${head}${ui.error ? '' : prog().pass === null ? `<p class="hint">${nextPassLine()}</p>` : `<p class="wait">${t('Chargement…')}</p>`}`;
   const doneSeason = P.seasonal.filter(m => m.done).length;
   const cardTier = id => P.track.find(t => t.free.card === id)?.tier;
-  const premium = P.premium ? '<p style="margin:0"><b>Premium actif ✓</b> <span class="hint">Les récompenses premium tombent à chaque palier.</span></p>'
-    : `<div class="row"><button class="btn primary" data-act="pass-buy" ${a.prisms >= P.price && !ui.busy ? '' : 'disabled'}>Passer premium · ${P.price} Prismes</button>
-      ${a.prisms < P.price ? `<small class="hint num">Il vous manque ${P.price - a.prisms} Prismes.</small>` : ''}</div>
-      <p class="hint" style="margin:0">Le premium ajoute des Prismes ${ico('prism')} à presque chaque palier${P.refund ? ` : ils vous rendent son prix dès le palier ${P.refund}` : ''}. Il donne aussi un coffre d'arts ${ico('chest')} tous les 10 paliers, un cadre, un dos de carte et un titre de la saison. Les paliers déjà atteints sont donnés tout de suite.</p>`;
+  const premium = P.premium ? `<p style="margin:0"><b>${t('Premium actif ✓')}</b> <span class="hint">${t('Les récompenses premium tombent à chaque palier.')}</span></p>`
+    : `<div class="row"><button class="btn primary" data-act="pass-buy" ${a.prisms >= P.price && !ui.busy ? '' : 'disabled'}>${t('Passer premium · {price} Prismes', { price: P.price })}</button>
+      ${a.prisms < P.price ? `<small class="hint num">${t('Il vous manque {n} Prismes.', { n: P.price - a.prisms })}</small>` : ''}</div>
+      <p class="hint" style="margin:0">${P.refund ? t('Le premium ajoute des Prismes {prism} à presque chaque palier : ils vous rendent son prix dès le palier {n}.', { prism: ico('prism'), n: P.refund }) : t('Le premium ajoute des Prismes {prism} à presque chaque palier.', { prism: ico('prism') })} ${t('Il donne aussi un coffre d\'arts {chest} tous les 10 paliers, un cadre, un dos de carte et un titre de la saison. Les paliers déjà atteints sont donnés tout de suite.', { chest: ico('chest') })}</p>`;
   const row = t => { const got = t.tier <= P.got.free, cur = t.tier === P.tier + 1;
     return `<li class="ptier ${got ? 'got' : ''} ${cur ? 'cur' : ''}"><span class="pnum num">${t.tier}</span><div class="pcell">${passGift(t.free)}${got ? '<span class="ok">✓</span>' : ''}</div>
       <div class="pcell prem ${P.premium ? '' : 'lock'}">${passGift(t.premium)}${P.premium && t.tier <= P.got.premium ? '<span class="ok">✓</span>' : ''}</div></li>`; };
   return `${head}
   <div class="card-box passhead theme-${P.theme}">
-    <span class="eyebrow">Saison de ${esc(seasonName(P.id))} · encore ${P.daysLeft} jour${P.daysLeft > 1 ? 's' : ''}</span>
-    <h2 style="font-size:26px">${esc(P.name)}</h2>
-    <p class="hint" style="margin:0">${esc(P.blurb)}</p>
-    <div class="lvl"><span class="lvlnum num">Palier ${P.tier}/${P.tiers}</span><div class="bar" role="progressbar" aria-valuenow="${P.xp}" aria-valuemin="0" aria-valuemax="${P.next}" aria-label="${P.tier >= P.tiers ? 'Coffre de fin de passe suivant' : 'XP de saison'}"><span style="width:${pct(P.xp, P.next)}%"></span></div>
+    <span class="eyebrow">${t('Saison de {month} · encore {days}', { month: esc(seasonName(P.id)), days: tp(P.daysLeft, '{n} jour', '{n} jours') })}</span>
+    <h2 style="font-size:26px">${esc(t(P.name))}</h2>
+    <p class="hint" style="margin:0">${esc(t(P.blurb))}</p>
+    <div class="lvl"><span class="lvlnum num">${t('Palier {n}/{max}', { n: P.tier, max: P.tiers })}</span><div class="bar" role="progressbar" aria-valuenow="${P.xp}" aria-valuemin="0" aria-valuemax="${P.next}" aria-label="${P.tier >= P.tiers ? t('Coffre de fin de passe suivant') : t('XP de saison')}"><span style="width:${pct(P.xp, P.next)}%"></span></div>
       <small class="hint num">${P.xp}/${P.next} XP</small></div>
-    ${P.tier >= P.tiers ? `<p style="margin:0"><b>Passe terminé !</b> <span class="hint">Chaque ${P.bonusChest.every} XP de saison ouvre un coffre de fin de passe${P.bonus ? ` (${P.bonus} déjà ouvert${P.bonus > 1 ? 's' : ''})` : ''}.</span></p>` : ''}
+    ${P.tier >= P.tiers ? `<p style="margin:0"><b>${t('Passe terminé !')}</b> <span class="hint">${P.bonus ? t('Chaque {every} XP de saison ouvre un coffre de fin de passe ({opened}).', { every: P.bonusChest.every, opened: tp(P.bonus, '{n} déjà ouvert', '{n} déjà ouverts') }) : t('Chaque {every} XP de saison ouvre un coffre de fin de passe.', { every: P.bonusChest.every })}</span></p>` : ''}
     ${ui.msg ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
     ${premium}
   </div>
-  <div class="card-box"><span class="eyebrow">Cartes uniques de la saison</span>
-    <p class="hint" style="margin:0">Elles ne sortent d'aucun booster pendant la saison. Elles rejoindront le Set de base en ${esc(seasonName(releaseMonth(P.cards[0], P.cardMonths)))}.</p>
-    <div class="gallery">${P.cards.map(id => `<div class="offer"><button class="ccard" data-zoom="${zoomKey(id)}">${anyCard(id)}</button><small class="hint">Palier ${cardTier(id)}${owned(id) ? ' · obtenue ✓' : ''}</small></div>`).join('')}</div>
-    <span class="eyebrow">Arts Promo de la saison</span>
-    <p class="hint" style="margin:0">Sur la piste gratuite : on les gagne en montant les paliers.</p>
+  <div class="card-box"><span class="eyebrow">${t('Cartes uniques de la saison')}</span>
+    <p class="hint" style="margin:0">${t('Elles ne sortent d\'aucun booster pendant la saison. Elles rejoindront le Set de base en {month}.', { month: esc(seasonName(releaseMonth(P.cards[0], P.cardMonths))) })}</p>
+    <div class="gallery">${P.cards.map(id => `<div class="offer"><button class="ccard" data-zoom="${zoomKey(id)}">${anyCard(id)}</button><small class="hint">${t('Palier {n}', { n: cardTier(id) })}${owned(id) ? ` · ${t('obtenue ✓')}` : ''}</small></div>`).join('')}</div>
+    <span class="eyebrow">${t('Arts Promo de la saison')}</span>
+    <p class="hint" style="margin:0">${t('Sur la piste gratuite : on les gagne en montant les paliers.')}</p>
     <div class="promos">${P.promo.map(x => { const art = ARTS[x.art];
-      return `<div class="promo ${x.got ? 'got' : ''}"><button class="ccard artthumb" data-zoom="${zoomKey(art.card, art.id)}" aria-label="Voir ${esc(art.name)} en grand">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</button>
-        <div><span class="eyebrow">Art Promo</span><b>${esc(art.name)}</b><small class="hint num">${x.got ? 'Obtenu ✓' : `Palier ${x.tier}`}</small></div></div>`; }).join('')}</div></div>
-  <div class="card-box"><span class="eyebrow">Missions</span>
-    <p class="hint" style="margin:0">Elles se valident toutes seules et donnent l'XP de saison qui fait monter les paliers. Chaque partie en donne aussi : ${P.xpWin} pour une victoire, ${P.xpLoss} sinon (dans la limite des parties récompensées du jour).</p>
-    <div class="gal-h">Du jour</div><p class="hint" style="margin:0">Nouvelles missions chaque jour à minuit.</p>${passMissions(P.daily)}
-    <div class="gal-h">De la semaine</div><p class="hint" style="margin:0">Jusqu'au ${esc(frDate(P.weekEnds))} à minuit.</p>${passMissions(P.weekly)}
-    <div class="gal-h">De la saison · ${doneSeason}/${P.seasonal.length}</div><p class="hint" style="margin:0">Tout le mois pour les accomplir.</p>
+      return `<div class="promo ${x.got ? 'got' : ''}"><button class="ccard artthumb" data-zoom="${zoomKey(art.card, art.id)}" aria-label="${t('Voir {name} en grand', { name: esc(t(art.name)) })}">${artHTML(art.card, nameOf(art.card), 1, '', art.id)}</button>
+        <div><span class="eyebrow">${t('Art Promo')}</span><b>${esc(t(art.name))}</b><small class="hint num">${x.got ? t('Obtenu ✓') : t('Palier {n}', { n: x.tier })}</small></div></div>`; }).join('')}</div></div>
+  <div class="card-box"><span class="eyebrow">${t('Missions')}</span>
+    <p class="hint" style="margin:0">${t('Elles se valident toutes seules et donnent l\'XP de saison qui fait monter les paliers. Chaque partie en donne aussi : {win} pour une victoire, {loss} sinon (dans la limite des parties récompensées du jour).', { win: P.xpWin, loss: P.xpLoss })}</p>
+    <div class="gal-h">${t('Du jour')}</div><p class="hint" style="margin:0">${t('Nouvelles missions chaque jour à minuit.')}</p>${passMissions(P.daily)}
+    <div class="gal-h">${t('De la semaine')}</div><p class="hint" style="margin:0">${t('Jusqu\'au {date} à minuit.', { date: esc(frDate(P.weekEnds)) })}</p>${passMissions(P.weekly)}
+    <div class="gal-h">${t('De la saison · {done}/{total}', { done: doneSeason, total: P.seasonal.length })}</div><p class="hint" style="margin:0">${t('Tout le mois pour les accomplir.')}</p>
     ${passMissions(P.seasonal)}</div>
-  <div class="card-box"><span class="eyebrow">Paliers</span>
-    <p class="hint" style="margin:0">${PASS_TIERS} paliers. Chaque palier atteint donne sa récompense tout de suite : la piste gratuite pour tous, la piste premium avec le passe premium.</p>
-    <div class="ptrack"><div class="ptier phead"><span></span><span class="eyebrow">Gratuit</span><span class="eyebrow">Premium</span></div><ol>${P.track.map(row).join('')}</ol></div>
-    <div class="promo bonusbox ${P.tier >= P.tiers ? 'got' : ''}"><span class="bonusico">${ico('chest')}</span><div><span class="eyebrow">Après le palier ${P.tiers}, sans fin</span><b>Coffre de fin de passe</b>
-      <small class="hint">Tous les ${P.bonusChest.every} XP de saison, pour tous : ${P.bonusChest.odds.shards} % de chances d'avoir ${P.bonusChest.shards} Éclats ${ico('shard')}, ${P.bonusChest.odds.prisms} % ${P.bonusChest.prisms} Prismes ${ico('prism')}, ${P.bonusChest.odds.essence} % ${P.bonusChest.essence} essence d'une de vos cartes.</small></div></div></div>`;
+  <div class="card-box"><span class="eyebrow">${t('Paliers')}</span>
+    <p class="hint" style="margin:0">${t('{n} paliers. Chaque palier atteint donne sa récompense tout de suite : la piste gratuite pour tous, la piste premium avec le passe premium.', { n: PASS_TIERS })}</p>
+    <div class="ptrack"><div class="ptier phead"><span></span><span class="eyebrow">${t('Gratuit')}</span><span class="eyebrow">${t('Premium')}</span></div><ol>${P.track.map(row).join('')}</ol></div>
+    <div class="promo bonusbox ${P.tier >= P.tiers ? 'got' : ''}"><span class="bonusico">${ico('chest')}</span><div><span class="eyebrow">${t('Après le palier {n}, sans fin', { n: P.tiers })}</span><b>${t('Coffre de fin de passe')}</b>
+      <small class="hint">${t('Tous les {every} XP de saison, pour tous : {ps} % de chances d\'avoir {s} Éclats {shard}, {pp} % {p} Prismes {prism}, {pe} % {e} essence d\'une de vos cartes.', { every: P.bonusChest.every, ps: P.bonusChest.odds.shards, s: P.bonusChest.shards, shard: ico('shard'), pp: P.bonusChest.odds.prisms, p: P.bonusChest.prisms, prism: ico('prism'), pe: P.bonusChest.odds.essence, e: P.bonusChest.essence })}</small></div></div></div>`;
 }
 
 // Multiplicateurs d'événement appliqués aux gains d'une partie (XP ×2…).
-const eventTags = ev => Object.entries(ev || {}).map(([k, m]) => ` <span class="evtag">${multLabel(m)} ${esc(EVENT_EFFECTS[k]?.short || k)}</span>`).join('');
+const eventTags = ev => Object.entries(ev || {}).map(([k, m]) => ` <span class="evtag">${multLabel(m)} ${esc(t(EVENT_EFFECTS[k]?.short || k))}</span>`).join('');
 // Fin de partie : XP, Éclats et niveau gagnés.
 function endRewardHTML() {
   const r = ui.mode === 'online' ? ui.view.reward : ui.soloReward;
-  if (!r) return `<p class="hint" style="margin:0">${ui.auth ? 'Calcul des récompenses…' : ''}</p>`;
+  if (!r) return `<p class="hint" style="margin:0">${ui.auth ? t('Calcul des récompenses…') : ''}</p>`;
   return `<div class="endreward">${levelBar(r.progress)}
-    <p style="margin:0">${r.rewarded ? (gains(r) || 'Pas de gain pour cette partie.') + eventTags(r.events) : `Plus de récompense de partie aujourd'hui ; les missions avancent toujours.${r.passXp ? ` · +${r.passXp} XP de saison` : ''}`}${r.levelUp ? ` · <b>Niveau ${r.progress.level} !</b>` : ''}${r.missions ? ` · ${r.missions} mission${r.missions > 1 ? 's' : ''} accomplie${r.missions > 1 ? 's' : ''}` : ''}</p>${r.ranked ? rankedLine(r.ranked) : ''}</div>`;
+    <p style="margin:0">${r.rewarded ? (gains(r) || t('Pas de gain pour cette partie.')) + eventTags(r.events) : `${t('Plus de récompense de partie aujourd\'hui ; les missions avancent toujours.')}${r.passXp ? ` · ${t('+{n} XP de saison', { n: r.passXp })}` : ''}`}${r.levelUp ? ` · <b>${t('Niveau {n} !', { n: r.progress.level })}</b>` : ''}${r.missions ? ` · ${tp(r.missions, '{n} mission accomplie', '{n} missions accomplies')}` : ''}</p>${r.ranked ? rankedLine(r.ranked) : ''}</div>`;
 }
 // Ce que l'écran de fin anime sur PixiJS (fx.js, setEnd) : les récompenses de la partie, une fois connues.
 function endReel() {
@@ -792,14 +792,14 @@ const uniPer = () => lvInfo().uniPerEssence || 2;
 const toMax = id => { let need = 0; for (let n = myLevel(id) + 1; n <= MAX_CARD_LEVEL; n++) need += lvInfo().costs[n]?.essence || 0; return Math.max(0, need - essenceOf(id)); };
 const isCapped = id => toMax(id) === 0;
 // Ce qu'un doublon de cette carte vient de donner (booster, achat), pour son étiquette.
-const dupTag = id => `Doublon · +${shardRate()} Éclats${isCapped(id) ? (lvInfo().uniRate ? ` · +${lvInfo().uniRate} essence universelle` : '') : lvInfo().essenceRate ? ` · +${lvInfo().essenceRate} essence` : ''}`;
+const dupTag = id => `${t('Doublon · +{n} Éclats', { n: shardRate() })}${isCapped(id) ? (lvInfo().uniRate ? ` · ${t('+{n} essence universelle', { n: lvInfo().uniRate })}` : '') : lvInfo().essenceRate ? ` · ${t('+{n} essence', { n: lvInfo().essenceRate })}` : ''}`;
 // Essence qui manque à une carte pour son prochain niveau (0 : elle a de quoi monter, ou elle est au maximum).
 const missingEssence = id => { const c = nextCost(id); return c ? Math.max(0, c.essence - essenceOf(id)) : 0; };
 async function convertEssence(id, amount) {
   const r = await call('POST', '/api/essence/convert', { card: id, amount });
   if (!r) return;
   if (r.shop) ui.shop = r.shop;
-  ui.msg = `+${r.essence} essence de ${nameOf(id)} contre ${r.price} essence universelle.`;
+  ui.msg = t('+{n} essence de {card} contre {price} essence universelle.', { n: r.essence, card: nameOf(id), price: r.price });
   play('reveal'); render();
 }
 // Il manque des Éclats : le bouton reste actif si le change est ouvert, il propose alors une offre de change (lacksShards).
@@ -810,13 +810,13 @@ const hasFx = lvl => !!CARD_LEVELS[lvl]?.fx;
 async function upgrade(id) {
   const r = await call('POST', '/api/cards/upgrade', { card: id });
   if (!r) return;
-  ui.msg = `${nameOf(id)} passe au niveau ${r.level} : ${CARD_LEVELS[r.level].perk.toLowerCase()}.`;
+  ui.msg = t('{name} passe au niveau {n} : {perk}.', { name: nameOf(id), n: r.level, perk: t(CARD_LEVELS[r.level].perk).toLowerCase() });
   ui.fx = { list: [['.zoomcard', 'lv-up']], burst: hasFx(r.level) ? ['.zoomcard'] : [] };
   play(hasFx(r.level) ? 'astral' : 'levelup'); render();
 }
 async function chooseBorder(id, level) {
   if (!await call('PUT', '/api/cards/border', { card: id, level })) return;
-  ui.msg = `${nameOf(id)} : ${level > 1 ? `bordure ${CARD_LEVELS[level].name.toLowerCase()}` : 'aspect d\'origine, sans bordure'}.`;
+  ui.msg = level > 1 ? t('{name} : bordure {border}.', { name: nameOf(id), border: t(CARD_LEVELS[level].name).toLowerCase() }) : t('{name} : aspect d\'origine, sans bordure.', { name: nameOf(id) });
   ui.fx = { list: [['.zoomcard', 'lv-up']] }; play('pick'); render();
 }
 // Menu « Bordure » de la carte ouverte en grand depuis la collection : une des bordures des niveaux atteints, à montrer à la place de la dernière.
@@ -825,24 +825,24 @@ function borderHTML(id) {
   if (!owned(id) || lvl < 2) return '';
   const opt = n => { const x = CARD_LEVELS[n], on = cur === n;
     return `<button class="artopt bdopt ${on ? 'on' : ''}" data-act="border-pick" data-card="${id}" data-lv="${n}" aria-pressed="${on}" ${ui.busy ? 'disabled' : ''}>
-      <span class="lvsw${lvCls(n)}"></span><span><b>${n > 1 ? x.name : 'Aucune'}</b><small class="hint">${n === lvl ? 'Actuelle' : `Niv. ${n}`}</small></span></button>`; };
-  return `<div class="zacts artbox bdbox"><span class="eyebrow">Bordure · ${lvl} sur ${MAX_CARD_LEVEL} obtenues</span>
-    <div class="bdopts" role="group" aria-label="Bordure">${Array.from({ length: lvl }, (_, i) => opt(i + 1)).join('')}</div>
-    <p class="hint">Votre adversaire voit la bordure choisie. Le niveau, le reflet et le personnage hors du cadre restent ceux de la carte, quel que soit l'art.</p></div>`;
+      <span class="lvsw${lvCls(n)}"></span><span><b>${n > 1 ? t(x.name) : t('Aucune')}</b><small class="hint">${n === lvl ? t('Actuelle') : t('Niv. {n}', { n })}</small></span></button>`; };
+  return `<div class="zacts artbox bdbox"><span class="eyebrow">${t('Bordure · {n} sur {max} obtenues', { n: lvl, max: MAX_CARD_LEVEL })}</span>
+    <div class="bdopts" role="group" aria-label="${t('Bordure')}">${Array.from({ length: lvl }, (_, i) => opt(i + 1)).join('')}</div>
+    <p class="hint">${t('Votre adversaire voit la bordure choisie. Le niveau, le reflet et le personnage hors du cadre restent ceux de la carte, quel que soit l\'art.')}</p></div>`;
 }
 // Bloc « Niveau de la carte » de la carte ouverte en grand depuis la collection.
 function upgradeHTML(id) {
   if (!owned(id)) return '';
   const lvl = myLevel(id), c = nextCost(id), ess = essenceOf(id), rate = lvInfo().essenceRate;
-  const ladder = CARD_LEVELS.slice(2).map((x, i) => `<li class="${lvl >= i + 2 ? 'done' : ''}"><span class="lvsw lv lv-${x.look}"></span><span><b>Niv. ${i + 2} · ${x.name}</b> <small class="hint">${esc(x.perk)}</small></span>${lvl >= i + 2 ? '<span class="ok">✓</span>' : ''}</li>`).join('');
-  const next = c ? `<div class="row" style="gap:8px"><div class="bar" style="flex:1" role="progressbar" aria-valuenow="${Math.min(ess, c.essence)}" aria-valuemin="0" aria-valuemax="${c.essence}" aria-label="Essence"><span style="width:${pct(ess, c.essence)}%"></span></div><small class="num">${ess}/${c.essence} essence</small></div>
-      <button class="btn ${canUpgrade(id) ? 'primary' : ''}" data-act="upgrade" data-id="${id}" ${canUpgrade(id) && !ui.busy ? '' : 'disabled'}>Passer au niveau ${lvl + 1} · ${c.essence} essence + ${c.shards} Éclats</button>
-      ${ess < c.essence ? `<p class="hint">Chaque doublon de cette carte donne ${rate} essence.</p>${uniHTML(id)}` : ui.account.shards < c.shards ? `<p class="hint">Il vous manque ${c.shards - ui.account.shards} Éclats.</p>` : ''}
-      ${isCapped(id) ? `<p class="hint">Cette carte a déjà toute l'essence qu'il lui faut jusqu'au niveau ${MAX_CARD_LEVEL} : ses prochains doublons donnent ${lvInfo().uniRate} essence universelle ${ico('essence')} chacun.</p>` : ''}`
-    : `<p class="hint">Niveau maximum atteint. Ses doublons donnent maintenant ${lvInfo().uniRate} essence universelle ${ico('essence')} chacun, à échanger contre l'essence d'une autre carte ou un art du rayon Essence.</p>
-      <button class="btn" data-act="shop-essence">Rayon Essence · ${ico('essence')}${fmt(uniOf())}</button>`;
-  return `<div class="zacts lvbox"><span class="eyebrow">Niveau de la carte · ${lvl}/${MAX_CARD_LEVEL}</span>
-    <p class="hint">Purement cosmétique : la carte joue pareil à tous les niveaux. Votre adversaire voit sa bordure et son effet.</p>
+  const ladder = CARD_LEVELS.slice(2).map((x, i) => `<li class="${lvl >= i + 2 ? 'done' : ''}"><span class="lvsw lv lv-${x.look}"></span><span><b>${t('Niv. {n} · {name}', { n: i + 2, name: t(x.name) })}</b> <small class="hint">${esc(t(x.perk))}</small></span>${lvl >= i + 2 ? '<span class="ok">✓</span>' : ''}</li>`).join('');
+  const next = c ? `<div class="row" style="gap:8px"><div class="bar" style="flex:1" role="progressbar" aria-valuenow="${Math.min(ess, c.essence)}" aria-valuemin="0" aria-valuemax="${c.essence}" aria-label="${t('Essence')}"><span style="width:${pct(ess, c.essence)}%"></span></div><small class="num">${t('{have}/{need} essence', { have: ess, need: c.essence })}</small></div>
+      <button class="btn ${canUpgrade(id) ? 'primary' : ''}" data-act="upgrade" data-id="${id}" ${canUpgrade(id) && !ui.busy ? '' : 'disabled'}>${t('Passer au niveau {n} · {e} essence + {s} Éclats', { n: lvl + 1, e: c.essence, s: c.shards })}</button>
+      ${ess < c.essence ? `<p class="hint">${t('Chaque doublon de cette carte donne {n} essence.', { n: rate })}</p>${uniHTML(id)}` : ui.account.shards < c.shards ? `<p class="hint">${t('Il vous manque {n} Éclats.', { n: c.shards - ui.account.shards })}</p>` : ''}
+      ${isCapped(id) ? `<p class="hint">${t('Cette carte a déjà toute l\'essence qu\'il lui faut jusqu\'au niveau {max} : ses prochains doublons donnent {n} essence universelle {ico} chacun.', { max: MAX_CARD_LEVEL, n: lvInfo().uniRate, ico: ico('essence') })}</p>` : ''}`
+    : `<p class="hint">${t('Niveau maximum atteint. Ses doublons donnent maintenant {n} essence universelle {ico} chacun, à échanger contre l\'essence d\'une autre carte ou un art du rayon Essence.', { n: lvInfo().uniRate, ico: ico('essence') })}</p>
+      <button class="btn" data-act="shop-essence">${t('Rayon Essence')} · ${ico('essence')}${fmt(uniOf())}</button>`;
+  return `<div class="zacts lvbox"><span class="eyebrow">${t('Niveau de la carte · {n}/{max}', { n: lvl, max: MAX_CARD_LEVEL })}</span>
+    <p class="hint">${t('Purement cosmétique : la carte joue pareil à tous les niveaux. Votre adversaire voit sa bordure et son effet.')}</p>
     <ul class="lvladder">${ladder}</ul>${ui.msg ? `<p class="hint" role="status"><b>${esc(ui.msg)}</b></p>` : ''}${next}</div>`;
 }
 
@@ -850,8 +850,8 @@ function upgradeHTML(id) {
 function uniHTML(id) {
   const miss = missingEssence(id), cost = miss * uniPer(), have = uniOf();
   if (!miss || !have) return '';
-  return `<button class="btn ${have >= cost ? 'primary' : ''}" data-act="uni-convert" data-id="${id}" data-n="${miss}" ${have >= cost && !ui.busy ? '' : 'disabled'}>Compléter avec l'essence universelle · ${ico('essence')}${cost}</button>
-    <p class="hint">${have >= cost ? `Vous en avez ${fmt(have)} : ${uniPer()} pour 1 essence de cette carte.` : `Il vous en faut ${cost} (vous en avez ${fmt(have)}).`}</p>`;
+  return `<button class="btn ${have >= cost ? 'primary' : ''}" data-act="uni-convert" data-id="${id}" data-n="${miss}" ${have >= cost && !ui.busy ? '' : 'disabled'}>${t('Compléter avec l\'essence universelle')} · ${ico('essence')}${cost}</button>
+    <p class="hint">${have >= cost ? t('Vous en avez {have} : {per} pour 1 essence de cette carte.', { have: fmt(have), per: uniPer() }) : t('Il vous en faut {n} (vous en avez {have}).', { n: cost, have: fmt(have) })}</p>`;
 }
 
 // ---- Arts alternatifs (cosmétiques) ----
@@ -864,14 +864,14 @@ const holoOn = id => !ui.account?.holoOff?.[id];
 async function toggleHolo(card) {
   const on = !holoOn(card);
   if (!await call('PUT', '/api/arts/holo', { card, on })) return;
-  ui.msg = on ? `Reflet holographique rallumé sur ${nameOf(card)}.` : `Reflet holographique coupé sur ${nameOf(card)}.`; play('pick'); render();
+  ui.msg = on ? t('Reflet holographique rallumé sur {name}.', { name: nameOf(card) }) : t('Reflet holographique coupé sur {name}.', { name: nameOf(card) }); play('pick'); render();
 }
 // Interrupteur du reflet, sur la carte ouverte en grand depuis la collection, si elle en a un (art alternatif, niveau Or ou plus).
 function holoHTML(id) {
   if (!owned(id) || !holoCard(myLevel(id), mySel(id))) return '';
   const on = holoOn(id);
   return `<button class="artopt holotgl ${on ? 'on' : ''}" data-act="holo-toggle" data-card="${id}" role="switch" aria-checked="${on}" ${ui.busy ? 'disabled' : ''}>
-    <span class="holosw" aria-hidden="true"></span><span><b>Reflet holographique</b> <small class="hint">${on ? 'Activé : il bouge quand vous inclinez le téléphone' : 'Désactivé sur cette carte'}</small></span></button>`;
+    <span class="holosw" aria-hidden="true"></span><span><b>${t('Reflet holographique')}</b> <small class="hint">${on ? t('Activé : il bouge quand vous inclinez le téléphone') : t('Désactivé sur cette carte')}</small></span></button>`;
 }
 // Débordement du personnage (art.js, niveau Or et plus) : allumé sauf sur les cartes où le joueur l'a coupé.
 setPopOff(() => ui.account?.popOff || {});
@@ -879,21 +879,21 @@ const popOn = id => !ui.account?.popOff?.[id];
 async function togglePop(card) {
   const on = !popOn(card);
   if (!await call('PUT', '/api/arts/pop', { card, on })) return;
-  ui.msg = on ? `${nameOf(card)} sort de nouveau du cadre.` : `${nameOf(card)} reste dans son cadre.`; play('pick'); render();
+  ui.msg = on ? t('{name} sort de nouveau du cadre.', { name: nameOf(card) }) : t('{name} reste dans son cadre.', { name: nameOf(card) }); play('pick'); render();
 }
 // Interrupteur du débordement, sur la carte ouverte en grand depuis la collection, une fois le débordement débloqué.
 function popHTML(id) {
   if (!owned(id) || !popCard(id, myLevel(id), mySel(id))) return '';
   const on = popOn(id);
   return `<button class="artopt holotgl ${on ? 'on' : ''}" data-act="pop-toggle" data-card="${id}" role="switch" aria-checked="${on}" ${ui.busy ? 'disabled' : ''}>
-    <span class="holosw" aria-hidden="true"></span><span><b>Personnage hors du cadre</b> <small class="hint">${on ? 'Activé : il déborde de l\'illustration' : 'Désactivé : il reste dans le cadre'}</small></span></button>`;
+    <span class="holosw" aria-hidden="true"></span><span><b>${t('Personnage hors du cadre')}</b> <small class="hint">${on ? t('Activé : il déborde de l\'illustration') : t('Désactivé : il reste dans le cadre')}</small></span></button>`;
 }
 // Effets de la carte (reflet, débordement) : un bloc d'interrupteurs, s'il y en a.
 const fxHTML = id => { const h = holoHTML(id) + popHTML(id); return h ? `<div class="zacts holobox">${h}</div>` : ''; };
 // Pastille de rareté (style.css, « .rar-… »).
 const rarChip = art => `<span class="rarchip rar-${rarityKey(art)}">${esc(rarityName(art))}</span>`;
 // Famille d'arts d'un art (arts.js, ART_THEMES), pour les sous-titres.
-const themeOf = art => (art.theme ? ART_THEMES[art.theme].name : '');
+const themeOf = art => (art.theme ? t(ART_THEMES[art.theme].name) : '');
 async function selectArt(card, art) {
   const r = await call('PUT', '/api/arts/select', { card, art: art || null });
   if (!r) return;
