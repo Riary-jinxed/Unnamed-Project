@@ -3,8 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/engine", "server", "client"],
-  "engines": { "node": ">=20" },
+  "workspaces": [
+    "packages/engine",
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "npm run dev -w @jeu/server & npm run dev -w @jeu/client",
     "build": "npm run build -w @jeu/client",
@@ -12,6 +18,7 @@
     "sim": "node packages/engine/src/sim.js",
     "eco": "node packages/engine/src/eco.js",
     "empreinte": "node packages/engine/src/empreinte.js",
-    "equilibrage": "node packages/engine/src/equilibrage.js"
+    "equilibrage": "node packages/engine/src/equilibrage.js",
+    "i18n": "node scripts/i18n.js"
   }
 }

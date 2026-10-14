@@ -2,6 +2,8 @@
 // Le serveur garde la place du joueur (jeton du salon) : chaque reconnexion envoie `rejoin` et reçoit l'état de la partie.
 // Une connexion morte sans le dire (téléphone qui change de réseau, appli mise en veille) est repérée par un ping régulier.
 // Le tour validé hors ligne, ou perdu avec la connexion, est renvoyé dès que le serveur montre qu'il ne l'a pas reçu.
+import { t, getLang } from '@jeu/engine/i18n';
+// Le premier message de chaque connexion porte la langue de l'appli (lang) : le serveur y traduit ses messages d'erreur.
 const PING_MS = 10_000, DEAD_MS = 25_000, MAX_WAIT_MS = 8_000;
 export function connectOnline(handlers, firstMsg) {
   let ws, closed = false, session = null, timer = null, tries = 0, lastSeen = 0, fresh = false, linked = true;
@@ -13,7 +15,7 @@ export function connectOnline(handlers, firstMsg) {
     clearTimeout(timer); timer = null;
     if (ws) { ws.onopen = ws.onmessage = ws.onclose = null; try { ws.close(); } catch { /* déjà fermée */ } }
     const sock = ws = new WebSocket(url);
-    sock.onopen = () => { lastSeen = Date.now(); fresh = true; send(msg); };
+    sock.onopen = () => { lastSeen = Date.now(); fresh = true; send({ ...msg, lang: getLang() }); };
     sock.onmessage = e => {
       lastSeen = Date.now();
       const m = JSON.parse(e.data);
@@ -31,7 +33,7 @@ export function connectOnline(handlers, firstMsg) {
   // Connexion perdue : on réessaie de plus en plus espacé (1 s, 2 s, 4 s, puis toutes les 8 s), sans jamais abandonner la place.
   function lost() {
     if (closed) return;
-    if (!session) { stop(); handlers.onError('Impossible de joindre le serveur de parties.'); return; }
+    if (!session) { stop(); handlers.onError(t('Impossible de joindre le serveur de parties.')); return; }
     link(false);
     if (!timer) timer = setTimeout(reconnect, Math.min(1000 * 2 ** tries++, MAX_WAIT_MS));
   }

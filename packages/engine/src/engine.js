@@ -1,4 +1,5 @@
 // Moteur de règles : pur, sans DOM ni réseau. Partagé par le serveur (parties en ligne) et l'appli (partie contre l'IA).
+import { t, tMsg } from './i18n.js';
 export const TURNS = 7, SLOTS = 4, HAND_MAX = 7, START_HAND = 3;
 // Nombre de tours de la partie : TURNS, sauf partie plus courte (newGame, opts.turns).
 const turnsOf = st => st.turns || TURNS;
@@ -882,7 +883,7 @@ function genHook(st, p, hook, ...args) {
   const n = st.log.length; f(p, st, ...args);
   if (st.log.length > n) st.p[p].genFired = (st.p[p].genFired || 0) + 1;
 }
-function log(st, msg, kind) { if (!st.sim) st.log.push({ turn: st.turn, msg, kind: kind || '' }); }
+function log(st, msg, kind, vars) { if (!st.sim) st.log.push({ turn: st.turn, msg, kind: kind || '', ...(vars ? { vars } : {}) }); }
 const nm = id => CARDS[id].name;
 // Les messages du journal portent des marqueurs résolus par l'appli selon qui regarde :
 // ⟦p⟧ = nom du joueur p (ou « Vous »), ⟦p|il|vous⟧ = verbe conjugué.
@@ -1473,9 +1474,16 @@ export function viewFor(st, seat, extra = {}) {
   };
 }
 
-// Remplace les marqueurs du journal pour le joueur `seat`.
-export function renderLog(msg, seat, names) {
-  return msg
-    .replace(/⟦(\d)\|([^|⟧]*)\|([^⟧]*)⟧/g, (_, p, il, vous) => (+p === seat ? vous : il))
-    .replace(/⟦(\d)⟧/g, (_, p) => (+p === seat ? 'Vous' : names[+p]));
+// Texte d'une ligne du journal pour le joueur `seat`, dans la langue de l'appli.
+// Une ligne est { msg, vars } : msg est un modèle français traduit par i18n.js, puis les marqueurs sont résolus :
+// ⟦p⟧ = nom du joueur p (ou « Vous »), ⟦p|il|vous⟧ = l'une ou l'autre forme selon qui regarde (@ y vaut le nom du joueur p),
+// ⟪c:id⟫, ⟪g:id⟫, ⟪t:id⟫ = nom d'une carte, d'un général, d'un terrain ; ⟪z:n⟫ = nom d'une zone.
+// Une ligne d'avant (msg déjà rédigé, sans vars) passe aussi.
+const NAMED = { c: id => CARDS[id]?.name, g: id => GENERALS[id]?.name, t: id => TERRAINS[id]?.name, z: n => t(ZONE_NAMES[+n]) };
+export function renderLog(line, seat, names) {
+  const m = line && typeof line === 'object' && !Array.isArray(line) ? (line.vars ? [line.msg, line.vars] : line.msg) : line;
+  return tMsg(m)
+    .replace(/⟪([cgtz]):([^⟫]*)⟫/g, (_, k, id) => NAMED[k](id) ?? id)
+    .replace(/⟦(\d)\|([^|⟧]*)\|([^⟧]*)⟧/g, (_, p, il, vous) => (+p === seat ? vous : il).replace(/@/g, names[+p] ?? ''))
+    .replace(/⟦(\d)⟧/g, (_, p) => (+p === seat ? t('Vous') : names[+p]));
 }

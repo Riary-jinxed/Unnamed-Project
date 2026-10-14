@@ -1,4 +1,7 @@
 // Appli web : connexion, collection et deck, accueil, salon en ligne, partie (en ligne ou contre l'IA).
+// Langue d'abord (lang.js) : les autres modules affichent leurs textes avec t() dans la langue choisie.
+import { langChosen, chooseLang, localizeCatalog, deviceLang } from './lang.js';
+import { t, tp, tMsg, tField, getLang, LANGS, locale } from '@jeu/engine/i18n';
 import './style.css';
 import './habillage.css';
 import './cyber.css';
@@ -249,13 +252,15 @@ async function call(method, path, body) {
 // Cartes et sets publiés depuis /admin : appliqués au moteur pour l'affichage et la partie contre l'IA.
 let catalogVersion = 0;
 async function loadCatalog() {
-  try { const { catalog } = await api('GET', '/api/catalog'); applyCatalog(catalog); catalogVersion = catalog.stamp ?? catalog.version ?? 0; render(); }
+  try { const { catalog } = await api('GET', '/api/catalog'); applyCatalog(catalog); localizeCatalog(); catalogVersion = catalog.stamp ?? catalog.version ?? 0; render(); }
   catch { /* cartes d'origine en attendant */ }
 }
 // Ouverture sous le voile (déjà affiché par index.html) : cartes publiées, puis compte ; il s'efface sur le premier écran,
 // une fois les polices chargées (et le plateau, si l'on reprend une partie en cours), ou sur une erreur avec « Réessayer ».
 async function boot() {
   ui.error = '';
+  // Premier lancement sur cet appareil : choix de la langue d'abord (la page se recharge dans la langue choisie).
+  if (!langChosen()) { veil.cover({ until: () => true }); ui.screen = 'lang'; render(); return; }
   veil.cover({ label: 'Chargement des cartes…', until: () => ui.screen !== 'loading' || !!ui.error, ready: () => {
     veil.step(1, 'Préparation du salon…');
     return Promise.race([document.fonts?.ready, new Promise(r => setTimeout(r, 1500))]).then(() => (ui.screen === 'game' ? stageReady() : null));
@@ -1155,6 +1160,17 @@ function renderLoading() {
   return `<div class="top"><span class="title">Jeu de cartes</span></div>
   <div class="card-box">${ui.error ? `${errLine()}<div class="row"><button class="btn primary" data-act="retry">Réessayer</button><button class="btn" data-act="logout">Changer de compte</button></div>` : '<p class="wait">Connexion…</p>'}</div>`;
 }
+// Choix de la langue au premier lancement (réglable ensuite dans le profil).
+function renderLang() {
+  return `<div class="top"><span class="title">Jeu de cartes</span></div>
+  <div class="card-box langpick">
+    <h2 style="font-size:22px">Langue · Language</h2>
+    <p class="hint" style="margin:0">Choisissez la langue du jeu. Vous pourrez la changer dans votre profil.<br>Choose the game's language. You can change it later in your profile.</p>
+    <div class="row">${langButtons(deviceLang())}</div>
+  </div>`;
+}
+// Boutons des langues ; `on` : celle qui est mise en avant.
+const langButtons = on => LANGS.map(([id, name]) => `<button class="btn ${id === on ? 'primary' : ''}" data-act="lang" data-lang="${id}" aria-pressed="${id === on}">${name}</button>`).join('');
 function renderLogin() {
   return `<div class="top"><span class="title">Jeu de cartes</span>${muteBtn()}</div>
   <form class="card-box" id="login-form">
@@ -1710,7 +1726,8 @@ function renderProfile() {
       <div class="field"><label class="eyebrow" for="profile-name">Pseudo</label><input id="profile-name" maxlength="20" value="${esc(ui.nameDraft)}"></div>
       <div class="row"><button class="btn primary" type="submit" ${ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === a.name ? 'disabled' : ''}>Enregistrer le pseudo</button></div>
     </form>
-    <div class="card-box"><div><span class="eyebrow">Réglages</span><h2 style="font-size:22px">Son et vibrations</h2></div>
+    <div class="card-box"><div><span class="eyebrow">Réglages</span><h2 style="font-size:22px">Langue, son et vibrations</h2></div>
+      <div class="field"><span class="eyebrow">Langue · Language</span><div class="row">${langButtons(getLang())}</div></div>
       <label class="check"><input type="checkbox" id="sound-on" ${isMuted() ? '' : 'checked'}> Son activé</label>
       <div class="field"><label class="eyebrow" for="sfx-volume">Bruitages · <span id="sfx-pct" class="num">${Math.round(sfxVolume() * 100)} %</span></label>
         <input id="sfx-volume" type="range" min="0" max="100" step="5" value="${Math.round(sfxVolume() * 100)}" ${isMuted() ? 'disabled' : ''}></div>
@@ -1859,7 +1876,7 @@ function sheetHTML() {
   if (ui.sheet === 'player' && ui.player) return playerSheet();
   if (ui.sheet === 'log' && ui.view) {
     const names = ui.view.names;
-    const lines = ui.view.log.map(l => `<div class="${l.kind}">${esc(renderLog(l.msg, ui.view.seat, names))}</div>`).join('');
+    const lines = ui.view.log.map(l => `<div class="${l.kind}">${esc(renderLog(l, ui.view.seat, names))}</div>`).join('');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>Journal</h2><button class="btn" data-act="close">Fermer</button></div>
       <div class="log" id="logbox">${lines || '<span class="hint">Rien pour l\'instant.</span>'}</div></div></div>`;
   }
@@ -1991,7 +2008,7 @@ function render() {
   const stx = app.querySelector('.shoptabs')?.scrollLeft || 0;
   // Défilement de la fenêtre ouverte, gardé quand elle se redessine (ex. : après une amélioration, en bas de la fiche).
   const sp = app.querySelector(':scope > .sheet .panel'); const sy = sp && ui.sheet === ui.shownSheet && ui.zoom?.id === ui.shownZoom ? sp.scrollTop : 0;
-  const screens = { loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, pass: renderPass, lobby: renderLobby, game: renderGame, friends: friends.screen, mail: mail.screen, clan: clan.screen, boss: boss.screen, story: story.screen };
+  const screens = { lang: renderLang, loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, pass: renderPass, lobby: renderLobby, game: renderGame, friends: friends.screen, mail: mail.screen, clan: clan.screen, boss: boss.screen, story: story.screen };
   // Récompenses gagnées (niveau, missions, succès, familles et sets complétés) : affichées en revenant à l'accueil.
   if (ui.screen === 'home' && !ui.sheet && prog().inbox.length) ui.sheet = 'inbox';
   // Cadeau de bienvenue du jour pas encore récupéré : la bienvenue s'ouvre une fois par visite, avant le calendrier.
@@ -2426,6 +2443,7 @@ app.addEventListener('click', e => {
     else if (a === 'shop-emotes') openShop('emotes');
     else if (a === 'logout') doLogout();
     else if (a === 'retry') boot();
+    else if (a === 'lang') chooseLang(ds.lang);
     else if (a === 'starter' && ui.starterPick && !ui.busy) call('POST', '/api/starter', { starter: ui.starterPick });
     else if (a === 'booster' && !ui.busy) openBoosterNow();
     else if (a === 'collection') { ui.screen = 'collection'; ui.error = ''; render(); }
