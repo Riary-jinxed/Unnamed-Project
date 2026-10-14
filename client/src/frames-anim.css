@@ -8,7 +8,7 @@
 .fanim > .ffx { position: absolute; inset: -14%; pointer-events: none; }
 .fanim > .ffx::before, .fanim > .ffx::after { content: ""; position: absolute; inset: 0; border-radius: 50%; }
 .fanim > .ffx { --ring: radial-gradient(closest-side, transparent 62%, #000 67%, #000 81%, transparent 86%); }
-.frame-boss_comete > .ffx::before, .frame-essence_astral > .ffx::before, .frame-cyber_p > .ffx::before, .frame-cyber_p > .ffx::after,
+.frame-boss_comete > .ffx::before, .frame-essence_nebuleuse > .ffx::before, .frame-cyber_p > .ffx::before, .frame-cyber_p > .ffx::after,
 .frame-maitre > .ffx::before, .frame-legende > .ffx::before, .frame-legende > .ffx::after { -webkit-mask: var(--ring); mask: var(--ring); }
 
 /* Comète (magasin du boss) : une tête claire et sa traîne font le tour de l'anneau ; halo bleu qui respire. */
@@ -33,11 +33,11 @@
     radial-gradient(2.9% 2.9% at 8.4% 26.0%, #fff2b0 0 30%, #ff9a2a 60%, transparent),
     radial-gradient(2.6% 2.6% at 34.3% 6.8%, #fff2b0 0 30%, #ff9a2a 60%, transparent); }
 
-/* Astral (rayon Essence) : une nébuleuse violette, turquoise et rose glisse sur l'anneau, et des étoiles scintillent autour. */
-.frame-essence_astral { background: conic-gradient(#a585e6, #4fbcad, #ff8ad2, #a585e6); box-shadow: 0 0 10px rgb(165 133 230 / .7); }
-.frame-essence_astral > .ffx::before { z-index: 1; animation: ffx-spin 12s linear infinite;
+/* Nébuleuse (rayon Essence) : une nébuleuse violette, turquoise et rose glisse sur l'anneau, et des étoiles scintillent autour. */
+.frame-essence_nebuleuse { background: conic-gradient(#a585e6, #4fbcad, #ff8ad2, #a585e6); box-shadow: 0 0 10px rgb(165 133 230 / .7); }
+.frame-essence_nebuleuse > .ffx::before { z-index: 1; animation: ffx-spin 12s linear infinite;
   background: conic-gradient(transparent, rgb(185 150 255 / .6) 12%, transparent 28%, rgb(90 220 200 / .5) 46%, transparent 62%, rgb(255 140 210 / .55) 80%, transparent); }
-.frame-essence_astral > .ffx::after { z-index: 1; animation: ffx-spin 40s linear infinite reverse, ffx-twinkle 2.8s ease-in-out infinite;
+.frame-essence_nebuleuse > .ffx::after { z-index: 1; animation: ffx-spin 40s linear infinite reverse, ffx-twinkle 2.8s ease-in-out infinite;
   background:
     radial-gradient(2.6% 2.6% at 56.4% 13.6%, #fff 0 30%, rgb(200 220 255 / .8) 60%, transparent),
     radial-gradient(2.0% 2.0% at 86.9% 24.2%, #fff 0 30%, rgb(200 220 255 / .8) 60%, transparent),
@@ -97,9 +97,11 @@
 /* Un tour en 40 % du temps, puis l'éclat s'efface jusqu'au suivant. */
 @keyframes ffx-glint { 0% { transform: rotate(0); opacity: 1; } 40% { transform: rotate(1turn); opacity: 1; } 46%, 100% { transform: rotate(1turn); opacity: 0; } }
 
-/* Rayon Essence : le cadre astral, en vente sur l'image de profil du joueur. */
-.essframe { display: flex; align-items: center; gap: 18px; padding: 14px 16px; border-radius: var(--r); border: 1px solid color-mix(in srgb, #a585e6 50%, var(--line)); }
-.essframe > div { display: grid; gap: 2px; flex: 1; }
-.essframe > .frame { margin: 8px; }
+/* Rayon Essence : le cadre de la nébuleuse, en vente sur l'image de profil du joueur. */
+.essframe { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: var(--r); border: 1px solid color-mix(in srgb, #a585e6 50%, var(--line)); }
+.essframe > div { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.essframe .avatar.big { width: 64px; height: 64px; }
+.essframe .avatar.big.initials { font-size: 28px; }
+.essframe > .frame { margin: 6px; flex: none; }
 
 @media (prefers-reduced-motion: reduce) { .fanim > .ffx::before, .fanim > .ffx::after { animation: none; } }

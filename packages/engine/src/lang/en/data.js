@@ -127,7 +127,7 @@ export default {
   'Cadre des crocs': 'Fang frame',
   'Cadre de la comète': 'Comet frame',
   'Cadre du brasier': 'Blaze frame',
-  'Cadre astral': 'Astral frame',
+  'Cadre de la nébuleuse': 'Nebula frame',
   'Cadre du vitrail': 'Stained-glass frame',
   'Cadre des saisons': 'Seasons frame',
   "Cadre de l'Éclipse": 'Eclipse frame',

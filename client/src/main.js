@@ -1457,7 +1457,7 @@ function essenceShopHTML(E) {
     ${essFrameHTML(E.frame, have)}
   </section>`;
 }
-// Cadre astral (animé), vendu seulement au rayon Essence : montré sur l'image de profil du joueur.
+// Cadre de la nébuleuse (animé), vendu seulement au rayon Essence : montré sur l'image de profil du joueur.
 function essFrameHTML(f, have) {
   if (!f) return '';
   const name = esc(t(FRAMES[f.id] || f.id));

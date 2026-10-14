@@ -179,12 +179,12 @@ export const FRAMES = {
   // Cadres du magasin du boss mondial (boss.js).
   ...Object.fromEntries(BOSS_FRAMES),
   // Cadre du rayon Essence (ESSENCE_FRAME).
-  essence_astral: 'Cadre astral',
+  essence_nebuleuse: 'Cadre de la nébuleuse',
 };
 // Cadre vendu au rayon Essence de la boutique, en essence universelle (prix réglable dans /admin : essFramePrice).
-export const ESSENCE_FRAME = { id: 'essence_astral', price: 500 };
+export const ESSENCE_FRAME = { id: 'essence_nebuleuse', price: 500 };
 // Cadres animés : un calque en mouvement s'ajoute à l'anneau (client/src/frames-anim.css).
-export const ANIMATED_FRAMES = new Set(['boss_comete', 'boss_brasier', 'essence_astral', 'set2', 'halloween_p', 'cyber_p', 'maitre', 'legende']);
+export const ANIMATED_FRAMES = new Set(['boss_comete', 'boss_brasier', 'essence_nebuleuse', 'set2', 'halloween_p', 'cyber_p', 'maitre', 'legende']);
 const FAM_KEY = { 'Ange': 'ange', 'Démon': 'demon', 'Gobelin': 'gobelin', 'Elfe': 'elfe', 'Dragon': 'dragon', 'Mort-vivant': 'mortvivant', 'Vampire': 'vampire', 'Hacker': 'hacker', 'Cyborg': 'cyborg' };
 export const famKey = fam => FAM_KEY[fam] || 'neutre';
 // Dos de carte : celui par défaut, puis un par famille complétée dans chaque set. Il se voit sur vos cartes cachées, côté adversaire.

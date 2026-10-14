@@ -24,7 +24,7 @@ const LOGIN_RE = /^[a-z0-9._-]{2,24}$/;
 // Réglages de la boutique modifiables depuis /admin. « rotation » change à chaque renouvellement forcé des offres du jour.
 // Arts alternatifs : nombre d'offres du jour, prix du coffre et prix de chaque rareté (artPrice_<rareté>), en Prismes.
 // Doublons du jour : nombre d'offres (dupOffers, 0 les retire) et prix d'un doublon en Éclats (dupPrice).
-// Rayon Essence : prix des arts de l'édition Essence selon leur rareté (essArtPrice_<rareté>), et du cadre astral (essFramePrice), en essence universelle.
+// Rayon Essence : prix des arts de l'édition Essence selon leur rareté (essArtPrice_<rareté>), et du cadre de la nébuleuse (essFramePrice), en essence universelle.
 export const DEFAULT_SETTINGS = { cardPrice: SHOP.cardPrice, boosterPrice: SHOP.boosterPrice, dailyCards: SHOP.dailyCards, boosterSize: SHOP.boosterSize, shardsPerDuplicate: SHARDS_PER_DUPLICATE,
   dupOffers: 3, dupPrice: 100,
   artOffers: 3, chestPrice: 60, ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, ART_RARITIES[r].price])), prismShards: 10,
@@ -202,7 +202,7 @@ export function createAccounts(store) {
     const c = cfg();
     return { shards: a.shards || 0, freeBoosters: a.freeBoosters || 0, prices: { dailyCards: c.dailyCards, cardPrice: c.cardPrice, boosterPrice: c.boosterPrice, boosterSize: c.boosterSize, shardsPerDuplicate: c.shardsPerDuplicate, dupPrice: c.dupPrice },
       dups: a.starter ? dupDay(a).offers.map(id => ({ id, bought: dupDay(a).bought.includes(id), capped: !canLevel(a)(id) })) : [],
-      // Rayon Essence : essence universelle du joueur, arts de l'édition Essence et cadre astral.
+      // Rayon Essence : essence universelle du joueur, arts de l'édition Essence et cadre de la nébuleuse.
       essence: a.starter ? { universal: a.uniEssence || 0, arts: arts.essenceView(a),
         frame: { id: ESSENCE_FRAME.id, price: c.essFramePrice ?? ESSENCE_FRAME.price, owned: !!a.cosmetics?.frames?.includes(ESSENCE_FRAME.id) } } : null,
       arts: a.starter ? arts.view(a) : null, sets: shopOrder(SETS.filter(s => setRevealed(s))).map(set => ({ id: set.id, name: set.name, open: set.open, teaser: set.teaser || '', size: set.cards.length, boosterPrice: setBoosterPrice(set, c.boosterPrice),

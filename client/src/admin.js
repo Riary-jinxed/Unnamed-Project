@@ -242,7 +242,7 @@ function renderShopSettings() {
       ${field('dupOffers', 'Doublons du jour', 'Entre 0 et 10. 0 les retire de la boutique.')}
       ${field('dupPrice', 'Prix d\'un doublon du jour', 'En Éclats.')}
       ${RARITY_IDS.map(r => field(`essArtPrice_${r}`, `Art ${ART_RARITIES[r].name.toLowerCase()} de l'édition Essence`, 'En essence universelle.')).join('')}
-      ${field('essFramePrice', 'Cadre astral (animé)', 'En essence universelle.')}
+      ${field('essFramePrice', 'Cadre de la nébuleuse (animé)', 'En essence universelle.')}
     </div>
     <div class="row"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="dup-defaults">Revenir aux valeurs par défaut</button></div>
   </form>

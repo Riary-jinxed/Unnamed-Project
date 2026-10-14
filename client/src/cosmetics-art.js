@@ -676,9 +676,9 @@ FRAMES.boss_brasier = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 
     arc(g, C, C, (RH + RB) / 2, a0, a1).stroke({ width: 3, color: 0xffcf4a, cap: 'round' }); }
   g.circle(C, C, RH + 3).stroke({ width: 3, color: 0xffb02a });
   gem(g, C, C - RB + 2, 14, 0xff6a1a, 0xffd080); };
-// Cadre astral du rayon Essence (animé, frames-anim.css) : anneau de nuit violette semé d'étoiles, constellations dorées,
+// Cadre de la nébuleuse du rayon Essence (animé, frames-anim.css) : anneau de nuit violette semé d'étoiles, constellations dorées,
 // étoile à huit branches et gemme turquoise au sommet.
-FRAMES.essence_astral = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 4).stroke({ width: 14, color: 0xffffff }), 0xa585e6, 12, 0.8));
+FRAMES.essence_nebuleuse = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 4).stroke({ width: 14, color: 0xffffff }), 0xa585e6, 12, 0.8));
   ring(g, { base: 0x2a1a5a, hi: 0x8a6ad0, lo: 0x120a2e }); const rnd = seeded(11), m = (RH + RB) / 2;
   for (let i = 0; i < 34; i++) { const [x, y] = pt(C, C, RH + 3 + rnd() * (RB - RH - 6), rnd() * TAU); g.circle(x, y, 0.7 + rnd() * 1.4).fill(0xffffff); }
   // Trois constellations : des étoiles reliées par un trait fin, le long de l'anneau.
