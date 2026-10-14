@@ -1,6 +1,6 @@
-# Éclats
+# Éclat TCG · Shattered Worlds
 
-Éclats est un jeu de cartes à jouer et à collectionner : 7 tours, 3 zones, gagnez 2 zones sur 3.
+Éclat est un jeu de cartes à jouer et à collectionner : 7 tours, 3 zones, gagnez 2 zones sur 3.
 Cette version sert à tester le jeu entre amis : une appli web installable sur téléphone, des parties en ligne avec un code, et un mode contre l'IA.
 
 ## Ce qu'il y a dedans
