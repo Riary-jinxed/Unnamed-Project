@@ -8,6 +8,7 @@ import { esc } from './common.js';
 import { CARDS, GENERALS, TERRAINS } from '@jeu/engine';
 import { CARD_LEVELS } from '@jeu/engine/rewards';
 import { ARTS, rarityKey, rarityName } from '@jeu/engine/arts';
+import { t } from '@jeu/engine/i18n';
 
 const files = import.meta.glob(['./art/*/*.webp', './art/alt/*/*.webp'], { eager: true, query: '?url', import: 'default' });
 // Vignettes : les mêmes images en 640 px de large, faites à la compilation (client/vignettes.js). La galerie de la collection
@@ -92,7 +93,7 @@ const EMBLEMS = {
 const famOfId = id => CARDS[id]?.kw?.find(k => EMBLEMS[k]) || GENERALS[id]?.fam || TERRAINS[id]?.fam || null;
 const emblem = fam => `<svg class="prov-emb" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">${EMBLEMS[fam] || EMBLEMS.neutre}</svg>`;
 const provHTML = (id, name, cls, fam = famOfId(id)) => `<div class="art prov ${cls}" aria-hidden="true">
-  <div class="art-clip"><span class="prov-ring"></span>${emblem(fam)}<span class="prov-tag">Illustration à venir</span></div>
+  <div class="art-clip"><span class="prov-ring"></span>${emblem(fam)}<span class="prov-tag">${t('Illustration à venir')}</span></div>
   <span class="art-name">${esc(name)}</span></div>`;
 // Une carte sans illustration a-t-elle un visuel provisoire ? Toutes, sauf les jetons (créés en partie, sans illustration prévue).
 const provFor = id => !!(CARDS[id] && !CARDS[id].token || GENERALS[id]);
@@ -163,6 +164,6 @@ function altHTML(alt, name, lvl, cls) {
   const base = ART[alt.card]?.decor;
   return `<div class="art ph ${rar} ${cls}" aria-hidden="true">
     <div class="art-clip">${base ? img('art-decor', ART[alt.card], 'decor', cls) : ''}<span class="ph-veil"></span></div>
-    ${holo ? FOIL : ''}<span class="ph-tag">${esc(rarityName(alt))}</span><span class="ph-title">${esc(alt.name)}</span>
+    ${holo ? FOIL : ''}<span class="ph-tag">${esc(rarityName(alt))}</span><span class="ph-title">${esc(t(alt.name))}</span>
     <span class="art-name">${esc(name)}</span></div>`;
 }

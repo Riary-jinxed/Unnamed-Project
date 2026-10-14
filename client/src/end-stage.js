@@ -10,6 +10,7 @@
 import { Application, Color, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import { play, buzz } from './sfx.js';
 import { multLabel } from '@jeu/engine/events';
+import { t, tp } from '@jeu/engine/i18n';
 
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const ease = k => 1 - Math.pow(1 - k, 3);
@@ -50,15 +51,15 @@ async function boot() {
 // Les lignes de récompense, dans l'ordre où elles arrivent ; la ligne XP lance la barre de niveau.
 function rowsOf(r) {
   const rows = [];
-  if (!r.rewarded) rows.push({ kind: 'note', text: 'Plus de récompense de partie aujourd\'hui ; les missions avancent toujours.' });
+  if (!r.rewarded) rows.push({ kind: 'note', text: t('Plus de récompense de partie aujourd\'hui ; les missions avancent toujours.') });
   // Événement en cours (week-end double XP…) : son multiplicateur suit le nom de la ligne.
   const ev = k => (r.events?.[k] ? ` ${multLabel(r.events[k])}` : '');
-  if (r.xp) rows.push({ kind: 'xp', label: `Expérience${ev('xp')}`, n: r.xp, fmt: n => `+${n} XP` });
-  if (r.shards) rows.push({ kind: 'shard', label: `Éclats${ev('shards')}`, n: r.shards, fmt: n => `+${n}` });
-  if (r.prisms) rows.push({ kind: 'prism', label: 'Prismes', n: r.prisms, fmt: n => `+${n}` });
-  if (r.passXp) rows.push({ kind: 'pass', label: `XP de saison${ev('passXp')}`, n: r.passXp, fmt: n => `+${n}` });
-  if (r.missions) rows.push({ kind: 'mission', label: r.missions > 1 ? 'Missions accomplies' : 'Mission accomplie', n: r.missions, fmt: n => `${n}` });
-  if (r.rewarded && !rows.length) rows.push({ kind: 'note', text: 'Pas de gain pour cette partie.' });
+  if (r.xp) rows.push({ kind: 'xp', label: `${t('Expérience')}${ev('xp')}`, n: r.xp, fmt: n => `+${n} XP` });
+  if (r.shards) rows.push({ kind: 'shard', label: `${t('Éclats')}${ev('shards')}`, n: r.shards, fmt: n => `+${n}` });
+  if (r.prisms) rows.push({ kind: 'prism', label: t('Prismes'), n: r.prisms, fmt: n => `+${n}` });
+  if (r.passXp) rows.push({ kind: 'pass', label: `${t('XP de saison')}${ev('passXp')}`, n: r.passXp, fmt: n => `+${n}` });
+  if (r.missions) rows.push({ kind: 'mission', label: tp(r.missions, 'Mission accomplie', 'Missions accomplies'), n: r.missions, fmt: n => `${n}` });
+  if (r.rewarded && !rows.length) rows.push({ kind: 'note', text: t('Pas de gain pour cette partie.') });
   if (r.ranked) rows.push({ kind: 'rank', k: r.ranked });
   return rows;
 }
@@ -120,7 +121,7 @@ function build() {
   medal.addChild(new Graphics().circle(0, 0, 25).fill({ color: 0x1a120c }).stroke({ color: tint, width: 3 }).circle(0, 0, 20).stroke({ color: tint, width: 1, alpha: 0.5 }));
   const num = txt('', 22, C.ink, { font: DISPLAY, weight: '900', stroke: 3 }); num.anchor.set(0.5); medal.addChild(num);
   const x0 = 64, bw = W - x0 - 6, by = 34;
-  const cap = txt('NIVEAU', 11, C.muted, { ls: 2 }); cap.position.set(x0, 10);
+  const cap = txt(t('NIVEAU'), 11, C.muted, { ls: 2 }); cap.position.set(x0, 10);
   const xpT = txt('', 13, C.ink); xpT.anchor.set(1, 0); xpT.position.set(W - 6, 8);
   const track = new Graphics().roundRect(x0, by, bw, 12, 6).fill({ color: C.sunk }).stroke({ color: C.line, width: 1 });
   const fill = new Graphics(); const shine = new Sprite(glowTex); shine.anchor.set(0.5); shine.height = 26; shine.width = 40; shine.alpha = 0;
@@ -156,12 +157,12 @@ function build() {
 function buildRank(r, W) {
   const k = r.row.k, c = r.c, after = k.after, before = k.before || after;
   c.addChild(new Graphics().rect(0, 0, W, 1).fill({ color: C.line, alpha: 0.6 }));
-  const cap = txt('CLASSÉ', 11, C.muted, { ls: 2 }); cap.position.set(6, 8);
+  const cap = txt(t('CLASSÉ'), 11, C.muted, { ls: 2 }); cap.position.set(6, 8);
   const lab = txt(before.label, 16, C.ink, { font: DISPLAY }); lab.position.set(6, 22);
-  const d = k.delta > 0 ? `+${k.delta} étoile${k.delta > 1 ? 's' : ''}${k.bonus ? ' (bonus)' : ''}${k.mult ? ` ${multLabel(k.mult)}` : ''}` : k.delta < 0 ? `${k.delta} étoile` : 'Rang inchangé';
+  const d = k.delta > 0 ? `${tp(k.delta, '+{n} étoile', '+{n} étoiles')}${k.bonus ? ` ${t('(bonus)')}` : ''}${k.mult ? ` ${multLabel(k.mult)}` : ''}` : k.delta < 0 ? t('{n} étoile', { n: k.delta }) : t('Rang inchangé');
   const sub = txt(d, 12, k.delta > 0 ? C.up : k.delta < 0 ? C.down : C.muted); sub.anchor.set(1, 0); sub.position.set(W - 6, 8);
   const stars = new Container(); stars.position.set(W - 6, 34);
-  const promo = txt('PROMOTION !', 18, 0xfff0c0, { font: DISPLAY, weight: '900', stroke: 4, ls: 2 }); promo.anchor.set(0.5); promo.position.set(W / 2, 30); promo.alpha = 0;
+  const promo = txt(t('PROMOTION !'), 18, 0xfff0c0, { font: DISPLAY, weight: '900', stroke: 4, ls: 2 }); promo.anchor.set(0.5); promo.position.set(W / 2, 30); promo.alpha = 0;
   c.addChild(cap, lab, sub, stars, promo);
   // Étoiles : à quel instant chacune change. Montée : celles gagnées s'allument une à une ; descente : la dernière s'éteint.
   // Si le rang change (division, palier), le nom bascule au moment du changement.
@@ -184,40 +185,40 @@ function buildRank(r, W) {
 // Dessine la scène à l'instant cur.t. quiet : n'émet ni son ni étincelles pour les événements franchis (rattrapage).
 function draw(quiet = false) {
   const S = cur.s; if (!S) return;
-  const t = cur.t, { tl, win, tint } = cur, fire = (key, fn) => { if (cur.fired.has(key)) return; cur.fired.add(key); if (!quiet) fn(); };
+  const now = cur.t, { tl, win, tint } = cur, fire = (key, fn) => { if (cur.fired.has(key)) return; cur.fired.add(key); if (!quiet) fn(); };
   // Barre : le morceau en cours, la fraction remplie, et l'XP affichée.
   const bars = tl.bars; let b = bars[0], k = 0;
-  for (const p of bars) { if (t >= p.a) { b = p; k = ease(seg(t, p.a, p.d)); } }
+  for (const p of bars) { if (now >= p.a) { b = p; k = ease(seg(now, p.a, p.d)); } }
   const frac = b.from + (b.to - b.from) * k, xp = Math.round(b.xp0 + (b.xp1 - b.xp0) * k);
   S.num.text = String(b.level); S.xpT.text = `${xp} / ${b.xpNext} XP`;
   S.fill.clear(); if (frac > 0.005) S.fill.roundRect(S.x0, S.by, Math.max(12, S.bw * frac), 12, 6).fill({ color: tint }).roundRect(S.x0 + 3, S.by + 2, Math.max(6, S.bw * frac - 6), 3, 1.5).fill({ color: 0xffffff, alpha: 0.35 });
-  const moving = t >= b.a && t < b.a + b.d;
+  const moving = now >= b.a && now < b.a + b.d;
   S.shine.alpha = moving ? 0.8 : Math.max(0, S.shine.alpha - 0.05); S.shine.position.set(S.x0 + S.bw * frac, S.by + 6); S.shine.tint = tint;
-  S.lv.alpha = ease(seg(t, 0, 250));
+  S.lv.alpha = ease(seg(now, 0, 250));
   // Niveau gagné : le médaillon rebondit, le halo s'allume, « Niveau N ! » tombe sur la barre.
   let pop = 0, lastUp = null;
-  bars.forEach((p, i) => { if (!p.up) return; const at = p.a + p.d; if (t >= at) { lastUp = { at, level: bars[i + 1]?.level ?? p.level + 1 };
+  bars.forEach((p, i) => { if (!p.up) return; const at = p.a + p.d; if (now >= at) { lastUp = { at, level: bars[i + 1]?.level ?? p.level + 1 };
     fire(`up${i}`, () => { play('levelup'); buzz([20, 30, 20, 30, 60]); burst(30, 33, tint, 34, 4.5); ring(30, 33, tint); burst(S.x0 + S.bw, S.by + 6, tint, 16, 3); }); } });
-  if (lastUp) { const e = t - lastUp.at; pop = e < 500 ? Math.sin(Math.PI * clamp(e / 500, 0, 1)) : 0;
+  if (lastUp) { const e = now - lastUp.at; pop = e < 500 ? Math.sin(Math.PI * clamp(e / 500, 0, 1)) : 0;
     // Le tampon reste 1,6 s puis s'efface ; le médaillon garde son halo.
-    S.stamp.text = `NIVEAU ${lastUp.level} !`; const ks = seg(t, lastUp.at, 380); S.stamp.alpha = Math.min(1, ks * 2) * (1 - seg(t, lastUp.at + 1600, 400)); S.stamp.scale.set(2.2 - 1.2 * back(ks));
+    S.stamp.text = t('NIVEAU {n} !', { n: lastUp.level }); const ks = seg(now, lastUp.at, 380); S.stamp.alpha = Math.min(1, ks * 2) * (1 - seg(now, lastUp.at + 1600, 400)); S.stamp.scale.set(2.2 - 1.2 * back(ks));
     S.halo.alpha = 0.3 + 0.1 * Math.sin(performance.now() / 420); }
   S.medal.scale.set(1 + 0.25 * pop);
   // Lignes : glissent depuis la gauche, le compteur monte, une gerbe quand il s'arrête.
   S.rows.forEach((r, i) => {
-    const a = tl.at[i], kin = ease(seg(t, a, 320));
+    const a = tl.at[i], kin = ease(seg(now, a, 320));
     r.c.alpha = kin; r.c.x = (1 - kin) * -26;
     if (!r.val) return;
     if (r.row.kind === 'rank') return;
-    const kc = seg(t, a + 120, COUNT_MS), n = Math.round(r.row.n * ease(kc));
+    const kc = seg(now, a + 120, COUNT_MS), n = Math.round(r.row.n * ease(kc));
     r.val.text = r.row.fmt(n);
-    const done = kc >= 1, g = t - (a + 120 + COUNT_MS);
+    const done = kc >= 1, g = now - (a + 120 + COUNT_MS);
     r.glow.alpha = done && g < 600 ? 0.6 * (1 - g / 600) : 0;
     r.val.scale.set(done && g < 300 ? 1 + 0.18 * Math.sin(Math.PI * g / 300) : 1);
-    if (t >= a) fire(`in${i}`, () => play('pick'));
+    if (now >= a) fire(`in${i}`, () => play('pick'));
     if (done) fire(`ok${i}`, () => { const x = S.W - 30, y = r.y + ROW_H / 2; if (win) burst(x, y, tint, 14, 2.6); else dust(x, y, 6); if (r.row.kind === 'xp' || i === 0) play('shimmer'); });
   });
-  const R = S.rows.find(r => r.row.kind === 'rank'); if (R) drawRank(R, t, fire);
+  const R = S.rows.find(r => r.row.kind === 'rank'); if (R) drawRank(R, now, fire);
 }
 function drawRank(r, t, fire) {
   const a = r.row.a ?? 0, k = r.row.k, rel = t - a, after = k.after;

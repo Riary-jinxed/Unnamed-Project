@@ -4,6 +4,7 @@
 import './opening.css';
 import { play, buzz } from './sfx.js';
 import { reduceMotion } from './fx.js';
+import { t, tp } from '@jeu/engine/i18n';
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
 // Effets PixiJS (opening-stage.js) : chargés à la première ouverture, seulement avec WebGL. Tant qu'ils ne sont pas prêts,
@@ -51,7 +52,7 @@ export const packSVG = (setName, n, id = 'opp') => `<svg class="pack-art" viewBo
   <path d="M115 104 L122 124 L143 124 L126 137 L132 158 L115 145 L98 158 L104 137 L87 124 L108 124 Z" fill="url(#${id}-g)" stroke="#1a0f05" stroke-width="2" stroke-linejoin="round"/>
   <text x="115" y="224" text-anchor="middle" class="pack-title" textLength="176" lengthAdjust="spacingAndGlyphs">BOOSTER</text>
   <rect x="68" y="244" width="94" height="28" rx="14" fill="#1a0f05" stroke="url(#${id}-g)" stroke-width="2.5"/>
-  <text x="115" y="263" text-anchor="middle" class="pack-count">${n} CARTES</text></svg>`;
+  <text x="115" y="263" text-anchor="middle" class="pack-count">${t('{n} CARTES', { n })}</text></svg>`;
 
 // Booster. cards : [{ html, fresh, general, tag }] dans l'ordre reçu ; set : 'base', 'set2'… (couleurs du paquet) ;
 // back : dos de carte du joueur. done() affiche ensuite le récapitulatif.
@@ -64,10 +65,10 @@ export function openPack({ title, setName, set, back, cards }, done) {
   let finished = false;
   const finish = () => { if (finished) return; finished = true; close(root); done(); };
   const root = overlay(`oppack pk-${set || 'base'}`, `
-    <button class="op-skip" type="button">Tout révéler</button>
+    <button class="op-skip" type="button">${t('Tout révéler')}</button>
     <div class="op-stage">
       <div class="pack" style="--tear:0">
-        <div class="pack-top"><i class="pack-notch"></i><span class="pack-pull">Déchirer ici</span></div><div class="pack-cut"></div>
+        <div class="pack-top"><i class="pack-notch"></i><span class="pack-pull">${t('Déchirer ici')}</span></div><div class="pack-cut"></div>
         <div class="pack-body">${packSVG(setName, n)}</div>
         <div class="pack-sheen"></div>
       </div>
@@ -77,7 +78,7 @@ export function openPack({ title, setName, set, back, cards }, done) {
         <span class="oc-tag">${c.tag}</span></div>`).join('')}</div>
     </div>
     <p class="op-count num" aria-hidden="true"></p>
-    <p class="op-hint" aria-live="polite">Glissez le long du haut du paquet pour le déchirer</p>`, finish);
+    <p class="op-hint" aria-live="polite">${t('Glissez le long du haut du paquet pour le déchirer')}</p>`, finish);
   root.setAttribute('aria-label', title);
   const stage = root.querySelector('.op-stage'), pack = root.querySelector('.pack'), stack = root.querySelector('.stack');
   const hint = root.querySelector('.op-hint'), count = root.querySelector('.op-count');
@@ -114,7 +115,7 @@ export function openPack({ title, setName, set, back, cards }, done) {
     const el = els[idx]; if (!el) { finish(); return; }
     count.textContent = `${idx + 1} / ${n}`;
     const c = order[idx];
-    if (c.fresh) { el.classList.add('hint'); play('shimmer'); stopHint = fx()?.hint(el, c.general); buzz(c.general ? [15, 40, 15] : 10); hint.textContent = c.general ? 'Quelque chose de rare… touchez pour retourner' : 'Touchez pour retourner la carte'; }
+    if (c.fresh) { el.classList.add('hint'); play('shimmer'); stopHint = fx()?.hint(el, c.general); buzz(c.general ? [15, 40, 15] : 10); hint.textContent = c.general ? t('Quelque chose de rare… touchez pour retourner') : t('Touchez pour retourner la carte'); }
     else { hint.textContent = ''; setTimeout(() => { if (els[idx] === el) flip(el); }, 300); }
   }
   function flip(el) {
@@ -124,7 +125,7 @@ export function openPack({ title, setName, set, back, cards }, done) {
     stopHint?.(); stopHint = null; stopRays = fx()?.reveal(el, c.fresh ? (c.general ? 2 : 1) : 0);
     if (c.fresh) { play(c.general ? 'astral' : 'fresh'); buzz(c.general ? [30, 50, 60] : 25); el.classList.add('shine'); }
     else play('flip');
-    hint.textContent = idx < n - 1 ? 'Touchez ou glissez pour la carte suivante' : 'Touchez pour voir le résumé';
+    hint.textContent = idx < n - 1 ? t('Touchez ou glissez pour la carte suivante') : t('Touchez pour voir le résumé');
   }
   function toss(el, dir = -1) {
     if (idx >= n - 1) { finish(); return; }
@@ -212,7 +213,7 @@ export function openChest({ rarity, html, chip, name, sub }, done) {
   const opsparks = Array.from({ length: 22 }, () => { const a = Math.random() * Math.PI * 2, d = 90 + Math.random() * 140;
     return `<i style="--dx:${Math.round(Math.cos(a) * d)}px;--dy:${Math.round(Math.sin(a) * d - 60)}px;animation-delay:${Math.round(Math.random() * 180)}ms"></i>`; }).join('');
   const root = overlay(`opchest rar-${TIERS[0]}`, `
-    <button class="op-skip" type="button">Passer</button>
+    <button class="op-skip" type="button">${t('Passer')}</button>
     <div class="op-stage">
       <div class="oprays"></div><div class="opflash"></div>
       <div class="chest">${chestSVG()}</div>
@@ -221,8 +222,8 @@ export function openChest({ rarity, html, chip, name, sub }, done) {
         <div class="opreward-meta">${chip}<b>${name}</b><small>${sub}</small></div></div>
     </div>
     <p class="op-count num" aria-hidden="true"></p>
-    <p class="op-hint" aria-live="polite">Touchez le coffre pour l'ouvrir</p>`, finish);
-  root.setAttribute('aria-label', 'Coffre d\'arts');
+    <p class="op-hint" aria-live="polite">${t('Touchez le coffre pour l\'ouvrir')}</p>`, finish);
+  root.setAttribute('aria-label', t('Coffre d\'arts'));
   const chest = root.querySelector('.chest'), hint = root.querySelector('.op-hint'), flash = root.querySelector('.opflash');
   let hits = 0, tier = 0, opened = false, shown = false;
   const fx = () => root._fx, rar = () => cssVar(root, '--rar');
@@ -233,11 +234,11 @@ export function openChest({ rarity, html, chip, name, sub }, done) {
     hits++;
     chest.style.setProperty('--amp', hits); chest.dataset.hits = hits;
     restart(chest, 'shake'); play('knock'); buzz(12 * hits);
-    const t = Math.min(hits - 1, top);
-    if (t > tier || hits === 1) setTier(t);
+    const ti = Math.min(hits - 1, top);
+    if (ti > tier || hits === 1) setTier(ti);
     fx()?.knock(chest, hits, rar()); fx()?.seam(chest, hits, rar());
-    if (t > 0 && t === tier && hits === t + 1) { restart(flash, 'go'); fx()?.tierUp(chest, rar()); await wait(120); play('chestUp'); buzz([30, 30, 60]); }
-    hint.textContent = hits < 3 ? `Encore ${3 - hits} coup${3 - hits > 1 ? 's' : ''}…` : '';
+    if (ti > 0 && ti === tier && hits === ti + 1) { restart(flash, 'go'); fx()?.tierUp(chest, rar()); await wait(120); play('chestUp'); buzz([30, 30, 60]); }
+    hint.textContent = hits < 3 ? tp(3 - hits, 'Encore {n} coup…', 'Encore {n} coups…') : '';
     if (hits === 3) { await wait(480); open(); }
   }
   async function open() {
@@ -247,7 +248,7 @@ export function openChest({ rarity, html, chip, name, sub }, done) {
     root.classList.add('lit'); fx()?.chestOpen(chest, rar(), rarity);
     play('chestOpen'); buzz([40, 30, 80]);
     if (top) setTimeout(() => play('astral'), 260);
-    await wait(1100); shown = true; hint.textContent = 'Touchez pour continuer';
+    await wait(1100); shown = true; hint.textContent = t('Touchez pour continuer');
   }
   const act = () => { if (finished) return; if (!opened) { if (hits < 3) hit(); } else if (shown) finish(); };
   root.querySelector('.op-stage').addEventListener('click', act);
