@@ -23,6 +23,8 @@ import { createClan, crestHTML } from './clan.js';
 import { createBoss } from './boss.js';
 import { createStory } from './story.js';
 import { createHistory } from './history.js';
+import { createPlateau, rewardBits } from './plateau.js';
+import { MATS, POSES } from '@jeu/engine/board';
 import { questOfCard } from '@jeu/engine/story';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
@@ -31,7 +33,7 @@ import './holo.js';
 import './cosmetics.js';
 import { unlockAudio, audioContext, play, isMuted, setMuted, sfxVolume, setSfxVolume, canVibrate, vibrations, setVibrations, buzz, feel } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
-import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, stageReady, sparkle, shards, trail, ending, clearEnding, setEnd, coachGuide } from './fx.js';
+import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, stageReady, sparkle, shards, trail, ending, clearEnding, setEnd, coachGuide, poseAt } from './fx.js';
 import * as veil from './veil.js';
 import { TABS, screenDir, slides, ghostScreen, ghostSheet } from './transition.js';
 import { openPack, openChest } from './opening.js';
@@ -74,6 +76,9 @@ const clan = createClan({ ui, render: () => render(), call: (...x) => call(...x)
 // Boss mondial (boss.js) : boss de la semaine, tentatives, classement et magasin du boss ; à la table, son bandeau et la fin de tentative.
 const boss = createBoss({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), avatarHTML: (...x) => avatarHTML(...x), ico: k => ico(k), play: (...x) => play(...x),
   go: () => goBoss(), editBossDeck: id => { editBossDeck(id); render(); }, gotArt: id => { ui.gotArt = { id }; ui.sheet = 'art'; render(); }, leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
+// Cosmétiques du plateau (plateau.js) : rayon Plateau de la boutique, tapis et effet de pose dans la personnalisation.
+const plateau = createPlateau({ ui, prog: () => prog(), render: () => render(), call: (...x) => call(...x), equip: (...x) => equip(...x), ico: k => ico(k), play: (...x) => play(...x),
+  canPay: n => canPay(n), lacksShards: (...x) => lacksShards(...x) });
 // Quêtes d'histoire (story.js) : campagnes et quêtes du moment, carte, dialogues ; le combat se joue dans la page (goStory).
 const story = createStory({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), ico: k => ico(k), play: (...x) => play(...x),
   anyCard: (...x) => anyCard(...x), zoomKey: (...x) => zoomKey(...x), rewardItem: r => rewardItem(r), setAccount: a => setAccount(a), go: (q, i) => goStory(q, i), quit: () => quit(),
@@ -568,12 +573,12 @@ function missionsHTML() {
     <div class="missions">${W.list.map((m, i) => missionRow(m, i, false)).join('')}</div>
     ${bonus ? `<p class="hint" style="margin:0">${W.bonus.got ? `✓ ${t('Bonus de la semaine reçu : {gains}', { gains: bonus })}` : t('Toutes accomplies : {gains} en bonus.', { gains: bonus })}</p>` : ''}`;
 }
-// Ce que contient une récompense : gains, carte, titre, cadre, dos de carte, art Promo.
+// Ce que contient une récompense : gains, carte, titre, cadre, dos de carte, art Promo, émote, tapis, effet de pose.
 function rewardItem(r) {
   const art = r.art && ARTS[r.art];
   const extra = [r.title ? t('Titre « {name} »', { name: esc(titleLabel(r.title) || t(r.title)) }) : '', r.frame ? esc(t(FRAMES[r.frame] || r.frame)) : '', r.back ? esc(t(BACKS[r.back] || r.back)) : '',
     art ? t('Art Promo « {name} »', { name: esc(t(art.name)) }) : '', r.theme ? t('Thème de l\'interface « {name} » (Profil, Personnalisation)', { name: esc(t(SEASON_THEMES[r.theme] || r.theme)) }) : '',
-    r.emote && EMOTES[r.emote] ? t('Émote {icon} « {text} » (Profil, Personnalisation)', { icon: EMOTES[r.emote].icon, text: esc(t(EMOTES[r.emote].text)) }) : ''].filter(Boolean).join(' · ');
+    r.emote && EMOTES[r.emote] ? t('Émote {icon} « {text} » (Profil, Personnalisation)', { icon: EMOTES[r.emote].icon, text: esc(t(EMOTES[r.emote].text)) }) : '', ...rewardBits(r)].filter(Boolean).join(' · ');
   return `<div class="reward"><div><b>${esc(tField(r, 'label'))}</b>${gains(r) ? `<div class="num">${gains(r)}</div>` : ''}${extra ? `<div class="hint">${extra}</div>` : ''}</div>
     ${r.card ? `<button class="ccard" data-zoom="${zoomKey(r.card)}">${anyCard(r.card)}</button>` : ''}
     ${art ? `<button class="ccard" data-zoom="${zoomKey(art.card, art.id)}">${anyCard(art.card, myLevel(art.card), art.id, myBorder(art.card))}</button>` : ''}</div>`;
@@ -1375,15 +1380,16 @@ function renderCollection() {
 // Cadenas d'un rayon fermé.
 const LOCK = '<svg class="lockico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 function renderShop() {
-  const sh = ui.shop, a = ui.account, tab = ['arts', 'essence', 'change'].includes(ui.shopTab) && sh?.arts ? ui.shopTab : ui.shopTab === 'clan' && a.clan ? 'clan' : ui.shopTab === 'boss' ? 'boss' : ui.shopTab === 'emotes' ? 'emotes' : 'sets';
+  const sh = ui.shop, a = ui.account, tab = ['arts', 'essence', 'change'].includes(ui.shopTab) && sh?.arts ? ui.shopTab : ui.shopTab === 'clan' && a.clan ? 'clan' : ui.shopTab === 'boss' ? 'boss' : ui.shopTab === 'emotes' ? 'emotes' : ui.shopTab === 'plateau' ? 'plateau' : 'sets';
   const tabBtn = (id, label, badge) => `<button role="tab" data-act="shop-tab" data-tab="${id}" class="${tab === id ? 'on' : ''}" aria-selected="${tab === id}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
   // Rayon du clan : verrouillé (cadenas) tant que le joueur n'a pas de clan ; le toucher mène alors à l'écran des clans.
   const clanTab = a.clan ? tabBtn('clan', `${ico('ecu')}${t('Clan')}`) : `<button role="tab" class="locked" data-act="clan" aria-disabled="true" title="${t('Rejoignez un clan pour l\'ouvrir')}">${LOCK}${t('Clan')}</button>`;
   const top = `<div class="top"><span class="title">${t('Boutique')}</span><span class="chip num cur" title="${t('Éclats')}" aria-label="${t('{n} Éclats', { n: a.shards })}">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="${t('Prismes')}" aria-label="${t('{n} Prismes', { n: sh.arts.prisms })}">${ico('prism')}${sh.arts.prisms}</span>` : ''}${tab === 'essence' && sh?.essence ? `<span class="chip num cur uni" title="${t('Essence universelle')}" aria-label="${t('{n} essence universelle', { n: sh.essence.universal })}">${ico('essence')}${fmt(sh.essence.universal)}</span>` : ''}</div>
-    ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="${t('Rayons de la boutique')}">${tabBtn('sets', t('Sets'))}${tabBtn('arts', t('Arts'), sh.arts.chest.free)}${sh.essence ? tabBtn('essence', t('Essence')) : ''}${tabBtn('change', t('Change'))}${tabBtn('emotes', t('Émotes'))}${clanTab}${tabBtn('boss', `${ico('insigne')}${t('Boss')}`)}</div>` : ''}`;
+    ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="${t('Rayons de la boutique')}">${tabBtn('sets', t('Sets'))}${tabBtn('arts', t('Arts'), sh.arts.chest.free)}${sh.essence ? tabBtn('essence', t('Essence')) : ''}${tabBtn('change', t('Change'))}${tabBtn('emotes', t('Émotes'))}${tabBtn('plateau', t('Plateau'))}${clanTab}${tabBtn('boss', `${ico('insigne')}${t('Boss')}`)}</div>` : ''}`;
   if (tab === 'clan') return `${top}${clan.shopTab()}`;
   if (tab === 'boss') return `${top}${boss.shopTab()}`;
   if (tab === 'emotes') return `${top}${errLine()}${emoteShopHTML()}`;
+  if (tab === 'plateau') return `${top}${errLine()}${plateau.shopHTML()}`;
   if (!sh) return `${top}${errLine()}<p class="wait">${t('Chargement…')}</p>`;
   if (tab === 'arts') return `${top}${artStall(sh.arts)}${errLine()}${artShopHTML(sh.arts)}`;
   if (tab === 'change') return `${top}${errLine()}${exchangeHTML(sh.arts)}`;
@@ -1678,7 +1684,7 @@ function themePicks(p) {
 }
 function customizeHTML() {
   const a = ui.account, p = prog(), c = p.cosmetics;
-  return `<div class="card-box"><div><span class="eyebrow">${t('Personnalisation')}</span><h2 style="font-size:22px">${t('Thème, titre, cadre, dos de carte et émotes')}</h2></div>
+  return `<div class="card-box"><div><span class="eyebrow">${t('Personnalisation')}</span><h2 style="font-size:22px">${t('Thème, titre, cadre, plateau et émotes')}</h2></div>
     ${themePicks(p)}
     <div class="field"><label class="eyebrow" for="title-pick">${t('Titre affiché sous votre pseudo')}</label>
       <select id="title-pick" ${c.titles.length ? '' : 'disabled'}><option value="">${t('Aucun titre')}</option>${c.titles.map(x => `<option value="${esc(x.id)}" ${p.title === x.id ? 'selected' : ''}>${esc(t(x.label))}</option>`).join('')}</select>
@@ -1690,6 +1696,7 @@ function customizeHTML() {
     <div class="gal-h">${t('Dos de carte')}</div><p class="hint" style="margin:0">${t('Votre adversaire le voit sur vos cartes cachées.')}</p>
     <div class="picks">${Object.entries(BACKS).filter(([id]) => !futureCosmetic(id) || c.backs.some(b => b.id === id)).map(([id, label]) => { const ok = c.backs.some(b => b.id === id);
       return `<button class="pickc ${p.back === id ? 'on' : ''} ${ok ? '' : 'locked'}" ${ok ? `data-back="${id}"` : 'disabled'}><span class="mc back back-${id}"></span><small>${esc(t(label))}</small></button>`; }).join('')}</div>
+    ${plateau.customizeHTML()}
     ${favArtsHTML()}
     ${emotesHTML()}
   </div>`;
@@ -1739,7 +1746,8 @@ function achievementsHTML() {
   const groups = [...new Set(list.map(x => x.group))], done = list.filter(x => x.done).length;
   return `<div class="card-box"><div><span class="eyebrow">${t('Succès')}</span><h2 style="font-size:22px">${t('{n} sur {total}', { n: done, total: list.length })}</h2></div>
     ${groups.map(g => `<div class="gal-h">${esc(t(g))}</div><div class="achs">${list.filter(x => x.group === g).map(x => `<div class="ach ${x.done ? 'done' : ''}">
-      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(t(x.label))}</span><small class="hint">${[x.shards ? t('{n} Éclats', { n: x.shards }) : '', x.prisms ? tp(x.prisms, '{n} Prisme', '{n} Prismes') : '', x.chests ? tp(x.chests, '{n} coffre d\'arts', '{n} coffres d\'arts') : '', x.title ? t('titre « {title} »', { title: esc(t(x.title)) }) : '', x.frame ? `${x.frameId ? `<span class="frame frame-${esc(x.frameId)} swatch"></span>` : ''}${esc(t(x.frame))}` : '', x.emote && EMOTES[x.emote] ? t('émote {icon} « {text} »', { icon: EMOTES[x.emote].icon, text: esc(t(EMOTES[x.emote].text)) }) : ''].filter(Boolean).join(' · ')}</small></div>
+      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(t(x.label))}</span><small class="hint">${[x.shards ? t('{n} Éclats', { n: x.shards }) : '', x.prisms ? tp(x.prisms, '{n} Prisme', '{n} Prismes') : '', x.chests ? tp(x.chests, '{n} coffre d\'arts', '{n} coffres d\'arts') : '', x.title ? t('titre « {title} »', { title: esc(t(x.title)) }) : '', x.frame ? `${x.frameId ? `<span class="frame frame-${esc(x.frameId)} swatch"></span>` : ''}${esc(t(x.frame))}` : '', x.emote && EMOTES[x.emote] ? t('émote {icon} « {text} »', { icon: EMOTES[x.emote].icon, text: esc(t(EMOTES[x.emote].text)) }) : '',
+        x.mat && MATS[x.mat] ? t('tapis « {name} »', { name: esc(t(MATS[x.mat].name)) }) : '', x.pose && POSES[x.pose] ? t('effet de pose {icon} « {name} »', { icon: POSES[x.pose].icon, name: esc(t(POSES[x.pose].name)) }) : ''].filter(Boolean).join(' · ')}</small></div>
       ${x.done ? '' : `<div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(x.value, x.goal)}%"></span></div><small class="num">${x.value}/${x.goal}</small></div>`}</div>`).join('')}</div>`).join('')}</div>`;
 }
 // Profil en onglets : le haut (image, pseudo, niveau) reste, la rubrique change en dessous.
@@ -2067,6 +2075,9 @@ function render() {
   // Thème de l'interface (décors PixiJS, habillage.css) : ?saison=… dans l'adresse pour en essayer un (« base » : aucun), sinon celui
   // choisi dans la personnalisation, sinon celui de la saison en cours.
   document.body.dataset.season = SEASON_OVERRIDE ?? uiTheme();
+  // Plateau (plateau.js) : tapis de jeu sous la table, en partie seulement, et effet de pose de ses cartes (stage-cards.js).
+  document.body.dataset.mat = (ui.screen === 'game' && prog().mat) || '';
+  document.body.dataset.pose = prog().pose || 'poussiere';
   setInGame(app, ui.screen === 'game');
   setMusic(musicFor());
   // Transitions (transition.js, habillage.css) : seulement quand l'écran ou la feuille change, pas à chaque rafraîchissement.
@@ -2199,6 +2210,9 @@ function viewEffects(prev, view) {
       const back = b.side === 'foe' && at(`[data-hid="${f}"]`) && !reduceMotion();
       if (back) { backFlip(at(`[data-hid="${f}"]`)); list.push([cardSel(f), 'after-back']); }
       after.push(() => setTimeout(() => sparkle(at(cardSel(f)), b.power), back ? 200 : 60));
+      // Effet de pose de l'adversaire (board.js), sur sa carte qui se révèle ; le nuage de poussière d'origine reste réservé à la pose.
+      const foePose = b.side === 'foe' && view.badges?.[1 - view.seat]?.pose;
+      if (foePose && foePose !== 'poussiere') after.push(() => setTimeout(() => poseAt(at(cardSel(f)), foePose), back ? 260 : 120));
       if (fxOf(b)) { list.push([cardSel(f), 'astral-in']); burst.push(cardSel(f)); sounds.push('astral'); }
     }
   }
@@ -2430,7 +2444,7 @@ app.addEventListener('submit', e => {
 });
 // Les missions repliées ou dépliées le restent d'un affichage à l'autre.
 app.addEventListener('click', e => {
-  const el = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-frame],[data-back],[data-theme],[data-stop]');
+  const el = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-frame],[data-back],[data-mat],[data-pose],[data-theme],[data-stop]');
   // Sélecteur d'émotes ouvert : toucher ailleurs le referme.
   if (ui.emotePick && !e.target.closest('.emotepick,[data-act="emotes"]')) { ui.emotePick = false; if (!el) { render(); return; } }
   if (!el) return;
@@ -2484,6 +2498,9 @@ app.addEventListener('click', e => {
     else if (a === 'emote-slot' && !ui.busy) toggleEmoteSlot(ds.id);
     else if (a === 'buy-emote' && !ui.busy) { const e = EMOTES[ds.id], go = () => buyEmote(ds.id); if (e.prisms || !lacksShards(e.price, t('acheter'), go)) go(); }
     else if (a === 'shop-emotes') openShop('emotes');
+    else if (a === 'shop-plateau') openShop('plateau');
+    else if (a === 'buy-board' && !ui.busy) plateau.onBuy(ds.kind, ds.id);
+    else if (a === 'use-board' && !ui.busy) plateau.use(ds.kind, ds.id);
     else if (a === 'logout') doLogout();
     else if (a === 'retry') boot();
     else if (a === 'lang') chooseLang(ds.lang);
@@ -2545,6 +2562,8 @@ app.addEventListener('click', e => {
   if (ds.frame !== undefined && !ui.busy) { equip({ frame: ds.frame || null }, t('Cadre changé.')); return; }
   if (ds.theme !== undefined && !ui.busy) { equip({ theme: ds.theme || null }, t('Thème changé.')); return; }
   if (ds.back && !ui.busy) { equip({ back: ds.back }, t('Dos de carte changé.')); return; }
+  if (ds.mat !== undefined && !ui.busy) { plateau.use('mat', ds.mat); return; }
+  if (ds.pose && !ui.busy) { plateau.use('pose', ds.pose); return; }
   if (ds.fam !== undefined) { ui.colFam = ds.fam; render(); return; }
   if (ds.zoom) { const [kind, id, art] = ds.zoom.split(':'); const back = ui.sheet === 'codex' || ui.sheet === 'player' || ui.sheet === 'game' ? ui.sheet : null; openZoom({ kind, id, art: art || null }); ui.zoomBack = back; ui.msg = ''; render(); return; }
   if (ds.pick) { togglePick(ds.pick); return; }

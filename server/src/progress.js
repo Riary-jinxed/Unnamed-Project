@@ -13,6 +13,7 @@ import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seas
   currentSeason, THEME_TIER, SEASON_THEMES } from '@jeu/engine/pass';
 import { boost } from '@jeu/engine/events';
 import { EMOTES, EMOTE_SLOTS, ownsEmote, ownedEmotes, emoteSet } from '@jeu/engine/emotes';
+import { MATS, POSES, POSE_IDS, boardItem, ownsMat, ownsPose, matOf, poseOf } from '@jeu/engine/board';
 import { HttpError } from './accounts.js';
 import { createEvents } from './events.js';
 import { msg } from '@jeu/engine/i18n';
@@ -86,7 +87,7 @@ export function createProgress(store) {
     }
     checkAchievements(a);
   }
-  // Donne une récompense (Éclats, Prismes, XP, boosters et coffres d'arts offerts, carte, titre, cadre, dos, émote) et la range dans la boîte du compte
+  // Donne une récompense (Éclats, Prismes, XP, boosters et coffres d'arts offerts, carte, titre, cadre, dos, émote, tapis, effet de pose) et la range dans la boîte du compte
   // (sauf silent : le calendrier montre lui-même ce qu'il donne).
   function grant(a, r, { silent = false } = {}) {
     if (r.shards) a.shards = (a.shards || 0) + r.shards;
@@ -101,6 +102,8 @@ export function createProgress(store) {
     if (r.back && !a.cosmetics.backs.includes(r.back)) a.cosmetics.backs.push(r.back);
     if (r.theme && !(a.cosmetics.themes ||= []).includes(r.theme)) a.cosmetics.themes.push(r.theme);
     if (r.emote && !ownsEmote(a.cosmetics.emotes, r.emote)) (a.cosmetics.emotes ||= []).push(r.emote);
+    if (r.mat && MATS[r.mat] && !ownsMat(a.cosmetics.mats, r.mat)) (a.cosmetics.mats ||= []).push(r.mat);
+    if (r.pose && POSES[r.pose] && !ownsPose(a.cosmetics.poses, r.pose)) (a.cosmetics.poses ||= []).push(r.pose);
     if (r.art && ARTS[r.art] && !a.arts?.[r.art]) a.arts = { ...(a.arts || {}), [r.art]: { at: new Date().toISOString(), gift: true } };
     if (!silent) push(a, r);
     if (r.xp) addXp(a, r.xp);
@@ -124,12 +127,14 @@ export function createProgress(store) {
   function checkAchievements(a) {
     const s = statsOf(a), c = cfg();
     for (const x of ACHIEVEMENTS) {
-      // Succès obtenu avant que son émote existe : l'émote est donnée sans bruit.
+      // Succès obtenu avant que son émote (son tapis, son effet de pose) existe : elle est donnée sans bruit.
       if (a.achievements[x.id] && x.emote && !ownsEmote(a.cosmetics.emotes, x.emote)) (a.cosmetics.emotes ||= []).push(x.emote);
+      if (a.achievements[x.id] && x.mat && !ownsMat(a.cosmetics.mats, x.mat)) (a.cosmetics.mats ||= []).push(x.mat);
+      if (a.achievements[x.id] && x.pose && !ownsPose(a.cosmetics.poses, x.pose)) (a.cosmetics.poses ||= []).push(x.pose);
       if (a.achievements[x.id] || statValue(s, x.stat) < x.goal) continue;
       a.achievements[x.id] = new Date().toISOString();
       grant(a, { kind: 'achievement', label: `Succès : ${x.label}`, labelMsg: msg('Succès : {label}', { label: [x.label] }), shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id],
-        title: x.title ? x.id : undefined, frame: x.frame, emote: x.emote });
+        title: x.title ? x.id : undefined, frame: x.frame, emote: x.emote, mat: x.mat, pose: x.pose });
     }
   }
 
@@ -549,7 +554,10 @@ export function createProgress(store) {
   // theme : thème de l'interface ; null suit la saison en cours, « base » garde le thème de base, sinon un thème débloqué.
   // favArts : jusqu'à MAX_FAV_ARTS arts possédés, montrés sur le profil public (dans l'ordre choisi).
   // emotes : les émotes du sélecteur en partie, EMOTE_SLOTS au plus parmi celles possédées (dans l'ordre choisi).
-  async function equip(a, { title, frame, back, theme, favArts, emotes }) {
+  // mat : tapis de jeu (null : la table suit le thème de l'interface) ; pose : effet de pose des cartes (board.js).
+  async function equip(a, { title, frame, back, theme, favArts, emotes, mat, pose }) {
+    if (mat !== undefined) { if (mat !== null && !ownsMat(a.cosmetics.mats, mat)) throw new HttpError(400, msg('Tapis non débloqué.')); a.mat = mat; }
+    if (pose !== undefined) { if (!ownsPose(a.cosmetics.poses, pose)) throw new HttpError(400, msg('Effet de pose non débloqué.')); a.pose = pose; }
     if (theme !== undefined) { if (theme !== null && theme !== 'base' && !a.cosmetics.themes?.includes(theme)) throw new HttpError(400, msg('Thème non débloqué.')); a.uiTheme = theme; }
     if (title !== undefined) { if (title !== null && !a.cosmetics.titles.includes(title)) throw new HttpError(400, msg('Titre non débloqué.')); a.title = title; }
     if (frame !== undefined) { if (frame !== null && !a.cosmetics.frames.includes(frame)) throw new HttpError(400, msg('Cadre non débloqué.')); a.frame = frame; }
@@ -579,6 +587,20 @@ export function createProgress(store) {
     const set = emoteSet(a.cosmetics.emotes, a.emoteSet);
     if (set.length < EMOTE_SLOTS) a.emoteSet = [...set, emote];
     return emote;
+  }
+  // Rayon Plateau : tapis, effet de pose ou dos de carte, en Éclats ou en Prismes (board.js). L'objet acheté est aussitôt choisi.
+  function buyBoard(a, { kind, id } = {}) {
+    const x = boardItem(kind, id);
+    if (!x) throw new HttpError(400, msg('Cet objet n\'est pas en vente.'));
+    if (!a.cosmetics) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
+    const owned = kind === 'mat' ? ownsMat(a.cosmetics.mats, id) : kind === 'pose' ? ownsPose(a.cosmetics.poses, id) : a.cosmetics.backs.includes(id);
+    if (owned) throw new HttpError(409, msg('Vous l\'avez déjà.'));
+    const [k, cost] = x.prisms ? ['prisms', x.prisms] : ['shards', x.price];
+    if ((a[k] || 0) < cost) throw new HttpError(409, msg(x.prisms ? 'Il vous faut {price} Prismes (vous en avez {have}).' : 'Il vous faut {price} Éclats (vous en avez {have}).', { price: cost, have: a[k] || 0 }));
+    a[k] = (a[k] || 0) - cost;
+    grant(a, { [kind]: id }, { silent: true });
+    a[kind] = id;
+    return { kind, id };
   }
   const canEmote = (a, id) => !!a?.cosmetics && ownsEmote(a.cosmetics.emotes, id);
   // Arts préférés encore possédés (un art retiré du jeu disparaît de la liste).
@@ -657,16 +679,16 @@ export function createProgress(store) {
 
   // ---- Vues ----
   const levelView = a => ({ level: a.level || 1, xp: a.xp || 0, xpNext: xpToNext(a.level || 1, cfg()) });
-  // Ce qu'un adversaire voit du joueur pendant une partie. looks : niveau des cartes du deck joué et de son général (niveau 2 et plus) ;
+  // Ce qu'un adversaire voit du joueur pendant une partie (dont son dos de carte et son effet de pose). looks : niveau des cartes du deck joué et de son général (niveau 2 et plus) ;
   // le serveur n'envoie à l'adversaire que ceux des cartes déjà révélées (index.js).
   // arts : art alternatif choisi pour ces mêmes cartes, filtré de la même façon.
   // borders : bordure choisie quand elle n'est pas celle du niveau (chooseBorder), filtrée de la même façon.
-  const badge = (a, deck = null) => ({ title: a.title ? TITLES[a.title] || null : null, frame: a.frame || null, back: a.back || 'classique', level: a.level || 1,
+  const badge = (a, deck = null) => ({ title: a.title ? TITLES[a.title] || null : null, frame: a.frame || null, back: a.back || 'classique', pose: poseOf(a.cosmetics?.poses, a.pose), level: a.level || 1,
     looks: deck ? Object.fromEntries([...deck.cards, deck.general].filter(id => id && (a.cardLevels?.[id] || 1) > 1).map(id => [id, a.cardLevels[id]])) : {},
     arts: deck ? shownArts(a, [...deck.cards, deck.general]) : {},
     borders: deck ? Object.fromEntries([...deck.cards, deck.general].filter(id => id && borderOf(a, id) !== (a.cardLevels?.[id] || 1)).map(id => [id, borderOf(a, id)])) : {} });
   function view(a) {
-    if (!a.level) return { ...levelView(a), freeBoosters: 0, missions: [], weekly: null, rerollsLeft: 0, inbox: [], badge: badge(a), cosmetics: { titles: [], frames: [], backs: [], themes: [], emotes: [] }, emotes: [], cardLevels: levelsView(), pass: null };
+    if (!a.level) return { ...levelView(a), freeBoosters: 0, missions: [], weekly: null, rerollsLeft: 0, inbox: [], badge: badge(a), cosmetics: { titles: [], frames: [], backs: [], themes: [], emotes: [], mats: [], poses: [] }, emotes: [], cardLevels: levelsView(), pass: null };
     const ms = missions(a), W = weekly(a), c = cfg(), mission = m => ({ label: missionLabel(m), n: m.n, target: m.target, done: m.done, xp: m.xp, shards: m.shards });
     const ends = new Date(`${W.week}T12:00:00Z`); ends.setUTCDate(ends.getUTCDate() + 7);
     return { ...levelView(a), freeBoosters: a.freeBoosters || 0,
@@ -675,15 +697,16 @@ export function createProgress(store) {
       rerollsLeft: Math.max(0, c.missionRerolls - ms.rerolls), inbox: a.inbox || [], badge: badge(a), cardLevels: levelsView(), ranked: rankedView(a),
       freeChests: a.freeChests || 0, calendar: calendarView(a), welcome: welcomeView(a), pass: passSummary(a), events: events.view(),
       title: a.title, frame: a.frame, back: a.back, theme: a.uiTheme ?? null, favArts: favArts(a), emotes: emoteSet(a.cosmetics.emotes, a.emoteSet),
+      mat: matOf(a.cosmetics.mats, a.mat), pose: poseOf(a.cosmetics.poses, a.pose),
       cosmetics: { titles: a.cosmetics.titles.map(id => ({ id, label: TITLES[id] || id })), frames: a.cosmetics.frames.map(id => ({ id, label: FRAMES[id] || id })),
         backs: a.cosmetics.backs.map(id => ({ id, label: BACKS[id] || id })), themes: (a.cosmetics.themes || []).map(id => ({ id, label: SEASON_THEMES[id] || id })),
-        emotes: ownedEmotes(a.cosmetics.emotes) } };
+        emotes: ownedEmotes(a.cosmetics.emotes), mats: (a.cosmetics.mats || []).filter(id => MATS[id]), poses: POSE_IDS.filter(id => ownsPose(a.cosmetics.poses, id)) } };
   }
   // Succès et complétions avec leur avancement, pour la page de profil.
   function achievementsView(a) {
     const s = statsOf(a), c = cfg();
     return ACHIEVEMENTS.filter(x => !x.set || setRevealed(setById(x.set))).map(x => ({ id: x.id, group: x.group, label: x.label, goal: x.goal, value: Math.min(x.goal, statValue(s, x.stat)), done: !!a.achievements?.[x.id],
-      shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id], title: x.title || null, frame: x.frame ? FRAMES[x.frame] : null, frameId: x.frame || null, emote: x.emote || null }));
+      shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id], title: x.title || null, frame: x.frame ? FRAMES[x.frame] : null, frameId: x.frame || null, emote: x.emote || null, mat: x.mat || null, pose: x.pose || null }));
   }
   function collectionView(a) {
     return SETS.filter(s => s.cards.length && setRevealed(s)).map(set => ({ id: set.id, name: set.name, done: !!a.completed?.[set.id], reward: SET_REWARDS[set.id] || null,
@@ -736,6 +759,6 @@ export function createProgress(store) {
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
   // passView : écran du passe, missions rédigées dans la langue du joueur (aussi après un await).
-  return { init, grant, cfg, events, count, best, act, setNeed: (k, f) => { needs[k] = f; }, onCards, passView: a => inLang(a, () => passView(a)), buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, claimWelcome, welcomeView, startWelcome, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings, buyEmote, canEmote,
+  return { init, grant, cfg, events, count, best, act, setNeed: (k, f) => { needs[k] = f; }, onCards, passView: a => inLang(a, () => passView(a)), buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, claimWelcome, welcomeView, startWelcome, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings, buyEmote, buyBoard, canEmote,
     seen: a => { a.inbox = []; }, setSeasonHook: f => { seasonHook = f; } };
 }

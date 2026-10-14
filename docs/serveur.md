@@ -61,6 +61,7 @@ Un compte est un objet JSON (colonne `data`) :
 | `welcome` | Bienvenue des 7 jours : `{ start, days }` (création, dates des cadeaux pris). Posé à la création du compte ; absent des comptes plus anciens. Gardé par la remise à zéro, qui vide seulement `days`. |
 | `achievements`, `completed` | Succès obtenus ; familles (`set:famille`) et sets complétés, avec leur date. |
 | `cosmetics.emotes`, `emoteSet` | Émotes gagnées ou achetées (les émotes offertes de `emotes.js` ne sont pas listées : tout le monde les a) ; émotes du sélecteur en partie, dans l'ordre choisi (absent : les émotes offertes). |
+| `cosmetics.mats`, `cosmetics.poses`, `mat`, `pose` | Tapis de jeu et effets de pose gagnés ou achetés (`board.js` ; l'effet offert n'est pas listé) ; tapis choisi (absent : la table suit le thème de l'interface) et effet de pose choisi. L'effet de pose part dans le badge de partie : l'adversaire le voit à la révélation. |
 | `cosmetics`, `title`, `frame`, `back`, `uiTheme` | Titres, cadres, dos et thèmes de l'interface débloqués (`cosmetics.themes`, un par passe de saison, au palier `THEME_TIER`) ; ceux qui sont portés. `uiTheme` : `null` suit la saison en cours, `base` garde le thème de base, sinon un thème débloqué. |
 | `inbox` | Récompenses gagnées à montrer au joueur (40 au plus), vidée quand il les a vues. |
 | `friends`, `friendsIn`, `friendsOut` | Identifiants des amis, des demandes reçues et des demandes envoyées (100 amis au plus). |
@@ -139,6 +140,7 @@ Toutes les routes répondent en JSON. Une erreur renvoie `{ error: "message lisi
 | `POST /api/redeem` | Utilise un code cadeau `{ code }`, une fois par compte. |
 | `PUT /api/cosmetics` | Change le titre, le cadre, le dos de carte porté ou le thème de l'interface (`theme`), les 3 arts préférés du profil public (`favArts`) et les émotes du sélecteur en partie (`emotes` : de 1 à `EMOTE_SLOTS` émotes possédées). |
 | `POST /api/shop/emote` | `{ emote }` : achète une émote du rayon Émotes (`price` en Éclats ou `prisms` en Prismes, `emotes.js`). Si le sélecteur n'est pas plein, elle y prend place. |
+| `POST /api/shop/board` | `{ kind, id }` : achète un objet du rayon Plateau (`kind` : `mat`, `pose` ou `back` ; `price` en Éclats ou `prisms` en Prismes, `board.js`). L'objet acheté est aussitôt choisi. |
 | `POST /api/shop/art`, `/api/shop/chest` | Arts alternatifs (`arts.js`) : payés en Prismes. `{ art }` achète un art du jour ; le coffre donne un art classique pas encore possédé, au hasard selon sa rareté (`{ free: true }` : avec un coffre offert). Renvoie `art` et la boutique à jour. |
 | `POST /api/shop/convert` | `{ offer }` : change des Prismes en Éclats par une offre fixe (`exchangeOffers` du moteur, bâties sur le taux `prismShards` ; 0 : fermé). Jamais l'inverse ni au détail. |
 | `GET /api/pass` | Passe de saison du mois (`pass`, `null` sans saison) : paliers gratuits et premium, missions du jour, de la semaine et de la saison, arts Promo (palier de la piste gratuite), prix du premium et palier où il est remboursé. |

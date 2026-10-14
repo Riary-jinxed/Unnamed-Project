@@ -11,6 +11,10 @@ export default [
   ['rewards.js', 'ACHIEVEMENTS', ['label', 'group', 'title']],
   // Émotes, événements, saisons.
   ['emotes.js', 'EMOTES', ['text']],
+  // Plateau : tapis de jeu, effets de pose, dos du rayon Plateau.
+  ['board.js', 'MATS', ['name']],
+  ['board.js', 'POSES', ['name']],
+  ['board.js', 'SHOP_BACKS', ['name']],
   ['events.js', 'EVENT_EFFECTS', ['name', 'chip', 'short', 'what']],
   ['events.js', 'DEFAULT_EVENTS', ['name']],
   ['pass.js', 'SEASON_THEMES', '*'],
