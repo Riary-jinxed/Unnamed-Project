@@ -128,6 +128,8 @@ const FACES = { seraphine: [52, 44], aurelia: [48, 23], morgrath: [53, 29], vorg
   gorbag: [57, 30], intendant: [49, 22], ossa: [45, 25], elyndra: [47, 23], belzharoth: [47, 21], valdric: [50, 21], carmilla: [33, 17], ysmera: [45, 21],
   // Cartes qui parlent dans les quêtes d'histoire (client/src/story.js) : même cadrage sur le visage.
   boss_horde: [38, 27], gardienne_sentiers: [39, 19], heritier_abysses: [50, 18], citrouille: [50, 40], sorciere_sabbat: [44, 30], voix_aube: [49, 21],
+  chef: [50, 26], marmiton: [30, 32], archere: [27, 17], gardien_magot: [47, 36], druidesse: [62, 22], cultiste: [50, 22], diablotin: [40, 30],
+  servante: [47, 16], messagere: [45, 24],
   // Arts alternatifs des généraux : le visage n'est pas au même endroit que sur l'illustration d'origine.
   seraphine_zenith: [49, 48], aurelia_vitrail: [47, 29], morgrath_citrouilles: [47, 23], vorgoth_cercle: [50, 26],
   grisk_butin: [44, 30], grisk_farce: [54, 40], snagg_festin: [22, 37], sylvaen_automne: [49, 20], lirael_vitrail: [41, 34],
