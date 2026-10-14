@@ -157,7 +157,7 @@ export const CARDS = {
                  onReveal: (c, st) => discardFromHand(st, c.owner, 1) },
   liche:       { set: 'set2', name: 'Liche', type: 'C', cost: 5, power: 5, kw: ['Mort-vivant'], text: 'Persistant : +1 par tranche de 2 cartes dans votre défausse.',
                  self: (c, st) => half(st.p[c.owner].discard.length) },
-  seigneur_os: { set: 'set2', name: 'Seigneur des os', type: 'C', cost: 6, power: 7, kw: ['Mort-vivant'], text: 'Révélation : Défausse 2, puis vos autres Morts-vivants en jeu gagnent +2.',
+  seigneur_os: { set: 'set2', name: 'Seigneur des os', type: 'C', cost: 6, power: 8, kw: ['Mort-vivant'], text: 'Révélation : Défausse 2, puis vos autres Morts-vivants en jeu gagnent +2.',
                  onReveal: (c, st) => { discardFromHand(st, c.owner, 2); mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Mort-vivant')).forEach(x => buff(st, x, 2)); } },
   danse_macabre:{ set: 'set2', name: 'Danse macabre', type: 'S', cost: 2, power: 0, kw: ['Mort-vivant'], text: 'Défausse 2, puis piochez 2 cartes.',
                  onReveal: (c, st) => { discardFromHand(st, c.owner, 2); draw(st, c.owner, 2, true); } },
@@ -541,11 +541,10 @@ export const GENERALS = {
                text: 'Début de partie : crée un Magot de dragon dans une zone au hasard. Magot : en fin de tour, gagne autant de puissance que vos sceaux non dépensés.',
                onStart: (p, st) => summon(st, p, pick([0, 1, 2]), 'magot') },
   ignaroth:  { name: 'Ignaroth le Dévoreur', fam: 'Dragon', kind: 'Fin de tour',
-               text: 'Fin de tour, 3 fois par partie : si vous gardez au moins 1 sceau, le Dragon le plus cher de votre main coûte 1 de moins et gagne +1 (coût minimum 1).',
-               onEndTurn: (p, st) => { const P = st.p[p]; if (P.seals === 0 || (P.generalUses || 0) >= 3) return;
-                 const c = P.hand.filter(x => hasKw(x, 'Dragon')).sort((x, y) => (costOf(st, y) ?? 0) - (costOf(st, x) ?? 0))[0]; if (!c) return;
-                 P.generalUses = (P.generalUses || 0) + 1; c.costMod = (c.costMod || 0) - 1; c.buff += 1;
-                 log(st, `${who(st, p)} : ${nm(c.id)} en main -1 sceau, +1 puissance.`, 'up'); } },
+               text: 'Fin de tour : si vous avez dépensé tous vos sceaux, un Dragon au hasard de votre main gagne +1 sceau et -1 puissance ; sinon -1 sceau et +1 puissance (coût minimum 1).',
+               onEndTurn: (p, st) => { const P = st.p[p], spent = P.seals === 0, d = P.hand.filter(c => hasKw(c, 'Dragon')); if (!d.length) return;
+                 const c = pick(d); c.costMod = (c.costMod || 0) + (spent ? 1 : -1); c.buff += spent ? -1 : 1;
+                 log(st, `${who(st, p)} : ${nm(c.id)} en main ${spent ? '+1 sceau, -1 puissance' : '-1 sceau, +1 puissance'}.`, spent ? 'down' : 'up'); } },
   cartographe:{ name: 'Le Cartographe', fam: null, kind: 'Début de partie', preview: true,
                text: 'Début de partie : vous voyez tous vos terrains, et où et quand ils seront révélés.' },
   erudit:    { name: 'L\'Érudit', fam: null, kind: 'Début de partie',
