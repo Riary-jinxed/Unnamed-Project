@@ -12,7 +12,7 @@ const frDate = d => new Date(`${d}T12:00:00Z`).toLocaleDateString(locale(), { da
 // app : ce que main.js prête au courrier (état ui, render, call, errLine, rewardItem, play).
 export function createMail(app) {
   const { ui } = app;
-  const m = ui.mail = { list: null, open: null, code: '', note: '', got: null, news: false };
+  const m = ui.mail = { list: null, open: null, code: '', note: '', got: null };
 
   async function load() {
     const r = await app.call('GET', '/api/mail');
@@ -67,16 +67,7 @@ export function createMail(app) {
     <p class="hint" style="margin:0">${t('Les codes sont donnés pendant les événements et sur nos réseaux. Chacun ne sert qu\'une fois par compte.')}</p>
     <div class="row"><button class="btn primary" type="submit" ${ui.busy || !m.code.trim() ? 'disabled' : ''}>${t('Valider le code')}</button></div></form>`;
 
-  // Nouveautés (icône du quotidien sur l'accueil) : le même écran, réduit aux annonces (notes de mise à jour, nouveaux sets).
-  function newsScreen() {
-    const L = m.list && m.list.filter(x => x.kind === 'news');
-    return `<div class="top"><span class="title">${t('Nouveautés')}</span><button class="btn" data-act="home">${t('Retour')}</button></div>
-    ${app.errLine()}
-    ${!L ? `<p class="wait">${t('Chargement…')}</p>` : L.length ? `<div class="maillist">${L.map(item).join('')}</div>`
-      : `<div class="card-box"><p class="hint" style="margin:0">${t('Aucune nouveauté pour l\'instant. Les mises à jour et les nouveaux sets seront annoncés ici.')}</p></div>`}`;
-  }
   function screen() {
-    if (m.news) return newsScreen();
     const L = m.list, waiting = L ? L.filter(pending).length : 0;
     return `<div class="top"><span class="title">${t('Courrier')}</span><button class="btn" data-act="home">${t('Retour')}</button></div>
     ${app.errLine()}
@@ -104,7 +95,7 @@ export function createMail(app) {
   }
 
   function click(a, ds) {
-    if (a === 'mail' || a === 'news') { ui.screen = 'mail'; ui.error = ''; m.open = null; m.news = a === 'news'; load(); }
+    if (a === 'mail') { ui.screen = 'mail'; ui.error = ''; m.open = null; load(); }
     else if (a === 'mail-open') open(ds.id);
     else if (a === 'mail-claim' && !ui.busy) act('/api/mail/claim', { id: ds.id });
     else if (a === 'mail-claim-all' && !ui.busy) act('/api/mail/claim-all');

@@ -1284,8 +1284,6 @@ function renderHome() {
       t('Calendrier'), cal.ready ? t('À récupérer') : `${cal.got}/${cal.days.length}`, !!cal.ready) : '',
     wel?.ready ? quick('welcome', 'M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 7h18v4H3zM12 7v14M12 7c-1.5-3-5-3-5-1s3 1 5 1c2 0 5 1 5-1s-3.5-2-5 1',
       t('Bienvenue'), wel.ready ? t('À récupérer') : `${wel.got}/${wel.steps}`, !!wel.ready) : '',
-    // Nouveautés : les annonces du courrier (mises à jour, nouveaux sets), pastille tant qu'il en reste à lire.
-    quick('news', 'M4 5h13a1 1 0 0 1 1 1v13a2 2 0 0 0 2-2V9h-2M4 5v13a2 2 0 0 0 2 2h14M8 9h6M8 13h6M8 17h3', t('Nouveautés'), a.news ? tp(a.news, '{n} à lire', '{n} à lire') : t('Annonces'), a.news || false),
     quick('learn', 'M4 5a1 1 0 0 1 1-1h5a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 5a1 1 0 0 0-1-1h-5a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', t('Apprendre'), t('Tuto, codex')),
   ].join('');
   const modes = [

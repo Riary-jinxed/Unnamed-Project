@@ -188,8 +188,4 @@ export default {
   'Premium ✓': 'Premium ✓',
   'Voir le passe': 'View the pass',
   'Semaine': 'Week',
-  'Nouveautés': "What's new",
-  '{n} à lire': '{n} to read',
-  'Annonces': 'Announcements',
-  'Aucune nouveauté pour l\'instant. Les mises à jour et les nouveaux sets seront annoncés ici.': 'Nothing new yet. Updates and new sets will be announced here.',
 };

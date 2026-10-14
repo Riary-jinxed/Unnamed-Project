@@ -60,8 +60,6 @@ export function createMail(store, accounts, { notify = () => {} } = {}) {
   const pending = (a, m) => !!m.reward && !box(a).got.includes(m.id);
   const count = a => (a.starter ? mine(a).filter(m => !box(a).read.includes(m.id) || pending(a, m)).length : 0);
   accounts.setMailCount(count);
-  // Nouveautés de l'accueil : annonces (notes de mise à jour, nouveaux sets) pas encore lues.
-  accounts.setNewsCount(a => (a.starter ? mine(a).filter(m => m.kind === 'news' && !box(a).read.includes(m.id)).length : 0));
   // Messages du jeu (événements) : titleMsg et bodyMsg traduits par l'appli (tField) ; notes de mise à jour traduites par leur texte.
   // Les messages écrits depuis /admin restent tels quels. Rédigés dans la langue du joueur (période des événements).
   const view = a => inLang(a, () => mine(a).map(m => ({ id: m.id, at: m.at, kind: m.kind, kindName: tr(langOf(a), KINDS[m.kind]), title: m.title, body: m.body,
