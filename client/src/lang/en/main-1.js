@@ -115,7 +115,6 @@ export default {
   "Thème de l'interface « {name} » (Profil, Personnalisation)": "Interface theme \"{name}\" (Profile, Customization)",
   "Émote {icon} « {text} » (Profil, Personnalisation)": "Emote {icon} \"{text}\" (Profile, Customization)",
   // Calendrier
-  "coffre d'arts et {n} Prismes": "art chest and {n} Prisms",
   "coffre d'arts": "art chest",
   "{n} Éclats": "{n} Shards",
   "récupéré": "claimed",
@@ -123,7 +122,7 @@ export default {
   "aujourd'hui": "today",
   "Calendrier du mois": "Monthly calendar",
   "Calendrier de {name}": "{name} calendar",
-  "Connectez-vous chaque jour pour récupérer sa récompense : des Éclats {shard} en semaine, un coffre d'arts {chest} chaque dimanche, et des Prismes {prism} en plus un dimanche sur deux. Un jour manqué est perdu ; tout repart le 1er du mois.": "Log in every day to claim its reward: Shards {shard} on weekdays, an art chest {chest} every Sunday, plus Prisms {prism} every other Sunday. A missed day is lost; everything resets on the 1st of the month.",
+  "Connectez-vous chaque jour pour récupérer sa récompense : des Éclats {shard} en semaine, et le dimanche, un coffre d'arts {chest} ou des Prismes {prism}, en alternance. Un jour manqué est perdu ; tout repart le 1er du mois.": "Log in every day to claim its reward: Shards {shard} on weekdays, and on Sundays an art chest {chest} or Prisms {prism}, in turn. A missed day is lost; everything resets on the 1st of the month.",
   "L,M,M,J,V,S,D": "M,T,W,T,F,S,S",
   "Récupéré : {what}.": "Claimed: {what}.",
   "Le coffre vous attend à l'accueil et dans la boutique, onglet Arts.": "The chest is waiting for you on the Home screen and in the Shop, Arts tab.",

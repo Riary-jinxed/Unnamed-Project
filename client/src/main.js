@@ -623,17 +623,17 @@ function rewardItem(r) {
 }
 // Icônes des monnaies (style.css, .ico-…) : Éclat, Prisme, coffre d'arts.
 const ico = kind => `<span class="ico ico-${kind}" aria-hidden="true"></span>`;
-// Calendrier du mois : une case par jour, semaine du lundi au dimanche. Dimanche : coffre d'arts (et parfois des Prismes).
+// Calendrier du mois : une case par jour, semaine du lundi au dimanche. Dimanche : un coffre d'arts ou des Prismes, en alternance.
 function calendarHTML(cal) {
   const [y, m] = cal.month.split('-').map(Number), lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
-  const what = d => (d.chests ? `${ico('chest')}${d.prisms ? `<span class="calgain"><small class="num">+${d.prisms}</small>${ico('prism')}</span>` : ''}`
+  const what = d => (d.sunday ? `${d.chests ? ico('chest') : ''}${d.prisms ? `<span class="calgain"><small class="num">${d.chests ? '+' : ''}${d.prisms}</small>${ico('prism')}</span>` : ''}`
     : `<span class="calgain"><small class="num">${d.shards}</small>${ico('shard')}</span>`);
-  const label = d => [`${d.day}`, d.chests ? (d.prisms ? t('coffre d\'arts et {n} Prismes', { n: d.prisms }) : t('coffre d\'arts')) : t('{n} Éclats', { n: d.shards }), d.got ? t('récupéré') : d.missed ? t('manqué') : d.day === cal.today ? t('aujourd\'hui') : ''].filter(Boolean).join(', ');
-  const cell = d => `<div class="calday ${d.chests ? 'sun' : ''} ${d.got ? 'got' : ''} ${d.missed ? 'missed' : ''} ${d.day === cal.today ? 'today' : ''}" aria-label="${label(d)}">
+  const label = d => [`${d.day}`, d.sunday ? [d.chests ? t('coffre d\'arts') : '', d.prisms ? t('{n} Prismes', { n: d.prisms }) : ''].filter(Boolean).join(', ') : t('{n} Éclats', { n: d.shards }), d.got ? t('récupéré') : d.missed ? t('manqué') : d.day === cal.today ? t('aujourd\'hui') : ''].filter(Boolean).join(', ');
+  const cell = d => `<div class="calday ${d.sunday ? 'sun' : ''} ${d.got ? 'got' : ''} ${d.missed ? 'missed' : ''} ${d.day === cal.today ? 'today' : ''}" aria-label="${label(d)}">
     <span class="num cdn">${d.day}</span>${what(d)}${d.got ? '<span class="ok">✓</span>' : ''}</div>`;
   const g = ui.calGot;
   return `<div class="sheet" data-act="close"><div class="panel calendar" data-stop="1" role="dialog" aria-label="${t('Calendrier du mois')}"><div class="ph"><h2>${t('Calendrier de {name}', { name: esc(seasonName(cal.month)) })}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
-    <p class="hint" style="margin:0">${t('Connectez-vous chaque jour pour récupérer sa récompense : des Éclats {shard} en semaine, un coffre d\'arts {chest} chaque dimanche, et des Prismes {prism} en plus un dimanche sur deux. Un jour manqué est perdu ; tout repart le 1er du mois.', { shard: ico('shard'), chest: ico('chest'), prism: ico('prism') })}</p>
+    <p class="hint" style="margin:0">${t('Connectez-vous chaque jour pour récupérer sa récompense : des Éclats {shard} en semaine, et le dimanche, un coffre d\'arts {chest} ou des Prismes {prism}, en alternance. Un jour manqué est perdu ; tout repart le 1er du mois.', { shard: ico('shard'), chest: ico('chest'), prism: ico('prism') })}</p>
     <div class="calgrid">${t('L,M,M,J,V,S,D').split(',').map(x => `<span class="calh">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${cal.days.map(cell).join('')}</div>
     ${g ? `<p role="status" style="margin:0"><b>${t('Récupéré : {what}.', { what: gains(g) })}</b>${g.chests ? ` ${t('Le coffre vous attend à l\'accueil et dans la boutique, onglet Arts.')}` : ''}</p>` : ''}
     ${errLine()}

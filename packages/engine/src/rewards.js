@@ -20,7 +20,7 @@ export const DEFAULT_REWARDS = {
   levelShards: 25, boosterEvery: 5,
   // Parties : XP et Éclats par résultat (un match nul compte comme une défaite), pour les « gamesPerDay » premières parties du jour.
   xpPvpWin: 100, xpPvpLoss: 50, xpPveWin: 60, xpPveLoss: 30,
-  shardsPvpWin: 10, shardsPveWin: 5, shardsLoss: 2, gamesPerDay: 10,
+  shardsPvpWin: 15, shardsPveWin: 8, shardsLoss: 4, gamesPerDay: 10,
   // XP pour chaque nouvelle carte ou nouveau général ajouté à la collection.
   xpNewCard: 15,
   // Missions quotidiennes : nombre par jour, et missions qu'on peut remplacer par jour.
@@ -45,7 +45,7 @@ export const DEFAULT_REWARDS = {
   // réservés aux joueurs qui ont joué au moins rankPlaceGames parties classées dans la saison.
   rankPlaceShardsTop10: 300, rankPlaceShardsTop3: 600, rankPlaceShardsTop1: 1000,
   rankPlacePrismsTop10: 20, rankPlacePrismsTop3: 40, rankPlacePrismsTop1: 80, rankPlaceGames: 10,
-  // Calendrier de connexion du mois (loginReward) : Éclats en semaine, coffres d'arts le dimanche, Prismes les 2e et 4e dimanches.
+  // Calendrier de connexion du mois (loginReward) : Éclats en semaine ; le dimanche, un coffre d'arts les 1er, 3e et 5e, des Prismes les 2e et 4e.
   loginShards: 15, loginChests: 1, loginPrisms: 5,
   // Bienvenue des nouveaux comptes (welcomeReward) : 7 récompenses, une par jour de connexion distinct (pas forcément consécutifs),
   // à récupérer dans les welcomeWindow jours qui suivent la création du compte. Le 7e jour donne aussi le cadre et le titre de bienvenue.
@@ -128,7 +128,7 @@ export const MISSIONS = {
   play:    { label: n => tp(n, 'Jouer {n} partie', 'Jouer {n} parties'), target: 3, xp: 100, shards: 25 },
   win:     { label: n => tp(n, 'Gagner {n} partie', 'Gagner {n} parties'), target: 2, xp: 150, shards: 35 },
   win_pvp: { label: n => tp(n, 'Gagner une partie en ligne', 'Gagner {n} parties en ligne'), target: 1, xp: 150, shards: 35 },
-  win_pve: { label: n => t('Battre l\'IA {n} fois', { n }), target: 2, xp: 100, shards: 25 },
+  win_pve: { label: n => t('Battre l\'IA {n} fois', { n }), target: 2, xp: 150, shards: 35 },
   fam:     { label: (n, f) => t('Jouer {n} cartes {f}', { n, f: t(f) }), target: 20, xp: 120, shards: 30, group: 'fam', pick: a => ownedFam(a, 5), count: plays(sameFam) },
   spells:  { label: n => t('Jouer {n} sorts', { n }), target: 6, xp: 100, shards: 25, pick: enough(2, isS), count: plays(isS) },
   creatures: { label: n => t('Jouer {n} créatures', { n }), target: 24, xp: 100, shards: 25, pick: enough(5, isC), count: plays(isC) },
@@ -420,7 +420,8 @@ export const monthDays = month => { const [y, m] = month.split('-').map(Number);
 export function loginReward(month, day, r = DEFAULT_REWARDS) {
   const [y, m] = month.split('-').map(Number);
   if (new Date(Date.UTC(y, m - 1, day)).getUTCDay() !== 0) return { shards: r.loginShards };
-  return { sunday: true, chests: r.loginChests, prisms: Math.ceil(day / 7) % 2 === 0 ? r.loginPrisms : 0 };
+  const even = Math.ceil(day / 7) % 2 === 0;
+  return { sunday: true, chests: even ? 0 : r.loginChests, prisms: even ? r.loginPrisms : 0 };
 }
 export const loginCalendar = (month, r = DEFAULT_REWARDS) => Array.from({ length: monthDays(month) }, (_, i) => ({ day: i + 1, ...loginReward(month, i + 1, r) }));
 
