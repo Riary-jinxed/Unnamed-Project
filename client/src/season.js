@@ -117,6 +117,17 @@ export function chipCanvases() {
     return c;
   });
 }
+// Roue de Fortuna : cartes à jouer vues de face (le Sept des trois couleurs du set, et l'As de pique), un canevas par carte.
+export function playingCardCanvases() {
+  return [['7', '♠', '#111'], ['7', '♣', '#111'], ['7', '♦', '#c8101e'], ['A', '♠', '#111'], ['7', '♥', '#c8101e']].map(([v, s, col]) => {
+    const c = document.createElement('canvas'); c.width = 40; c.height = 56; const g = c.getContext('2d');
+    g.fillStyle = '#fbf6e8'; g.strokeStyle = '#8a6a20'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(1, 1, 38, 54, 4); g.fill(); g.stroke();
+    g.fillStyle = col; g.font = 'bold 11px serif'; g.textAlign = 'center'; g.fillText(v, 7, 12); g.fillText(s, 7, 22);
+    g.font = '24px serif'; g.fillText(s, 21, 38);
+    g.save(); g.translate(33, 44); g.rotate(Math.PI); g.font = 'bold 11px serif'; g.fillText(v, 0, 0); g.restore();
+    return c;
+  });
+}
 // Astral : étoile filante, une traîne qui s'éteint vers la gauche et une tête vive à droite.
 export function streakCanvas() {
   const c = document.createElement('canvas'); c.width = 160; c.height = 12; const g = c.getContext('2d');

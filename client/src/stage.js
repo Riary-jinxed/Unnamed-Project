@@ -6,11 +6,11 @@
 // lecteurs d'écran ne changent pas ; PixiJS lit leur place à l'écran (getBoundingClientRect) pour s'y caler.
 // Sans WebGL ou avec « réduire les animations », rien n'est chargé et fx.js garde ses effets en CSS.
 import { Application, Color, Container, Graphics, Sprite, Text, Texture, UPDATE_PRIORITY } from 'pixi.js';
-import { palette, tableLook, season } from './season.js';
+import { palette, tableLook, season, chipCanvases } from './season.js';
 import { t } from '@jeu/engine/i18n';
 
 let table = null, over = null, root = null, ready = null, embers = null, pools = [], parts = [], glowTex = null, sparkTex = null, shardTex = null, gameBg = null;
-let mode = null;
+let mode = null, chipTex = null;
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a);
 const cssColor = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#e3b552';
 let COL = {}, anims = [], fog = [], cine = null;
@@ -73,6 +73,11 @@ async function init() {
   const corona = new Sprite(glowTex); corona.anchor.set(0.5); corona.blendMode = 'add'; corona.visible = false; gameBg.addChild(corona);
   // Roue de Fortuna : couleurs de cartes en filigrane sur le tapis (une seule transparence pour tout le calque : les formes se chevauchent).
   const suits = new Graphics(); suits.alpha = 0.1; gameBg.addChild(suits);
+  // Roue de Fortuna, dans les menus : deux projecteurs d'enseigne qui balaient le ciel depuis les coins du bas, et se croisent.
+  const beamTex = Texture.from((() => { const c = document.createElement('canvas'); c.width = 64; c.height = 512; const g = c.getContext('2d');
+    const l = g.createLinearGradient(0, 512, 0, 0); l.addColorStop(0, 'rgba(255,255,255,.9)'); l.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = l; g.beginPath(); g.moveTo(30, 512); g.lineTo(34, 512); g.lineTo(64, 0); g.lineTo(0, 0); g.closePath(); g.fill(); return c; })());
+  const beams = [0, 1].map(i => { const b = new Sprite(beamTex); b.anchor.set(0.5, 1); b.blendMode = 'add'; b.alpha = 0.16; b.tint = i ? 0xffe0a0 : 0xff8a9a; b.visible = false; table.stage.addChild(b); return b; });
   // Table du thème affiché (tableLook de season.js) : planches de bois, ou grille néon pour Néon 2099. Redessinée quand le thème change.
   let drawnLook = null;
   const drawTable = () => {
@@ -187,6 +192,10 @@ async function init() {
   table.ticker.add(t => {
     const dt = t.deltaTime;
     if (drawnLook !== tableLook()) drawTable();
+    const sweep = !!drawnLook.felt && mode === 'menu';
+    beams.forEach((b, i) => { b.visible = sweep; if (!sweep) return; const d = i ? -1 : 1;
+      b.position.set(i ? innerWidth : 0, innerHeight + 20); b.height = innerHeight * 1.4; b.width = innerWidth * 0.5;
+      b.rotation = d * (0.45 + Math.sin(performance.now() / (i ? 3100 : 2600) + i * 2) * 0.32); });
     if (corona.visible) corona.alpha = 0.32 + Math.sin(performance.now() / 900) * 0.1;
     // Éclipse : quelques cendres tombent aussi sur la partie, rares pour ne pas gêner la lecture des cartes.
     if (mode === 'game' && drawnLook.sun && Math.random() < 0.015 * dt) { const vy = rnd(0.5, 0.9), hot = Math.random() < 0.3;
@@ -422,6 +431,10 @@ export function ending(result) {
     if (result === 'win' && Math.random() < 0.25 * tk.deltaTime) spawn(sparkTex, x + rnd(-150, 150), y + rnd(-10, 30), { tint: Math.random() < 0.3 ? 0xffffff : tint, vx: rnd(-0.2, 0.2), vy: rnd(-1.1, -0.4), drag: 1, scale: rnd(0.15, 0.35), ttl: rnd(50, 90) });
     if (result === 'lose' && Math.random() < 0.18 * tk.deltaTime) spawn(shardTex, rnd(0, innerWidth), -10, { tint: Math.random() < 0.5 ? 0x5a4a3c : 0x8a3020, blend: 'normal', vx: rnd(-0.4, 0.4), vy: rnd(0.5, 1.2), drag: 1, spin: rnd(-0.05, 0.05), rot: rnd(0, TAU), scale: rnd(0.3, 0.6), ttl: rnd(200, 320), alpha: 0.7 });
   });
+  // Roue de Fortuna : une victoire paie comme un jackpot, une pluie de jetons qui jaillit du titre et retombe.
+  if (result === 'win' && look === 'casino') { const chips = chipTex ||= chipCanvases().map(cv => Texture.from(cv));
+    for (let i = 0; i < 46; i++) { const a = -Math.PI / 2 + rnd(-1.1, 1.1), v = rnd(5, 11);
+      spawn(chips[i % 3 ? 3 : Math.floor(rnd(0, 3))], x + rnd(-40, 40), y + 20, { blend: 'normal', vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0.22, drag: 0.99, spin: rnd(-0.2, 0.2), rot: rnd(0, TAU), scale: rnd(0.35, 0.6), ttl: rnd(90, 130) }); } }
   if (result !== 'lose') for (let i = 0; i < 40; i++) { const a = rnd(0, TAU), v = rnd(1, 4); spawn(sparkTex, x, y, { tint, vx: Math.cos(a) * v, vy: Math.sin(a) * v, scale: rnd(0.3, 0.6), ttl: rnd(50, 90) }); }
 }
 // Nouvelle partie (revanche) : la fin de partie s'efface.

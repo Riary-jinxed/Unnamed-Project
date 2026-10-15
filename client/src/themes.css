@@ -416,7 +416,27 @@ body[data-season="casino"] .tabbar button.on { color: #ffd860; }
 /* en partie : chaque zone est un tapis cerclé d'or */
 body[data-season="casino"] .zone { border-color: #8a6a20; box-shadow: inset 0 0 0 1px #000, inset 0 0 0 3px rgb(242 193 78 / .35), inset 0 0 24px rgb(0 0 0 / .6), 0 0 0 1px #000; }
 body[data-season="casino"] .dock { border-top: 2px solid #f2c14e; }
-@media (prefers-reduced-motion: reduce) { body[data-season="casino"]::after, body[data-season="casino"] :is(h2, .top .title, .playbtn::after, .bar > span) { animation: none; } }
+/* vitrine de l'accueil : cadre d'enseigne, une rangée d'ampoules qui chasse tout autour */
+body[data-season="casino"] .showcase { border: 2px solid #f2c14e; box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6), 0 0 30px -6px rgb(242 193 78 / .55); }
+body[data-season="casino"] .showcase::before { border: 0; border-radius: 6px; inset: 3px;
+  --b: radial-gradient(circle, #fff6c0 0 1.8px, rgb(255 200 80 / .45) 2.6px, transparent 3.4px);
+  background: var(--b) 0 0 / 14px 7px repeat-x, var(--b) 7px 100% / 14px 7px repeat-x, var(--b) 0 0 / 7px 14px repeat-y, var(--b) 100% 7px / 7px 14px repeat-y;
+  animation: casino-bulbs-l 1.1s steps(2) infinite; }
+@keyframes casino-bulbs-l { to { background-position: 14px 0, 21px 100%, 0 14px, 100% 21px; } }
+/* panneaux : filet pointillé d'or à l'intérieur, comme les cases de mise tracées sur le tapis */
+body[data-season="casino"] :is(.card-box:not(.showcase), .tile, .pbar) { outline: 1px dashed rgb(242 193 78 / .28); outline-offset: -9px; }
+/* booster du jour prêt : il clignote comme une machine qui vient de payer */
+body[data-season="casino"] .card-box.booster.ready { animation: casino-pay 2.4s ease-in-out infinite; }
+@keyframes casino-pay { 0%, 100% { box-shadow: 0 0 0 1px #000, 0 0 18px -4px #f2c14e, inset 0 0 22px -10px rgb(255 216 96 / .5); }
+  50% { box-shadow: 0 0 0 1px #000, 0 0 34px 2px #ffd860, inset 0 0 30px -6px rgb(255 216 96 / .7); } }
+/* bouton Jouer : deux « 7 » d'or de part et d'autre, comme les rouleaux arrêtés sur le jackpot */
+body[data-season="casino"] .playbtn > span::before, body[data-season="casino"] .playbtn > span::after { content: '7'; display: inline-block; margin: 0 .45em; color: #ffd860; font-size: .8em; vertical-align: .08em;
+  text-shadow: 0 2px 0 #3a0408, 0 0 10px rgb(255 216 96 / .9); animation: casino-seven 3s ease-in-out infinite; }
+body[data-season="casino"] .playbtn > span::after { animation-delay: -1.5s; }
+@keyframes casino-seven { 0%, 100% { scale: 1; } 50% { scale: 1.15; } }
+/* onglet actif : posé sur un jeton d'or */
+body[data-season="casino"] .tabbar button.on { background: radial-gradient(circle at 50% 36%, rgb(242 193 78 / .22) 0 16px, #f2c14e 16.5px 18px, transparent 18.5px); text-shadow: 0 0 10px rgb(255 216 96 / .7); }
+@media (prefers-reduced-motion: reduce) { body[data-season="casino"]::after, body[data-season="casino"] :is(h2, .top .title, .playbtn::after, .bar > span, .showcase::before, .card-box.booster.ready, .playbtn > span::before, .playbtn > span::after) { animation: none; } }
 
 /* aperçus (personnalisation, boutique, récompenses) */
 .theme-eclipse.theme-swatch { background: radial-gradient(circle at 70% 35%, #000 0 6px, #ffe0b0 6.5px, #ff7a2a 7.5px, rgb(255 60 20 / .4) 10px, transparent 15px),

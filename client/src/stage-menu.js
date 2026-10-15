@@ -10,13 +10,13 @@
 // - Estampe d'Ysmera : des pétales de cerisier tombent en tournoyant.
 // - Bois de Sylvaën : des lucioles flottent et clignotent, et des feuilles tombent de temps en temps.
 // - Aube de Séraphine : des plumes descendent lentement en se balançant, et des grains de lumière montent.
-// - Roue de Fortuna : des jetons de casino tombent en tournoyant, et de temps en temps le bouton Jouer crache un jackpot de jetons d'or.
+// - Roue de Fortuna : des jetons et des cartes (les Sept, l'As de pique) tombent en tournoyant, deux projecteurs balaient le ciel (stage.js), et de temps en temps le bouton Jouer crache un jackpot de jetons d'or.
 // Rien ne s'affiche au-dessus d'une feuille ouverte, et rien ne tourne en partie.
 import { Container, Sprite, Texture } from 'pixi.js';
 import { kit, scene } from './stage.js';
-import { season, palette, batCanvases, spinnerCanvas, petalCanvas, streakCanvas, leafCanvas, featherCanvas, chipCanvases } from './season.js';
+import { season, palette, batCanvases, spinnerCanvas, petalCanvas, streakCanvas, leafCanvas, featherCanvas, chipCanvases, playingCardCanvases } from './season.js';
 
-let started = false, bats = null, batTex = null, carTex = null, petalTex = null, streakTex = null, leafTex = null, featherTex = null, chipTex = null, nextStar = 0, nextJackpot = 0, lastSpark = 0, lastTodo = 0, nextBats = 0, nextCar = 0;
+let started = false, bats = null, batTex = null, carTex = null, petalTex = null, streakTex = null, leafTex = null, featherTex = null, chipTex = null, cardTex = null, nextStar = 0, nextJackpot = 0, lastSpark = 0, lastTodo = 0, nextBats = 0, nextCar = 0;
 
 // L'élément est-il à l'écran et non couvert (feuille, booster qui s'ouvre) ? Renvoie sa place, ou null.
 function shown(el) {
@@ -54,7 +54,8 @@ const FALL = {
   estampe: () => [petalTex, Math.random() < 0.7 ? 0xf6b8c4 : 0xfbe0e4, 0.35, 0.7, 1],
   sylve: () => [leafTex, [0x6ab040, 0x9ad060, 0xd8c050, 0x4a8a3a][Math.floor(Math.random() * 4)], 0.4, 0.7, 1],
   aube: () => [featherTex, Math.random() < 0.7 ? 0xfff8ec : 0xffe0a0, 0.35, 0.6, 0.45],
-  casino: () => [chipTex[Math.floor(Math.random() * chipTex.length)], 0xffffff, 0.4, 0.6, 0.9],
+  casino: () => Math.random() < 0.7 ? [chipTex[Math.floor(Math.random() * chipTex.length)], 0xffffff, 0.4, 0.6, 0.9]
+    : [cardTex[Math.floor(Math.random() * cardTex.length)], 0xffffff, 0.45, 0.6, 0.7],
 };
 function petal(rnd) {
   const [tex, tint, s0, s1, slow] = FALL[season()]();
@@ -86,7 +87,7 @@ export function start() {
   batTex = batCanvases().map(c => Texture.from(c));
   carTex = Texture.from(spinnerCanvas());
   petalTex = Texture.from(petalCanvas()); streakTex = Texture.from(streakCanvas()); leafTex = Texture.from(leafCanvas()); featherTex = Texture.from(featherCanvas());
-  chipTex = chipCanvases().map(c => Texture.from(c));
+  chipTex = chipCanvases().map(c => Texture.from(c)); cardTex = playingCardCanvases().map(c => Texture.from(c));
   // Gardé d'une scène à l'autre : stage.js ne le détruit pas en vidant la toile (keep).
   bats = Object.assign(new Container(), { keep: true });
 
@@ -135,7 +136,7 @@ export function start() {
     }
     // Roue de Fortuna : jetons qui tombent, et toutes les 12 à 22 secondes un jackpot de jetons d'or qui jaillit du bouton Jouer.
     if (look === 'casino' && !busy) {
-      if (Math.random() < 0.02 * dt && n < 30) petal(rnd);
+      if (Math.random() < 0.011 * dt && n < 18) petal(rnd);
       if (now > nextJackpot) { if (nextJackpot && pb) for (let i = 0; i < 28; i++) { const a = -Math.PI / 2 + rnd(-0.6, 0.6), v = rnd(5, 9);
         spawn(chipTex[i % 5 ? 3 : Math.floor(rnd(0, 3))], pb.left + pb.width / 2 + rnd(-30, 30), pb.top + 6, { blend: 'normal', vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0.25, drag: 0.99, spin: rnd(-0.2, 0.2), rot: rnd(0, 6), scale: rnd(0.3, 0.45), ttl: rnd(60, 90) }); }
         nextJackpot = now + rnd(12000, 22000); }
