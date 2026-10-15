@@ -24,7 +24,9 @@ export const themeCover = id => { const x = EXTRA_THEMES[id], art = themeArt(x.c
   return `<span class="theme-cover theme-swatch theme-${esc(id)}" aria-hidden="true">${art?.perso || art?.decor ? `<span class="tc-art" style="background-image:${art.perso ? `url('${art.perso}'), ` : ''}url('${art.decor}')"></span>` : ''}</span>`; };
 
 // Bouton « Essayer » d'un thème pas encore possédé (main.js montre le thème tant que la boutique où il est vendu est affichée).
-export const tryThemeHTML = (ui, id) => { const on = ui.themeTry === id;
+// Retiré pour le moment (TRY_THEMES) : le bouton n'est plus affiché nulle part ; repasser à true pour le rendre.
+const TRY_THEMES = false;
+export const tryThemeHTML = (ui, id) => { if (!TRY_THEMES) return ''; const on = ui.themeTry === id;
   return `<button class="btn" data-act="try-theme" data-id="${esc(id)}" aria-pressed="${on}">${on ? t('Arrêter l\'essai') : t('Essayer')}</button>`; };
 const WHERE = { essence: () => t('Au rayon Essence'), boss: () => t('Au magasin du boss mondial') };
 
@@ -48,7 +50,7 @@ export function themeShopHTML(app) {
   const elsewhere = Object.keys(EXTRA_THEMES).filter(id => WHERE[themeShop(id)]);
   return `<section class="card-box shopset themeshop">
     <div><span class="eyebrow">${t('Cosmétique')}</span><h2 style="font-size:22px">${t('Thèmes de l\'interface')}</h2></div>
-    <p class="hint" style="margin:0">${t('Habillez toute l\'appli aux couleurs d\'un général : menus, boutons, table de partie, et son portrait en fond. « Essayer » le montre ici sans l\'acheter. Un thème acheté est aussitôt choisi ; changez-en quand vous voulez dans votre profil, rubrique Personnalisation.')}</p>
+    <p class="hint" style="margin:0">${t('Habillez toute l\'appli aux couleurs d\'un général : menus, boutons, table de partie, et son portrait en fond. Un thème acheté est aussitôt choisi ; changez-en quand vous voulez dans votre profil, rubrique Personnalisation.')}</p>
     ${ui.msg && !ui.sheet ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
     <ul class="themelist">${SHOP_THEMES.filter(id => themeOut(id)).map(item).join('')}</ul>
     ${elsewhere.length ? `<div class="gal-h">${t('Dans les autres boutiques')}</div><ul class="themelist">${elsewhere.map(item).join('')}</ul>` : ''}
