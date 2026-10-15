@@ -2,7 +2,7 @@
 // Compte : activeDays = derniers jours (« AAAA-MM-JJ ») où le joueur a utilisé l'appli. Document « compteurs » : { jour: { clé: n } }.
 import { today, realToday } from '@jeu/engine/collection';
 
-const KEEP_DAYS = 90, KEEP_COUNTERS = 400;
+const KEEP_DAYS = 90, KEEP_COUNTERS = 400, FLUSH_MS = 5000;
 export const COUNTERS = { boosterDaily: 'Booster du jour', boosterBought: 'Booster acheté', boosterFree: 'Booster offert', cardsBought: 'Cartes du jour achetées', chests: 'Coffres d\'arts', artsBought: 'Arts achetés', exchanges: 'Changes Prismes → Éclats', dupsBought: 'Doublons du jour achetés', essenceConverted: 'Échanges d\'essence universelle' };
 const dayOf = (ms = Date.now()) => today(new Date(ms));
 
@@ -14,14 +14,21 @@ export function createActivity(store) {
     days.push(d); if (days.length > KEEP_DAYS) days.splice(0, days.length - KEEP_DAYS);
     store.put(a).catch(e => console.error('Activité non enregistrée :', e));
   }
-  // key : une clé, ou plusieurs comptées ensemble (une seule écriture).
+  // key : une clé, ou plusieurs comptées ensemble. Le document est modifié en mémoire, écrit au plus une fois toutes les FLUSH_MS
+  // (et à l'arrêt du serveur : flush).
+  let timer = null;
+  function flush() {
+    clearTimeout(timer); timer = null;
+    const doc = store.doc('compteurs');
+    return doc ? store.putDoc('compteurs', doc).catch(e => console.error('Compteurs non enregistrés :', e)) : Promise.resolve();
+  }
   function count(key, n = 1) {
     if (!n) return;
-    const doc = { ...store.doc('compteurs') }, d = realToday();
-    doc[d] = { ...doc[d] };
+    let doc = store.doc('compteurs'); const d = realToday();
+    if (!doc) { doc = {}; store.putDoc('compteurs', doc).catch(e => console.error('Compteur non enregistré :', e)); }
+    if (!doc[d]) { doc[d] = {}; for (const k of Object.keys(doc).sort().slice(0, -KEEP_COUNTERS)) delete doc[k]; }
     for (const k of [].concat(key)) doc[d][k] = (doc[d][k] || 0) + n;
-    for (const k of Object.keys(doc).sort().slice(0, -KEEP_COUNTERS)) delete doc[k];
-    store.putDoc('compteurs', doc).catch(e => console.error('Compteur non enregistré :', e));
+    timer ||= setTimeout(flush, FLUSH_MS).unref();
   }
 
   // Joueurs actifs et compteurs sur les `days` derniers jours (0 : les 90 derniers jours pour la courbe, tout pour les totaux).
@@ -48,5 +55,5 @@ export function createActivity(store) {
       days: series.map(d => ({ day: d, active: perDay[d], boosters: boosters(doc[d]) })),
     };
   }
-  return { seen, count, stats };
+  return { seen, count, flush, stats };
 }

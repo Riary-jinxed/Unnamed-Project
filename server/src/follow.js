@@ -188,12 +188,15 @@ export function createFollow(store, accounts, { boss, events }) {
   }
 
   // ---- Signalements de l'appli ----
-  const recent = new Map();
+  const recent = new Map(); let swept = 0;
   function track(a, body) {
     const what = String(body?.what || ''), id = String(body?.id || '');
     const key = { deckShare: 'deckShared', emote: EMOTES[id] ? 'emotesSolo' : null, pushOpen: PUSH_KINDS[id] ? `pushOpened:${id}` : null }[what];
     if (!key) throw new HttpError(400, 'Signalement inconnu.');
-    const now = Date.now(), r = recent.get(a.login);
+    const now = Date.now();
+    // Au plus une fois par minute : oubli des joueurs sans signalement depuis une minute.
+    if (now - swept >= 60_000) { swept = now; for (const [k, v] of recent) if (now - v.at >= 60_000) recent.delete(k); }
+    const r = recent.get(a.login);
     if (r && now - r.at < 60_000) { if (r.n >= TRACK_PER_MIN) return { ok: true }; r.n++; } else recent.set(a.login, { at: now, n: 1 });
     accounts.activity.count(what === 'emote' ? [key, `emote:${id}`] : key);
     return { ok: true };

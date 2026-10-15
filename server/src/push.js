@@ -11,6 +11,7 @@ import { HttpError } from './accounts.js';
 import { msg, tr, trMsg } from '@jeu/engine/i18n';
 import { langOf, withLang } from './i18n.js';
 import { seasonMsg } from './progress.js';
+import { hourOf } from './heure.js';
 
 export const PUSH_KINDS = {
   daily: { label: msg('Missions et récompenses du jour'), hint: msg('Un rappel en fin d\'après-midi si vous n\'êtes pas encore venu : nouvelles missions, récompense de connexion, coffres à ouvrir.') },
@@ -25,7 +26,6 @@ const MAX_SUBS = 5;
 // Rappel du jour : seulement aux joueurs venus ces derniers jours, pour ne pas relancer sans fin un compte abandonné.
 const DAILY_ACTIVE_DAYS = 14;
 const TICK_MS = 5 * 60 * 1000;
-const hourOf = (d = new Date()) => Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: 'numeric', hourCycle: 'h23' }).formatToParts(d).find(p => p.type === 'hour').value);
 const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
 
 // isOnline(login) : le joueur a l'appli ouverte. events : les événements (server/src/events.js).

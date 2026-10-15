@@ -10,6 +10,7 @@ import { today, setById } from '@jeu/engine/collection';
 import { msg } from '@jeu/engine/i18n';
 import { HttpError } from './accounts.js';
 import { langOf } from './i18n.js';
+import { hourOf } from './heure.js';
 
 // Sortes d'annonces (noms pour /admin ; l'appli a les siens, traduits, et une couleur par sorte).
 export const NEWS_KINDS = { update: 'Mise à jour majeure', set: 'Nouveau set', teaser: 'Annonce de set', event: 'Événement' };
@@ -17,7 +18,6 @@ const MAX_POSTS = 100, MAX_READ = 200;
 // Heure (de Paris) à laquelle part la notification d'une annonce programmée, comme l'arrivée du Boss mondial.
 const PUSH_HOUR = 10;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const hourOf = (d = new Date()) => Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: 'numeric', hourCycle: 'h23' }).formatToParts(d).find(p => p.type === 'hour').value);
 const clip = (s, n) => String(s ?? '').trim().slice(0, n);
 const cleanDate = (d, label) => {
   if (!d) return null;

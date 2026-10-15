@@ -34,7 +34,7 @@ Tâches de fond : chaque minute (`index.js`), rafraîchissement du catalogue (`c
 
 - **Sinon** (développement) : fichiers `comptes.json`, `reglages.json` et `parties.json`, réécrits en entier à chaque changement (écriture dans un fichier temporaire puis renommage, une écriture à la fois par fichier).
 
-Tout est chargé en mémoire au démarrage, documents de réglages et parties compris. Le reste du serveur ne voit que l'interface du store : `get(login)`, `all()`, `put(compte)`, `remove(login)`, `doc(clé)`, `putDoc(clé, data)`, `removeDoc(clé)`, `games()`, `addGame(partie)`. Chaque modification est écrite aussitôt.
+Tout est chargé en mémoire au démarrage, documents de réglages et parties compris, sauf les captures des signalements (`signalement-img-<id>`) : `doc()` ne les voit pas, `loadDoc(clé)` les lit dans PostgreSQL à la demande (en mode fichier, elles restent en mémoire puisque `reglages.json` est réécrit en entier). Le reste du serveur ne voit que l'interface du store : `get(login)`, `all()`, `put(compte)`, `remove(login)`, `doc(clé)`, `loadDoc(clé)`, `putDoc(clé, data)`, `removeDoc(clé)`, `games()`, `addGame(partie)`. Chaque modification est écrite aussitôt, sauf les compteurs du jour (`compteurs`, `activity.js`) : modifiés en mémoire, écrits au plus une fois toutes les 5 secondes et à l'arrêt du serveur.
 
 Documents de la table `reglages` :
 
@@ -120,13 +120,14 @@ Les parties enregistrées avant l'historique n'ont que `mode`, `ranked`, `at`, `
 | --- | --- |
 | `index.js` | Assemble le tout, sert les fichiers, gère les salons, les WebSockets et les tâches de fond. |
 | `store.js` | `openStore()` : stockage (voir « Stockage »). |
+| `heure.js` | `hourOf(date)` : heure de Paris (0 à 23), pour les annonces des Nouveautés, les notifications push et l'arrivée du Boss mondial. |
 | `i18n.js` | Langue du joueur côté serveur : `langOf(compte)`, `validLang` (en-tête `X-Lang`, champ `lang` d'un message WebSocket), `withLang` et `inLang` pour produire les textes du moteur dans sa langue (voir `docs/traduction.md`). |
 | `accounts.js` | `createAccounts(store)` : sessions, connexion, deck de départ, booster quotidien, boutique, decks, profil, administration des comptes et de la boutique ; crée `progress`, `arts` et `activity`. `apiHandler` : le routeur de l'API. |
 | `progress.js` | `createProgress(store)` : XP et niveaux, missions, succès, complétions, cosmétiques, calendrier, bienvenue, passe de saison, rang classé et saisons, réglages des récompenses. Crée `events` (`progress.events`). Appelé par `accounts.js` (nouvelles cartes, booster, fin de partie). |
 | `arts.js` | `createArts(store, cfg)` : arts alternatifs (arts du jour, coffre, rayon Essence, art choisi, reflet holographique et débordement coupés carte par carte), et leur administration. |
 | `games.js` | `createGames(store, accounts)` : enregistre les parties (JcJ par le serveur, JcE envoyées par l'appli), calcule les stats de `/admin` et du profil, et l'historique de chaque joueur (`playerHistory`). |
 | `cards.js` | `createCatalog(store, accounts)` : brouillon du catalogue, publication (refusée si elle retire une carte qu'un joueur possède), catalogue public (plus les cartes de saison et de quête arrivées dans le Set de base). |
-| `activity.js` | `createActivity(store)` : jours d'activité des joueurs (`seen`, appelé par le routeur), compteurs du jour (`count`, une clé ou une liste de clés), et leur synthèse pour l'onglet Stats (`stats`). |
+| `activity.js` | `createActivity(store)` : jours d'activité des joueurs (`seen`, appelé par le routeur), compteurs du jour (`count`, une clé ou une liste de clés ; écriture groupée, `flush` à l'arrêt), et leur synthèse pour l'onglet Stats (`stats`). |
 | `follow.js` | `createFollow(store, accounts, { boss, events })` : onglet Suivi de `/admin`, calculé à la demande à partir des comptes, des parties, des documents `clans`, `boss-classement`, `quetes` et des compteurs ; et `POST /api/track`, ce que l'appli signale et que le serveur ne voit pas passer (40 par minute et par joueur au plus). |
 | `friends.js` | `createFriends(store, accounts, salons)` : amis et demandes, présence (qui est connecté, qui est en partie), défis entre amis, et `notify` (message à un joueur connecté, par sa connexion de présence). |
 | `events.js` | `createEvents(store)` : liste des événements temporaires (document `evenements`), multiplicateur du jour (`mult`), ce qu'en voit le joueur (`view` : événements en cours avec période et fin), un message du courrier par événement en cours (`mails`, ajouté par `mail.js` le temps de l'événement, identifiant `ev-<événement>-<premier jour>`) et routes `/api/admin/events`. `progress.js` multiplie ainsi l'XP des parties, des missions et des nouvelles cartes, les Éclats et l'XP de saison des parties, et les étoiles d'une victoire classée. |
@@ -331,6 +332,6 @@ Paliers, divisions, étoiles et saisons sont décrits dans `packages/engine/src/
 - Mots de passe hachés avec scrypt et un sel par compte ; vérification asynchrone (ne bloque pas les parties en cours).
 - Sessions : jetons aléatoires de 24 octets, 10 par compte au plus. Désactiver un compte ou changer son mot de passe ferme ses sessions.
 - Corps de requête limité à 100 Ko ; image de profil et capture d'un signalement vérifiées (format et taille).
-- Limites par joueur, gardées en mémoire : 10 codes cadeaux faux par heure, 5 signalements par heure, 40 `POST /api/track` par minute.
+- Limites par joueur, gardées en mémoire : 10 codes cadeaux faux par heure, 5 signalements par heure, 40 `POST /api/track` par minute (les joueurs dont la fenêtre est passée sont oubliés).
 - L'adversaire ne reçoit jamais la main ni les cartes cachées ; toutes les règles sont appliquées côté serveur.
 - La partie contre l'IA, les chapitres d'histoire et les tables du casino tournent chez le joueur : leur résultat n'est pas vérifiable par le serveur, qui en limite l'effet (récompenses plafonnées par jour ou données une seule fois, deck du compte utilisé, montées du casino comptées par jour). C'est pourquoi la partie classée contre l'IA et les tentatives contre les boss sont jouées par le serveur.

@@ -16,6 +16,7 @@ import { isClanBoss } from '@jeu/engine/clan-boss';
 import { HttpError } from './accounts.js';
 import { t, tr, msg } from '@jeu/engine/i18n';
 import { langOf } from './i18n.js';
+import { hourOf } from './heure.js';
 
 const LADDER_SIZE = 50, HISTORY = 10;
 const now = () => new Date().toISOString();
@@ -156,7 +157,7 @@ export function createBoss(store, accounts) {
   // (document « boss-annonce »). Appelé chaque minute (index.js).
   function announce(push, now = new Date()) {
     const week = bossWeek(now), id = weekBoss(week);
-    const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: 'numeric', hourCycle: 'h23' }).formatToParts(now).find(p => p.type === 'hour').value);
+    const hour = hourOf(now);
     if (!cfg().on || !id || hour < 10 || store.doc('boss-annonce')?.week === week) return;
     store.putDoc('boss-annonce', { week }).catch(e => console.error('Annonce du boss non enregistrée :', e));
     Promise.resolve(push.broadcast('events', { title: msg('Boss mondial : {name}', { name: [GENERALS[id].name] }), tag: 'boss', open: 'boss',

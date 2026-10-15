@@ -111,7 +111,10 @@ export function createMail(store, accounts, { notify = () => {} } = {}) {
     const now = Date.now(), recent = (tries.get(a.login) || []).filter(t => now - t < TRY_WINDOW_MS);
     if (recent.length >= MAX_TRIES) throw new HttpError(429, msg('Trop de codes incorrects : réessayez dans une heure.'));
     const c = cleanCode(code), all = codes(), x = all.find(k => k.code === c);
-    const wrong = m => { tries.set(a.login, [...recent, now]); return new HttpError(404, m); };
+    const wrong = m => {
+      for (const [k, v] of tries) if (now - v.at(-1) >= TRY_WINDOW_MS) tries.delete(k); // joueurs sans code faux depuis une heure
+      tries.set(a.login, [...recent, now]); return new HttpError(404, m);
+    };
     if (!c) throw new HttpError(400, msg('Entrez un code.'));
     if (!x || x.off) throw wrong(msg('Ce code n\'existe pas.'));
     if (!live(x)) throw wrong(msg('Ce code a expiré.'));
