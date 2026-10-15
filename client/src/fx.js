@@ -149,3 +149,30 @@ function reelHost(block) {
   if (!h?.classList.contains('endreel')) { h = document.createElement('div'); h.className = 'endreel'; h.setAttribute('aria-hidden', 'true'); block.before(h); }
   return h;
 }
+
+// Tapis vert : un dé roule sur la carte (ou la zone) qui parie et tombe sur `v`. tone : 'me' ou 'foe'.
+const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+const face = v => Array.from({ length: 9 }, (_, i) => `<i${PIPS[v].includes(i) ? ' class="on"' : ''}></i>`).join('');
+export function diceRoll(el, v, tone = 'me', delay = 0) {
+  if (!el) return;
+  const r = el.getBoundingClientRect(), s = Math.min(46, Math.max(30, r.width * 0.55));
+  const d = layer({ left: r.left + r.width / 2 - s / 2, top: r.top + r.height / 2 - s / 2, width: s, height: s },
+    `fxdice ${tone} ${v === 6 ? 'six' : v <= 2 ? 'low' : ''}`, `<div class="die">${face(reduceMotion() ? v : 1 + Math.floor(Math.random() * 6))}</div>`, 1250 + delay);
+  d.style.animationDelay = d.firstChild.style.animationDelay = `${delay}ms`;
+  if (reduceMotion()) return;
+  // Pendant qu'il roule, le dé change de face ; il se pose sur le résultat aux deux tiers de sa course.
+  const die = d.firstChild; let k = 0;
+  setTimeout(() => { const iv = setInterval(() => {
+    if (++k >= 7) { clearInterval(iv); die.innerHTML = face(v); d.classList.add('landed'); return; }
+    die.innerHTML = face(1 + ((v + k) % 6)); }, 70); }, delay);
+}
+
+// Jackpot : une machine à sous s'allume au-dessus du plateau, ses trois rouleaux tournent et s'arrêtent sur 7 7 7.
+const REEL = ['★', '♦', 'BAR', '♣', '♥', '7'];
+export function slotMachine(board, tone = 'me', title = 'Jackpot !') {
+  if (!board) return;
+  const r = board.getBoundingClientRect(), w = Math.min(300, r.width - 24), h = 150;
+  const strip = Array.from({ length: 3 }, () => REEL.concat(REEL, REEL).map(x => `<b class="${x === '7' ? 'seven' : ''}">${x}</b>`).join('')).map((x, i) => `<div class="reel"><div class="strip r${i}">${x}</div></div>`).join('');
+  layer({ left: r.left + r.width / 2 - w / 2, top: r.top + r.height / 2 - h / 2, width: w, height: h }, `fxslot ${tone}${reduceMotion() ? ' still' : ''}`,
+    `<div class="cab"><div class="lights"></div><div class="reels">${strip}</div><div class="win">${title}</div></div>`, 2600);
+}

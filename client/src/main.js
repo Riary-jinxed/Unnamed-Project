@@ -32,7 +32,7 @@ import './holo.js';
 import './cosmetics.js';
 import { unlockAudio, audioContext, play, isMuted, setMuted, sfxVolume, setSfxVolume, canVibrate, vibrations, setVibrations, buzz, feel } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
-import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, stageReady, sparkle, shards, trail, ending, clearEnding, setEnd, coachGuide } from './fx.js';
+import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, stageReady, sparkle, shards, trail, ending, clearEnding, setEnd, coachGuide, diceRoll, slotMachine } from './fx.js';
 import * as veil from './veil.js';
 import { TABS, screenDir, slides, ghostScreen, ghostSheet } from './transition.js';
 import { openPack, openChest } from './opening.js';
@@ -1051,8 +1051,9 @@ function pbar(side, isMe, connected, canGen = false) {
     `<span class="num">${t('Main {n}', { n: side.handCount })}</span>`, `<span class="num">${t('Deck {n}', { n: side.deckCount })}</span>`,
     side.treasure ? `<span class="num" title="${t('Sceaux non dépensés aux tours précédents')}">${t('Trésor {n}', { n: side.treasure })}</span>` : '',
     side.perfectTurns ? `<span class="num" title="${t('Tours finis avec tous les sceaux dépensés')}">${t('Grâce {n}', { n: side.perfectTurns })}</span>` : '',
-    side.betsWon || side.betsLost ? `<span class="num" title="${t('Paris gagnés et perdus cette partie (Jackpot)')}">${t('Paris {w}/{n}', { w: side.betsWon, n: side.betsWon + side.betsLost })}</span>` : '',
-    side.rigged ? `<span class="num" title="${t('Prochains Paris gagnés d\'office')}">${t('Truqués {n}', { n: side.rigged })}</span>` : '',
+    side.sixes ? `<span class="num" title="${t('6 obtenus aux dés cette partie')}">${t('6 × {n}', { n: side.sixes })}</span>` : '',
+    side.loaded ? `<span class="num" title="${t('Prochains dés pipés : ils feront 6')}">${t('Pipés {n}', { n: side.loaded })}</span>` : '',
+    side.jackpot ? `<span class="num" title="${t('Les 3 Sept ont été en jeu : Jackpot')}">${t('Jackpot')}</span>` : '',
   ].filter(Boolean).join('');
   const ready = !isMe && ui.view.phase === 'plan' && ui.view.ready.foe;
   const av = `${avatarHTML(who, 'pa')}${!isMe && ui.mode === 'online' ? `<span class="dot ${connected ? '' : 'off'}" title="${connected ? t('Connecté') : t('Déconnecté')}"></span>` : ''}`;
@@ -2248,6 +2249,15 @@ function viewEffects(prev, view) {
   if (view.phase !== 'over') for (const z of [0, 1, 2]) {
     const was = zoneSide(prev, z), now = zoneSide(view, z);
     if (now && now !== was) { swing = true; after.push(() => zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[now])); }
+  }
+  // Tapis vert : chaque dé lancé roule sur la carte qui parie (ou sur sa zone, pour un sort ou un terrain), un après l'autre.
+  // Les 3 Sept d'un joueur en jeu : la machine à sous du Jackpot.
+  for (const side of ['me', 'foe']) {
+    const last = Math.max(0, ...(prev[side].rolls || []).map(r => r.n)), fresh = (view[side].rolls || []).filter(r => r.n > last);
+    fresh.forEach((r, i) => after.push(() => {
+      diceRoll((r.uid != null && at(cardSel(r.uid))) || at(`.zone[data-z="${r.z}"]`), r.v, side, i * 260);
+      setTimeout(() => { play('dice'); if (r.v === 6) play('six'); }, i * 260); }));
+    if (view[side].jackpot && !prev[side].jackpot) after.push(() => { slotMachine(at('.board'), side, t('Jackpot !')); play('jackpot'); feel('win'); });
   }
   // Le général agit (activé, ou son pouvoir se déclenche) : son effet, un peu après ceux des cartes pour ne pas s'y superposer.
   for (const side of ['me', 'foe']) if ((!prev[side].generalUsed && view[side].generalUsed) || (view[side].genFired || 0) > (prev[side].genFired || 0)) {

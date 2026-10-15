@@ -17,14 +17,14 @@ const KEYWORDS = ['Révélation', 'Persistant', 'Grâce', 'Destruction', 'Dépla
   'Fin de tour', 'Début de tour', 'Début du tour \\d+', 'Début de partie', 'Fin de partie',
   'Sacrifice(?: \\d+)?', 'Hordes?(?: (?:\\d+|X))?', 'Drain(?: \\d+)?', 'Festins?(?: \\d+)?', 'Défausse(?: \\d+)?',
   'Malwares?(?: \\d+)?', 'Piratage', 'Implants?(?: \\d+)?', 'Surcharges?(?: \\d+)?', 'Pare-feu',
-  'Paris?', 'Jackpot(?: \\d+)?'];
+  'Pari', 'Sept', 'Jackpot'];
 // Les mêmes en anglais (lexique de docs/traduction.md), ajoutés quand l'appli est en anglais.
 const KEYWORDS_EN = ['Reveal', 'Ongoing', 'Grace', 'Death', 'Move', 'Movable', 'Spellcast', 'Inspire', 'Hatch', 'Eggs?',
   'Rise', 'Exhume', 'Swap', 'Token', 'Activate', 'Treasure', 'Hoard', 'X cost',
   'End of turn', 'Start of turn \\d+', 'Start of turn', 'Start of game', 'End of game',
   'Sacrifice(?: \\d+)?', 'Hordes?(?: (?:\\d+|X))?', 'Drain(?: \\d+)?', 'Feasts?(?: \\d+)?', 'Discard(?: \\d+)?',
   'Malwares?(?: \\d+)?', 'Hack', 'Implants?(?: \\d+)?', 'Overloads?(?: \\d+)?', 'Firewall',
-  'Bets?', 'Jackpot(?: \\d+)?'];
+  'Bet', 'Seven', 'Jackpot'];
 const kwRe = list => new RegExp(`(?<!\\p{L})(?:${list.join('|')})(?!\\p{L})`, 'gu');
 const KW_RE = { fr: kwRe(KEYWORDS), en: kwRe([...KEYWORDS_EN, ...KEYWORDS]) };
 // Texte d'effet échappé, mots-clés en gras.

@@ -94,7 +94,7 @@ Les noms propres (généraux, personnages) gardent leur nom ; leur titre se trad
 | Début de tour, Fin de tour, Début de partie, Fin de partie | Start of turn, End of turn, Start of game, End of game |
 | Sacrifice, Horde, Drain, Festin, Défausse | Sacrifice, Horde, Drain, Feast, Discard |
 | Malware, Piratage, Implant, Surcharge, Pare-feu | Malware, Hack, Implant, Overload, Firewall |
-| Pari, Jackpot, gagné d'office | Bet, Jackpot, won automatically |
+| Pari, dé pipé, Sept, Jackpot | Bet, loaded die, Seven, Jackpot |
 | tour, Valider, Victoire, Défaite, Égalité, Match nul | turn, Confirm, Victory, Defeat, Tie, Draw |
 | partie, partie classée, rang, saison, passe de saison, palier | match, ranked match, rank, season, season pass, tier |
 | missions du jour, succès, titre, cadre, dos de carte, émote, thème | daily missions, achievements, title, frame, card back, emote, theme |

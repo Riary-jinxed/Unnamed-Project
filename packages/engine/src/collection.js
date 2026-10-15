@@ -151,7 +151,7 @@ export const DEFAULT_SETS = [
     teaser: 'Morts-vivants et Vampires rejoignent la bataille, avec de nouveaux généraux pour chaque famille. Ses cartes arriveront d\'abord ici, en boosters et à l\'unité, avant de rejoindre le booster quotidien.' },
   // Mini-set (mini : pas de récompense par famille, seulement le set complet) : quelques cartes pour relancer la construction de decks.
   { id: 'tapis', name: 'Tapis vert', cards: OWNABLE.filter(id => setOf(id) === 'tapis'), open: true, daily: false, boosterExtra: 0, reveal: '2026-10-23', mini: true,
-    teaser: 'Le casino des Fosses ouvre ses tables : des Paris à pile ou face, des Jackpots et des cartes pour truquer la partie, avec un coup de pouce pour chaque famille.' },
+    teaser: 'Le casino des Fosses ouvre ses tables : des Paris au dé, des cartes pour tricher, trois Sept pour décrocher le Jackpot, et un coup de pouce pour les Anges et les Démons.' },
   { id: 'set3', name: 'Cité Néon', cards: OWNABLE.filter(id => setOf(id) === 'set3'), open: true, daily: false, boosterExtra: 50, reveal: '2026-11-02',
     teaser: 'Hackers et Cyborgs envahissent la mégapole : Malwares glissés dans le deck adverse, Piratage, Implants et Surcharge, avec un soutien néon pour chaque famille.' },
 ];

@@ -92,7 +92,7 @@ export const TUTO_LESSONS = [
   { id: 'sceaux', name: 'Sceaux et Trésor', advanced: true }, { id: 'sacrifice', name: 'Sacrifice et Destruction', advanced: true },
   { id: 'releve', name: 'Défausse et Relève', advanced: true }, { id: 'drain', name: 'Drain et Échange', advanced: true },
   { id: 'sorts', name: 'Sortilège et Inspiration', advanced: true },
-  { id: 'pari', name: 'Paris et tricherie', advanced: true, set: 'tapis' },
+  { id: 'pari', name: 'Dés, triche et Jackpot', advanced: true, set: 'tapis' },
 ];
 
 // XP pour passer du niveau `level` au suivant.

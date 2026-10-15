@@ -314,10 +314,10 @@ export const QUESTS = [
   { id: 'casino', kind: 'limitee', fam: 'Gobelin', hero: 'grisk', name: 'Le Casino des Fosses', map: 'casino', from: '2026-10-23', to: '2026-11-15',
     tagline: 'Les Démons ont ouvert un casino au bord des Fosses. On y mise des âmes, et Grisk compte bien tricher.',
     prologue: "Une aventure hors de l'histoire. Depuis que le Septième Sceau est brisé, les Fosses ne sont plus fermées, et quelques Démons en sont sortis pour faire des affaires. Au bord de l'abîme s'est ouvert un casino où l'on mise des âmes. Grisk a reçu une invitation dorée. Il n'a pas d'âme à miser, mais il a des dés.",
-    deck: tweak('gobelin', ['potion', 'mercenaire', 'barde'], ['gobelin_tricheur', 'roulette', 'croupier'], { name: 'La mise de Grisk' }),
+    deck: tweak('tapis', [], [], { name: 'La mise de Grisk' }),
     chapters: [
       C('entree', 'L\'invitation dorée', 'L\'entrée du casino', [16, 72], "Passer la grande roue de Fortuna pour entrer au casino.",
-        foe('Fortuna, la Roue', 'fortuna', 'tapis', 40), R({ shards: 100, xp: 50 }),
+        foe('Fortuna, la Roue', 'fortuna', 'septieme_ciel', 40), R({ shards: 100, xp: 50 }),
         [[NARRATOR, "Au bord des Fosses, une porte d'or s'ouvre sur un tapis vert qui n'en finit pas. Une grande roue tourne au-dessus, sans que personne ne la pousse."],
           ['grisk', "« Invitation pour Grisk, Roi des Pillards. Mise minimum : une âme. » J'ai pas d'âme. J'ai des dés."],
           ['fortuna', "Ici, tout le monde a quelque chose à miser, petit roi. Fais tourner la roue, et on verra ce que tu vaux."],

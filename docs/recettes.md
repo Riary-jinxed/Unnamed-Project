@@ -35,7 +35,7 @@ Une nouvelle mécanique de famille mérite aussi sa leçon dans le tutoriel avan
 et la même dans `TUTO_LESSONS` (`packages/engine/src/rewards.js`), puis ses textes anglais (`npm run i18n`). Rejouez la leçon en
 suivant le guide pour vérifier que chaque consigne correspond à ce qui se passe. La leçon d'un set porte `set: '<id du set>'`
 (dans `LESSONS` et `TUTO_LESSONS`) : elle reste cachée, et sa récompense refusée, jusqu'à la sortie du set. Une mécanique au hasard
-se fixe pour la leçon avec `coins` (issues des prochains Paris).
+se fixe pour la leçon avec `dice` (résultats des prochains dés).
 
 Une carte ne doit jamais être retirée du code tant que des joueurs la possèdent : leurs collections et leurs decks la référencent par son identifiant.
 

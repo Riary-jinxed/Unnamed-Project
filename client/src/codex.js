@@ -52,8 +52,9 @@ export const CODEX = [
   ] },
   // set : groupe caché avant la sortie de son set.
   { id: 'tapis', set: 'tapis', title: t('Mots-clés du Tapis vert'), items: [
-    { name: t('Pari'), text: t('Pari : à la révélation, on lance une pièce, une chance sur deux. Gagné : l\'effet après « Gagné » s\'applique ; perdu : celui après « Perdu », s\'il y en a un. Certaines cartes rendent votre prochain Pari gagné d\'office : il est gagné sans lancer la pièce.'), ex: ['joueuse_des', 'croupier', 'flambeur'] },
-    { name: t('Jackpot'), text: t('Jackpot N : l\'effet se déclenche une fois, dès que vous avez gagné N Paris dans la partie, toutes vos cartes comprises. Si c\'est déjà le cas quand la carte arrive en jeu, il se déclenche à sa révélation.'), ex: ['gros_lot'] },
+    { name: t('Pari'), text: t('Pari : à la révélation, on lance un dé à 6 faces. L\'effet dépend du résultat : 1-2, 3-5 ou 6. Le dé roule sur la carte qui parie.'), ex: ['joueuse_des', 'flambeur', 'quitte_double'] },
+    { name: t('Dés pipés'), text: t('Certaines cartes pipent vos prochains dés : ils font 6 sans être lancés. D\'autres trichent sur le deck et vous font piocher la carte voulue.'), ex: ['des_pipes', 'croupier', 'cartes_biseautees'] },
+    { name: t('Sept et Jackpot'), text: t('Il y a trois Sept : de cœur, de trèfle et de carreau. La première fois que vos 3 Sept sont en jeu en même temps, c\'est le Jackpot : vos créatures gagnent +2, et les effets « Jackpot » de vos cartes se déclenchent. Une fois par partie.'), ex: ['sept_coeur', 'sept_trefle', 'sept_carreau'] },
   ] },
   { id: 'set3', set: 'set3', title: t('Mots-clés de la Cité Néon'), items: [
     { name: t('Malware'), fam: 'Hacker', text: t('Malware N : N Malwares sont glissés au hasard parmi les 6 premières cartes du deck adverse. Quand l\'adversaire en pioche un, il s\'exécute et disparaît sans être remplacé : le Virus fait perdre 1 à sa créature la plus puissante (1 sceau s\'il n\'en a pas), le Worm fait de même puis glisse un Virus dans son deck, le Ransomware fait coûter 1 de plus à la carte la plus chère de sa main.'), ex: ['script_kiddie', 'ver_polymorphe', 'casseuse'] },

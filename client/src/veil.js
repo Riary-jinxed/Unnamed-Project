@@ -29,7 +29,7 @@ const TIPS = [
   { k: 'jeu', f: 'Dragon', t: t('Dragons : les sceaux que vous ne dépensez pas remplissent votre Trésor, et vos Dragons en profitent.') },
   { k: 'jeu', f: 'Mort-vivant', t: t('Morts-vivants : une carte avec Relève défaussée de votre main entre en jeu gratuitement, avec +1.') },
   { k: 'jeu', f: 'Vampire', t: t('Vampires : le Drain peut viser une carte de la main ou du deck adverse, qui arrivera affaiblie.') },
-  { k: 'jeu', set: 'tapis', t: t('Paris : jouez un Croupier ou un Jeton chanceux avant vos cartes à Pari, votre prochain Pari sera gagné d\'office.') },
+  { k: 'jeu', set: 'tapis', t: t('Casino : jouez un Croupier ou des Dés pipés avant vos cartes à Pari, votre prochain dé fera 6. Réunissez les 3 Sept pour le Jackpot.') },
   { k: 'jeu', f: 'Hacker', set: 'set3', t: t('Hackers : un Malware pioché vous coûte une pioche. Une créature piratée garde sa puissance mais perd ses effets.') },
   { k: 'jeu', f: 'Cyborg', set: 'set3', t: t('Cyborgs : gardez des sceaux en préparant votre tour, la Surcharge les dépense à la révélation.') },
   { k: 'menu', t: t('Le booster du jour est offert : revenez chaque jour pour l\'ouvrir.') },

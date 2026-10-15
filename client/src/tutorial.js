@@ -351,35 +351,39 @@ const SPELLS_LESSON = {
   end: t('Leçon finie : les sorts et la pioche renforcent vos créatures avec Sortilège et Inspiration.'),
 };
 
-// Tapis vert : la pièce tombe toujours pareil (coins : perdu, puis gagné). La Joueuse perd son Pari, le Croupier truque celui
-// du Gobelin tricheur, Quitte ou double gagne et double la Joueuse, et le Videur compte les 2 Paris gagnés.
+// Tapis vert : le dé tombe toujours pareil (dice : 4 pour la Joueuse). Le Croupier pipe le dé de Quitte ou double (6),
+// le Sept de trèfle fait piocher le Sept de carreau, et les 3 Sept en jeu au tour 5 déclenchent le Jackpot.
 const BETS_LESSON = {
-  title: t('Paris et tricherie'), turns: 4, noGeneral: true, noTerrain: true, coins: [false, true],
-  me: { general: 'erudit', hand: 3, order: ['joueuse_des', 'croupier', 'gobelin_tricheur', 'quitte_double', 'videur', 'mercenaire', 'chevalier', 'golem', 'barde'], terrains: [] },
+  title: t('Dés, triche et Jackpot'), turns: 5, noGeneral: true, noTerrain: true, dice: [4],
+  me: { general: 'erudit', hand: 3, order: ['joueuse_des', 'croupier', 'sept_coeur', 'quitte_double', 'sept_trefle', 'mercenaire', 'chevalier', 'golem', 'sept_carreau'], terrains: [] },
   foe: { general: 'cartographe', hand: 3, order: ['eclaireuse', 'mercenaire', 'chevalier', 'barde', 'golem', 'potion', 'cerf'], terrains: [],
-    plays: { 1: [['eclaireuse', 2]], 2: [['mercenaire', 0]], 3: [['chevalier', 1]], 4: [['barde', 2]] } },
+    plays: { 1: [['eclaireuse', 2]], 2: [['mercenaire', 0]], 3: [['chevalier', 1]], 4: [['barde', 2]], 5: [['golem', 0]] } },
   steps: [
     { hl: () => [card('joueuse_des'), zone(1)], drag: () => [card('joueuse_des'), zone(1)], done: t => t.pend('joueuse_des'),
-      text: t('Au casino, on parie. La Joueuse de dés a **Pari** : à sa révélation, on lance une pièce. Gagné : elle gagne +2. Posez-la au Centre.') },
-    { go: true, text: t('Validez le tour, et regardez la pièce tomber.') },
+      text: t('Au casino, on parie. La Joueuse de dés a **Pari** : à sa révélation, on lance un dé à 6 faces. 1-2 : rien, 3-5 : +2, 6 : +4. Posez-la au Centre.') },
+    { go: true, text: t('Validez le tour, et regardez le dé rouler.') },
 
-    { info: true, turn: 2, hl: '.mc[data-id="joueuse_des"]', text: t('Perdu : la Joueuse reste à 2. Un Pari, c\'est une chance sur deux… sauf si on triche.') },
+    { info: true, turn: 2, hl: '.mc[data-id="joueuse_des"]', text: t('4 : entre 3 et 5, la Joueuse gagne +2. Mais un dé, ça se pipe…') },
     { hl: () => [card('croupier'), zone(0)], drag: () => [card('croupier'), zone(0)], done: t => t.pend('croupier'),
-      text: t('Le Croupier truque la partie : à sa révélation, votre **prochain Pari** est gagné d\'office, sans lancer la pièce. Posez-le à Gauche.') },
+      text: t('Le Croupier triche : à sa révélation, votre **prochain dé** fera 6, sans être lancé. Posez-le à Gauche.') },
     { go: true, text: t('Validez le tour.') },
 
-    { turn: 3, hl: () => [card('gobelin_tricheur'), zone(2)], drag: () => [card('gobelin_tricheur'), zone(2)], done: t => t.pend('gobelin_tricheur'),
-      text: t('Posez le Gobelin tricheur à Droite. Grâce au Croupier, son Pari est gagné d\'office : il crée une Horde 2.') },
+    { turn: 3, hl: () => [card('sept_coeur'), zone(2)], drag: () => [card('sept_coeur'), zone(2)], done: t => t.pend('sept_coeur'),
+      text: t('Voici un **Sept**. Il y en a trois : cœur, trèfle et carreau. Quand les 3 sont en jeu en même temps, c\'est le **Jackpot**. Posez le Sept de cœur à Droite.') },
     { hl: t => [card('quitte_double'), zone(t.zoneOf('joueuse_des'))], drag: t => [card('quitte_double'), zone(t.zoneOf('joueuse_des'))], done: t => t.together('quitte_double', 'joueuse_des'),
-      text: t('Quitte ou double parie sur votre créature la plus puissante de sa zone : gagné, elle double sa puissance ; perdu, elle perd 1. Posez-le avec la Joueuse.') },
-    { go: true, text: t('Les cartes se révèlent dans l\'ordre où vous les avez posées : le Gobelin d\'abord, avec son Pari truqué. Validez le tour.') },
+      text: t('Quitte ou double parie sur votre créature la plus puissante de sa zone. Grâce au Croupier, son dé fera 6 : la Joueuse doublera sa puissance. Posez-le avec la Joueuse.') },
+    { go: true, text: t('Validez le tour.') },
 
-    { info: true, turn: 4, hl: '.mc[data-id="joueuse_des"]', text: t('Quitte ou double gagné : la Joueuse est passée à 4. Vous avez gagné 2 Paris cette partie.') },
-    { hl: t => [card('videur'), zone(t.weakest())], drag: t => [card('videur'), zone(t.weakest())], done: t => t.pend('videur'),
-      text: t('Le Videur du casino a +3 si vous avez gagné au moins 2 Paris : il arrive avec 7. Posez-le où vous voulez.') },
-    { free: true, text: t('Il vous reste 1 sceau : posez une autre carte si vous voulez, puis validez.') },
+    { info: true, turn: 4, hl: '.mc[data-id="joueuse_des"]', text: t('6 : la Joueuse est passée de 3 à 6. Le dé pipé ne rate jamais.') },
+    { hl: () => [card('sept_trefle'), zone(0)], drag: () => [card('sept_trefle'), zone(0)], done: t => t.pend('sept_trefle'),
+      text: t('On peut aussi tricher sur le deck : à sa révélation, le Sept de trèfle vous fait piocher un autre Sept. Posez-le à Gauche.') },
+    { go: true, text: t('Validez le tour : le Sept de carreau arrivera dans votre main.') },
+
+    { turn: 5, hl: t => [card('sept_carreau'), zone(t.weakest())], drag: t => [card('sept_carreau'), zone(t.weakest())], done: t => t.pend('sept_carreau'),
+      text: t('Le dernier Sept ! Posez le Sept de carreau où vous voulez : à sa révélation, vos 3 Sept seront en jeu.') },
+    { free: true, text: t('Il vous reste 1 sceau : posez une autre carte si vous voulez, puis validez et regardez la machine à sous.') },
   ],
-  end: t('Leçon finie : un Pari est une chance sur deux, mais les cartes qui trichent rendent le prochain gagné d\'office. Le Codex explique aussi le Jackpot.'),
+  end: t('Leçon finie : un Pari, c\'est un dé à 6 faces. Les cartes qui trichent pipent le dé ou le deck, et vos 3 Sept en jeu déclenchent le Jackpot : vos créatures gagnent +2.'),
 };
 
 // Leçons proposées dans « Apprendre », dans l'ordre. L'initiation est lancée seule au premier lancement.
@@ -396,7 +400,7 @@ export const LESSONS = {
   drain: { ...DRAIN_LESSON, advanced: true, blurb: t('4 tours · voler la puissance et échanger ses créatures') },
   sorts: { ...SPELLS_LESSON, advanced: true, blurb: t('4 tours · tirer profit des sorts et de la pioche') },
   // set : leçon cachée avant la sortie de son set.
-  pari: { ...BETS_LESSON, advanced: true, set: 'tapis', blurb: t('4 tours · parier, tricher et compter ses Paris gagnés') },
+  pari: { ...BETS_LESSON, advanced: true, set: 'tapis', blurb: t('5 tours · lancer les dés, tricher et décrocher le Jackpot') },
 };
 for (const l of Object.values(LESSONS)) l.steps.forEach((s, i) => { s.turn = s.turn || (i ? l.steps[i - 1].turn : 1); });
 
@@ -411,8 +415,8 @@ function arrange(P, s) {
 export function tutorialGame(names, lesson = LESSONS.complet) {
   const st = newGame(deckOf(lesson.me, t('Tutoriel')), deckOf(lesson.foe, t('Entraînement')), names, { generals: [lesson.me.general, lesson.foe.general], turns: lesson.turns });
   arrange(st.p[0], lesson.me); arrange(st.p[1], lesson.foe);
-  // Pièce truquée pour la leçon : les Paris tombent toujours pareil.
-  if (lesson.coins) st.coins = lesson.coins.slice();
+  // Dé truqué pour la leçon : les Paris tombent toujours pareil.
+  if (lesson.dice) st.dice = lesson.dice.slice();
   startTurn(st); st.phase = 'plan';
   return st;
 }
