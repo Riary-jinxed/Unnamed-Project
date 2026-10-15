@@ -99,7 +99,7 @@
 @keyframes fxfade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
 
 /* Rien ne va plus : dé qui roule sur la carte qui parie */
-.fxdice { display: grid; place-items: center; z-index: 12; animation: fxdice 1.2s cubic-bezier(.2,.8,.2,1) both; }
+.fxdice { display: grid; place-items: center; z-index: 12; animation: fxdice 2s ease both; }
 .fxdice .die { width: 100%; height: 100%; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 14%; gap: 6%; border-radius: 18%;
   background: linear-gradient(145deg, #fffdf6, #e6dccb); box-shadow: inset 0 -3px 0 rgb(0 0 0 / .18), 0 4px 10px rgb(0 0 0 / .45), 0 0 0 2px var(--tone, var(--mine));
   animation: fxdietumble .5s cubic-bezier(.3,.7,.4,1) both; }
@@ -109,7 +109,7 @@
 .fxdice.landed.six .die { box-shadow: inset 0 -3px 0 rgb(0 0 0 / .18), 0 0 0 2px #e3b552, 0 0 18px 6px #e3b552; }
 .fxdice.landed.six .die i.on { background: #b3261e; }
 .fxdice.landed.low .die { filter: saturate(.6) brightness(.9); }
-@keyframes fxdice { 0% { opacity: 0; } 8% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px); } }
+@keyframes fxdice { 0% { opacity: 0; } 5% { opacity: 1; } 90% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-8px); } }
 @keyframes fxdietumble { from { transform: translate(-40px, -50px) rotate(-260deg) scale(.6); } 60% { transform: translate(4px, 3px) rotate(14deg) scale(1.05); } to { transform: none; } }
 @keyframes fxdieland { from { transform: scale(1.3); } }
 
