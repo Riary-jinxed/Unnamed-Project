@@ -623,17 +623,17 @@ function rewardItem(r) {
 }
 // Icônes des monnaies (style.css, .ico-…) : Éclat, Prisme, coffre d'arts.
 const ico = kind => `<span class="ico ico-${kind}" aria-hidden="true"></span>`;
-// Calendrier du mois : une case par jour, semaine du lundi au dimanche. Dimanche : coffre d'arts (et parfois des Prismes).
+// Calendrier du mois : une case par jour, semaine du lundi au dimanche. Dimanche : un coffre d'arts ou des Prismes, en alternance.
 function calendarHTML(cal) {
   const [y, m] = cal.month.split('-').map(Number), lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
-  const what = d => (d.chests ? `${ico('chest')}${d.prisms ? `<span class="calgain"><small class="num">+${d.prisms}</small>${ico('prism')}</span>` : ''}`
+  const what = d => (d.sunday ? `${d.chests ? ico('chest') : ''}${d.prisms ? `<span class="calgain"><small class="num">${d.chests ? '+' : ''}${d.prisms}</small>${ico('prism')}</span>` : ''}`
     : `<span class="calgain"><small class="num">${d.shards}</small>${ico('shard')}</span>`);
-  const label = d => [`${d.day}`, d.chests ? (d.prisms ? t('coffre d\'arts et {n} Prismes', { n: d.prisms }) : t('coffre d\'arts')) : t('{n} Éclats', { n: d.shards }), d.got ? t('récupéré') : d.missed ? t('manqué') : d.day === cal.today ? t('aujourd\'hui') : ''].filter(Boolean).join(', ');
-  const cell = d => `<div class="calday ${d.chests ? 'sun' : ''} ${d.got ? 'got' : ''} ${d.missed ? 'missed' : ''} ${d.day === cal.today ? 'today' : ''}" aria-label="${label(d)}">
+  const label = d => [`${d.day}`, d.sunday ? [d.chests ? t('coffre d\'arts') : '', d.prisms ? t('{n} Prismes', { n: d.prisms }) : ''].filter(Boolean).join(', ') : t('{n} Éclats', { n: d.shards }), d.got ? t('récupéré') : d.missed ? t('manqué') : d.day === cal.today ? t('aujourd\'hui') : ''].filter(Boolean).join(', ');
+  const cell = d => `<div class="calday ${d.sunday ? 'sun' : ''} ${d.got ? 'got' : ''} ${d.missed ? 'missed' : ''} ${d.day === cal.today ? 'today' : ''}" aria-label="${label(d)}">
     <span class="num cdn">${d.day}</span>${what(d)}${d.got ? '<span class="ok">✓</span>' : ''}</div>`;
   const g = ui.calGot;
   return `<div class="sheet" data-act="close"><div class="panel calendar" data-stop="1" role="dialog" aria-label="${t('Calendrier du mois')}"><div class="ph"><h2>${t('Calendrier de {name}', { name: esc(seasonName(cal.month)) })}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
-    <p class="hint" style="margin:0">${t('Connectez-vous chaque jour pour récupérer sa récompense : des Éclats {shard} en semaine, un coffre d\'arts {chest} chaque dimanche, et des Prismes {prism} en plus un dimanche sur deux. Un jour manqué est perdu ; tout repart le 1er du mois.', { shard: ico('shard'), chest: ico('chest'), prism: ico('prism') })}</p>
+    <p class="hint" style="margin:0">${t('Connectez-vous chaque jour pour récupérer sa récompense : des Éclats {shard} en semaine, et le dimanche, un coffre d\'arts {chest} ou des Prismes {prism}, en alternance. Un jour manqué est perdu ; tout repart le 1er du mois.', { shard: ico('shard'), chest: ico('chest'), prism: ico('prism') })}</p>
     <div class="calgrid">${t('L,M,M,J,V,S,D').split(',').map(x => `<span class="calh">${x}</span>`).join('')}${'<span></span>'.repeat(lead)}${cal.days.map(cell).join('')}</div>
     ${g ? `<p role="status" style="margin:0"><b>${t('Récupéré : {what}.', { what: gains(g) })}</b>${g.chests ? ` ${t('Le coffre vous attend à l\'accueil et dans la boutique, onglet Arts.')}` : ''}</p>` : ''}
     ${errLine()}
@@ -1560,7 +1560,22 @@ function renderShop() {
         ${sh.freeBoosters ? `<button class="btn primary" data-act="free-booster" data-set="${set.id}" ${ui.busy ? 'disabled' : ''}>${t('Ouvrir un booster offert ({n})', { n: sh.freeBoosters })}</button>` : ''}</div>
     </section>` : `<section class="card-box shopset soon"><div><span class="eyebrow">${t('Bientôt disponible')}</span><h2 style="font-size:22px">${esc(t(set.name))}</h2></div>
       <p class="hint" style="margin:0">${esc(t(set.teaser))}</p></section>`; };
-  return `${top}${stall}${errLine()}${dupsHTML(sh)}${sh.sets.map(section).join('')}${mail.codeForm()}`;
+  return `${top}${stall}${errLine()}${familyHTML(sh)}${dupsHTML(sh)}${sh.sets.map(section).join('')}${mail.codeForm()}`;
+}
+// Booster de famille : gagné tous les F.every boosters ouverts. Gagné, le joueur choisit sa famille ; sinon, le compteur avance.
+function familyHTML(sh) {
+  const F = sh.family;
+  if (!F || !(F.every > 0)) return '';
+  if (!F.boosters) return `<section class="card-box famboost"><div class="row" style="gap:8px"><span class="gal-h" style="margin-right:auto">${t('Booster de famille')}</span><small class="num">${F.progress}/${F.every}</small></div>
+    <div class="bar" role="progressbar" aria-valuenow="${F.progress}" aria-valuemin="0" aria-valuemax="${F.every}" aria-label="${t('Booster de famille')}"><span style="width:${pct(F.progress, F.every)}%"></span></div>
+    <p class="hint" style="margin:0">${tp(F.every - F.progress, 'Encore {n} booster à ouvrir pour gagner un booster de famille : vous choisirez la famille de ses cartes.', 'Encore {n} boosters à ouvrir pour gagner un booster de famille : vous choisirez la famille de ses cartes.')}</p></section>`;
+  return `<section class="card-box famboost ready"><div><span class="eyebrow">${tp(F.boosters, '{n} booster de famille à ouvrir', '{n} boosters de famille à ouvrir')}</span><h2 style="font-size:22px">${t('Booster de famille')}</h2></div>
+    <p class="hint" style="margin:0">${t('Choisissez une famille : ses {n} cartes ne viendront que d\'elle, dont au moins une qui vous manque s\'il en reste.', { n: sh.prices.boosterSize })}</p>
+    <button class="famtoggle${ui.famOpen ? ' open' : ''}" data-act="fam-toggle" aria-expanded="${!!ui.famOpen}" aria-controls="famlist">${t('Choisir une famille')}<i class="chev" aria-hidden="true"></i></button>
+    <ul class="famlist" id="famlist" ${ui.famOpen ? '' : 'hidden'}>${F.fams.map(x => `<li style="${famStyle(x.fam)}"><button data-act="family-booster" data-fam="${esc(x.fam)}" ${ui.busy ? 'disabled' : ''} aria-label="${t('Ouvrir un booster de famille {fam}', { fam: esc(t(x.fam)) })}">
+      <i class="famdot" aria-hidden="true"></i><span class="famname">${esc(t(x.fam))}</span>
+      <span class="famown"><span class="bar" aria-hidden="true"><span style="width:${pct(x.owned, x.size)}%"></span></span><small class="num">${x.owned}/${x.size}</small></span>
+      <span class="famgo">${t('Ouvrir')}</span></button></li>`).join('')}</ul></section>`;
 }
 // Doublons du jour : des cartes possédées qui peuvent encore monter, en vitrine ; chacun donne l'essence d'un doublon.
 function dupsHTML(sh) {
@@ -2144,7 +2159,7 @@ function sheetHTML() {
       <div class="gal-h">${t('Tutoriel avancé')}</div>
       <p class="hint" style="margin:0">${t('Une mécanique de famille par leçon : Trésor, Sacrifice, Relève, Drain, Sortilège…')}</p>
       <div class="lessons">${lessons(true)}</div>
-      <div class="row"><button class="btn" data-act="codex">${t('Codex des mots-clés')}</button><button class="btn" data-act="set">${t('Toutes les cartes')}</button></div></div></div>`;
+      <div class="row"><button class="btn" data-act="codex">${t('Codex des mots-clés')}</button><button class="btn" data-act="set">${t('Toutes les cartes')}</button><button class="btn" data-act="chronicles">${t('Chroniques')}</button></div></div></div>`;
   }
   if (ui.sheet === 'chest-info' && ui.screen === 'shop') return chestInfo(ui.shop?.arts);
   if (ui.sheet === 'booster-info' && ui.screen === 'shop') return boosterInfo(ui.shop);
@@ -2702,6 +2717,8 @@ app.addEventListener('click', e => {
     else if (a === 'buy-card' && !ui.busy) { const go = () => buy('/api/shop/card', { set: ds.set, card: ds.id }); if (!lacksShards(ui.shop?.prices.cardPrice, t('acheter'), go)) go(); }
     else if (a === 'buy-booster' && !ui.busy) { const go = () => buy('/api/shop/booster', { set: ds.set }); if (!lacksShards(boosterPriceOf(ds.set), t('acheter'), go)) go(); }
     else if (a === 'free-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set, free: true });
+    else if (a === 'fam-toggle') { ui.famOpen = !ui.famOpen; render(); }
+    else if (a === 'family-booster' && !ui.busy) { ui.famOpen = false; buy('/api/shop/family-booster', { fam: ds.fam }); }
     else if (a === 'buy-art' && !ui.busy) buyArt('/api/shop/art', { art: ds.id });
     else if (a === 'chest' && !ui.busy) buyArt('/api/shop/chest', {});
     else if (a === 'chest-free' && !ui.busy) buyArt('/api/shop/chest', { free: true });

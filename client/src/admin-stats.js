@@ -29,7 +29,7 @@ export function statsTab({ call, render, esc }) {
     if (!A) return '';
     // La courbe commence au premier jour où il s'est passé quelque chose.
     const first = A.days.findIndex(d => d.active || d.boosters), days = first < 0 ? A.days.slice(-7) : A.days.slice(Math.min(first, A.days.length - 7));
-    const boosters = A.totals.boosterDaily + A.totals.boosterBought + A.totals.boosterFree;
+    const boosters = A.totals.boosterDaily + A.totals.boosterBought + A.totals.boosterFree + (A.totals.boosterFamily || 0);
     const counters = Object.entries(A.labels).map(([k, l]) => `<tr><td>${esc(l)}</td><td class="num">${A.totals[k]}</td></tr>`).join('');
     return `<div class="tiles">${tile('Actifs aujourd\'hui', A.active.today)}${tile('Actifs sur 7 jours', A.active.week)}${tile('Actifs sur 30 jours', A.active.month)}
       ${tile('Comptes', A.accounts, `${A.started} avec un deck de départ${A.newAccounts ? ` · ${A.newAccounts} nouveau${A.newAccounts > 1 ? 'x' : ''} sur la période` : ''}`)}${tile('Boosters ouverts', boosters, 'sur la période')}</div>

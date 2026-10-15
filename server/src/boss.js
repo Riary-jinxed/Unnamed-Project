@@ -41,9 +41,9 @@ export function createBoss(store, accounts) {
     const week = bossWeek();
     if (a.boss?.week !== week) {
       if (a.boss?.week && a.boss.runs) closeWeek(a.boss.week);
-      a.boss = { week, boss: weekBoss(week), total: 0, best: 0, runs: 0, day: null, used: 0, last: [] };
+      a.boss = { week, boss: weekBoss(week), total: 0, best: 0, runs: 0, day: null, used: 0, paid: 0, last: [] };
     }
-    if (a.boss.day !== today()) { a.boss.day = today(); a.boss.used = 0; }
+    if (a.boss.day !== today()) { a.boss.day = today(); a.boss.used = 0; a.boss.paid = 0; }
     return a.boss;
   }
   const left = a => Math.max(0, cfg().attempts - state(a).used);
@@ -61,10 +61,13 @@ export function createBoss(store, accounts) {
     return id;
   }
   // Fin d'une tentative : score, paliers atteints et leurs récompenses, total de la semaine.
+  // Chaque palier ne se touche qu'une fois par jour : une tentative paie les paliers atteints au-dessus de ceux déjà payés
+  // aujourd'hui (B.paid). Le jour se paie donc comme sa meilleure tentative ; toutes comptent pour le classement.
   function finish(a, st, { abandoned = false } = {}) {
     const c = cfg(), B = state(a), id = st.p[1].general;
-    const score = bossScore(st, c), reached = tiersReached(score.total, c.tiers);
-    const sum = reached.reduce((r, i) => { const t = c.tiers[i]; return { bossCoins: r.bossCoins + (t.coins || 0), shards: r.shards + (t.shards || 0), xp: r.xp + (t.xp || 0) }; }, { bossCoins: 0, shards: 0, xp: 0 });
+    const score = bossScore(st, c), reached = tiersReached(score.total, c.tiers), paid = reached.filter(i => i >= (B.paid || 0));
+    B.paid = Math.max(B.paid || 0, reached.length);
+    const sum = paid.reduce((r, i) => { const t = c.tiers[i]; return { bossCoins: r.bossCoins + (t.coins || 0), shards: r.shards + (t.shards || 0), xp: r.xp + (t.xp || 0) }; }, { bossCoins: 0, shards: 0, xp: 0 });
     // Une tentative commencée la semaine d'avant compte pour celle-ci : le joueur l'a jouée maintenant.
     B.total += score.total; B.best = Math.max(B.best, score.total); B.runs++;
     B.last = [{ at: now(), score: score.total, boss: id }, ...(B.last || [])].slice(0, HISTORY);
@@ -78,7 +81,7 @@ export function createBoss(store, accounts) {
     if (!abandoned) progress.act(a, 'boss');
     progress.check(a);
     const pos = ladder().findIndex(x => x.login === a.login) + 1;
-    return { boss: id, score: score.total, zones: score.zones, reached, tiers: c.tiers, gain, abandoned, total: B.total, best: B.best, pos: pos || null,
+    return { boss: id, score: score.total, zones: score.zones, reached, paid, tiers: c.tiers, gain, abandoned, total: B.total, best: B.best, pos: pos || null,
       left: left(a), levelUp: a.level > before, progress: { level: a.level, xp: a.xp, xpNext: progress.view(a).xpNext } };
   }
 
@@ -192,7 +195,7 @@ export function createBoss(store, accounts) {
   function view(a) {
     const c = cfg(), week = bossWeek(), id = weekBoss(week), B = state(a), L = ladder(week), mine = L.find(x => x.login === a.login);
     return { on: !!c.on && !!id, week, ends: weekLast(week), daysLeft: weekDaysLeft(week), boss: id ? bossInfo(id) : null, next: bossInfo(weekBoss(addWeeks(week, 1))),
-      attempts: c.attempts, left: left(a), total: B.total, best: B.best, runs: B.runs, last: B.last || [], pos: mine?.pos || null, n: L.length,
+      attempts: c.attempts, left: left(a), paidToday: B.paid || 0, total: B.total, best: B.best, runs: B.runs, last: B.last || [], pos: mine?.pos || null, n: L.length,
       scoring: { perPower: c.perPower, fullZone: c.fullZone, beatZone: c.beatZone }, tiers: c.tiers, ranks: c.ranks,
       coins: a.bossCoins || 0, shop: shopView(a), lastWeek: lastWeek() };
   }

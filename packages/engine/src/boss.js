@@ -51,17 +51,18 @@ export function bossScore(st, cfg = DEFAULT_BOSS) {
 }
 
 // ---- Récompenses ----
-// Paliers d'une tentative : chaque palier atteint donne sa récompense (ils se cumulent). xp : XP du compte.
+// Paliers d'une tentative : chaque palier atteint donne sa récompense (ils se cumulent), une fois par jour : les tentatives
+// suivantes ne paient que les paliers pas encore atteints ce jour-là (server/src/boss.js, finish). xp : XP du compte.
 // Classement de la semaine, à sa clôture : les places (top) d'abord, puis la part du classement (pct : dans les x % premiers).
 // Tout joueur qui a fait au moins une tentative tombe dans une tranche (la dernière va jusqu'à 100 %).
 export const DEFAULT_BOSS = {
   on: true, attempts: 3, perPower: 10, fullZone: 30, beatZone: 50, rotation: BOSS_IDS.slice(),
   tiers: [
-    { points: 200, coins: 10, shards: 20, xp: 20 },
-    { points: 350, coins: 15, shards: 30, xp: 30 },
-    { points: 500, coins: 20, shards: 40, xp: 40 },
-    { points: 650, coins: 25, shards: 50, xp: 50 },
-    { points: 850, coins: 35, shards: 80, xp: 60 },
+    { points: 200, coins: 5, shards: 10, xp: 20 },
+    { points: 350, coins: 8, shards: 15, xp: 30 },
+    { points: 500, coins: 10, shards: 20, xp: 40 },
+    { points: 650, coins: 12, shards: 25, xp: 50 },
+    { points: 850, coins: 15, shards: 40, xp: 60 },
   ],
   ranks: [
     { id: 'top1', top: 1, name: '1re place', coins: 600, prisms: 50, title: 'boss:top1' },
@@ -80,8 +81,9 @@ export const DEFAULT_BOSS = {
 // ou art, title, frame, back, theme (cosmétiques, une seule fois). price et limit par défaut, réglables dans /admin (cfg.shop[id]).
 const S = (id, kind, name, price, limit, extra = {}) => ({ id, kind, name, price, limit, ...extra });
 export const BOSS_SHOP = [
-  S('shards', 'shards', '300 Éclats', 60, 5, { n: 300 }),
-  S('booster', 'boosters', 'Booster offert', 150, 2, { n: 1 }),
+  // Un booster vaut le même prix que 300 Éclats.
+  S('shards', 'shards', '300 Éclats', 100, 3, { n: 300 }),
+  S('booster', 'boosters', 'Booster offert', 100, 2, { n: 1 }),
   S('essence', 'uniEssence', '30 essence universelle', 120, 3, { n: 30 }),
   S('prisms', 'prisms', '10 Prismes', 180, 2, { n: 10 }),
   S('chest', 'chests', 'Coffre d\'arts offert', 300, 1, { n: 1 }),
