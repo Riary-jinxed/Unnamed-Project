@@ -7,6 +7,8 @@
 // Vibrations (sfx.js, buzz, coupées dans le profil) : niveau gagné, étoile gagnée ou perdue, promotion.
 // Toucher la toile passe l'animation. Tout l'affichage est calculé à partir du temps écoulé : passer, redimensionner ou
 // redessiner la page (render de main.js) ne fait que recaler la même scène au même instant.
+// Sans eval : la politique de contenu du site (CSP) l'interdit.
+import 'pixi.js/unsafe-eval';
 import { Application, Color, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import { play, buzz } from './sfx.js';
 import { guardGL } from './gl-guard.js';

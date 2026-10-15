@@ -13,6 +13,7 @@ import { createActivity } from './activity.js';
 import { usePreview, previewOf, atPreview, DAY_RE } from './preview.js';
 import { t, msg, tr, trMsg, pickLang } from '@jeu/engine/i18n';
 import { langOf, validLang, withLang, inLang } from './i18n.js';
+import { clientIp, failLimiter, tokenHash, isTokenHash } from './security.js';
 
 const MAX_SESSIONS = 10;
 // scrypt en asynchrone : le calcul (volontairement lent) ne bloque pas les parties en cours pendant une connexion.
@@ -20,7 +21,20 @@ const scryptHex = (pass, salt) => new Promise((ok, ko) => scrypt(pass, salt, 32,
 const hashPass = async (pass, salt = randomBytes(16).toString('hex')) => ({ salt, hash: await scryptHex(pass, salt) });
 const checkPass = async (pass, p) => timingSafeEqual(Buffer.from(await scryptHex(pass, p.salt)), Buffer.from(p.hash));
 const cleanLogin = s => String(s || '').trim().toLowerCase();
-const LOGIN_RE = /^[a-z0-9._-]{2,24}$/;
+// Commence par une lettre ou un chiffre ; jamais un nom de propriété des objets JavaScript (« constructor »…) : les identifiants
+// servent de clés dans de nombreuses tables (clans, boss).
+const LOGIN_RE = /^[a-z0-9][a-z0-9._-]{1,23}$/;
+const validLogin = l => LOGIN_RE.test(l) && !(l in Object.prototype);
+// Mot de passe : 8 caractères au moins (les mots de passe tirés au hasard par /admin en font 8), 200 au plus (scrypt reste rapide).
+const PASS_MIN = 8, PASS_MAX = 200;
+// Identifiant inconnu : le mot de passe est quand même vérifié (contre une empreinte factice), pour que le temps de réponse
+// ne révèle pas quels identifiants existent.
+const DUMMY_PASS = hashPass(randomBytes(16).toString('hex'));
+// Tentatives de connexion ratées : 10 par identifiant et 30 par adresse en 15 minutes, ensuite il faut attendre.
+// Clé d'administration fausse : 10 par adresse en 15 minutes.
+const LOGIN_FAILS = failLimiter({ max: 10, windowMs: 15 * 60_000 }), IP_FAILS = failLimiter({ max: 30, windowMs: 15 * 60_000 });
+const ADMIN_FAILS = failLimiter({ max: 10, windowMs: 15 * 60_000 });
+const tooMany = ms => new HttpError(429, msg('Trop de tentatives : réessayez dans {n} minutes.', { n: Math.max(1, Math.ceil(ms / 60_000)) }));
 
 // Réglages de la boutique modifiables depuis /admin. « rotation » change à chaque renouvellement forcé des offres du jour.
 // Arts alternatifs : nombre d'offres du jour, prix du coffre et prix de chaque rareté (artPrice_<rareté>), en Prismes.
@@ -101,10 +115,11 @@ function convertDuplicates(a, rate) {
 }
 
 export function createAccounts(store) {
+  // Sessions : empreinte du jeton → identifiant. Les comptes ne gardent que les empreintes (security.js, tokenHash).
   const sessions = new Map();
-  for (const a of store.all()) for (const t of a.tokens || []) sessions.set(t, a.login);
+  for (const a of store.all()) for (const t of a.tokens || []) sessions.set(isTokenHash(t) ? t : tokenHash(t), a.login);
   // Un compte désactivé n'a plus de session valable.
-  const byToken = token => { const login = sessions.get(String(token || '')); const a = login && store.get(login); return a && !a.disabled ? a : null; };
+  const byToken = token => { if (!token) return null; const login = sessions.get(tokenHash(token)); const a = login && store.get(login); return a && !a.disabled ? a : null; };
   // Réglages, recalculés seulement quand /admin enregistre un nouveau document (à lire seulement).
   let cfgOf, cfgMemo;
   const cfg = () => { const doc = store.doc('jeu'); if (!cfgMemo || doc !== cfgOf) { cfgOf = doc; cfgMemo = { ...DEFAULT_SETTINGS, ...doc }; } return cfgMemo; };
@@ -132,6 +147,9 @@ export function createAccounts(store) {
     return gone.length;
   }
   const ready = Promise.all(store.all().filter(a => {
+    // Anciens jetons de session gardés en clair : remplacés par leur empreinte (les joueurs restent connectés).
+    const plain = (a.tokens || []).some(t => !isTokenHash(t));
+    if (plain) a.tokens = a.tokens.map(t => (isTokenHash(t) ? t : tokenHash(t)));
     const dup = convertDuplicates(a, cfg().shardsPerDuplicate), decks = migrateDecks(a), gens = grantStarterGenerals(a), prog = progress.init(a), uni = progress.settleCapped(a), retired = retireArts(a);
     if (dup) console.log(`Doublons de ${a.login} convertis en Éclats.`);
     if (uni) console.log(`Essence au-delà du plafond de ${a.login} changée en ${uni} essence universelle.`);
@@ -139,7 +157,7 @@ export function createAccounts(store) {
     if (gens) console.log(`Généraux du deck de départ ajoutés à la collection de ${a.login}.`);
     if (prog) console.log(`Progression de ${a.login} créée (niveau ${a.level}).`);
     if (retired) console.log(`${retired} art(s) retiré(s) remboursé(s) à ${a.login}.`);
-    return dup || decks || gens || prog || uni || retired;
+    return plain || dup || decks || gens || prog || uni || retired;
   }).map(a => store.put(a)));
   // Une fois le catalogue appliqué : familles et sets déjà complétés, succès déjà atteints.
   async function syncAll() {
@@ -150,20 +168,26 @@ export function createAccounts(store) {
     }
   }
 
-  async function login({ login, password }, lang = null) {
-    const a = store.get(cleanLogin(login));
-    if (!a || !(await checkPass(String(password || ''), a.pass))) throw new HttpError(401, msg('Identifiant ou mot de passe incorrect.'));
+  // ip : adresse de la requête, pour limiter les tentatives (security.js).
+  async function login({ login, password } = {}, lang = null, ip = '?') {
+    const id = cleanLogin(login), pass = String(password || '').slice(0, PASS_MAX);
+    const wait = Math.max(LOGIN_FAILS.wait(id), IP_FAILS.wait(ip));
+    if (wait) throw tooMany(wait);
+    const a = store.get(id);
+    const ok = await checkPass(pass, a?.pass || await DUMMY_PASS);
+    if (!a || !ok) { LOGIN_FAILS.fail(id); IP_FAILS.fail(ip); throw new HttpError(401, msg('Identifiant ou mot de passe incorrect.')); }
+    LOGIN_FAILS.clear(id);
     if (a.disabled) throw new HttpError(403, msg('Ce compte est désactivé.'));
-    const token = randomBytes(24).toString('hex');
+    const token = randomBytes(24).toString('hex'), hash = tokenHash(token);
     // Au-delà de MAX_SESSIONS, la plus ancienne session du compte est fermée.
-    const all = [...(a.tokens || []), token];
+    const all = [...(a.tokens || []), hash];
     for (const t of all.slice(0, -MAX_SESSIONS)) sessions.delete(t);
-    a.tokens = all.slice(-MAX_SESSIONS); sessions.set(token, a.login);
+    a.tokens = all.slice(-MAX_SESSIONS); sessions.set(hash, a.login);
     if (lang) a.lang = lang;
     await store.put(a);
     return { token, account: me(a) };
   }
-  async function logout(a, token) { a.tokens = (a.tokens || []).filter(t => t !== token); sessions.delete(token); await store.put(a); return { ok: true }; }
+  async function logout(a, token) { const hash = tokenHash(token); a.tokens = (a.tokens || []).filter(t => t !== hash); sessions.delete(hash); await store.put(a); return { ok: true }; }
 
   async function chooseStarter(a, { starter }) {
     if (a.starter) throw new HttpError(409, msg('Le deck de départ est déjà choisi.'));
@@ -507,8 +531,8 @@ export function createAccounts(store) {
   // Administration : créer un compte, ou changer le mot de passe d'un compte existant.
   async function adminUpsert({ login, password, name, create }) {
     login = cleanLogin(login);
-    if (!LOGIN_RE.test(login)) throw new HttpError(400, 'Identifiant : 2 à 24 caractères parmi a-z, 0-9, point, tiret, tiret bas.');
-    if (String(password || '').length < 4) throw new HttpError(400, 'Mot de passe : 4 caractères au moins.');
+    if (!validLogin(login)) throw new HttpError(400, 'Identifiant : 2 à 24 caractères parmi a-z, 0-9, point, tiret, tiret bas, en commençant par une lettre ou un chiffre (pas « constructor »).');
+    if (String(password || '').length < PASS_MIN || String(password).length > PASS_MAX) throw new HttpError(400, `Mot de passe : ${PASS_MIN} à ${PASS_MAX} caractères.`);
     const old = store.get(login);
     if (old && create) throw new HttpError(409, 'Cet identifiant existe déjà : ouvrez le compte pour changer son mot de passe.');
     const a = old || { login, name: '', starter: null, cards: {}, shards: 0, decks: [], active: null, lastBooster: null, tokens: [], created: new Date().toISOString() };
@@ -642,7 +666,7 @@ export class HttpError extends Error {
 // extra : routes d'autres modules ; open : routes accessibles sans session.
 export function apiHandler(accounts, adminKey, extra = {}, open = []) {
   const routes = {
-    'POST /api/login': (_, body, __, ___, lang) => accounts.login(body, lang),
+    'POST /api/login': (_, body, __, ___, lang, ip) => accounts.login(body, lang, ip),
     'GET /api/me': a => ({ account: accounts.me(a) }),
     'POST /api/logout': (a, _, token) => accounts.logout(a, token),
     'POST /api/starter': (a, body) => accounts.chooseStarter(a, body),
@@ -715,15 +739,17 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
       else send(body);
     };
     // Langue des messages : en-tête X-Lang (français sans en-tête : /admin et anciennes versions de l'appli).
-    const lang = pickLang(req.headers['x-lang']), given = validLang(req.headers['x-lang']);
+    const lang = pickLang(req.headers['x-lang']), given = validLang(req.headers['x-lang']), ip = clientIp(req);
     try {
       const route = routes[key]; if (!route) throw new HttpError(404, msg('Route inconnue.'));
       const token = (req.headers.authorization || '').replace(/^Bearer /, '');
       let acc = null;
       if (url.pathname.startsWith('/api/admin/')) {
         if (!adminKey) throw new HttpError(503, 'Administration désactivée : définissez ADMIN_KEY sur le serveur.');
-        const given = Buffer.from(String(req.headers['x-admin-key'] || '')), want = Buffer.from(adminKey);
-        if (given.length !== want.length || !timingSafeEqual(given, want)) throw new HttpError(401, 'Clé d\'administration incorrecte.');
+        const wait = ADMIN_FAILS.wait(ip); if (wait) throw tooMany(wait);
+        // Comparées par empreinte : même longueur, durée qui ne dépend pas de la clé donnée.
+        const given = Buffer.from(tokenHash(req.headers['x-admin-key'] || ''), 'hex'), want = Buffer.from(tokenHash(adminKey), 'hex');
+        if (!timingSafeEqual(given, want)) { ADMIN_FAILS.fail(ip); throw new HttpError(401, 'Clé d\'administration incorrecte.'); }
       } else if (key !== 'POST /api/login' && !open.includes(key)) {
         acc = accounts.byToken(token); if (!acc) throw new HttpError(401, msg('Session expirée : reconnectez-vous.'));
         accounts.activity.seen(acc);
@@ -740,7 +766,7 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
         try { body = raw ? JSON.parse(raw) : {}; } catch { throw new HttpError(400, msg('JSON invalide.')); }
       }
       // Le début de la route (jusqu'à son premier await) tourne dans la langue de la requête : deckError… y sont traduits.
-      json(200, await withLang(lang, () => route(acc, body, token, url, given)));
+      json(200, await withLang(lang, () => route(acc, body, token, url, given, ip)));
     } catch (e) {
       if (!(e instanceof HttpError)) console.error(e);
       json(e.status || 500, { error: e instanceof HttpError ? e.text(lang) : tr(lang, 'Erreur du serveur.') });

@@ -37,6 +37,7 @@ import { createPush } from './push.js';
 import { createFollow } from './follow.js';
 import { NOTES_MAJ } from './notes-maj.js';
 import { atPreview, inRequest, previewOf } from './preview.js';
+import { securityHeaders, inlineHashes, csp, tokenBucket } from './security.js';
 
 // Traductions anglaises (moteur et serveur) : messages d'erreur, notifications et textes envoyés aux joueurs dans leur langue.
 addStrings('en', engineEn);
@@ -111,6 +112,8 @@ async function loadFile(path) {
     cache: path.startsWith('assets/') ? 'public, max-age=31536000, immutable' : path.startsWith('music/') ? 'public, max-age=86400' : 'no-cache' };
   if (COMPRESSIBLE.has(ext)) {
     file.body = await readFile(full);
+    // Pages HTML : empreintes de leurs scripts écrits dans la page, pour leur politique de contenu (CSP).
+    if (ext === '.html') file.hashes = inlineHashes(file.body);
     if (file.body.length > 1024) [file.gz, file.br] = await Promise.all([gzip(file.body, { level: 9 }),
       brotli(file.body, { params: { [Z.BROTLI_PARAM_QUALITY]: 11, [Z.BROTLI_PARAM_SIZE_HINT]: file.body.length } })]);
   }
@@ -127,6 +130,7 @@ function streamFile(res, file, start = 0, end = file.size - 1) {
 }
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
+  for (const [k, v] of Object.entries(securityHeaders(req))) res.setHeader(k, v);
   if (url.pathname === '/health') { res.end('ok'); return; }
   if (await inRequest(() => api(req, res, url))) return;
   if (url.pathname === '/admin') url.pathname = '/admin.html';
@@ -149,7 +153,8 @@ const server = http.createServer(async (req, res) => {
   const enc = file.br && /\bbr\b/.test(accept) ? 'br' : file.gz && /\bgzip\b/.test(accept) ? 'gzip' : null;
   const body = enc === 'br' ? file.br : enc === 'gzip' ? file.gz : file.body;
   res.writeHead(200, { 'content-type': file.type, 'cache-control': file.cache, 'content-length': body ? body.length : file.size,
-    ...(file.body ? { vary: 'accept-encoding' } : {}), ...(file.type.startsWith('audio/') ? { 'accept-ranges': 'bytes' } : {}), ...(enc ? { 'content-encoding': enc } : {}) });
+    ...(file.body ? { vary: 'accept-encoding' } : {}), ...(file.type.startsWith('audio/') ? { 'accept-ranges': 'bytes' } : {}), ...(enc ? { 'content-encoding': enc } : {}),
+    ...(file.hashes ? { 'content-security-policy': csp(file.hashes, req.headers.host) } : {}) });
   if (req.method === 'HEAD') { res.end(); return; }
   if (body) res.end(body); else streamFile(res, file);
 });
@@ -324,6 +329,17 @@ function playing(login) {
   for (const r of rooms.values()) if (r.seats.some(s => s && s.login === login && s.ws && s.ws.readyState === 1)) return true;
   return false;
 }
+// Un compte ne peut pas remplir la mémoire du serveur de salons : en ouvrir un nouveau ferme ses salons encore en attente
+// d'un adversaire (pas les défis), et au-delà de MAX_ROOMS parties en cours, il doit d'abord en finir une.
+const MAX_ROOMS = 3;
+function roomsFree(ws, login) {
+  for (const [code, r] of rooms) if (!r.st && !r.invite && r.seats[0]?.login === login && !r.seats[1]) { rooms.delete(code); if (ws.room === r) ws.room = null; }
+  let n = 0;
+  for (const r of rooms.values()) if (r.seats.some(s => s && s.login === login) && !(r.st && r.st.over)) n++;
+  if (n < MAX_ROOMS) return true;
+  send(ws, { t: 'error', msg: tr(wsLang(ws), 'Trop de parties en cours : terminez-en une d\'abord.') });
+  return false;
+}
 const seatsChanged = room => room.seats.forEach(s => s && friends.changed(s.login));
 // Défi accepté : salon réservé aux deux amis, chacun prend la place qui lui est gardée en entrant.
 function inviteRoom(logins, { ranked = false } = {}) {
@@ -350,20 +366,20 @@ function handle(ws, msg) {
   // Compte testeur (jour d'aperçu) : pas de classé ni de Boss, dont les classements sont partagés avec les autres joueurs.
   if (['ranked', 'boss', 'clanboss'].includes(msg.t) && previewOf(accounts.byToken(msg.auth))) return send(ws, { t: 'error', msg: tr(wsLang(ws), 'Compte de test : le classé et les Boss sont fermés tant qu\'un jour d\'aperçu est réglé.') });
   if (msg.t === 'create') {
-    const seat = seatFor(ws, msg); if (!seat) return;
+    const seat = seatFor(ws, msg); if (!seat || !roomsFree(ws, seat.login)) return;
     const room = { code: newCode(), seats: [null, null], plans: [null, null], st: null, busy: false, lastActive: Date.now() };
     room.seats[0] = seat;
     rooms.set(room.code, room); ws.room = room; ws.seat = 0; lobby(room); friends.changed(seat.login); return;
   }
   if (msg.t === 'ranked') {
-    const seat = seatFor(ws, msg); if (!seat) return;
+    const seat = seatFor(ws, msg); if (!seat || !roomsFree(ws, seat.login)) return;
     const room = { code: newCode(), seats: [seat, aiSeat(accounts.byToken(msg.auth))], plans: [null, null], st: null, busy: false, lastActive: Date.now(), ranked: 'ai' };
     rooms.set(room.code, room); ws.room = room; ws.seat = 0;
     lobby(room); startMatch(room); friends.changed(seat.login); return;
   }
   // Boss mondial : une tentative contre le boss de la semaine, comptée dès que la partie commence.
   if (msg.t === 'boss') {
-    const seat = seatFor(ws, msg, boss.weekBoss()); if (!seat) return;
+    const seat = seatFor(ws, msg, boss.weekBoss()); if (!seat || !roomsFree(ws, seat.login)) return;
     const acc = accounts.byToken(msg.auth);
     let id; try { id = boss.start(acc); } catch (e) { return send(ws, { t: 'error', msg: e instanceof HttpError ? e.text(wsLang(ws)) : e.message }); }
     const room = { code: newCode(), seats: [seat, { ai: true, boss: true, name: tr(langOf(acc), GENERALS[id].name), login: null }], plans: [null, null], st: null, busy: false, lastActive: Date.now(), boss: id };
@@ -373,7 +389,7 @@ function handle(ws, msg) {
   // Boss de clan : une tentative contre le boss ouvert du clan, comptée dès que la partie commence.
   if (msg.t === 'clanboss') {
     const acc = accounts.byToken(msg.auth);
-    const seat = seatFor(ws, msg); if (!seat) return;
+    const seat = seatFor(ws, msg); if (!seat || !roomsFree(ws, seat.login)) return;
     let run; try { run = clanRunFor(acc); } catch (e) { return send(ws, { t: 'error', msg: e instanceof HttpError ? e.text(wsLang(ws)) : e.message }); }
     const room = { code: newCode(), seats: [seat, { ai: true, boss: true, name: tr(langOf(acc), GENERALS[run.boss].name), login: null }], plans: [null, null], st: null, busy: false, lastActive: Date.now(), boss: run.boss, clanRun: run };
     rooms.set(room.code, room); ws.room = room; ws.seat = 0;
@@ -461,11 +477,13 @@ function handle(ws, msg) {
 // Messages courts (plans, émotes) : 64 Ko suffisent. Une trame invalide déclenche « error » : notée, sans arrêter le serveur.
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 64 * 1024 });
 wss.on('error', e => console.error('WebSocket :', e));
+// Débit des messages d'une connexion : 20 par seconde (40 d'un coup) suffisent largement à l'appli ; au-delà, elle est fermée.
 wss.on('connection', ws => {
   ws.alive = true;
+  const allowed = tokenBucket(20, 40);
   ws.on('error', e => console.error('Connexion WebSocket :', e.message));
   ws.on('pong', () => { ws.alive = true; });
-  ws.on('message', data => { ws.alive = true; try { const m = JSON.parse(data); atPreview(m && accounts.byToken(m.auth), () => handle(ws, m)); } catch (e) { console.error(e); } });
+  ws.on('message', data => { ws.alive = true; if (!allowed()) { ws.close(1008, 'trop de messages'); return; } try { const m = JSON.parse(data); atPreview(m && accounts.byToken(m.auth), () => handle(ws, m)); } catch (e) { console.error(e); } });
   ws.on('close', () => {
     friends.gone(ws);
     const room = ws.room; if (!room) return;

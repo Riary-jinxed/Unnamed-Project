@@ -23,6 +23,10 @@ export const PUSH_KINDS = {
 // Heures (de Paris) des envois planifiés.
 const HOUR = { events: 10, season: 12, daily: 18 };
 const MAX_SUBS = 5;
+// Services de notifications des navigateurs : le serveur n'envoie qu'à eux (un abonnement ne doit pas lui faire appeler n'importe quelle adresse).
+// Chrome, Opera, Samsung… (FCM), Firefox (Mozilla), Safari (Apple), Edge (Windows).
+const PUSH_HOST_RE = /^(fcm\.googleapis\.com|android\.googleapis\.com|updates\.push\.services\.mozilla\.com|([a-z0-9-]+\.)*push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)$/;
+const pushEndpoint = e => { try { const u = new URL(e); return u.protocol === 'https:' && !u.port && !u.username && !u.password && PUSH_HOST_RE.test(u.hostname); } catch { return false; } };
 // Rappel du jour : seulement aux joueurs venus ces derniers jours, pour ne pas relancer sans fin un compte abandonné.
 const DAILY_ACTIVE_DAYS = 14;
 const TICK_MS = 5 * 60 * 1000;
@@ -55,7 +59,7 @@ export function createPush(store, accounts, { isOnline = () => false, events } =
     // Sujet : une notification en attente est remplacée par la suivante du même sujet (32 caractères au plus, lettres, chiffres, - et _).
     const topic = String(m.tag || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) || undefined;
     let sent = 0, gone = false;
-    await Promise.all(a.push.subs.map(s => webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, payload, { TTL: 12 * 3600, urgency: 'normal', topic })
+    await Promise.all(a.push.subs.filter(s => pushEndpoint(s.endpoint)).map(s => webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, payload, { TTL: 12 * 3600, urgency: 'normal', topic })
       .then(() => { sent++; })
       .catch(e => { if (e.statusCode === 404 || e.statusCode === 410) { s.gone = true; gone = true; } else console.error(`Notification non envoyée à ${login} :`, e.statusCode || e.message); })));
     if (gone) { a.push.subs = a.push.subs.filter(s => !s.gone); await store.put(a).catch(() => {}); }
@@ -69,7 +73,7 @@ export function createPush(store, accounts, { isOnline = () => false, events } =
   // ---- Routes ----
   async function subscribe(a, { sub }) {
     const endpoint = String(sub?.endpoint || ''), p256dh = String(sub?.keys?.p256dh || ''), auth = String(sub?.keys?.auth || '');
-    if (!/^https:\/\//.test(endpoint) || endpoint.length > 1000 || !p256dh || !auth || p256dh.length > 200 || auth.length > 100) throw new HttpError(400, msg('Abonnement aux notifications invalide.'));
+    if (!pushEndpoint(endpoint) || endpoint.length > 1000 || !p256dh || !auth || p256dh.length > 200 || auth.length > 100) throw new HttpError(400, msg('Abonnement aux notifications invalide.'));
     // Un appareil ne sert qu'à un compte : celui qui s'y est connecté en dernier.
     for (const b of store.all()) if (b !== a && b.push?.subs?.some(s => s.endpoint === endpoint)) { b.push.subs = b.push.subs.filter(s => s.endpoint !== endpoint); await store.put(b); }
     const p = state(a);

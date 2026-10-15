@@ -4,6 +4,8 @@
 // copeaux de bois, ondes de choc, éclair). Le paquet, les cartes et le coffre restent en HTML : toucher, clavier et lecteurs
 // d'écran ne changent pas ; PixiJS lit leur place à l'écran (getBoundingClientRect) pour s'y caler.
 // Sans WebGL, opening.js garde ses effets en CSS.
+// Sans eval : la politique de contenu du site (CSP) l'interdit.
+import 'pixi.js/unsafe-eval';
 import { Application, Color, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { guardGL } from './gl-guard.js';
 

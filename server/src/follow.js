@@ -191,7 +191,8 @@ export function createFollow(store, accounts, { boss, events }) {
   const recent = new Map(); let swept = 0;
   function track(a, body) {
     const what = String(body?.what || ''), id = String(body?.id || '');
-    const key = { deckShare: 'deckShared', emote: EMOTES[id] ? 'emotesSolo' : null, pushOpen: PUSH_KINDS[id] ? `pushOpened:${id}` : null }[what];
+    const known = { deckShare: 'deckShared', emote: Object.hasOwn(EMOTES, id) ? 'emotesSolo' : null, pushOpen: Object.hasOwn(PUSH_KINDS, id) ? `pushOpened:${id}` : null };
+    const key = Object.hasOwn(known, what) ? known[what] : null;
     if (!key) throw new HttpError(400, 'Signalement inconnu.');
     const now = Date.now();
     // Au plus une fois par minute : oubli des joueurs sans signalement depuis une minute.

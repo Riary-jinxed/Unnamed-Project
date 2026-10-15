@@ -35,6 +35,8 @@ export function createClans(store, accounts, push = null) {
   const pushTo = (logins, msg) => push?.sendMany(logins, 'social', { tag: 'clan', open: 'clan', ...msg }).catch(e => console.error('Notification :', e));
   const level = c => clanLevelOf(c.xp || 0);
   const isFull = c => c.members.length >= maxMembers(level(c));
+  // Clan par identifiant reçu du joueur : seulement les clés propres (« __proto__ », « constructor »… ne sont pas des clans).
+  const clanById = id => (Object.hasOwn(clans, String(id || '')) ? clans[String(id || '')] : null);
 
   // Clan du joueur. Un membre dont le compte a été supprimé quitte son clan ; un clan vide disparaît.
   function prune(c) {
@@ -262,8 +264,8 @@ export function createClans(store, accounts, push = null) {
   function settings(c, { desc, open, icon, color }) {
     if (desc !== undefined) { const d = String(desc || '').trim(); if (d.length > CLAN_DESC_MAX) throw new HttpError(400, msg('Description : {n} caractères au plus.', { n: CLAN_DESC_MAX })); c.desc = d; }
     if (open !== undefined) c.open = !!open;
-    if (icon !== undefined) { if (!CLAN_ICONS[icon]) throw new HttpError(400, msg('Symbole inconnu.')); c.icon = icon; }
-    if (color !== undefined) { if (!CLAN_COLORS[color]) throw new HttpError(400, msg('Couleur inconnue.')); c.color = color; }
+    if (icon !== undefined) { if (!Object.hasOwn(CLAN_ICONS, String(icon))) throw new HttpError(400, msg('Symbole inconnu.')); c.icon = String(icon); }
+    if (color !== undefined) { if (!Object.hasOwn(CLAN_COLORS, String(color))) throw new HttpError(400, msg('Couleur inconnue.')); c.color = String(color); }
   }
   // Entrer dans un clan : les demandes envoyées ailleurs sont retirées.
   function enter(c, b) {
@@ -297,7 +299,7 @@ export function createClans(store, accounts, push = null) {
   async function join(a, { id }) {
     if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     if (clanOf(a)) throw new HttpError(409, msg('Quittez d\'abord votre clan.'));
-    const c = clans[String(id || '')] && prune(clans[String(id || '')]);
+    const c = clanById(id) && prune(clanById(id));
     if (!c) throw new HttpError(404, msg('Ce clan n\'existe plus.'));
     if (isFull(c)) throw new HttpError(409, msg('{name} est complet.', { name: c.name }));
     let note;
@@ -315,7 +317,7 @@ export function createClans(store, accounts, push = null) {
     return done(a, note);
   }
   async function cancel(a, { id }) {
-    const c = clans[String(id || '')];
+    const c = clanById(id);
     if (c) c.requests = c.requests.filter(l => l !== a.login);
     a.clanReq = (a.clanReq || []).filter(x => x !== id);
     await Promise.all([save(), store.put(a)]);
@@ -414,7 +416,7 @@ export function createClans(store, accounts, push = null) {
   }
   // Financer un projet avec le trésor du clan.
   async function fund(a, { id }) {
-    const c = need(a, 'treasury'), p = CLAN_PROJECTS[id];
+    const c = need(a, 'treasury'), p = Object.hasOwn(CLAN_PROJECTS, String(id)) ? CLAN_PROJECTS[id] : null;
     if (!p) throw new HttpError(400, msg('Projet inconnu.'));
     if (id === 'coffre' ? c.chest === clanWeek() : boostOn(c, id)) throw new HttpError(409, id === 'coffre' ? msg('Le coffre du clan a déjà été ouvert cette semaine.') : msg('{name} est déjà en cours.', { name: [p.name] }));
     const cost = projectCost(id, c.members.length), bank = c.bank ||= {};
@@ -443,7 +445,7 @@ export function createClans(store, accounts, push = null) {
   // ---- Dons ----
   // Une ressource contre des Écus, dans la limite du jour. Les Écus des dons font avancer la mission de dons de la semaine.
   async function donate(a, { res, amount }) {
-    const c = mine(a), d = DONATIONS[res];
+    const c = mine(a), d = Object.hasOwn(DONATIONS, String(res)) ? DONATIONS[res] : null;
     if (!d) throw new HttpError(400, msg('Ressource inconnue.'));
     const n = Number(amount);
     if (!Number.isInteger(n) || n < d.rate) throw new HttpError(400, msg('Donnez au moins {n} {res}.', { n: d.rate, res: [d.name] }));
@@ -494,7 +496,7 @@ export function createClans(store, accounts, push = null) {
   for (const c of Object.values(clans)) for (const login of c.members) { const b = store.get(login); if (b && progress.best(b, 'bestClanLevel', level(c))) put(b); }
 
   // Pour le boss de clan (clan-boss.js) : les clans, leur enregistrement, leur journal, les rôles et l'XP de clan.
-  const internals = { byId: id => (clans[id] ? prune(clans[id]) : null), all: () => Object.values(clans).map(prune).filter(Boolean), save, log, roleOf, level, pushTo, addXp };
+  const internals = { byId: id => (clanById(id) ? prune(clanById(id)) : null), all: () => Object.values(clans).map(prune).filter(Boolean), save, log, roleOf, level, pushTo, addXp };
 
   return {
     onGame, closeSeason, badge, clanOf, internals, setRaidView: f => { raidView = f; },
@@ -522,7 +524,7 @@ export function createClans(store, accounts, push = null) {
       // Administration : liste des clans, dissolution.
       'GET /api/admin/clans': () => ({ clans: Object.values(clans).map(prune).filter(Boolean).map(c => ({ ...short(c), xp: c.xp || 0, members: c.members.length, leader: c.leader, created: c.created, score: scoreOf(c) })) }),
       'POST /api/admin/clans/delete': async (_, { id } = {}) => {
-        const c = clans[String(id || '')]; if (!c) throw new HttpError(404, 'Clan inconnu.');
+        const c = clanById(id); if (!c) throw new HttpError(404, 'Clan inconnu.');
         for (const l of [...c.members, ...c.requests]) { const b = store.get(l); if (b) { if (b.clan === c.id) b.clan = null; b.clanReq = (b.clanReq || []).filter(x => x !== c.id); await store.put(b); } }
         delete clans[c.id]; await save();
         return { ok: true };

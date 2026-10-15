@@ -113,7 +113,7 @@ function renderList() {
       <div class="field"><label class="eyebrow" for="login">Identifiant</label><input id="login" autocapitalize="none" spellcheck="false" required></div>
       <div class="field"><label class="eyebrow" for="name">Pseudo affiché en partie</label><input id="name" maxlength="20" placeholder="Par défaut : l'identifiant"></div>
     </div>
-    <div class="field"><label class="eyebrow" for="password">Mot de passe</label><input id="password" required minlength="4" autocomplete="new-password"></div>
+    <div class="field"><label class="eyebrow" for="password">Mot de passe</label><input id="password" required minlength="8" autocomplete="new-password"></div>
     <div class="row"><button class="btn primary" type="submit">Créer</button><button class="btn" type="button" data-act="gen" data-for="password">Mot de passe au hasard</button></div>
   </form>`;
 }
@@ -186,7 +186,7 @@ function renderDetail() {
   </div>
   <form class="card-box" id="pass">
     <h3>Accès</h3>
-    <div class="field"><label class="eyebrow" for="p-pass">Nouveau mot de passe</label><input id="p-pass" minlength="4" required autocomplete="new-password"></div>
+    <div class="field"><label class="eyebrow" for="p-pass">Nouveau mot de passe</label><input id="p-pass" minlength="8" required autocomplete="new-password"></div>
     <div class="row"><button class="btn primary" type="submit" ${dis()}>Changer le mot de passe</button><button class="btn" type="button" data-act="gen" data-for="p-pass">Au hasard</button></div>
     <p class="hint" style="margin:0">Changer le mot de passe ferme aussi toutes ses sessions.</p>
     <div class="row">

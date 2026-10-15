@@ -9,6 +9,8 @@ export default {
   "JSON invalide.": "Invalid JSON.",
   "Identifiant ou mot de passe incorrect.": "Incorrect username or password.",
   "Ce compte est désactivé.": "This account is disabled.",
+  "Trop de tentatives : réessayez dans {n} minutes.": "Too many attempts: try again in {n} minutes.",
+  "Trop de parties en cours : terminez-en une d'abord.": "Too many matches in progress: finish one first.",
   "Le deck de départ est déjà choisi.": "Your starter deck is already chosen.",
   "Deck de départ inconnu.": "Unknown starter deck.",
   "Choisissez d'abord votre deck de départ.": "Choose your starter deck first.",
