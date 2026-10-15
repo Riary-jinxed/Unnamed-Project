@@ -38,7 +38,7 @@ import { openPack, openChest } from './opening.js';
 import { setHome } from './lobby.js';
 import { stallHTML, vitrineHTML, shardPileSVG, setShop } from './shop.js';
 import { FRAMES, BACKS, TITLES, rewardSourceOf, REWARD_CARDS, CARD_LEVELS, MAX_CARD_LEVEL, FAMILY_REWARDS, SET_REWARDS, ACHIEVEMENTS } from '@jeu/engine/rewards';
-import { EMOTES, EMOTE_SLOTS, EMOTE_COOLDOWN_MS, EMOTE_SHOW_MS, SHOP_EMOTES, CARD_EMOTES, FREE_EMOTES } from '@jeu/engine/emotes';
+import { EMOTES, EMOTE_SLOTS, EMOTE_COOLDOWN_MS, EMOTE_SHOW_MS, SHOP_EMOTES, EMOTE_SETS, setEmotes, setPrice, FREE_EMOTES } from '@jeu/engine/emotes';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { EVENT_EFFECTS, multLabel } from '@jeu/engine/events';
 import { SEASONS, PASS_TIERS, SEASON_THEMES, seasonOfCard, seasonStarted, seasonStart, currentSeason, releaseMonth } from '@jeu/engine/pass';
@@ -1479,14 +1479,21 @@ function emoteShopHTML() {
     <p class="hint" style="margin:0">${t('Une icône et une phrase courte pour saluer, féliciter ou taquiner votre adversaire : en partie, touchez votre portrait pour en envoyer une. Chacun peut couper les émotes de l\'autre en touchant son portrait.')}</p>
     ${ui.msg && !ui.sheet ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
     <ul class="emolist">${SHOP_EMOTES.map(sale).join('')}</ul>
-    <div class="gal-h">${t('À l\'effigie des cartes')}</div>
-    <ul class="emolist">${CARD_EMOTES.map(sale).join('')}</ul>
+    ${Object.keys(EMOTE_SETS).map(set => { const ids = setEmotes(set), left = ids.filter(id => !mine.includes(id)).length, cost = setPrice(mine, set);
+      return `<div class="gal-h emoset-h"><span>${t('Set {name}', { name: esc(t(nameOf(EMOTE_SETS[set].card))) })}</span>${left ? `<button class="btn num" data-act="buy-emote-set" data-id="${set}" ${ui.busy || (a.prisms || 0) < cost ? 'disabled' : ''} aria-label="${t('Acheter le set {name} pour {n} Prismes', { name: esc(t(nameOf(EMOTE_SETS[set].card))), n: cost })}">${t('Le set')} ${ico('prism')}${cost}</button>` : `<span class="chip ok">${t('Set complet')}</span>`}</div>
+    <ul class="emolist">${ids.map(sale).join('')}</ul>`; }).join('')}
     <div class="gal-h">${t('À gagner avec les succès')}</div>
     <ul class="emolist">${won}</ul>
     <div class="gal-h">${t('Offertes à tous')}</div>
     <ul class="emolist free">${FREE_EMOTES.map(id => `<li>${bubble(id)}</li>`).join('')}</ul>
     <p class="hint" style="margin:0">${t('Choisissez les {n} émotes de votre sélecteur dans votre profil, rubrique Personnalisation.', { n: EMOTE_SLOTS })}</p>
   </section>`;
+}
+async function buyEmoteSet(set) {
+  const r = await call('POST', '/api/shop/emote', { set }, true);
+  if (!r) return;
+  ui.msg = t('Set {name} obtenu : ses émotes sont dans votre profil, rubrique Personnalisation.', { name: t(nameOf(EMOTE_SETS[set].card)) });
+  play('reveal'); render();
 }
 async function buyEmote(id) {
   const r = await call('POST', '/api/shop/emote', { emote: id }, true);
@@ -2487,6 +2494,7 @@ app.addEventListener('click', e => {
     else if (a === 'emote') sendEmote(ds.id);
     else if (a === 'emote-mute') toggleEmoteMute();
     else if (a === 'emote-slot' && !ui.busy) toggleEmoteSlot(ds.id);
+    else if (a === 'buy-emote-set' && !ui.busy && EMOTE_SETS[ds.id]) buyEmoteSet(ds.id);
     else if (a === 'buy-emote' && !ui.busy) { const e = EMOTES[ds.id], go = () => buyEmote(ds.id); if (e.prisms || !lacksShards(e.price, t('acheter'), go)) go(); }
     else if (a === 'shop-emotes') openShop('emotes');
     else if (a === 'logout') doLogout();

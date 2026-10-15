@@ -1124,6 +1124,7 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .emopick .emo:disabled:not(.on) { opacity: .45; }
 .emopick .emo .favn { position: absolute; right: 5px; top: 50%; translate: 0 -50%; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 11px; }
 /* boutique : rayon Émotes */
+.emoset-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .emolist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
 /* Émote à gauche, prix (ou « Possédée ») à droite, même pour une phrase longue qui passe alors sur deux lignes dans sa bulle. */
 .emoitem { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; justify-items: start; gap: 6px 8px; min-height: 52px; padding: 8px; border: 1px solid var(--line); border-radius: var(--r); background: color-mix(in srgb, #000 12%, var(--surface)); }

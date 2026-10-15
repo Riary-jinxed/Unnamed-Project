@@ -12,7 +12,7 @@ import { ARTS, artExists, THEME_IDS, MAX_FAV_ARTS, isEssenceArt } from '@jeu/eng
 import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seasonById, passTrack, refundTier, tierOf as passTierOf, weekOf, passMissionLabel, releasedCards, addMonths,
   currentSeason, THEME_TIER, SEASON_THEMES } from '@jeu/engine/pass';
 import { boost } from '@jeu/engine/events';
-import { EMOTES, EMOTE_SLOTS, ownsEmote, ownedEmotes, emoteSet } from '@jeu/engine/emotes';
+import { EMOTES, EMOTE_SLOTS, EMOTE_SETS, ownsEmote, ownedEmotes, emoteSet, setEmotes, setPrice } from '@jeu/engine/emotes';
 import { HttpError } from './accounts.js';
 import { createEvents } from './events.js';
 import { msg } from '@jeu/engine/i18n';
@@ -566,7 +566,8 @@ export function createProgress(store) {
     }
   }
   // Émotes : achat en boutique (Éclats ou Prismes), droit d'en envoyer une en partie.
-  function buyEmote(a, { emote } = {}) {
+  function buyEmote(a, { emote, set: emoteSetId } = {}) {
+    if (emoteSetId !== undefined) return buyEmoteSet(a, emoteSetId);
     const e = EMOTES[emote];
     if (!e || !(e.price || e.prisms)) throw new HttpError(400, msg('Cette émote n\'est pas en vente.'));
     if (!a.cosmetics) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
@@ -579,6 +580,21 @@ export function createProgress(store) {
     const set = emoteSet(a.cosmetics.emotes, a.emoteSet);
     if (set.length < EMOTE_SLOTS) a.emoteSet = [...set, emote];
     return emote;
+  }
+  // Set d'émotes de cartes : toutes celles qui manquent, au prix du set moins ce que valent celles déjà possédées.
+  function buyEmoteSet(a, set) {
+    if (typeof set !== 'string' || !Object.hasOwn(EMOTE_SETS, set)) throw new HttpError(400, msg('Ce set d\'émotes n\'est pas en vente.'));
+    if (!a.cosmetics) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
+    const missing = setEmotes(set).filter(id => !ownsEmote(a.cosmetics.emotes, id));
+    if (!missing.length) throw new HttpError(409, msg('Vous avez déjà tout ce set.'));
+    const cost = setPrice(a.cosmetics.emotes, set);
+    if ((a.prisms || 0) < cost) throw new HttpError(409, msg('Il vous faut {price} Prismes (vous en avez {have}).', { price: cost, have: a.prisms || 0 }));
+    a.prisms = (a.prisms || 0) - cost;
+    (a.cosmetics.emotes ||= []).push(...missing);
+    // Les nouvelles émotes prennent les places libres du sélecteur.
+    const cur = emoteSet(a.cosmetics.emotes, a.emoteSet);
+    a.emoteSet = [...cur, ...missing].slice(0, EMOTE_SLOTS);
+    return missing[0];
   }
   const canEmote = (a, id) => !!a?.cosmetics && ownsEmote(a.cosmetics.emotes, id);
   // Arts préférés encore possédés (un art retiré du jeu disparaît de la liste).

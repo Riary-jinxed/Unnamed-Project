@@ -97,6 +97,8 @@ export default {
   "Émotes : de 1 à {n} de vos émotes.": "Emotes: 1 to {n} of your emotes.",
   "Cette émote n'est pas en vente.": "This emote isn't for sale.",
   "Vous avez déjà cette émote.": "You already have this emote.",
+  "Ce set d'émotes n'est pas en vente.": "This emote set is not for sale.",
+  "Vous avez déjà tout ce set.": "You already own this whole set.",
   "Vous ne possédez pas cette carte.": "You don't own this card.",
   "Cette carte est déjà au niveau maximum.": "This card is already at max level.",
   "Cette carte n'a pas encore cette bordure.": "This card doesn't have this border yet.",
