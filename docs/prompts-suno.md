@@ -158,12 +158,12 @@ Partie :
 instrumental casino heist jazz for a card game match, tense cool spy swing, walking bass ostinato, brushed snare, staccato piano stabs, muted brass hits, vibraphone motif, rolling dice and high stakes, focused and sly, 120 bpm, restrained dynamics, no climax, seamless loop, background game music, no vocals
 ```
 
-Boss (`boss-casino`) : Fortuna, la maison qui n'a jamais perdu, à la fin de « La Nuit du Sept d'or ». De l'électro swing, avec un peu de chant : une voix de crooneuse rétro sur quelques lignes, puis de longs passages instrumentaux pour ne pas couvrir le jeu. Titre : « La maison gagne toujours ».
+Boss (`boss-casino`) : Fortuna, la maison qui n'a jamais perdu, à la fin de « La Nuit du Sept d'or ». De l'électro swing anglais, avec un peu de chant en anglais : une voix de crooneuse rétro sur quelques lignes, puis de longs passages instrumentaux pour ne pas couvrir le jeu. Titre : « The House Always Wins ».
 
 Style (Instrumental désactivé) :
 
 ```
-electro swing boss battle theme for a fantasy casino card game, vintage 1930s big band samples over punchy electronic house beat, four on the floor kick, swung hi-hats, walking upright bass chopped with synth bass, muted trumpet and clarinet hooks, ragtime piano stabs, vinyl crackle, sultry female retro jazz vocal, sparse vocals with long instrumental sections, glamorous, cheeky and dangerous, 128 bpm, constant energy without a final ending, seamless loop
+english electro swing boss battle theme for a fantasy casino card game, vintage 1930s big band samples over punchy electronic house beat, four on the floor kick, swung hi-hats, walking upright bass chopped with synth bass, muted trumpet and clarinet hooks, ragtime piano stabs, vinyl crackle, sultry british female retro jazz vocal, english lyrics, sparse vocals with long instrumental sections, glamorous, cheeky and dangerous, 128 bpm, constant energy without a final ending, seamless loop
 ```
 
 Paroles :
@@ -172,29 +172,29 @@ Paroles :
 [Intro: muted trumpet, vinyl crackle, swing drums]
 
 [Verse]
-Faites vos jeux, la nuit est à moi
-Les dés sont pipés, mais tu ne le sais pas
-Mise tes Sept, mise ton âme
-La maison gagne toujours, madame
+Place your bets, darling, the night belongs to me
+The dice are loaded, but you'll never see
+Bet your sevens, bet your soul
+The house always wins, and the house takes it all
 
 [Instrumental: electro swing drop, brass hooks, piano stabs]
 
 [Chorus]
-Rien ne va plus, rien ne va plus
-Tourne, tourne, la roue de Fortuna
-Rien ne va plus, tout est perdu
-La maison gagne toujours
+No more bets, no more bets
+Spin, spin, the wheel of Fortuna
+No more bets, no regrets
+The house always wins
 
-[Instrumental: clarinet solo, chopped vocals "rien ne va plus"]
+[Instrumental: clarinet solo, chopped vocals "no more bets"]
 
 [Chorus]
-Rien ne va plus, rien ne va plus
-Tourne, tourne, la roue de Fortuna
+No more bets, no more bets
+Spin, spin, the wheel of Fortuna
 
 [Instrumental: big band and beat, full energy]
 ```
 
-Si la voix prend trop de place : ajouter `mostly instrumental, vocal chops` au style et ne garder que le refrain. Si Suno chante en anglais avec un accent : ajouter `french lyrics, french female singer`.
+Si la voix prend trop de place : ajouter `mostly instrumental, vocal chops` au style et ne garder que le refrain.
 
 ## 6. Boss mondial (`boss-mondial`)
 
