@@ -93,7 +93,8 @@ export function draftError(deck, account) {
   }
   if (deck.terrains.length > DECK_TERRAINS || new Set(deck.terrains).size !== deck.terrains.length) return t('Choisissez {n} terrains différents au plus.', { n: DECK_TERRAINS });
   if (deck.terrains.some(t => unrevealed(t))) return t('Ce terrain n\'est pas encore sorti.');
-  if (deck.terrains.some(t => !allowedTerrains(account).includes(t))) return t('Ce terrain demande un général de sa famille dans votre collection.');
+  const terrains = allowedTerrains(account);
+  if (deck.terrains.some(t => !terrains.includes(t))) return t('Ce terrain demande un général de sa famille dans votre collection.');
   if (deck.general !== null && deck.general !== undefined && !allowedGenerals(account).includes(deck.general)) return t('Vous ne possédez pas ce général.');
   return null;
 }
@@ -160,7 +161,8 @@ export const setById = id => SETS.find(s => s.id === id);
 // Date de sortie d'un set (reveal, AAAA-MM-JJ heure de Paris) : avant, il n'existe pas pour les joueurs (boutique, collection, IA).
 export const setRevealed = (set, day = today()) => !set?.reveal || day >= set.reveal;
 // Un identifiant (carte, général, terrain, deck) dont le set d'origine n'est pas encore sorti. Les cartes de récompense suivent le set qui les donne.
-export function unrevealed(id, day = today()) {
+// La date du jour n'est lue que pour un id d'un set daté (setRevealed) : la plupart des appels s'arrêtent avant.
+export function unrevealed(id, day) {
   const set = (CARDS[id] || GENERALS[id] || TERRAINS[id])?.set;
   if (!set || set === 'base') return false;
   const s = SETS.find(x => x.id === set) || DEFAULT_SETS.find(x => x.id === set);
