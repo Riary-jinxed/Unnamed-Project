@@ -5,7 +5,7 @@ import { gzipSync } from 'node:zlib';
 import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, setRevealed, dailyOffers, dupOffers, exchangeOffers, setBoosterPrice, shopOrder } from '@jeu/engine/collection';
 import { pick, CARDS, GENERALS } from '@jeu/engine';
 import { ART_RARITIES, RARITY_IDS, ESSENCE_ART_PRICES, RETIRED_ARTS } from '@jeu/engine/arts';
-import { SEASON_THEMES } from '@jeu/engine/pass';
+import { THEMES } from '@jeu/engine/themes';
 import { TUTO_LESSONS, levelCost, MAX_CARD_LEVEL, ESSENCE_FRAME } from '@jeu/engine/rewards';
 import { createProgress } from './progress.js';
 import { createArts } from './arts.js';
@@ -438,6 +438,7 @@ export function createAccounts(store) {
   async function reroll(a, body) { await progress.reroll(a, body); await store.put(a); return { account: me(a) }; }
   async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
   async function equip(a, body) { await progress.equip(a, body || {}); progress.check(a); await store.put(a); return { account: me(a) }; }
+  async function buyTheme(a, body) { const theme = progress.buyTheme(a, body || {}); await store.put(a); activity.count(['themesBought', `theme:${theme}`]); return { theme, account: me(a) }; }
   async function buyEmote(a, body) { const emote = progress.buyEmote(a, body || {}); await store.put(a); activity.count('emotesBought'); return { emote, account: me(a) }; }
   // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes les leçons de base le sont (le tutoriel avancé
   // ne rapporte que des Éclats). Affiché par le panneau de fin (silent).
@@ -552,10 +553,10 @@ export function createAccounts(store) {
   async function adminShopReset({ login }) { const a = target(login); a.shop = {}; delete a.artShop; delete a.dupShop; return done(a); }
   // Donner (Promo) ou retirer un art alternatif.
   async function adminArt({ login, art, give }) { const a = target(login); arts.adminGive(a, { art, give }); progress.check(a); return done(a); }
-  // Donne ou retire un thème de saison (tests, geste commercial). Retiré, le joueur revient au thème du moment s'il l'avait choisi.
+  // Donne ou retire un thème de l'interface (tests, geste commercial). Retiré, le joueur revient au thème du moment s'il l'avait choisi.
   async function adminTheme({ login, theme, give }) {
     const a = target(login);
-    if (!SEASON_THEMES[theme]) throw new HttpError(400, 'Thème inconnu.');
+    if (!THEMES[theme]) throw new HttpError(400, 'Thème inconnu.');
     progress.init(a);
     const list = (a.cosmetics.themes ||= []);
     if (give && !list.includes(theme)) list.push(theme);
@@ -583,7 +584,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, buyEssenceFrame, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, buyEssenceFrame, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, buyTheme, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminWelcome, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -624,6 +625,7 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/shop/essence-art': (a, body) => accounts.buyEssenceArt(a, body),
     'POST /api/shop/essence-frame': a => accounts.buyEssenceFrame(a),
     'POST /api/shop/emote': (a, body) => accounts.buyEmote(a, body),
+    'POST /api/shop/theme': (a, body) => accounts.buyTheme(a, body),
     'POST /api/essence/convert': (a, body) => accounts.convertEssence(a, body),
     'POST /api/calendar/claim': a => accounts.claimDay(a),
     'POST /api/welcome/claim': a => accounts.claimWelcome(a),

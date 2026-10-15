@@ -1,0 +1,134 @@
+/* Thèmes de l'interface à l'effigie d'un général (themes.js du moteur) : Éclipse d'Ignaroth, Bois de Sylvaën, Aube de Séraphine.
+   Écrits par main.js dans <body data-season>, comme ceux des saisons (halloween.css, cyber.css). Chaque thème donne ses couleurs
+   (variables --th-…) ; les règles communes plus bas les posent sur les panneaux, boutons, onglets, jauges et la table.
+   L'illustration du général (--theme-decor, --theme-perso, posées par main.js) apparaît en fond des menus, en haut, fondue dans la nuit.
+   Ne touche qu'à l'apparence, comme habillage.css ; chaque règle commence par body[data-season=…] pour passer devant lui. */
+
+/* ---- Éclipse d'Ignaroth : soleil noir cerclé de feu, braises et sang de dragon ---- */
+body[data-season="eclipse"] {
+  --bg: #0a0507; --surface: #1c0d10; --sunk: #060203; --ink: #f6e6dc; --muted: #b48c80; --line: #4a1e1a;
+  --accent: #ff6a2a; --accent-ink: #1a0602;
+  --gold-hi: #ffd8b0; --gold: #ff8a3a; --gold-lo: #7a2008; --leather: #24100f; --leather-lo: #120708; --rim: #6a2418;
+  --th-font: "MedievalSharp", "Cinzel", serif; --th-title: #ff9a50; --th-glow: rgb(255 90 30 / .6); --th-glow2: rgb(200 30 20 / .55);
+  --th-panel: linear-gradient(180deg, #26100f, #120607); --th-btn: linear-gradient(180deg, #3a1612, #1e0a08); --th-btn-rim: #7a2a1a;
+  --th-primary: radial-gradient(ellipse 80% 100% at 50% 70%, #ffd090, #ff7a2a 40%, #b8280c 78%, #4a0a04);
+  --th-bar: linear-gradient(90deg, #8a1a0a, #ff5a1a 70%, #ffc070); --th-tab: rgb(255 90 30);
+  --th-zone: linear-gradient(180deg, rgb(20 6 6 / .86), rgb(40 12 10 / .86));
+  background:
+    radial-gradient(circle at 82% 11%, #000 0 30px, rgb(255 120 40 / .95) 31px, rgb(255 60 20 / .5) 36px, rgb(200 30 10 / .15) 64px, transparent 120px),
+    radial-gradient(ellipse at 50% 120%, rgb(200 40 10 / .3), transparent 60%),
+    radial-gradient(ellipse at 0% 60%, rgb(120 10 30 / .18), transparent 50%),
+    linear-gradient(#1a080a, #0a0507 55%, #050203);
+  background-attachment: fixed; }
+
+/* ---- Bois de Sylvaën : sous-bois profond, mousse, lucioles et lumière qui filtre ---- */
+body[data-season="sylve"] {
+  --bg: #07110b; --surface: #12231a; --sunk: #040a06; --ink: #eef6e4; --muted: #9ab89a; --line: #2e5a3c;
+  --accent: #b8e060; --accent-ink: #0c1a04;
+  --gold-hi: #f0ffd0; --gold: #c8e070; --gold-lo: #4a6a1a; --leather: #142a1c; --leather-lo: #0a160e; --rim: #3a6a3a;
+  --th-font: "Uncial Antiqua", "Cinzel", serif; --th-title: #d8f090; --th-glow: rgb(170 240 100 / .5); --th-glow2: rgb(60 200 140 / .45);
+  --th-panel: linear-gradient(180deg, #16301f, #0a170f); --th-btn: linear-gradient(180deg, #24402a, #122216); --th-btn-rim: #4a7a3a;
+  --th-primary: radial-gradient(ellipse 80% 100% at 50% 70%, #f4ffc0, #b8e060 40%, #5a9a2a 78%, #1a3a0a);
+  --th-bar: linear-gradient(90deg, #2a6a2a, #8ae060 70%, #e0ffa0); --th-tab: rgb(170 240 100);
+  --th-zone: linear-gradient(180deg, rgb(6 16 10 / .86), rgb(16 34 22 / .86));
+  background:
+    radial-gradient(circle at 18% 30%, rgb(220 255 140 / .9) 0 1.5px, transparent 3px), radial-gradient(circle at 74% 22%, rgb(220 255 140 / .8) 0 1.5px, transparent 3px),
+    radial-gradient(circle at 62% 58%, rgb(160 255 200 / .7) 0 1.5px, transparent 3px), radial-gradient(circle at 34% 74%, rgb(220 255 140 / .7) 0 1.5px, transparent 3px),
+    linear-gradient(105deg, transparent 30%, rgb(230 255 180 / .06) 38%, transparent 46%, rgb(230 255 180 / .04) 60%, transparent 66%),
+    radial-gradient(ellipse at 50% 120%, rgb(40 120 70 / .3), transparent 60%),
+    linear-gradient(#10221a, #07110b 55%, #040a06);
+  background-attachment: fixed; }
+
+/* ---- Aube de Séraphine : ciel qui passe du violet de la nuit à l'or et au rose du matin ---- */
+body[data-season="aube"] {
+  --bg: #140e1c; --surface: #261a30; --sunk: #0c0812; --ink: #fff4e6; --muted: #c8a8b8; --line: #5a3a5a;
+  --accent: #ffc85a; --accent-ink: #2a1606;
+  --gold-hi: #fff4d0; --gold: #ffcc6a; --gold-lo: #8a5a1a; --leather: #2a1c32; --leather-lo: #170f1e; --rim: #7a5070;
+  --th-font: "Cinzel Decorative", "Cinzel", serif; --th-title: #ffe0a0; --th-glow: rgb(255 210 120 / .6); --th-glow2: rgb(255 130 170 / .5);
+  --th-panel: linear-gradient(180deg, #2e2038, #18101e); --th-btn: linear-gradient(180deg, #4a3050, #2a1a30); --th-btn-rim: #9a6a8a;
+  --th-primary: radial-gradient(ellipse 80% 100% at 50% 70%, #fffbe0, #ffd070 40%, #f08a6a 78%, #8a3a4a);
+  --th-bar: linear-gradient(90deg, #d86a8a, #ffc060 70%, #fff4c0); --th-tab: rgb(255 200 100);
+  --th-zone: linear-gradient(180deg, rgb(20 12 26 / .86), rgb(44 26 44 / .86));
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 112%, rgb(255 210 120 / .45), rgb(255 130 150 / .2) 50%, transparent 75%),
+    radial-gradient(1px 1px at 14% 12%, #fff 50%, transparent), radial-gradient(1px 1px at 40% 6%, #fff 50%, transparent), radial-gradient(1.5px 1.5px at 76% 14%, #fff 50%, transparent),
+    linear-gradient(#0e0a20, #2a1838 45%, #4a2440 80%, #6a3040);
+  background-attachment: fixed; }
+
+/* ---- Règles communes aux trois ---- */
+/* illustration du général en fond des menus, fondue vers le bas ; cachée en partie et sans illustration */
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"])::before { content: ''; position: fixed; inset: 0 0 auto 0; height: 70vh; z-index: -2; pointer-events: none;
+  background: var(--theme-perso, none) 50% 0 / cover no-repeat, var(--theme-decor, none) 50% 0 / cover no-repeat; opacity: .32;
+  -webkit-mask: linear-gradient(#000 20%, transparent); mask: linear-gradient(#000 20%, transparent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]):has(#app.ingame)::before { display: none; }
+
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) h2 { font-family: var(--th-font); font-weight: 400; letter-spacing: .04em; background: none; color: var(--th-title);
+  -webkit-background-clip: border-box; background-clip: border-box; text-shadow: 0 2px 0 #000, 0 0 14px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .top .title { font-family: var(--th-font); font-weight: 400; color: var(--th-title);
+  text-shadow: 0 2px 0 #000, 0 0 14px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .eyebrow { color: var(--gold); }
+
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) {
+  background: var(--th-panel); border-color: var(--rim); --lvfill: var(--th-panel);
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px color-mix(in srgb, var(--gold) 14%, transparent), inset 0 -30px 40px -30px var(--th-glow2), 0 6px 18px rgb(0 0 0 / .6); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .card-box::before { border-color: color-mix(in srgb, var(--gold) 22%, transparent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.card-box.booster.ready, .deckopt.sel, .tile.todo) { border-color: var(--accent);
+  box-shadow: 0 0 0 1px #000, 0 0 20px -4px var(--accent), inset 0 0 26px -10px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .tile b { font-family: var(--th-font); font-weight: 400; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .sheet { background: color-mix(in srgb, var(--sunk) 80%, transparent); }
+
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.btn, .seg button) { background: var(--th-btn); border-color: var(--th-btn-rim); color: var(--ink); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.btn.on, .seg button.on) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), inset 0 0 14px -4px var(--accent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .seg button.on { background: var(--th-primary); color: var(--accent-ink); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.btn.primary, .playbtn) { background: var(--th-primary); color: var(--accent-ink); border-color: #000;
+  text-shadow: 0 1px 0 rgb(255 255 255 / .4); box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 24px -4px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .playbtn { animation: playglow-th 3s ease-in-out infinite; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .playbtn > span { font-family: var(--th-font); font-weight: 400; letter-spacing: .06em; }
+@keyframes playglow-th { 0%, 100% { box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 24px -4px var(--th-glow); }
+  50% { box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 42px 0 var(--th-glow2); } }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .chip { background: var(--sunk); border-color: var(--rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(input, textarea, .field select) { background: var(--sunk); border-color: var(--rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .showcase { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6), 0 0 26px -6px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .sc-change { background: var(--th-btn); border-color: var(--accent); color: var(--gold-hi); }
+
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .tabbar { background: linear-gradient(180deg, var(--leather), var(--bg)); border-top-color: var(--th-btn-rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .tabbar button { color: var(--muted); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .tabbar button.on { color: var(--gold-hi); background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); text-shadow: 0 0 10px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .tabbar.slid::before { background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); box-shadow: inset 0 2px 0 var(--th-tab); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .tabbar button.on svg { filter: drop-shadow(0 0 6px var(--th-glow)); }
+
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .bar { background: var(--sunk); border-color: var(--rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .bar > span { background: var(--th-bar); box-shadow: 0 0 8px var(--th-glow); }
+
+/* en partie : zones aux couleurs du thème, cartes cerclées de sa lueur */
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]):has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, var(--leather), var(--bg) 70%), var(--bg); }
+body.staged:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]):has(#app.ingame) { background: var(--bg); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .zone { background: var(--th-zone); border-color: var(--line);
+  box-shadow: inset 0 0 22px #000, inset 0 -26px 30px -18px var(--th-glow2), 0 0 0 1px #000; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .terrain.set { background: var(--th-panel); border-color: var(--accent); color: var(--gold-hi); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .score .v { font-family: var(--th-font); font-weight: 400; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.hc, .mc) { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 4px 10px rgb(0 0 0 / .55), 0 0 10px -3px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .hc.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 0 18px 2px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .dock { background: linear-gradient(180deg, color-mix(in srgb, var(--leather) 60%, transparent), var(--sunk)); border-top-color: var(--th-btn-rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.tturn b, .tseals b) { color: var(--accent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .op { background: radial-gradient(circle at 50% 42%, var(--leather) 0, var(--leather-lo) 55%, #000 100%); }
+
+@media (prefers-reduced-motion: reduce) { body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .playbtn { animation: none; } }
+
+/* aperçus (personnalisation, boutique, récompenses) */
+.theme-eclipse.theme-swatch { background: radial-gradient(circle at 70% 35%, #000 0 6px, #ff7a2a 7px, rgb(255 60 20 / .4) 9px, transparent 13px), linear-gradient(#2a0a0a, #0a0507); }
+.theme-sylve.theme-swatch { background: radial-gradient(circle at 30% 40%, #e0ff90 0 1.5px, transparent 2.5px), radial-gradient(circle at 70% 65%, #a0ffc8 0 1.5px, transparent 2.5px),
+  linear-gradient(110deg, transparent 35%, rgb(230 255 180 / .15) 45%, transparent 55%), linear-gradient(#1a3a24, #07110b); }
+.theme-aube.theme-swatch { background: radial-gradient(ellipse 60% 50% at 50% 110%, #ffd070, #ff8aa0 50%, transparent 80%), linear-gradient(#1a1430, #4a2440 70%, #8a4050); }
+
+/* rayon Thèmes de la boutique : une carte par thème, son ciel et le général par-dessus */
+.themelist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.themeitem { display: grid; justify-items: center; gap: 8px; padding: 10px; text-align: center; border: 1px solid var(--line); border-radius: var(--r); background: color-mix(in srgb, #000 12%, var(--surface)); }
+.themeitem.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.themeitem .row { justify-content: center; gap: 6px; flex-wrap: wrap; }
+.themeitem .btn { display: inline-flex; align-items: center; gap: 4px; }
+.themeitem small.hint { font-size: 12px; }
+.theme-cover.theme-swatch { position: relative; width: 100%; height: 150px; border-radius: 6px; overflow: hidden; box-shadow: inset 0 0 0 1px #000, inset 0 0 20px rgb(0 0 0 / .6); }
+.theme-cover .tc-art { position: absolute; inset: 0; background-size: cover; background-position: 50% 15%; opacity: .85;
+  -webkit-mask: linear-gradient(#000 55%, transparent); mask: linear-gradient(#000 55%, transparent); }
+.theme-swatch.swatch { display: inline-block; width: 22px; height: 15px; vertical-align: -3px; margin-right: 4px; }

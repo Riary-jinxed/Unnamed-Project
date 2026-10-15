@@ -9,6 +9,10 @@ export const PALETTE = {
   '': { embers: [0xffa040, 0xffa040, 0xffe0a0], sparks: [0xff6a1a, 0xff6a1a, 0xffb040], hearth: 0xff7a2a, spark: [0xffd070, 0xfff2c0], fog: [0xa0b0c0, 0xd8b890] },
   halloween: { embers: [0xff8a2a, 0xb070ff, 0x7dffb0], sparks: [0xff6a10, 0x8a3cff, 0x40d080], hearth: 0x8a3cff, spark: [0xff8a2a, 0xc890ff], fog: [0x6a4a9a, 0x3a7a5a] },
   cyber: { embers: [0x19e6ff, 0xff2bd6, 0xfcee0a], sparks: [0x0aa0c0, 0xd42bb8, 0xc8b800], hearth: 0x19e6ff, spark: [0xfcee0a, 0x60f0ff], fog: [0x1a3a7a, 0x6a1a6a] },
+  // Thèmes à l'effigie d'un général (themes.js du moteur, themes.css) : braises de l'éclipse, lucioles des bois, poussière d'aube.
+  eclipse: { embers: [0xff5a1a, 0xff9a3a, 0xc81e1e], sparks: [0xd83a10, 0xff7a2a, 0x8a1010], hearth: 0xff4a1a, spark: [0xffb050, 0xffe0b0], fog: [0x5a1a1a, 0x3a1020] },
+  sylve: { embers: [0xc8ff80, 0x7dffb0, 0xfff0a0], sparks: [0x6ac040, 0x30a070, 0xc8c040], hearth: 0x8ae060, spark: [0xe0ffa0, 0xffffd0], fog: [0x3a6a4a, 0x7a9a5a] },
+  aube: { embers: [0xffd890, 0xffb0c8, 0xffffff], sparks: [0xffa040, 0xff7aa0, 0xffd060], hearth: 0xffb860, spark: [0xfff0c0, 0xffd0e0], fog: [0xc898b8, 0xffd8a0] },
 };
 export const palette = () => PALETTE[season()] || PALETTE[''];
 
@@ -21,6 +25,12 @@ const TABLE = {
     font: 'Creepster, Cinzel, serif', text: 0xff9a3a, stroke: 0x1a0612, band: 0x10081a, edge: 0x8a3cff, moon: true },
   cyber: { ground: 0x05070f, planks: null, seam: null, lamp: 0x19e6ff, low: 0xff2bd6, grid: 0x19e6ff,
     font: 'Orbitron, Rajdhani, sans-serif', text: 0xfcee0a, stroke: 0x05070f, band: 0x060a16, edge: 0x19e6ff },
+  eclipse: { ground: 0x0e0606, planks: [0x170a09, 0x130807], seam: 0x050202, lamp: 0xff6a2a, low: 0xb01a10, grid: null,
+    font: 'MedievalSharp, Cinzel, serif', text: 0xffb070, stroke: 0x1a0402, band: 0x0c0404, edge: 0xff4a1a },
+  sylve: { ground: 0x08120c, planks: [0x0f1d13, 0x0c1810], seam: 0x040904, lamp: 0xe0ffb0, low: 0x2a8a5a, grid: null,
+    font: 'Uncial Antiqua, Cinzel, serif', text: 0xe8ffc0, stroke: 0x061006, band: 0x06100a, edge: 0x9ad860 },
+  aube: { ground: 0x140e1a, planks: [0x1e1624, 0x1a1220], seam: 0x0a060c, lamp: 0xffd8a0, low: 0xff7aa0, grid: null,
+    font: 'Cinzel Decorative, Cinzel, serif', text: 0xfff0d0, stroke: 0x2a1020, band: 0x140a16, edge: 0xffc860 },
 };
 export const tableLook = () => TABLE[season()] || TABLE[''];
 
@@ -29,6 +39,9 @@ const SHOP = {
   '': { velvet: ['#6a1a2a', '#1e060c'], awning: [0x8e1f1f, 0xe9d6a8], warm: 0xffb050, flame: 0xfff0c0, glow: 0xffd8a0 },
   halloween: { velvet: ['#4a1c70', '#14061f'], awning: [0x4b1f6b, 0xd8701e], warm: 0xb070ff, flame: 0xd8b0ff, glow: 0xc8a0ff },
   cyber: { velvet: ['#0e1c40', '#03050b'], awning: [0x05070f, 0xfcee0a], warm: 0x19e6ff, flame: 0xb0f8ff, glow: 0xff2bd6 },
+  eclipse: { velvet: ['#5a0e0e', '#140303'], awning: [0x1a0606, 0xd8401a], warm: 0xff6a2a, flame: 0xffc080, glow: 0xff8a50 },
+  sylve: { velvet: ['#1a4a2a', '#06140a'], awning: [0x2a5a2a, 0xd8d090], warm: 0xc8f080, flame: 0xf0ffd0, glow: 0xd0f0a0 },
+  aube: { velvet: ['#6a2a5a', '#1e0a1c'], awning: [0xd890a8, 0xfff0d8], warm: 0xffc070, flame: 0xfff4d8, glow: 0xffd8b0 },
 };
 export const shopColors = () => SHOP[season()] || SHOP[''];
 
