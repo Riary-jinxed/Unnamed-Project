@@ -1571,7 +1571,8 @@ function familyHTML(sh) {
     <p class="hint" style="margin:0">${tp(F.every - F.progress, 'Encore {n} booster à ouvrir pour gagner un booster de famille : vous choisirez la famille de ses cartes.', 'Encore {n} boosters à ouvrir pour gagner un booster de famille : vous choisirez la famille de ses cartes.')}</p></section>`;
   return `<section class="card-box famboost ready"><div><span class="eyebrow">${tp(F.boosters, '{n} booster de famille à ouvrir', '{n} boosters de famille à ouvrir')}</span><h2 style="font-size:22px">${t('Booster de famille')}</h2></div>
     <p class="hint" style="margin:0">${t('Choisissez une famille : ses {n} cartes ne viendront que d\'elle, dont au moins une qui vous manque s\'il en reste.', { n: sh.prices.boosterSize })}</p>
-    <ul class="famlist">${F.fams.map(x => `<li style="${famStyle(x.fam)}"><button data-act="family-booster" data-fam="${esc(x.fam)}" ${ui.busy ? 'disabled' : ''} aria-label="${t('Ouvrir un booster de famille {fam}', { fam: esc(t(x.fam)) })}">
+    <button class="famtoggle${ui.famOpen ? ' open' : ''}" data-act="fam-toggle" aria-expanded="${!!ui.famOpen}" aria-controls="famlist">${t('Choisir une famille')}<i class="chev" aria-hidden="true"></i></button>
+    <ul class="famlist" id="famlist" ${ui.famOpen ? '' : 'hidden'}>${F.fams.map(x => `<li style="${famStyle(x.fam)}"><button data-act="family-booster" data-fam="${esc(x.fam)}" ${ui.busy ? 'disabled' : ''} aria-label="${t('Ouvrir un booster de famille {fam}', { fam: esc(t(x.fam)) })}">
       <i class="famdot" aria-hidden="true"></i><span class="famname">${esc(t(x.fam))}</span>
       <span class="famown"><span class="bar" aria-hidden="true"><span style="width:${pct(x.owned, x.size)}%"></span></span><small class="num">${x.owned}/${x.size}</small></span>
       <span class="famgo">${t('Ouvrir')}</span></button></li>`).join('')}</ul></section>`;
@@ -2716,7 +2717,8 @@ app.addEventListener('click', e => {
     else if (a === 'buy-card' && !ui.busy) { const go = () => buy('/api/shop/card', { set: ds.set, card: ds.id }); if (!lacksShards(ui.shop?.prices.cardPrice, t('acheter'), go)) go(); }
     else if (a === 'buy-booster' && !ui.busy) { const go = () => buy('/api/shop/booster', { set: ds.set }); if (!lacksShards(boosterPriceOf(ds.set), t('acheter'), go)) go(); }
     else if (a === 'free-booster' && !ui.busy) buy('/api/shop/booster', { set: ds.set, free: true });
-    else if (a === 'family-booster' && !ui.busy) buy('/api/shop/family-booster', { fam: ds.fam });
+    else if (a === 'fam-toggle') { ui.famOpen = !ui.famOpen; render(); }
+    else if (a === 'family-booster' && !ui.busy) { ui.famOpen = false; buy('/api/shop/family-booster', { fam: ds.fam }); }
     else if (a === 'buy-art' && !ui.busy) buyArt('/api/shop/art', { art: ds.id });
     else if (a === 'chest' && !ui.busy) buyArt('/api/shop/chest', {});
     else if (a === 'chest-free' && !ui.busy) buyArt('/api/shop/chest', { free: true });

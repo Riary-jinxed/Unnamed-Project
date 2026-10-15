@@ -211,6 +211,7 @@ export default {
   "Bientôt disponible": "Coming soon",
   "Doublons du jour": "Daily duplicates",
   "Booster de famille": "Family booster",
+  "Choisir une famille": "Choose a family",
   "Ouvrir un booster de famille {fam}": "Open a {fam} family booster",
   "Encore {n} booster à ouvrir pour gagner un booster de famille : vous choisirez la famille de ses cartes.": "{n} more booster to open to earn a family booster: you will pick the family of its cards.",
   "Encore {n} boosters à ouvrir pour gagner un booster de famille : vous choisirez la famille de ses cartes.": "{n} more boosters to open to earn a family booster: you will pick the family of its cards.",

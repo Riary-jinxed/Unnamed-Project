@@ -1234,6 +1234,11 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
   box-shadow: 0 2px 8px rgb(0 0 0 / .35); white-space: nowrap; opacity: .92; }
 /* Booster de famille : compteur, puis liste des familles (une ligne à sa couleur par famille, cartes possédées sur le total). */
 .famboost.ready { border-color: var(--accent); }
+.famtoggle { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--sunk); border: 1px solid var(--line); border-radius: var(--r); color: var(--ink); font-weight: 600; }
+.famtoggle .chev { width: 9px; height: 9px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-3px); transition: transform .2s; }
+.famtoggle.open { border-color: var(--accent); }
+.famtoggle.open .chev { transform: rotate(-135deg) translateY(-3px); }
+.famlist[hidden] { display: none; }
 .famlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 360px; overflow-y: auto; }
 .famlist button { width: 100%; display: grid; grid-template-columns: auto 1fr minmax(90px, 40%) auto; align-items: center; gap: 10px; padding: 10px 12px;
   background: var(--sunk); border: 1px solid var(--line); border-left: 4px solid var(--fam); border-radius: var(--r); color: var(--ink); text-align: left; }
