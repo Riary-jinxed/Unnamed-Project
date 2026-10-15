@@ -2252,7 +2252,7 @@ function viewEffects(prev, view) {
     const was = zoneSide(prev, z), now = zoneSide(view, z);
     if (now && now !== was) { swing = true; after.push(() => zoneGlow(at(`.zone[data-z="${z}"]`), SIDES[now])); }
   }
-  // Rien ne va plus : chaque dé lancé roule sur la carte qui parie (ou sur sa zone, pour un sort ou un terrain), un après l'autre.
+  // Faites vos jeux : chaque dé lancé roule sur la carte qui parie (ou sur sa zone, pour un sort ou un terrain), un après l'autre.
   // Les 3 Sept d'un joueur en jeu : la machine à sous du Jackpot.
   for (const side of ['me', 'foe']) {
     const last = Math.max(0, ...(prev[side].rolls || []).map(r => r.n)), fresh = (view[side].rolls || []).filter(r => r.n > last);

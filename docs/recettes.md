@@ -49,7 +49,7 @@ Une carte ne doit jamais être retirée du code tant que des joueurs la possède
 1. Cartes et généraux avec `set: 'set3'` dans `engine.js`.
 2. Une entrée à la fin de `DEFAULT_SETS` (`packages/engine/src/collection.js`) : nom, `open: false` tant qu'il n'est pas en vente, `daily`, présentation (`teaser`), `boosterExtra` (Éclats ajoutés au prix d'un booster pour ce set : 50 pour Crépuscule), et `reveal: 'AAAA-MM-JJ'` pour le dévoiler à une date (heure de Paris) : avant, ses cartes, généraux, terrains, decks d'IA, récompenses et entrées du codex restent cachés et le set n'est pas en vente, même ouvert. La date se règle aussi dans l'onglet Sets de `/admin` (« Sortie le »). En boutique, les sets ouverts vont du plus récent (le dernier de la liste) au plus ancien, et le plus récent porte « Nouveau ». Une fois un catalogue publié, l'ouverture du set et son supplément se règlent dans l'onglet Sets de `/admin`.
    Ses cartes montrent un visuel provisoire tant que leurs illustrations manquent (voir `client/src/art/LISEZMOI.md`).
-   Un mini-set (une poignée de cartes entre deux sets, comme « Rien ne va plus ») prend `mini: true` : seul le set complet est récompensé, pas chaque famille.
+   Un mini-set (une poignée de cartes entre deux sets, comme « Faites vos jeux ») prend `mini: true` : seul le set complet est récompensé, pas chaque famille.
 3. Récompenses de complétion (`packages/engine/src/rewards.js`) : une ligne par famille du set dans `FAMILY_REWARDS` (carte unique avec `set: 'recompense'`, titre, dos de carte), une entrée dans `SET_REWARDS` (carte Dieu, titre, cadre), et les nouveaux noms dans `BACKS` et `FRAMES`. Les dos et cadres ont leur style dans `client/src/style.css` (`.mc.back.back-<id>`, `.frame-<id>`).
 
 ## Ajouter un art alternatif

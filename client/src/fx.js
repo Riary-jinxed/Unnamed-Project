@@ -150,7 +150,7 @@ function reelHost(block) {
   return h;
 }
 
-// Rien ne va plus : un dé roule sur la carte (ou la zone) qui parie et tombe sur `v`. tone : 'me' ou 'foe'.
+// Faites vos jeux : un dé roule sur la carte (ou la zone) qui parie et tombe sur `v`. tone : 'me' ou 'foe'.
 const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
 const face = v => Array.from({ length: 9 }, (_, i) => `<i${PIPS[v].includes(i) ? ' class="on"' : ''}></i>`).join('');
 export function diceRoll(el, v, tone = 'me', delay = 0) {

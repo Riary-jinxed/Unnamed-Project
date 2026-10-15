@@ -51,7 +51,7 @@ export const CODEX = [
     { name: t('Sortilège'), fam: 'Elfe', text: t('Se déclenche quand vous révélez un sort, dans n\'importe quelle zone.'), ex: ['apprentie', 'mage_bois'] },
   ] },
   // set : groupe caché avant la sortie de son set.
-  { id: 'tapis', set: 'tapis', title: t('Mots-clés de Rien ne va plus'), items: [
+  { id: 'tapis', set: 'tapis', title: t('Mots-clés de Faites vos jeux'), items: [
     { name: t('Pari'), text: t('Pari : à la révélation, on lance un dé à 6 faces. L\'effet dépend du résultat : 1-2, 3-5 ou 6. Le dé roule sur la carte qui parie.'), ex: ['joueuse_des', 'flambeur', 'quitte_double'] },
     { name: t('Dés pipés'), text: t('Certaines cartes pipent vos prochains dés : ils font 6 sans être lancés. D\'autres trichent sur le deck et vous font piocher la carte voulue.'), ex: ['des_pipes', 'croupier', 'cartes_biseautees'] },
     { name: t('Sept et Jackpot'), text: t('Il y a trois Sept neutres : le Sept de pique, le Sept de trèfle et le Sept de carreau. Tous les decks peuvent les jouer. La première fois que vos 3 Sept sont en jeu en même temps, c\'est le Jackpot : vos créatures gagnent +2, et les effets « Jackpot » de vos cartes se déclenchent. Une fois par partie.'), ex: ['sept_pique', 'sept_trefle', 'sept_carreau'] },
