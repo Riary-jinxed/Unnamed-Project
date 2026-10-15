@@ -1015,6 +1015,80 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .lobby .card-box.booster { padding: 8px 10px 8px 14px; gap: 8px; }
 .lobby .card-box.booster h2 { font-size: 17px; }
 
+/* Accueil refait : le jeu (vitrine, Jouer), le quotidien (rangée d'icônes), les modes de jeu (tuiles illustrées), la progression (lignes).
+   Téléphone : une seule colonne, .home-play et .home-side s'effacent (display: contents) et le cadeau du jour remonte tout en haut. */
+.home { gap: 12px; }
+.home-play, .home-side { display: contents; }
+.home .card-box.booster, .home .nw-banner { order: -1; }
+.home .showcase { height: clamp(210px, 36dvh, 400px); }
+.home-sec { display: grid; gap: 8px; }
+.home-h { margin: 4px 2px 0; font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 10px; }
+.home-h::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--rim, var(--line)), transparent); }
+/* Passe de saison : bandeau en vue, aux couleurs de la saison (--sa, --sb), un art Promo de la saison à droite. */
+.passband { position: relative; overflow: hidden; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px;
+  padding: 14px 14px 12px; border-radius: 10px; text-align: left; color: inherit; font: inherit; border: 2px solid color-mix(in srgb, var(--sa) 70%, #000);
+  background: linear-gradient(115deg, color-mix(in srgb, var(--sb) 55%, #000) 0%, color-mix(in srgb, var(--sb) 30%, #000) 45%, color-mix(in srgb, var(--sa) 35%, #000));
+  box-shadow: 0 0 0 1px #000, 0 6px 18px rgb(0 0 0 / .5), 0 0 22px -6px var(--sa), inset 0 0 0 1px rgb(255 255 255 / .08); transition: transform .08s; }
+.passband:active { transform: translateY(2px); }
+.pb-art { position: absolute; inset: 0 0 0 38%; z-index: -1; opacity: .7; -webkit-mask-image: linear-gradient(90deg, transparent, #000 55%); mask-image: linear-gradient(90deg, transparent, #000 55%); }
+.pb-art .gport-art { position: absolute; inset: 0; overflow: hidden; }
+.pb-art .gport-art img { position: absolute; left: 50%; top: 50%; width: 180%; transform: translate(calc(var(--fx) * -1%), calc(var(--fy) * -1%)); height: auto; max-width: none; }
+.passband::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(90deg, rgb(0 0 0 / .45), transparent 70%); }
+.pb-txt { display: grid; gap: 2px; min-width: 0; }
+.pb-txt .eyebrow { color: color-mix(in srgb, var(--sa) 75%, #fff); }
+.pb-txt b { font-family: var(--display); font-size: clamp(20px, 5.6vw, 28px); line-height: 1.1; color: #fff; text-shadow: 0 2px 6px #000; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; text-wrap: balance; }
+.pb-txt small { font-size: 13px; color: rgb(255 255 255 / .85); text-shadow: 0 1px 3px #000; }
+.pb-tier { display: grid; place-items: center; align-content: center; width: 64px; height: 64px; border-radius: 50%; line-height: 1;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--sa) 60%, #fff), var(--sa) 55%, color-mix(in srgb, var(--sa) 50%, #000));
+  border: 2px solid #000; box-shadow: 0 0 0 2px color-mix(in srgb, var(--sa) 50%, #fff), 0 0 18px -2px var(--sa); color: #1a0d02; }
+.pb-tier b { font-family: var(--display); font-size: 26px; }
+.pb-tier small { font-size: 11px; font-weight: 700; opacity: .8; }
+.passband .bar { grid-column: 1 / -1; height: 8px; background: rgb(0 0 0 / .55); }
+.passband .bar span { background: linear-gradient(90deg, var(--sb), var(--sa)); }
+.pb-foot { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: rgb(255 255 255 / .8); text-shadow: 0 1px 3px #000; }
+.pb-go { font-weight: 700; color: color-mix(in srgb, var(--sa) 70%, #fff); }
+/* Quotidien : une icône ronde par chose à faire chaque jour, une pastille quand une récompense attend. */
+.quick { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 88px); justify-content: start; gap: 6px; }
+.qk { display: grid; justify-items: center; gap: 2px; min-width: 0; padding: 4px 2px; border: 0; background: none; color: inherit; font: inherit; text-align: center; }
+.qk-ico { position: relative; display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%; color: var(--gold-hi, var(--ink));
+  border: 2px solid var(--rim, var(--line)); background: radial-gradient(circle at 50% 30%, var(--leather, var(--surface)), var(--leather-lo, var(--bg)));
+  box-shadow: 0 0 0 1px #000, 0 4px 10px rgb(0 0 0 / .45), inset 0 0 0 2px rgb(255 255 255 / .05); transition: transform .08s; }
+.qk:active .qk-ico { transform: translateY(2px); }
+.qk.todo .qk-ico { border-color: var(--accent); box-shadow: 0 0 0 1px #000, 0 0 14px -2px var(--accent); }
+.qk-dot { position: absolute; top: -3px; right: -3px; min-width: 12px; height: 12px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #e0402a; border: 2px solid var(--bg);
+  font-size: 11px; font-weight: 700; line-height: 1; color: #fff; display: grid; place-items: center; }
+.qk-dot.num { min-width: 20px; height: 20px; top: -6px; right: -8px; }
+.qk b { font-size: 12.5px; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qk small { font-size: 11px; line-height: 1.2; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qk.todo small { color: var(--accent); font-weight: 700; }
+/* Modes de jeu : tuiles plus hautes, l'illustration (quête, boss) y prend plus de place. Une tuile seule sur sa ligne s'étale. */
+.tiles.modes .tile { min-height: 118px; }
+.tiles.modes > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+.tiles.modes > :last-child:nth-child(odd) :is(.btile-art, .stile-art) { inset-inline-start: 55%; }
+.rtile .tile-foot .rank { font-family: var(--display); font-size: 14px; }
+.rtile .tile-foot .rstars { color: var(--gold, var(--accent)); }
+/* Progression : passe et niveau en lignes (titre à gauche, palier à droite, jauge dessous). */
+.hrows { display: grid; gap: 8px; }
+.tile.hrow { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px 10px; padding: 10px 12px; }
+.hrow-txt { display: grid; gap: 2px; min-width: 0; }
+.hrow b { font-size: 18px; -webkit-line-clamp: 1; line-clamp: 1; }
+.hrow-end { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.hrow .bar { grid-column: 1 / -1; }
+/* Ordinateur : le jeu à gauche (il reste en place au défilement), le quotidien, les modes et la progression à droite. */
+@media (min-width: 960px) {
+  #app:has(> .home) { max-width: 1180px; }
+  .home { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; gap: 20px; }
+  .home-play, .home-side { display: grid; gap: 12px; align-content: start; }
+  .home-play { position: sticky; top: 12px; }
+  .home .showcase { height: clamp(320px, calc(100dvh - 330px), 620px); }
+  .home .playbtn { padding: 16px; }
+  .home .playbtn span { font-size: 36px; }
+  .tiles.modes .tile { min-height: 132px; }
+  .pb-txt b { font-size: 30px; }
+  .pb-tier { width: 76px; height: 76px; } .pb-tier b { font-size: 30px; }
+}
+
 /* Classement : un joueur s'ouvre en pop-up (profil public) ; le top 10 montre son image et son cadre. */
 .ladder .lwho { display: flex; align-items: center; gap: 10px; min-width: 0; border: 0; background: none; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .ladder .lwho:hover b, .ladder .lwho:focus-visible b { text-decoration: underline; }
