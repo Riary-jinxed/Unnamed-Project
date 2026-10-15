@@ -45,14 +45,13 @@ export function themeShopHTML(app) {
     const tryBtn = own ? '' : tryThemeHTML(ui, id);
     return `<li class="themeitem ${cur ? 'on' : ''}">${themeCover(id)}<b>${esc(name)}</b><div class="row">${tryBtn}${act}</div></li>`;
   };
-  const elsewhere = Object.keys(EXTRA_THEMES).filter(id => WHERE[themeShop(id)]), won = Object.keys(EXTRA_THEMES).filter(id => !themeShop(id));
+  const elsewhere = Object.keys(EXTRA_THEMES).filter(id => WHERE[themeShop(id)]);
   return `<section class="card-box shopset themeshop">
     <div><span class="eyebrow">${t('Cosmétique')}</span><h2 style="font-size:22px">${t('Thèmes de l\'interface')}</h2></div>
     <p class="hint" style="margin:0">${t('Habillez toute l\'appli aux couleurs d\'un général : menus, boutons, table de partie, et son portrait en fond. « Essayer » le montre ici sans l\'acheter. Un thème acheté est aussitôt choisi ; changez-en quand vous voulez dans votre profil, rubrique Personnalisation.')}</p>
     ${ui.msg && !ui.sheet ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
     <ul class="themelist">${SHOP_THEMES.map(item).join('')}</ul>
     ${elsewhere.length ? `<div class="gal-h">${t('Dans les autres boutiques')}</div><ul class="themelist">${elsewhere.map(item).join('')}</ul>` : ''}
-    ${won.length ? `<div class="gal-h">${t('À gagner avec les succès')}</div><ul class="themelist">${won.map(item).join('')}</ul>` : ''}
     <p class="hint" style="margin:0">${t('Les thèmes de saison se débloquent au palier 12 de la piste gratuite de leur passe.')}</p>
   </section>`;
 }
