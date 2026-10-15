@@ -86,13 +86,31 @@ instrumental halloween boss battle theme for a card game, the pumpkin king's mad
 
 ## 9. Boss de l'Éclipse (`boss-eclipse`)
 
-Ignaroth sous l'éclipse, dans l'esprit d'un boss final de Dark Souls ou d'Elden Ring (par exemple Heolstor, le Seigneur de la nuit) : grand orchestre gothique, chœur latin massif, tragique plus que bruyant, avec un thème qui revient comme une fatalité. Ne pas écrire le nom des jeux dans Suno : il refuse les références à des œuvres existantes, le style ci-dessous les décrit. Titre : « Soleil noir ».
+Ignaroth sous l'éclipse, dans le style du thème de Heolstor (Elden Ring Nightreign), lui-même proche de celui de Gael (Dark Souls III). Ce qui fait ce style : une ouverture à la harpe seule, belle et désolée ; des cordes qui montent en crescendo et installent le rythme ; puis des cordes bondissantes et frénétiques à trois temps, un grand chœur mixte majestueux et des cuivres, tragique plus que brutal. Pas d'orgue ni de cloches au premier plan, pas de percussions modernes. Ne pas écrire le nom des jeux dans Suno : il refuse les références à des œuvres existantes. Titre : « Soleil noir ».
+
+Style :
 
 ```
-instrumental dark fantasy final boss theme for a card game, gothic orchestral requiem, massive latin-style choir chanting wordless syllables (no lyrics), tragic minor key leitmotif on low strings and horns, thundering timpani and bass drum, sweeping violin tremolo, cathedral pipe organ, deep tolling bells, solemn then furious, fallen god under a black sun eclipse, grand and sorrowful, 3/4 waltz-like pulse, 130 bpm, constant intensity without a final ending, seamless loop, video game boss music
+tragic dark fantasy final boss orchestral theme, live symphony orchestra and large mixed choir, opens with a lonely solo harp and a mournful solo violin, beautiful and forlorn, slow strings crescendo building the rhythm, then a frantic galloping string ostinato in 6/8, prancing violins, majestic wordless choir in latin-like syllables, heroic horns and trombones, timpani rolls, melancholic minor key, sorrowful grandeur of a fallen god, cinematic, no electronic sounds, no modern drums, no guitar
 ```
 
-Ici le chœur est voulu : laisser **Instrumental** désactivé, mettre seulement `[Instrumental]` dans les paroles, et retirer `choir lyrics` d'Exclure si Suno le supprime. S'il chante des vrais mots, réactiver Instrumental. Trop chargé derrière le jeu : ajouter `restrained mix, choir in the background`.
+Paroles (le champ des paroles sert ici à poser la structure ; Instrumental désactivé) :
+
+```
+[Intro: solo harp, soft violin, forlorn]
+
+[Build: strings crescendo, choir enters softly]
+
+[Main theme: frantic galloping strings, full choir, brass]
+
+[Instrumental break: prancing violins, timpani]
+
+[Climax: full orchestra and choir, tragic and majestic]
+
+[Main theme: frantic galloping strings, full choir, brass]
+```
+
+Garder la version qui monte vite : l'intro à la harpe sera raccourcie au montage (au moment du découpage, je ne garde que 5 à 10 secondes avant la montée, et la boucle repart sur la partie rapide). Si Suno chante de vrais mots, ajouter `choir vowels only, aah ooh` au style. Trop lent : ajouter `fast tempo 160 bpm, relentless`.
 
 ## 10. Boss de Néon 2099 (`boss-neon`)
 
