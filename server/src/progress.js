@@ -583,14 +583,16 @@ export function createProgress(store) {
     if (set.length < EMOTE_SLOTS) a.emoteSet = [...set, emote];
     return emote;
   }
-  // Thème de l'interface du rayon Thèmes (themes.js), en Éclats ou en Prismes. Le thème acheté est aussitôt choisi.
+  // Thème de l'interface (themes.js) du rayon Thèmes (Éclats ou Prismes) ou du rayon Essence (essence universelle). Ceux du magasin
+  // du boss passent par boss.js. Le thème acheté est aussitôt choisi.
   function buyTheme(a, { theme } = {}) {
     const x = EXTRA_THEMES[theme];
-    if (!x || !(x.price || x.prisms)) throw new HttpError(400, msg('Ce thème n\'est pas en vente.'));
+    if (!x || !(x.price || x.prisms || x.essence)) throw new HttpError(400, msg('Ce thème n\'est pas en vente.'));
     if (!a.cosmetics) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     if (a.cosmetics.themes?.includes(theme)) throw new HttpError(409, msg('Vous avez déjà ce thème.'));
-    const [k, cost] = x.prisms ? ['prisms', x.prisms] : ['shards', x.price];
-    if ((a[k] || 0) < cost) throw new HttpError(409, msg(x.prisms ? 'Il vous faut {price} Prismes (vous en avez {have}).' : 'Il vous faut {price} Éclats (vous en avez {have}).', { price: cost, have: a[k] || 0 }));
+    const [k, cost, need] = x.prisms ? ['prisms', x.prisms, 'Il vous faut {price} Prismes (vous en avez {have}).']
+      : x.essence ? ['uniEssence', x.essence, 'Il vous faut {price} essence universelle (vous en avez {have}).'] : ['shards', x.price, 'Il vous faut {price} Éclats (vous en avez {have}).'];
+    if ((a[k] || 0) < cost) throw new HttpError(409, msg(need, { price: cost, have: a[k] || 0 }));
     a[k] = (a[k] || 0) - cost;
     (a.cosmetics.themes ||= []).push(theme);
     a.uiTheme = theme;

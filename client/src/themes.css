@@ -280,6 +280,77 @@ body[data-season="estampe"] .dock { background: linear-gradient(180deg, rgb(239 
 body[data-season="estampe"] .op { background: radial-gradient(circle at 50% 42%, #f8f0dc, #e4d4b0); }
 @media (prefers-reduced-motion: reduce) { body[data-season="estampe"]::after { animation: none; } }
 
+/* ---- Bois de Sylvaën, plus loin ---- */
+/* rais de lumière qui filtrent de la canopée et ondulent lentement (cachés en partie : la table a les siens) */
+body[data-season="sylve"]::after { content: ''; position: fixed; inset: -10% -20%; z-index: -1; pointer-events: none;
+  background: repeating-linear-gradient(108deg, transparent 0 9%, rgb(230 255 170 / .07) 10% 13%, transparent 14% 22%, rgb(230 255 170 / .045) 23% 24.5%, transparent 25.5% 34%);
+  -webkit-mask: linear-gradient(#000, transparent 85%); mask: linear-gradient(#000, transparent 85%); animation: sylve-rays 14s ease-in-out infinite alternate; }
+@keyframes sylve-rays { from { translate: -3% 0; opacity: .7; } to { translate: 3% 0; opacity: 1; } }
+body[data-season="sylve"]:has(#app.ingame)::after { display: none; }
+body[data-season="sylve"]::before { opacity: .4; }
+/* titres : vert vivant qui luit comme la mousse au crépuscule, et respire */
+body[data-season="sylve"] :is(h2, .top .title) { background: linear-gradient(180deg, #f4ffd0 5%, #b8e870 45%, #5aa040 90%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: none; filter: drop-shadow(0 2px 0 #021006) drop-shadow(0 0 8px rgb(170 240 100 / .45)); animation: sylve-breathe 5s ease-in-out infinite; }
+@keyframes sylve-breathe { 0%, 100% { filter: drop-shadow(0 2px 0 #021006) drop-shadow(0 0 6px rgb(170 240 100 / .35)); } 50% { filter: drop-shadow(0 2px 0 #021006) drop-shadow(0 0 14px rgb(170 255 120 / .7)); } }
+body[data-season="sylve"] .eyebrow { color: #d8e890; }
+/* panneaux : une branche feuillue posée dans le coin en haut à droite (loin des titres), et un liseré de mousse en bas */
+body[data-season="sylve"] :is(.card-box, .tile) { position: relative; }
+body[data-season="sylve"] :is(.card-box:not(.showcase, .booster), .tile)::after { content: ''; position: absolute; top: -8px; right: -8px; width: 50px; height: 40px; pointer-events: none; scale: -1 1;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 58 46'%3E%3Cpath d='M2 6 C14 10 26 14 44 30' stroke='%235a3a1c' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3Cg fill='%2378c048'%3E%3Cpath d='M12 9 C10 1 18 -1 20 4 C18 8 15 10 12 9z'/%3E%3Cpath d='M20 13 C24 20 18 25 15 21 C15 17 17 14 20 13z'/%3E%3Cpath d='M28 17 C28 8 37 8 37 13 C35 17 31 18 28 17z'/%3E%3C/g%3E%3Cg fill='%23a8e070'%3E%3Cpath d='M35 24 C39 31 34 36 30 32 C30 28 32 25 35 24z'/%3E%3Cpath d='M5 6 C2 0 8 -2 10 2 C9 5 7 6 5 6z'/%3E%3Cpath d='M42 27 C46 20 53 24 51 29 C48 31 45 30 42 27z'/%3E%3C/g%3E%3C/svg%3E") 0 0 / contain no-repeat;
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / .6)); }
+body[data-season="sylve"] :is(.card-box, .tile, .pbar) { box-shadow: inset 0 0 0 1px #000, inset 0 -3px 0 #3a6a2a, inset 0 -14px 18px -10px rgb(140 220 90 / .35), 0 6px 18px rgb(0 0 0 / .6); }
+/* bouton Jouer : bois vivant, écorce sombre, sève lumineuse qui court sous la mousse */
+body[data-season="sylve"] #app .playbtn { background: radial-gradient(ellipse 80% 60% at 50% 110%, rgb(200 255 120 / .55), transparent 70%),
+  repeating-linear-gradient(90deg, rgb(0 0 0 / .14) 0 3px, transparent 3px 11px), linear-gradient(180deg, #6aa040, #3a7024 50%, #1e4612);
+  color: #f4ffd8; border: 1px solid #a8e070; box-shadow: inset 0 2px 0 rgb(240 255 200 / .35), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 26px -4px rgb(170 240 100 / .6); }
+body[data-season="sylve"] .playbtn > span { color: #f4ffd8; text-shadow: 0 2px 0 #0a2006, 0 0 12px rgb(200 255 120 / .7); }
+body[data-season="sylve"] .playbtn > small { color: #d8f0b0; }
+@keyframes sylve-sap { to { background-position: 200% 0; } }
+body[data-season="sylve"] .bar > span { background: linear-gradient(90deg, #2a6a2a, #8ae060 30%, #f0ffb0 45%, #8ae060 60%, #2a6a2a) 0 0 / 200% 100%; animation: sylve-sap 5s linear infinite; }
+body[data-season="sylve"] .tabbar { box-shadow: 0 -1px 0 #6aa040, 0 -10px 24px -10px rgb(170 240 100 / .5); }
+body[data-season="sylve"] .zone { box-shadow: inset 0 0 22px #000, inset 0 -30px 30px -18px rgb(120 210 80 / .4), 0 0 0 1px #000; }
+@media (prefers-reduced-motion: reduce) { body[data-season="sylve"]::after, body[data-season="sylve"] :is(h2, .top .title, .bar > span) { animation: none; } }
+
+/* ---- Aube de Séraphine, plus loin ---- */
+/* gloire de rayons qui tournent lentement depuis le bas, et une mer de nuages roses (cachés en partie : la table a les siens) */
+body[data-season="aube"]::after { content: ''; position: fixed; left: 50%; bottom: -60vmax; width: 140vmax; aspect-ratio: 1; translate: -50% 0; z-index: -1; pointer-events: none;
+  background: repeating-conic-gradient(rgb(255 230 170 / .09) 0 4deg, transparent 4deg 11deg);
+  -webkit-mask: radial-gradient(circle, #000 20%, transparent 70%); mask: radial-gradient(circle, #000 20%, transparent 70%); animation: eclipse-sun 90s linear infinite; }
+body[data-season="aube"] #app::before { content: ''; position: fixed; inset: auto 0 0 0; height: 140px; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse 22% 60% at 10% 100%, rgb(255 236 240 / .55), transparent 70%), radial-gradient(ellipse 26% 70% at 38% 100%, rgb(255 226 200 / .5), transparent 70%),
+    radial-gradient(ellipse 24% 60% at 66% 100%, rgb(255 236 240 / .55), transparent 70%), radial-gradient(ellipse 22% 70% at 92% 100%, rgb(255 220 190 / .5), transparent 70%);
+  animation: aube-clouds 18s ease-in-out infinite alternate; }
+@keyframes aube-clouds { from { translate: -2% 0; } to { translate: 2% 0; } }
+body[data-season="aube"]:has(#app.ingame)::after, body[data-season="aube"] #app.ingame::before { display: none; }
+body[data-season="aube"]::before { opacity: .42; }
+/* titres d'or blanc, auréolés */
+body[data-season="aube"] :is(h2, .top .title) { background: linear-gradient(180deg, #fffdf0 10%, #ffe090 55%, #e8a850 95%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: none; filter: drop-shadow(0 1px 0 #3a1a2a) drop-shadow(0 0 10px rgb(255 230 160 / .65)); }
+body[data-season="aube"] .eyebrow { color: #ffb8c8; text-shadow: 0 0 8px rgb(255 150 180 / .45); }
+/* panneaux : filigrane d'or aux quatre coins et lueur nacrée */
+body[data-season="aube"] :is(.card-box, .tile) { position: relative; }
+body[data-season="aube"] :is(.card-box:not(.showcase), .tile)::after { content: ''; position: absolute; inset: 5px; pointer-events: none; --c: rgb(255 214 130 / .85);
+  background: linear-gradient(var(--c), var(--c)) 0 0 / 16px 1.5px, linear-gradient(var(--c), var(--c)) 0 0 / 1.5px 16px,
+    linear-gradient(var(--c), var(--c)) 100% 0 / 16px 1.5px, linear-gradient(var(--c), var(--c)) 100% 0 / 1.5px 16px,
+    linear-gradient(var(--c), var(--c)) 0 100% / 16px 1.5px, linear-gradient(var(--c), var(--c)) 0 100% / 1.5px 16px,
+    linear-gradient(var(--c), var(--c)) 100% 100% / 16px 1.5px, linear-gradient(var(--c), var(--c)) 100% 100% / 1.5px 16px,
+    radial-gradient(circle, var(--c) 0 2px, transparent 2.5px) 4px 4px / 8px 8px, radial-gradient(circle, var(--c) 0 2px, transparent 2.5px) calc(100% - 4px) 4px / 8px 8px;
+  background-repeat: no-repeat; }
+body[data-season="aube"] :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) { box-shadow: inset 0 0 0 1px #000, inset 0 0 22px -6px rgb(255 220 200 / .3), inset 0 -30px 40px -30px rgb(255 140 170 / .35), 0 6px 18px rgb(0 0 0 / .5); }
+/* bouton Jouer : lumière blanche et or, deux ailes déployées de chaque côté du texte */
+body[data-season="aube"] #app .playbtn { background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 40'%3E%3Cg fill='%23b8742a' fill-opacity='.55'%3E%3Cpath d='M58 34 C40 30 22 20 4 6 C14 8 26 12 34 14 C26 10 20 6 14 2 C30 6 46 16 58 34z'/%3E%3Cpath d='M58 34 C44 32 30 28 16 20 C26 22 36 24 42 24 C34 20 28 16 24 12 C38 16 50 24 58 34z'/%3E%3C/g%3E%3C/svg%3E") 6% 50% / 64px 44px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 40'%3E%3Cg fill='%23b8742a' fill-opacity='.55'%3E%3Cpath d='M2 34 C20 30 38 20 56 6 C46 8 34 12 26 14 C34 10 40 6 46 2 C30 6 14 16 2 34z'/%3E%3Cpath d='M2 34 C16 32 30 28 44 20 C34 22 24 24 18 24 C26 20 32 16 36 12 C22 16 10 24 2 34z'/%3E%3C/g%3E%3C/svg%3E") 94% 50% / 64px 44px no-repeat,
+    radial-gradient(ellipse 80% 100% at 50% 70%, #fffbe8, #ffd880 45%, #e89850 80%, #a85a3a);
+  color: #3a1a10; border: 1px solid #fff0c0; box-shadow: inset 0 2px 0 rgb(255 255 255 / .6), inset 0 -4px 0 rgb(120 50 30 / .3), 0 0 0 1px #3a1a2a, 0 0 34px -2px rgb(255 220 150 / .7); }
+body[data-season="aube"] .playbtn > span { color: #3a1a10; text-shadow: 0 1px 0 rgb(255 255 255 / .6); }
+body[data-season="aube"] .playbtn > small { color: #6a3020; }
+@keyframes aube-light { to { background-position: 200% 0; } }
+body[data-season="aube"] .bar > span { background: linear-gradient(90deg, #e87a9a, #ffd070 30%, #fffbe0 45%, #ffd070 60%, #e87a9a) 0 0 / 200% 100%; animation: aube-light 6s linear infinite; }
+body[data-season="aube"] .tabbar { box-shadow: 0 -1px 0 rgb(255 220 150 / .8), 0 -12px 26px -10px rgb(255 200 150 / .5); }
+body[data-season="aube"] .zone { box-shadow: inset 0 0 22px rgb(0 0 0 / .7), inset 0 -30px 34px -18px rgb(255 180 160 / .4), 0 0 0 1px #000; }
+@media (prefers-reduced-motion: reduce) { body[data-season="aube"]::after, body[data-season="aube"] #app::before, body[data-season="aube"] .bar > span { animation: none; } }
+
 /* aperçus (personnalisation, boutique, récompenses) */
 .theme-eclipse.theme-swatch { background: radial-gradient(circle at 70% 35%, #000 0 6px, #ffe0b0 6.5px, #ff7a2a 7.5px, rgb(255 60 20 / .4) 10px, transparent 15px),
   radial-gradient(ellipse at 50% 120%, rgb(255 60 20 / .45), transparent 60%), linear-gradient(#2a0a0a, #0a0507); }
@@ -302,3 +373,8 @@ body[data-season="estampe"] .op { background: radial-gradient(circle at 50% 42%,
 .theme-cover .tc-art { position: absolute; inset: 0; background-size: cover; background-position: 50% 15%; opacity: .85;
   -webkit-mask: linear-gradient(#000 55%, transparent); mask: linear-gradient(#000 55%, transparent); }
 .theme-swatch.swatch { display: inline-block; width: 22px; height: 15px; vertical-align: -3px; margin-right: 4px; }
+/* thème vendu au rayon Essence, sur la ligne du cadre de la nébuleuse ; thème du magasin du boss */
+.esstheme .theme-cover.theme-swatch { width: 84px; height: 108px; flex: none; }
+.essframe.esstheme { flex-wrap: wrap; }
+.essframe.esstheme > .row { display: flex; flex: 1 1 100%; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.citem.k-theme .citem-art .theme-cover.theme-swatch { height: 140px; }

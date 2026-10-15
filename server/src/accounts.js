@@ -438,7 +438,7 @@ export function createAccounts(store) {
   async function reroll(a, body) { await progress.reroll(a, body); await store.put(a); return { account: me(a) }; }
   async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
   async function equip(a, body) { await progress.equip(a, body || {}); progress.check(a); await store.put(a); return { account: me(a) }; }
-  async function buyTheme(a, body) { const theme = progress.buyTheme(a, body || {}); await store.put(a); activity.count(['themesBought', `theme:${theme}`]); return { theme, account: me(a) }; }
+  async function buyTheme(a, body) { const theme = progress.buyTheme(a, body || {}); await store.put(a); activity.count(['themesBought', `theme:${theme}`]); return { theme, shop: shopView(a), account: me(a) }; }
   async function buyEmote(a, body) { const emote = progress.buyEmote(a, body || {}); await store.put(a); activity.count('emotesBought'); return { emote, account: me(a) }; }
   // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes les leçons de base le sont (le tutoriel avancé
   // ne rapporte que des Éclats). Affiché par le panneau de fin (silent).

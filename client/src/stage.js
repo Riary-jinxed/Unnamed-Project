@@ -120,6 +120,27 @@ async function init() {
         for (let k = 4; k >= 1; k--) wood.circle(x, y, R * k / 4).fill({ color: k % 2 ? 0x2a5a7a : 0xefe2c4, alpha: 0.9 - row * 0.12 });
       }
     }
+    if (L.forest) {
+      // Bois de Sylvaën : rais de lumière qui tombent en biais à travers la canopée, mousse sur le sol, racines qui sortent des bords
+      for (const [x0, wd] of [[0.12, 0.08], [0.38, 0.05], [0.62, 0.1], [0.86, 0.06]]) {
+        const x = w * x0, b = w * wd; wood.poly([x, 0, x + b, 0, x + b + h * 0.35, h, x + h * 0.35, h]).fill({ color: 0xe8ffb0, alpha: 0.035 });
+      }
+      for (let i = 0; i < 14; i++) { const k = i / 13; wood.ellipse(w * k, h * (0.92 + 0.06 * Math.sin(i * 2.3)), w * 0.12, h * 0.05).fill({ color: i % 2 ? 0x1a3a1c : 0x224a22, alpha: 0.55 }); }
+      for (const [side, y0] of [[0, 0.7], [1, 0.82], [0, 0.9], [1, 0.6]]) {
+        const sx = side ? w : 0, d = side ? -1 : 1, pts = [];
+        for (let i = 0; i <= 6; i++) pts.push(sx + d * i * w * 0.05, h * y0 + Math.sin(i * 1.3 + y0 * 9) * 10 + i * 4);
+        wood.poly(pts, false).stroke({ width: 7, color: 0x2a1c10, alpha: 0.8 }).poly(pts, false).stroke({ width: 2, color: 0x4a3420, alpha: 0.7 });
+      }
+    }
+    if (L.dawn) {
+      // Aube de Séraphine : ciel qui s'éclaire vers le bas, soleil levant derrière une mer de nuages, rayons en éventail
+      for (let i = 0; i < 12; i++) { const k = i / 11; wood.rect(0, h * k, w, h / 11 + 1).fill({ color: [0x140e1a, 0x241830, 0x3a2040, 0x5a2a48, 0x8a3a50][Math.min(4, Math.floor(k * 5))], alpha: 0.35 + k * 0.3 }); }
+      const cx = w / 2, cy = h * 1.02;
+      for (let i = 0; i < 16; i++) { const a = Math.PI + (i + 0.5) / 16 * Math.PI, len = Math.max(w, h) * 1.2;
+        wood.poly([cx, cy, cx + Math.cos(a - 0.04) * len, cy + Math.sin(a - 0.04) * len, cx + Math.cos(a + 0.04) * len, cy + Math.sin(a + 0.04) * len]).fill({ color: 0xffe0a0, alpha: 0.04 }); }
+      wood.circle(cx, cy, Math.min(w, h) * 0.22).fill({ color: 0xffd890, alpha: 0.25 }).circle(cx, cy, Math.min(w, h) * 0.14).fill({ color: 0xfff4d0, alpha: 0.5 });
+      for (let i = 0; i < 12; i++) wood.circle(w * (i / 11), h * (0.97 + 0.03 * Math.sin(i * 1.7)), w * 0.1).fill({ color: 0xffe8f0, alpha: 0.35 });
+    }
     if (L.moon) {
       // pleine lune pâle en haut à droite, avec son halo, et quelques pierres tombales penchées sur les bords du bas
       const mx = w * 0.82, my = h * 0.1, mr = Math.min(w, h) * 0.07;
@@ -338,7 +359,7 @@ export function flash(color = 0xffffff, alpha = 0.25) {
 export function ending(result) {
   if (!active()) return;
   cine?.destroy({ children: true });
-  const look = season(), tint = result === 'win' ? (look === 'cyber' ? 0x19e6ff : look === 'halloween' ? 0xff8a2a : look === 'eclipse' ? 0xff6a2a : look === 'astral' ? 0x8aa8ff : look === 'estampe' ? 0xd8301c : 0xffd070) : result === 'lose' ? (look === 'cyber' ? 0xff003c : 0xb03a2a) : 0xa0a8b8, x = innerWidth / 2, y = Math.min(innerHeight * 0.2, 170);
+  const look = season(), tint = result === 'win' ? (look === 'cyber' ? 0x19e6ff : look === 'halloween' ? 0xff8a2a : look === 'eclipse' ? 0xff6a2a : look === 'astral' ? 0x8aa8ff : look === 'estampe' ? 0xd8301c : look === 'sylve' ? 0xb8f070 : look === 'aube' ? 0xfff0c0 : 0xffd070) : result === 'lose' ? (look === 'cyber' ? 0xff003c : 0xb03a2a) : 0xa0a8b8, x = innerWidth / 2, y = Math.min(innerHeight * 0.2, 170);
   const c = cine = new Container(); over.stage.addChild(c);
   const rays = new Container(); rays.position.set(x, y);
   for (let i = 0; i < 14; i++) { const a = (i / 14) * TAU, len = Math.max(innerWidth, innerHeight);

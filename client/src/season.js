@@ -31,9 +31,9 @@ const TABLE = {
   eclipse: { ground: 0x0e0606, planks: [0x170a09, 0x130807], seam: 0x050202, lamp: 0xff6a2a, low: 0xb01a10, grid: null,
     font: 'MedievalSharp, Cinzel, serif', text: 0xffb070, stroke: 0x1a0402, band: 0x0c0404, edge: 0xff4a1a, sun: true },
   sylve: { ground: 0x08120c, planks: [0x0f1d13, 0x0c1810], seam: 0x040904, lamp: 0xe0ffb0, low: 0x2a8a5a, grid: null,
-    font: 'Uncial Antiqua, Cinzel, serif', text: 0xe8ffc0, stroke: 0x061006, band: 0x06100a, edge: 0x9ad860 },
+    font: 'Uncial Antiqua, Cinzel, serif', text: 0xe8ffc0, stroke: 0x061006, band: 0x06100a, edge: 0x9ad860, forest: true },
   aube: { ground: 0x140e1a, planks: [0x1e1624, 0x1a1220], seam: 0x0a060c, lamp: 0xffd8a0, low: 0xff7aa0, grid: null,
-    font: 'Cinzel Decorative, Cinzel, serif', text: 0xfff0d0, stroke: 0x2a1020, band: 0x140a16, edge: 0xffc860 },
+    font: 'Cinzel Decorative, Cinzel, serif', text: 0xfff0d0, stroke: 0x2a1020, band: 0x140a16, edge: 0xffc860, dawn: true },
   astral: { ground: 0x060818, planks: null, seam: null, lamp: 0x6a7aff, low: 0x9a4ad8, grid: null,
     font: 'Marcellus SC, Cinzel, serif', text: 0xffe8a0, stroke: 0x0a0a2a, band: 0x080a20, edge: 0xffd870, stars: true },
   estampe: { ground: 0xefe2c4, planks: null, seam: null, lamp: 0xffe0b0, low: null, grid: null,
@@ -81,6 +81,23 @@ export function petalCanvas() {
   const c = document.createElement('canvas'); c.width = 24; c.height = 32; const g = c.getContext('2d');
   g.fillStyle = '#fff'; g.beginPath(); g.moveTo(12, 31); g.bezierCurveTo(-2, 22, 0, 6, 8, 2); g.lineTo(12, 6); g.lineTo(16, 2);
   g.bezierCurveTo(24, 6, 26, 22, 12, 31); g.fill();
+  return c;
+}
+// Bois de Sylvaën : feuille en amande avec sa nervure (creusée), en blanc pour être teintée.
+export function leafCanvas() {
+  const c = document.createElement('canvas'); c.width = 22; c.height = 40; const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.beginPath(); g.moveTo(11, 1); g.bezierCurveTo(24, 12, 22, 30, 11, 38); g.bezierCurveTo(0, 30, -2, 12, 11, 1); g.fill();
+  g.globalCompositeOperation = 'destination-out'; g.strokeStyle = '#000'; g.lineWidth = 1.2;
+  g.beginPath(); g.moveTo(11, 6); g.lineTo(11, 36); for (let y = 12; y < 32; y += 6) { g.moveTo(11, y); g.lineTo(5, y - 4); g.moveTo(11, y); g.lineTo(17, y - 4); } g.stroke();
+  return c;
+}
+// Aube de Séraphine : plume, tige fine et barbes en éventail, en blanc pour être teintée.
+export function featherCanvas() {
+  const c = document.createElement('canvas'); c.width = 28; c.height = 64; const g = c.getContext('2d');
+  g.fillStyle = 'rgb(255 255 255 / .92)'; g.beginPath(); g.moveTo(14, 2); g.bezierCurveTo(28, 14, 26, 40, 15, 56); g.lineTo(13, 56); g.bezierCurveTo(2, 40, 0, 14, 14, 2); g.fill();
+  g.globalCompositeOperation = 'destination-out'; g.lineWidth = 1;
+  for (let y = 14; y < 52; y += 7) { g.beginPath(); g.moveTo(26, y - 6); g.lineTo(20, y); g.moveTo(2, y - 4); g.lineTo(8, y + 1); g.stroke(); }
+  g.globalCompositeOperation = 'source-over'; g.strokeStyle = '#fff'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(14, 4); g.lineTo(14, 63); g.stroke();
   return c;
 }
 // Astral : étoile filante, une traîne qui s'éteint vers la gauche et une tête vive à droite.

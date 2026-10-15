@@ -24,7 +24,7 @@ import { createClan, crestHTML } from './clan.js';
 import { createBoss } from './boss.js';
 import { createStory } from './story.js';
 import { createHistory } from './history.js';
-import { themeShopHTML, themeLock, setThemeArt } from './themes.js';
+import { themeShopHTML, themeEssenceHTML, themeLock, setThemeArt } from './themes.js';
 import { THEMES, EXTRA_THEMES } from '@jeu/engine/themes';
 import { questOfCard } from '@jeu/engine/story';
 import { applyCatalog } from '@jeu/engine/catalog';
@@ -1474,6 +1474,7 @@ function essenceShopHTML(E) {
     ${vit}
     <p class="hint" style="margin:0">${t('Toujours en vente ici, jamais au coffre ni dans les arts du jour. Réunissez-les tous pour compléter la famille d\'arts Astrale et gagner son titre.')}</p>
     ${essFrameHTML(E.frame, have)}
+    ${Object.keys(EXTRA_THEMES).filter(id => EXTRA_THEMES[id].essence).map(id => themeEssenceHTML({ ui, prog, ico }, id, have)).join('')}
   </section>`;
 }
 // Cadre de la nébuleuse (animé), vendu seulement au rayon Essence : montré sur l'image de profil du joueur.
@@ -1524,6 +1525,7 @@ function emoteShopHTML() {
 async function buyTheme(id) {
   const r = await call('POST', '/api/shop/theme', { theme: id }, true);
   if (!r) return;
+  if (r.shop) ui.shop = r.shop;
   ui.themeTry = null; ui.msg = t('Thème « {name} » obtenu et choisi.', { name: t(THEMES[id]) });
   play('reveal'); render();
 }
@@ -2170,8 +2172,8 @@ function render() {
 
 // Thème choisi (null : celui de la saison en cours ; « base » : thème de base ; sinon un thème débloqué).
 function uiTheme() {
-  // Thème à l'essai dans le rayon Thèmes de la boutique (seulement tant que ce rayon est affiché).
-  if (ui.themeTry && ui.screen === 'shop' && ui.shopTab === 'themes') return ui.themeTry;
+  // Thème à l'essai, seulement tant que la boutique où il se trouve est affichée : rayons Thèmes, Essence et Boss, écran du boss.
+  if (ui.themeTry && ((ui.screen === 'shop' && ['themes', 'essence', 'boss'].includes(ui.shopTab)) || ui.screen === 'boss')) return ui.themeTry;
   const p = ui.account ? prog() : null, pick = p?.theme;
   if (pick === 'base') return '';
   if (pick && p.cosmetics.themes?.some(t => t.id === pick)) return pick;
@@ -2539,7 +2541,8 @@ app.addEventListener('click', e => {
     else if (a === 'shop-emotes') openShop('emotes');
     else if (a === 'shop-themes') openShop('themes');
     else if (a === 'try-theme') { ui.themeTry = ui.themeTry === ds.id ? null : ds.id; play('pick'); render(); }
-    else if (a === 'buy-theme' && !ui.busy) { const x = EXTRA_THEMES[ds.id], go = () => buyTheme(ds.id); if (x.prisms || !lacksShards(x.price, t('acheter'), go)) go(); }
+    else if (a === 'buy-theme' && !ui.busy) { const x = EXTRA_THEMES[ds.id], go = () => buyTheme(ds.id); if (!x.price || !lacksShards(x.price, t('acheter'), go)) go(); }
+    else if (a === 'theme-where') openShop(ds.where);
     else if (a === 'logout') doLogout();
     else if (a === 'retry') boot();
     else if (a === 'lang') chooseLang(ds.lang);

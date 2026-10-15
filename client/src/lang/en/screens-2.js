@@ -243,4 +243,11 @@ export default {
   "Habillez toute l'appli aux couleurs d'un général : menus, boutons, table de partie, et son portrait en fond. « Essayer » le montre ici sans l'acheter. Un thème acheté est aussitôt choisi ; changez-en quand vous voulez dans votre profil, rubrique Personnalisation.": "Dress the whole app in a general's colors: menus, buttons, game table, and their portrait in the background. \"Preview\" shows it here without buying. A theme you buy is selected right away; switch whenever you like from your profile, under Customization.",
   "Les thèmes de saison se débloquent au palier 12 de la piste gratuite de leur passe.": "Season themes unlock at tier 12 of their pass's free track.",
   "En vente au rayon Thèmes de la boutique": "On sale in the Themes section of the shop",
+  "Au rayon Essence": "In the Essence section",
+  "Au magasin du boss mondial": "In the world boss shop",
+  "Dans les autres boutiques": "In other shops",
+  "Thème de l'interface, vendu seulement ici.": "Interface theme, sold only here.",
+  "Acheter le thème « {name} » pour {n} essence universelle": "Buy the \"{name}\" theme for {n} universal essence",
+  "Au magasin du boss mondial, en Insignes": "In the world boss shop, for Insignia",
+  "Au rayon Essence de la boutique": "In the Essence section of the shop",
 };
