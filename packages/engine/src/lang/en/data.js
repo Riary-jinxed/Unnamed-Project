@@ -593,6 +593,7 @@ export default {
   "Aube de Séraphine": "Séraphine's Dawn",
   "Ciel d'Elyndra": "Elyndra's Sky",
   "Estampe d'Ysmera": "Ysmera's Print",
+  "Roue de Fortuna": "Fortuna's Wheel",
   "Thème « Éclipse d'Ignaroth »": "\"Ignaroth's Eclipse\" theme",
   // Casino du Sept d'or : cadre, titre et arts de l'édition Casino
   "Cadre du Jackpot": "Jackpot Frame",

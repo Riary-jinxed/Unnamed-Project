@@ -27,7 +27,7 @@ import { createStory } from './story.js';
 import { createCasino } from './casino.js';
 import { createHistory } from './history.js';
 import { themeShopHTML, themeEssenceHTML, themeLock, setThemeArt } from './themes.js';
-import { THEMES, EXTRA_THEMES } from '@jeu/engine/themes';
+import { THEMES, EXTRA_THEMES, themeOut } from '@jeu/engine/themes';
 import { questOfCard } from '@jeu/engine/story';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
@@ -1779,7 +1779,7 @@ function themePicks(p) {
   const own = id => p.cosmetics.themes?.some(t => t.id === id), cur = currentSeason(today());
   const pick = (val, label, swatch, on, ok = true, hint = '') => `<button class="pickc ${on ? 'on' : ''} ${ok ? '' : 'locked'}" ${ok ? `data-theme="${val}"` : 'disabled'} title="${esc(hint)}">
     <span class="theme-swatch theme-${swatch}"></span><small>${esc(t(label))}</small></button>`;
-  const themes = Object.entries(THEMES).filter(([id]) => own(id) || !futureSeasons().some(x => x.theme === id));
+  const themes = Object.entries(THEMES).filter(([id]) => own(id) || (!futureSeasons().some(x => x.theme === id) && themeOut(id)));
   return `<div class="gal-h">${t('Thème de l\'interface')}</div>
     <p class="hint" style="margin:0">${t('Chaque passe de saison débloque son thème au palier 12 de la piste gratuite ; d\'autres thèmes s\'achètent en boutique ou se gagnent avec les succès. Changez-en quand vous voulez.')}</p>
     <div class="picks">${pick('', cur ? t('Saison en cours ({name})', { name: t(cur.name) }) : t('Saison en cours'), cur?.theme || 'base', !p.theme)}${pick('base', t('Classique'), 'base', p.theme === 'base')}

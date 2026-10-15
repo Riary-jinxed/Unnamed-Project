@@ -13,7 +13,7 @@ import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seas
   currentSeason, THEME_TIER } from '@jeu/engine/pass';
 import { boost } from '@jeu/engine/events';
 import { EMOTES, EMOTE_SLOTS, ownsEmote, ownedEmotes, emoteSet } from '@jeu/engine/emotes';
-import { THEMES, EXTRA_THEMES } from '@jeu/engine/themes';
+import { THEMES, EXTRA_THEMES, themeOut } from '@jeu/engine/themes';
 import { HttpError } from './accounts.js';
 import { createEvents } from './events.js';
 import { msg } from '@jeu/engine/i18n';
@@ -588,7 +588,7 @@ export function createProgress(store) {
   // du boss passent par boss.js. Le thème acheté est aussitôt choisi.
   function buyTheme(a, { theme } = {}) {
     const x = EXTRA_THEMES[theme];
-    if (!x || !(x.price || x.prisms || x.essence)) throw new HttpError(400, msg('Ce thème n\'est pas en vente.'));
+    if (!x || !(x.price || x.prisms || x.essence) || !themeOut(theme)) throw new HttpError(400, msg('Ce thème n\'est pas en vente.'));
     if (!a.cosmetics) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
     if (a.cosmetics.themes?.includes(theme)) throw new HttpError(409, msg('Vous avez déjà ce thème.'));
     const [k, cost, need] = x.prisms ? ['prisms', x.prisms, 'Il vous faut {price} Prismes (vous en avez {have}).']
