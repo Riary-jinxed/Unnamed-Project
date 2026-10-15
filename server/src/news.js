@@ -83,6 +83,16 @@ export function createNews(store, accounts, { notify = () => {} } = {}) {
     }
   }
 
+  // Annonces écrites dans le code (news-seed.js) : chacune paraît une seule fois, au premier démarrage qui la contient.
+  async function publishSeed(seed) {
+    const doc = store.doc('nouveautes') || {}, done = doc.seeded || [], fresh = seed.filter(p => !done.includes(p.id));
+    if (!fresh.length) return;
+    const at = new Date().toISOString();
+    const added = fresh.map(p => ({ pinned: false, push: false, pushed: false, summary: '', body: '', date: null, set: null, ...p, at }));
+    await store.putDoc('nouveautes', { ...doc, posts: [...(doc.posts || []), ...added].slice(-MAX_POSTS), seeded: [...done, ...fresh.map(p => p.id)] });
+    console.log(`Annonces publiées : ${fresh.map(p => p.id).join(', ')}.`);
+  }
+
   // ---- Administration ----
   function adminView() {
     const all = store.all().filter(a => a.starter), day = today();
@@ -120,7 +130,7 @@ export function createNews(store, accounts, { notify = () => {} } = {}) {
   }
 
   return {
-    announce, setPush, shown, setUpcoming: f => { upcoming = f; },
+    announce, publishSeed, setPush, shown, setUpcoming: f => { upcoming = f; },
     routes: {
       'GET /api/news': a => reply(a),
       'POST /api/news/seen': a => seen(a),

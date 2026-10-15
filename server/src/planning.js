@@ -10,6 +10,8 @@ import { bossWeek, bossOfWeek, addWeeks } from '@jeu/engine/boss';
 
 // Jusqu'où regarder devant (en jours).
 export const HORIZON = 45;
+// Événements qui reviennent (week-ends, dernière semaine du mois) : leurs périodes sur ce nombre de jours, pas au-delà.
+const EVENT_AHEAD = 31;
 const monthEnd = d => { const [y, m] = d.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); };
 
 // events : events.js du serveur (liste réglée), boss : boss.js (réglages et rotation), posts : annonces parues.
@@ -29,12 +31,16 @@ export function planning({ store, events, boss, posts = () => [] }, day = today(
     if (soon(c.from)) out.push({ kind: 'quest', id: q.id, day: c.from, to: c.to });
     else if (c.from <= day && c.to >= day) out.push({ kind: 'quest', id: q.id, day: c.from, to: c.to, now: true });
   }
-  // Événements : la période en cours, sinon la prochaine.
+  // Événements : la période en cours puis les suivantes sur EVENT_AHEAD jours (chaque week-end double XP, chaque semaine double classé).
+  const evUntil = addDays(day, EVENT_AHEAD);
   for (const ev of events.list().filter(e => e.on)) {
-    const o = occurrence(ev, day);
-    if (!o) continue;
-    const now = o.from <= day && o.to >= day;
-    if (now || soon(o.from)) out.push({ kind: 'event', id: ev.id, name: ev.name, effect: ev.effect, mult: ev.mult, day: o.from, to: o.to, now });
+    for (let d = day, n = 0; n < 8; n++) {
+      const o = occurrence(ev, d);
+      if (!o || o.from > evUntil) break;
+      const now = o.from <= day && o.to >= day;
+      if (now || soon(o.from)) out.push({ kind: 'event', id: ev.id, name: ev.name, effect: ev.effect, mult: ev.mult, day: o.from, to: o.to, now });
+      d = addDays(o.to, 1);
+    }
   }
   // Boss mondial : celui de la semaine et le suivant.
   const c = boss.cfg();
