@@ -21,6 +21,8 @@ const add = (list, key) => { for (const [path, url] of Object.entries(list)) {
 } };
 add(files); add(thumbs, 'Thumb');
 export const hasArt = id => !!ART[id]?.decor;
+// Illustration d'un thème de l'interface (themes.js) : { decor, perso } de l'art alternatif s'il existe, sinon de la carte.
+export const themeArt = (card, artId = null) => (artId && ALT[artId]?.decor ? ALT[artId] : ART[card]) || null;
 
 // Visuels des terrains : une image par terrain, art/terrain/<id>.webp, en 832x1168 (le ratio de la fenêtre des cartes),
 // sans personnage ni débordement. Sur le plateau, elle est recadrée au centre en fond de la moitié de zone de son joueur.

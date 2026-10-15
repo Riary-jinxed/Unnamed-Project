@@ -288,6 +288,9 @@ export default {
   "Le début d'un événement (double XP, bonus d'Éclats…) ou l'arrivée d'un Boss mondial.": "The start of an event (double XP, Shard bonus…) or the arrival of a world boss.",
   "Amis et clan": "Friends and clan",
   "Une demande d'ami ou d'entrée dans votre clan, une demande acceptée.": "A friend request or a request to join your clan, an accepted request.",
+  "Nouveautés du jeu": "Game news",
+  "Une mise à jour majeure, un nouveau set ou l'annonce du prochain.": "A major update, a new set or the announcement of the next one.",
+  "Nouvelle annonce dans les Nouveautés.": "New announcement in News.",
   "Fin de saison": "End of season",
   "Le dernier jour de la saison classée et du passe de saison.": "The last day of the ranked season and the season pass.",
   "Abonnement aux notifications invalide.": "Invalid notification subscription.",
@@ -313,10 +316,31 @@ export default {
   "Gagnez d'abord les chapitres précédents.": "Win the previous chapters first.",
   "{quest} : {chapter}": "{quest}: {chapter}",
 
+  // ---- Boss de clan (clan-boss.js) ----
+  "Seuls le Maître et les adjoints peuvent ouvrir un boss de clan.": "Only the Master and the deputies can open a clan boss.",
+  "Un boss de clan est déjà ouvert.": "A clan boss is already open.",
+  "Un seul boss de clan par semaine : revenez lundi.": "Only one clan boss per week: come back on Monday.",
+  "Niveau inconnu.": "Unknown level.",
+  "{name} ouvre le boss de clan {boss} (niveau {n}).": "{name} opens the clan boss {boss} (level {n}).",
+  "Boss de clan : {name}": "Clan boss: {name}",
+  "{name} a ouvert un boss de clan : {n} tentatives chacun pendant {days} jours pour faire tomber sa barre de PV.": "{name} opened a clan boss: {n} attempts each for {days} days to bring its HP bar down.",
+  "{name} est ouvert pour tout le clan !": "{name} is open for the whole clan!",
+  "Aucun boss de clan ouvert pour le moment.": "No clan boss is open right now.",
+  "Le boss de clan est déjà vaincu.": "The clan boss is already defeated.",
+  "Vous avez fait vos {n} tentatives contre ce boss.": "You have used your {n} attempts against this boss.",
+  "Boss de clan {boss} vaincu (niveau {n}) !": "Clan boss {boss} defeated (level {n})!",
+  "Boss de clan {boss} reparti : {pct} % de ses PV retirés.": "Clan boss {boss} has left: {pct}% of its HP taken.",
+  "Boss de clan {boss} : {pct} %": "Clan boss {boss}: {pct}%",
+  "Boss de clan vaincu !": "Clan boss defeated!",
+  "Boss de clan terminé": "Clan boss over",
+  "{boss} : {pct} % de ses PV retirés. Vos récompenses vous attendent.": "{boss}: {pct}% of its HP taken. Your rewards are waiting.",
   // ---- Notes de mise à jour (notes-maj.js) : titre et texte tels qu'envoyés ----
   "Mise à jour : équilibrage des généraux et des cartes": "Update: generals and cards rebalanced",
   "Après plus de 500 000 parties simulées entre IA, voici les premiers ajustements d'équilibrage.\n\nGénéraux affaiblis\n• Comte Valdric : son effet de fin de tour ne se déclenche plus que 3 fois par partie.\n• Gorbag le Ripailleur : Festin 1 seulement aux tours pairs.\n\nGénéraux renforcés\n• Séraphine : activation gratuite (au lieu de 1 sceau), et +2 au lieu de +1.\n• Aurélia : il suffit d'avoir dépensé tous vos sceaux à au moins 5 tours (au lieu de tous).\n• Ossa : si votre défausse n'a pas de créature, la première créature de votre deck est invoquée à la place.\n• Dame Carmilla : Drain 2 au lieu de Drain 1.\n• L'Intendant : +1 sceau aux tours 1 et 2 (au lieu du tour 1 seulement).\n\nCartes affaiblies\n• Dominion : coûte 5 sceaux (au lieu de 4).\n• Danse macabre : coûte 2 sceaux (au lieu de 1).\n• Dragon d'or : puissance 11 (au lieu de 12).\n\nCartes renforcées\n• Gobelin pyromane : détruit une créature de puissance 3 ou moins (au lieu de 2).\n• Souffle de feu : coûte 2 sceaux (au lieu de 3).\n• Sentier caché : coûte 1 sceau (au lieu de 2).\n• Druidesse : puissance 3 (au lieu de 2).\n• Annonciatrice : puissance 2 (au lieu de 1).\n• Séraphin : puissance 6 (au lieu de 5).\n\nLes decks préconstruits sont désormais bien plus proches les uns des autres. Dites-nous ce que vous en pensez en jeu !":
     "After more than 500,000 simulated AI matches, here are the first balance changes.\n\nGenerals weakened\n• Count Valdric: his end-of-turn effect now triggers only 3 times per match.\n• Gorbag the Glutton: Feast 1 only on even turns.\n\nGenerals strengthened\n• Séraphine: free activation (instead of 1 seal), and +2 instead of +1.\n• Aurélia: you only need to have spent all your seals on at least 5 turns (instead of every turn).\n• Ossa: if your discard pile has no creature, the first creature in your deck is summoned instead.\n• Lady Carmilla: Drain 2 instead of Drain 1.\n• The Steward: +1 seal on turns 1 and 2 (instead of turn 1 only).\n\nCards weakened\n• Dominion: costs 5 seals (instead of 4).\n• Danse Macabre: costs 2 seals (instead of 1).\n• Gold Dragon: power 11 (instead of 12).\n\nCards strengthened\n• Goblin Firebug: destroys a creature with power 3 or less (instead of 2).\n• Fire Breath: costs 2 seals (instead of 3).\n• Hidden Path: costs 1 seal (instead of 2).\n• Druidess: power 3 (instead of 2).\n• Harbinger: power 2 (instead of 1).\n• Seraph: power 6 (instead of 5).\n\nThe preconstructed decks are now much closer to one another. Tell us what you think in game!",
   "Hotfix #1 : équilibrage de quelques cartes": "Hotfix #1: balance changes to a few cards",
   "• Ignaroth le Dévoreur : son effet de fin de tour ne touche plus qu'un Dragon au hasard de votre main (au lieu de tous les Dragons de votre main et de votre deck).\n• Snagg, Maître de la Horde : la puissance de la Horde détruite est répartie avec +3 entre vos autres Hordes.\n• Prière : votre créature la plus faible ici gagne +X+1 (au lieu de +X).": "• Ignaroth the Devourer: his end-of-turn effect now only affects one random Dragon in your hand (instead of every Dragon in your hand and deck).\n• Snagg, Master of the Horde: the destroyed Horde's power is split, plus 3, among your other Hordes.\n• Prayer: your weakest creature here gets +X+1 (instead of +X).",
+  // Rayon Thèmes.
+  "Ce thème n'est pas en vente.": "This theme is not for sale.",
+  "Vous avez déjà ce thème.": "You already have this theme.",
 };

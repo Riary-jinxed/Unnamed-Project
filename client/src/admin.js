@@ -1,5 +1,5 @@
 // Page d'administration : comptes des joueurs (création, profil, Éclats, collection, deck, accès), statistiques des parties,
-// éditeur de cartes et de sets (brouillon puis publication), réglages de la boutique, courrier aux joueurs et codes cadeaux.
+// éditeur de cartes et de sets (brouillon puis publication), réglages de la boutique, courrier aux joueurs et codes cadeaux, annonces des Nouveautés.
 // Protégée par la clé ADMIN_KEY du serveur, gardée dans ce navigateur seulement.
 import './style.css';
 import { DECKS, CARDS, GENERALS, TERRAINS, FAMILIES } from '@jeu/engine';
@@ -11,11 +11,12 @@ import { esc, famStyle } from './common.js';
 import { cardsTab } from './admin-cards.js';
 import { rewardsTab } from './admin-rewards.js';
 import { mailTab } from './admin-mail.js';
+import { newsTab } from './admin-news.js';
 import { eventsTab } from './admin-events.js';
 import { bossTab } from './admin-boss.js';
 import { storyTab } from './admin-story.js';
 import { ARTS, ART_RARITIES, RARITY_IDS, rarityName } from '@jeu/engine/arts';
-import { SEASON_THEMES } from '@jeu/engine/pass';
+import { THEMES } from '@jeu/engine/themes';
 
 const app = document.getElementById('app');
 const KEY = 'jeu-admin-key';
@@ -33,9 +34,9 @@ async function adminCall(method, path, body) {
   return data;
 }
 const say = (msg, err = '') => { st.msg = msg; st.err = err; };
-const TABS = { accounts: 'Comptes', stats: 'Stats', follow: 'Suivi', cards: 'Cartes', sets: 'Sets', shop: 'Boutique', rewards: 'Récompenses', events: 'Événements', boss: 'Boss', story: 'Quêtes', mail: 'Courrier' };
+const TABS = { accounts: 'Comptes', stats: 'Stats', follow: 'Suivi', cards: 'Cartes', sets: 'Sets', shop: 'Boutique', rewards: 'Récompenses', events: 'Événements', boss: 'Boss', story: 'Quêtes', mail: 'Courrier', news: 'Nouveautés' };
 const tabCtx = { call: adminCall, render: () => render(), say, esc: s => esc(s), notice: () => notice() };
-const stats = statsTab(tabCtx), rewards = rewardsTab(tabCtx), mail = mailTab(tabCtx), events = eventsTab(tabCtx), boss = bossTab(tabCtx), story = storyTab(tabCtx), follow = followTab(tabCtx);
+const stats = statsTab(tabCtx), rewards = rewardsTab(tabCtx), mail = mailTab(tabCtx), news = newsTab(tabCtx), events = eventsTab(tabCtx), boss = bossTab(tabCtx), story = storyTab(tabCtx), follow = followTab(tabCtx);
 // Après une publication, la liste des comptes et les collections tiennent compte des nouvelles cartes.
 const cards = cardsTab({ ...tabCtx, onPublished: () => refresh() });
 async function refresh() {
@@ -192,12 +193,12 @@ function artsBlock(a) {
 }
 // Thèmes de saison du joueur : en donner un pour tester avant sa saison, ou le retirer.
 function themesBlock(a) {
-  const mine = (a.themes || []).filter(id => SEASON_THEMES[id]), other = Object.keys(SEASON_THEMES).filter(id => !mine.includes(id));
+  const mine = (a.themes || []).filter(id => THEMES[id]), other = Object.keys(THEMES).filter(id => !mine.includes(id));
   return `<div class="card-box">
-    <div class="row"><h3 style="margin-right:auto">Thèmes de saison</h3><small class="hint">${mine.length}/${Object.keys(SEASON_THEMES).length}</small></div>
-    ${mine.length ? `<div class="chips">${mine.map(id => `<span class="pick on">${esc(SEASON_THEMES[id])}
+    <div class="row"><h3 style="margin-right:auto">Thèmes de l'interface</h3><small class="hint">${mine.length}/${Object.keys(THEMES).length}</small></div>
+    ${mine.length ? `<div class="chips">${mine.map(id => `<span class="pick on">${esc(THEMES[id])}
       <button class="btn sm" type="button" data-theme-take="${id}" ${dis()}>Retirer</button></span>`).join('')}</div>` : '<p class="hint" style="margin:0">Aucun thème pour l\'instant.</p>'}
-    ${other.length ? `<div class="row"><select id="give-theme" aria-label="Thème à donner">${other.map(id => `<option value="${id}">${esc(SEASON_THEMES[id])}</option>`).join('')}</select>
+    ${other.length ? `<div class="row"><select id="give-theme" aria-label="Thème à donner">${other.map(id => `<option value="${id}">${esc(THEMES[id])}</option>`).join('')}</select>
       <button class="btn" data-act="give-theme" ${dis()}>Donner ce thème</button></div>` : ''}
     <p class="hint" style="margin:0">Le joueur le choisit ensuite dans Personnalisation, même avant le début de sa saison.</p>
   </div>`;
@@ -268,7 +269,7 @@ function render() {
       <div class="field"><label class="eyebrow" for="key">Clé d'administration (ADMIN_KEY)</label><input id="key" type="password" value="${esc(st.key)}" required></div>
       ${st.err ? `<p class="err" style="margin:0">${esc(st.err)}</p>` : ''}
       <div class="row"><button class="btn primary" type="submit">Ouvrir</button></div></form>`
-    : st.tab === 'shop' ? renderShopSettings() : st.tab === 'rewards' ? rewards.render() : st.tab === 'events' ? events.render() : st.tab === 'boss' ? boss.render() : st.tab === 'story' ? story.render() : st.tab === 'mail' ? mail.render() : st.tab === 'stats' ? stats.render() : st.tab === 'follow' ? follow.render() : st.tab === 'cards' ? cards.renderCards()
+    : st.tab === 'shop' ? renderShopSettings() : st.tab === 'rewards' ? rewards.render() : st.tab === 'events' ? events.render() : st.tab === 'boss' ? boss.render() : st.tab === 'story' ? story.render() : st.tab === 'mail' ? mail.render() : st.tab === 'news' ? news.render() : st.tab === 'stats' ? stats.render() : st.tab === 'follow' ? follow.render() : st.tab === 'cards' ? cards.renderCards()
     : st.tab === 'sets' ? cards.renderSets() : st.sel && st.detail ? renderDetail() : renderList();
   app.innerHTML = `<div class="top"><span class="title">Administration</span>${tabs}</div>${body}`;
 }
@@ -278,7 +279,7 @@ app.addEventListener('submit', async e => {
   const v = id => document.getElementById(id).value;
   const id = e.target.id;
   if (id === 'unlock') { st.key = v('key'); refresh(); return; }
-  if (cards.onSubmit(id) || rewards.onSubmit(id) || mail.onSubmit(id)) return;
+  if (cards.onSubmit(id) || rewards.onSubmit(id) || mail.onSubmit(id) || news.onSubmit(id)) return;
   if (id === 'create') {
     const password = v('password');
     try {
@@ -321,10 +322,10 @@ app.addEventListener('click', e => {
   if (t.dataset.open) { openAccount(t.dataset.open); return; }
   if (t.dataset.tab) {
     st.tab = t.dataset.tab; st.sel = null; st.detail = null; say('');
-    if (st.tab === 'stats') stats.load(); else if (st.tab === 'follow') follow.load(); else if (st.tab === 'shop') loadArts(); else if (st.tab === 'rewards') rewards.load(); else if (st.tab === 'mail') mail.load(); else if (st.tab === 'events') events.load(); else if (st.tab === 'boss') boss.load(); else if (st.tab === 'story') story.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
+    if (st.tab === 'stats') stats.load(); else if (st.tab === 'follow') follow.load(); else if (st.tab === 'shop') loadArts(); else if (st.tab === 'rewards') rewards.load(); else if (st.tab === 'mail') mail.load(); else if (st.tab === 'news') news.load(); else if (st.tab === 'events') events.load(); else if (st.tab === 'boss') boss.load(); else if (st.tab === 'story') story.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
     render(); return;
   }
-  if (stats.onClick(t) || follow.onClick(t) || cards.onClick(t) || rewards.onClick(t) || mail.onClick(t) || events.onClick(t) || boss.onClick(t) || story.onClick(t)) return;
+  if (stats.onClick(t) || follow.onClick(t) || cards.onClick(t) || rewards.onClick(t) || mail.onClick(t) || news.onClick(t) || events.onClick(t) || boss.onClick(t) || story.onClick(t)) return;
   if (t.dataset.themeTake) { act('/api/admin/account/theme', { theme: t.dataset.themeTake, give: false }, 'Thème retiré.'); return; }
   if (t.dataset.artTake) { act('/api/admin/account/art', { art: t.dataset.artTake, give: false }, 'Art retiré.'); return; }
   if (t.dataset.addShards) { const i = document.getElementById('p-shards'); i.value = (Number(i.value) || 0) + Number(t.dataset.addShards); return; }
@@ -372,7 +373,7 @@ app.addEventListener('click', e => {
       saveSettings({ cardPrice, boosterPrice, boosterSize, shardsPerDuplicate }, 'Prix remis par défaut.'); break;
     }
     case 'give-art': { const id = document.getElementById('give-art')?.value; if (id) act('/api/admin/account/art', { art: id, give: true }, `Art « ${esc(ARTS[id].name)} » donné.`); break; }
-    case 'give-theme': { const id = document.getElementById('give-theme')?.value; if (id) act('/api/admin/account/theme', { theme: id, give: true }, `Thème « ${esc(SEASON_THEMES[id])} » donné.`); break; }
+    case 'give-theme': { const id = document.getElementById('give-theme')?.value; if (id) act('/api/admin/account/theme', { theme: id, give: true }, `Thème « ${esc(THEMES[id])} » donné.`); break; }
     case 'dup-defaults': saveSettings(Object.fromEntries(DUP_KEYS.map(k => [k, st.defaults[k]])), 'Doublons du jour et arts de l\'essence remis par défaut.'); break;
     case 'art-defaults': saveSettings(Object.fromEntries(ART_KEYS.map(k => [k, st.defaults[k]])), 'Prix des arts remis par défaut.'); break;
     case 'renew':
