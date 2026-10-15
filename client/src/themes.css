@@ -89,65 +89,82 @@ body[data-season="estampe"] {
     linear-gradient(#f4e9cf, #efe2c4 60%, #e8d8b4);
   background-attachment: fixed; }
 
+/* ---- Roue de Fortuna : tapis de jeu vert, or des jetons, rouge et noir de la roulette ---- */
+body[data-season="casino"] {
+  --bg: #04190f; --surface: #0b2e1e; --sunk: #021009; --ink: #fbf3dc; --muted: #a8c4a8; --line: #1e5a3a;
+  --accent: #f2c14e; --accent-ink: #2a0606;
+  --gold-hi: #fff2c0; --gold: #f2c14e; --gold-lo: #7a5410; --leather: #2a0a0e; --leather-lo: #14050a; --rim: #8a6a20;
+  --th-font: "Limelight", "Cinzel", serif; --th-title: #ffd860; --th-glow: rgb(255 200 80 / .55); --th-glow2: rgb(220 20 50 / .45);
+  --th-panel: radial-gradient(ellipse 120% 90% at 50% 0%, #0f4029, #08261a 70%, #051a11); --th-btn: linear-gradient(180deg, #1a1414, #0a0606); --th-btn-rim: #b8902e;
+  --th-primary: linear-gradient(180deg, #ffe9a0, #f2c14e 45%, #c8901e 80%, #8a5a10);
+  --th-bar: linear-gradient(90deg, #a8101e, #e8283c 40%, #f2c14e 75%, #fff2c0); --th-tab: rgb(242 193 78);
+  --th-zone: radial-gradient(ellipse 100% 80% at 50% 40%, rgb(16 70 44 / .9), rgb(4 30 18 / .92));
+  background:
+    radial-gradient(circle at 25% 25%, rgb(255 255 255 / .025) 0 1px, transparent 1.5px) 0 0 / 5px 5px,
+    radial-gradient(circle at 75% 75%, rgb(0 0 0 / .18) 0 1px, transparent 1.5px) 0 0 / 5px 5px,
+    radial-gradient(ellipse 80% 55% at 50% 30%, #126a40, #0a4429 50%, transparent 85%),
+    linear-gradient(#063a24, #04190f 70%, #020b06);
+  background-attachment: fixed; }
+
 /* ---- Règles communes à tous ---- */
 /* illustration du général en fond des menus, fondue vers le bas ; cachée en partie et sans illustration */
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"])::before { content: ''; position: fixed; inset: 0 0 auto 0; height: 70vh; z-index: -2; pointer-events: none;
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"])::before { content: ''; position: fixed; inset: 0 0 auto 0; height: 70vh; z-index: -2; pointer-events: none;
   background: var(--theme-perso, none) 50% 0 / cover no-repeat, var(--theme-decor, none) 50% 0 / cover no-repeat; opacity: .32;
   -webkit-mask: linear-gradient(#000 20%, transparent); mask: linear-gradient(#000 20%, transparent); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]):has(#app.ingame)::before { display: none; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]):has(#app.ingame)::before { display: none; }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) h2 { font-family: var(--th-font); font-weight: 400; letter-spacing: .04em; background: none; color: var(--th-title);
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) h2 { font-family: var(--th-font); font-weight: 400; letter-spacing: .04em; background: none; color: var(--th-title);
   -webkit-background-clip: border-box; background-clip: border-box; text-shadow: 0 2px 0 #000, 0 0 14px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .top .title { font-family: var(--th-font); font-weight: 400; color: var(--th-title);
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .top .title { font-family: var(--th-font); font-weight: 400; color: var(--th-title);
   text-shadow: 0 2px 0 #000, 0 0 14px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .eyebrow { color: var(--gold); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .eyebrow { color: var(--gold); }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) {
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) {
   background: var(--th-panel); border-color: var(--rim); --lvfill: var(--th-panel);
   box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px color-mix(in srgb, var(--gold) 14%, transparent), inset 0 -30px 40px -30px var(--th-glow2), 0 6px 18px rgb(0 0 0 / .6); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .card-box::before { border-color: color-mix(in srgb, var(--gold) 22%, transparent); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.card-box.booster.ready, .deckopt.sel, .tile.todo) { border-color: var(--accent);
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .card-box::before { border-color: color-mix(in srgb, var(--gold) 22%, transparent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.card-box.booster.ready, .deckopt.sel, .tile.todo) { border-color: var(--accent);
   box-shadow: 0 0 0 1px #000, 0 0 20px -4px var(--accent), inset 0 0 26px -10px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tile b { font-family: var(--th-font); font-weight: 400; }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .sheet { background: color-mix(in srgb, var(--sunk) 80%, transparent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .tile b { font-family: var(--th-font); font-weight: 400; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .sheet { background: color-mix(in srgb, var(--sunk) 80%, transparent); }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.btn, .seg button) { background: var(--th-btn); border-color: var(--th-btn-rim); color: var(--ink); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.btn.on, .seg button.on) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), inset 0 0 14px -4px var(--accent); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .seg button.on { background: var(--th-primary); color: var(--accent-ink); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.btn.primary, .playbtn) { background: var(--th-primary); color: var(--accent-ink); border-color: #000;
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.btn, .seg button) { background: var(--th-btn); border-color: var(--th-btn-rim); color: var(--ink); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.btn.on, .seg button.on) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), inset 0 0 14px -4px var(--accent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .seg button.on { background: var(--th-primary); color: var(--accent-ink); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.btn.primary, .playbtn) { background: var(--th-primary); color: var(--accent-ink); border-color: #000;
   text-shadow: 0 1px 0 rgb(255 255 255 / .4); box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 24px -4px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .playbtn { animation: playglow-th 3s ease-in-out infinite; }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .playbtn > span { font-family: var(--th-font); font-weight: 400; letter-spacing: .06em; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .playbtn { animation: playglow-th 3s ease-in-out infinite; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .playbtn > span { font-family: var(--th-font); font-weight: 400; letter-spacing: .06em; }
 @keyframes playglow-th { 0%, 100% { box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 24px -4px var(--th-glow); }
   50% { box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 42px 0 var(--th-glow2); } }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .chip { background: var(--sunk); border-color: var(--rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(input, textarea, .field select) { background: var(--sunk); border-color: var(--rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .showcase { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6), 0 0 26px -6px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .sc-change { background: var(--th-btn); border-color: var(--accent); color: var(--gold-hi); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .chip { background: var(--sunk); border-color: var(--rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(input, textarea, .field select) { background: var(--sunk); border-color: var(--rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .showcase { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6), 0 0 26px -6px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .sc-change { background: var(--th-btn); border-color: var(--accent); color: var(--gold-hi); }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar { background: linear-gradient(180deg, var(--leather), var(--bg)); border-top-color: var(--th-btn-rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar button { color: var(--muted); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar button.on { color: var(--gold-hi); background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); text-shadow: 0 0 10px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar.slid::before { background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); box-shadow: inset 0 2px 0 var(--th-tab); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar button.on svg { filter: drop-shadow(0 0 6px var(--th-glow)); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .tabbar { background: linear-gradient(180deg, var(--leather), var(--bg)); border-top-color: var(--th-btn-rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .tabbar button { color: var(--muted); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .tabbar button.on { color: var(--gold-hi); background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); text-shadow: 0 0 10px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .tabbar.slid::before { background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); box-shadow: inset 0 2px 0 var(--th-tab); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .tabbar button.on svg { filter: drop-shadow(0 0 6px var(--th-glow)); }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .bar { background: var(--sunk); border-color: var(--rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .bar > span { background: var(--th-bar); box-shadow: 0 0 8px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .bar { background: var(--sunk); border-color: var(--rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .bar > span { background: var(--th-bar); box-shadow: 0 0 8px var(--th-glow); }
 
 /* en partie : zones aux couleurs du thème, cartes cerclées de sa lueur */
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]):has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, var(--leather), var(--bg) 70%), var(--bg); }
-body.staged:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]):has(#app.ingame) { background: var(--bg); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .zone { background: var(--th-zone); border-color: var(--line);
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]):has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, var(--leather), var(--bg) 70%), var(--bg); }
+body.staged:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="casino"]):has(#app.ingame) { background: var(--bg); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .zone { background: var(--th-zone); border-color: var(--line);
   box-shadow: inset 0 0 22px #000, inset 0 -26px 30px -18px var(--th-glow2), 0 0 0 1px #000; }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .terrain.set { background: var(--th-panel); border-color: var(--accent); color: var(--gold-hi); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .score .v { font-family: var(--th-font); font-weight: 400; }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.hc, .mc) { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 4px 10px rgb(0 0 0 / .55), 0 0 10px -3px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .hc.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 0 18px 2px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .dock { background: linear-gradient(180deg, color-mix(in srgb, var(--leather) 60%, transparent), var(--sunk)); border-top-color: var(--th-btn-rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.tturn b, .tseals b) { color: var(--accent); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .op { background: radial-gradient(circle at 50% 42%, var(--leather) 0, var(--leather-lo) 55%, #000 100%); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .terrain.set { background: var(--th-panel); border-color: var(--accent); color: var(--gold-hi); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .score .v { font-family: var(--th-font); font-weight: 400; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.hc, .mc) { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 4px 10px rgb(0 0 0 / .55), 0 0 10px -3px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .hc.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 0 18px 2px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .dock { background: linear-gradient(180deg, color-mix(in srgb, var(--leather) 60%, transparent), var(--sunk)); border-top-color: var(--th-btn-rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.tturn b, .tseals b) { color: var(--accent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .op { background: radial-gradient(circle at 50% 42%, var(--leather) 0, var(--leather-lo) 55%, #000 100%); }
 
-@media (prefers-reduced-motion: reduce) { body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .playbtn { animation: none; } }
+@media (prefers-reduced-motion: reduce) { body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .playbtn { animation: none; } }
 
 /* ---- Éclipse d'Ignaroth, plus loin : passe après les règles communes ---- */
 /* le soleil noir, en haut au milieu, là où l'illustration d'Ignaroth a le sien : disque d'ombre, anneau de feu qui respire, couronne de flammes qui tourne lentement (caché en partie : la table a le sien) */
@@ -351,6 +368,56 @@ body[data-season="aube"] .tabbar { box-shadow: 0 -1px 0 rgb(255 220 150 / .8), 0
 body[data-season="aube"] .zone { box-shadow: inset 0 0 22px rgb(0 0 0 / .7), inset 0 -30px 34px -18px rgb(255 180 160 / .4), 0 0 0 1px #000; }
 @media (prefers-reduced-motion: reduce) { body[data-season="aube"]::after, body[data-season="aube"] #app::before, body[data-season="aube"] .bar > span { animation: none; } }
 
+/* ---- Roue de Fortuna, plus loin ---- */
+/* roue de roulette rouge et noire cerclée d'or, en haut à droite, qui tourne lentement, et lampe de table au-dessus du tapis
+   (cachées en partie : la table a son tapis) */
+body[data-season="casino"]::after { content: ''; position: fixed; top: max(64px, 8vh); right: -70px; width: 190px; aspect-ratio: 1; border-radius: 50%; z-index: -1; pointer-events: none;
+  background: radial-gradient(circle, #f2c14e 0 7%, #3a2410 7.5% 9%, #5a3418 9% 30%, #c8901e 30.5% 32%, transparent 32.5%),
+    radial-gradient(circle, transparent 0 60%, #f2c14e 60.5% 62%, transparent 62.5% 78%, #f2c14e 78.5% 80%, #3a2410 80.5% 92%, #c8901e 92.5% 95%, transparent 95.5%),
+    repeating-conic-gradient(#b8101e 0 9.73deg, #111 9.73deg 19.46deg);
+  opacity: .55; box-shadow: 0 0 60px 6px rgb(0 0 0 / .6); animation: eclipse-sun 60s linear infinite; }
+body[data-season="casino"] #app::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse 70% 40% at 50% 0%, rgb(255 236 180 / .1), transparent 70%), radial-gradient(ellipse 130% 95% at 50% 40%, transparent 55%, rgb(0 0 0 / .55) 90%); }
+body[data-season="casino"]:has(#app.ingame)::after, body[data-season="casino"] #app.ingame::before { display: none; }
+body[data-season="casino"]::before { opacity: .38; }
+/* titres : lettres d'or d'enseigne, cerclées d'un néon rouge qui grésille de temps en temps */
+body[data-season="casino"] :is(h2, .top .title) { background: linear-gradient(180deg, #fff6d0 10%, #ffd860 45%, #c8901e 85%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: none; filter: drop-shadow(0 2px 0 #1a0604) drop-shadow(0 0 6px rgb(230 30 50 / .7)); animation: casino-neon 6s steps(1) infinite; }
+@keyframes casino-neon { 0%, 100% { filter: drop-shadow(0 2px 0 #1a0604) drop-shadow(0 0 6px rgb(230 30 50 / .7)); }
+  91% { filter: drop-shadow(0 2px 0 #1a0604) drop-shadow(0 0 1px rgb(230 30 50 / .2)); } 93% { filter: drop-shadow(0 2px 0 #1a0604) drop-shadow(0 0 9px rgb(255 50 70 / .9)); }
+  95% { filter: drop-shadow(0 2px 0 #1a0604) drop-shadow(0 0 1px rgb(230 30 50 / .2)); } }
+body[data-season="casino"] .eyebrow { color: #ff5a6a; text-shadow: 0 0 8px rgb(230 30 50 / .55); }
+/* panneaux : tapis cerclé d'un double filet d'or, et une couleur de carte dans le coin (pique, cœur, trèfle, carreau) */
+body[data-season="casino"] :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) { border-color: #8a6a20;
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 3px rgb(242 193 78 / .45), inset 0 0 0 4px #000, inset 0 0 30px rgb(0 0 0 / .45), 0 6px 18px rgb(0 0 0 / .6); }
+body[data-season="casino"] :is(.card-box, .tile) { position: relative; }
+body[data-season="casino"] :is(.card-box:not(.showcase, .booster), .tile)::after { content: '♠'; position: absolute; top: 5px; right: 9px; font: 15px/1 serif; color: #0a0a0a; pointer-events: none;
+  text-shadow: 0 0 1px #f2c14e, 0 0 1px #f2c14e, 0 1px 0 rgb(242 193 78 / .6); }
+body[data-season="casino"] :is(.card-box, .tile):nth-child(4n+2)::after { content: '♥'; color: #d8102a; }
+body[data-season="casino"] :is(.card-box, .tile):nth-child(4n+3)::after { content: '♣'; }
+body[data-season="casino"] :is(.card-box, .tile):nth-child(4n)::after { content: '♦'; color: #d8102a; }
+/* bouton Jouer : laque rouge cerclée d'or, guirlande d'ampoules d'enseigne qui chasse tout autour */
+body[data-season="casino"] #app .playbtn { position: relative; background: radial-gradient(ellipse 80% 70% at 50% 0%, rgb(255 200 200 / .35), transparent 70%), linear-gradient(180deg, #e8283c, #b8101e 55%, #6a0610);
+  color: #fff2c0; border: 2px solid #f2c14e; box-shadow: inset 0 0 0 2px #3a0408, inset 0 2px 0 3px rgb(255 255 255 / .2), 0 0 0 1px #000, 0 0 30px -4px rgb(242 193 78 / .7); }
+body[data-season="casino"] .playbtn > span { color: #fff2c0; text-shadow: 0 2px 0 #3a0408, 0 0 12px rgb(255 216 96 / .8); }
+body[data-season="casino"] .playbtn > small { color: #ffd8a0; }
+body[data-season="casino"] #app .playbtn::after { content: ''; position: absolute; inset: 4px; border-radius: inherit; pointer-events: none;
+  --b: radial-gradient(circle, #fff6c0 0 1.6px, rgb(255 200 80 / .5) 2.4px, transparent 3px);
+  background: var(--b) 0 0 / 12px 6px repeat-x, var(--b) 6px 100% / 12px 6px repeat-x, var(--b) 0 0 / 6px 12px repeat-y, var(--b) 100% 6px / 6px 12px repeat-y;
+  animation: casino-bulbs .8s steps(2) infinite; }
+@keyframes casino-bulbs { to { background-position: 12px 0, 18px 100%, 0 12px, 100% 18px; } }
+/* jauges : rouge de la roulette qui passe à l'or */
+@keyframes casino-flow { to { background-position: 200% 0; } }
+body[data-season="casino"] .bar > span { background: linear-gradient(90deg, #a8101e, #e8283c 30%, #ffd860 45%, #e8283c 60%, #a8101e) 0 0 / 200% 100%; animation: casino-flow 4s linear infinite; }
+/* boutons : noir laqué au filet d'or ; principaux : jeton d'or */
+body[data-season="casino"] :is(.btn, .seg button) { border-color: #6a5420; }
+body[data-season="casino"] .tabbar { background: linear-gradient(180deg, #2a0a0e, #120406); border-top: 2px solid #f2c14e; box-shadow: 0 -8px 24px -8px rgb(242 193 78 / .5); }
+body[data-season="casino"] .tabbar button.on { color: #ffd860; }
+/* en partie : chaque zone est un tapis cerclé d'or */
+body[data-season="casino"] .zone { border-color: #8a6a20; box-shadow: inset 0 0 0 1px #000, inset 0 0 0 3px rgb(242 193 78 / .35), inset 0 0 24px rgb(0 0 0 / .6), 0 0 0 1px #000; }
+body[data-season="casino"] .dock { border-top: 2px solid #f2c14e; }
+@media (prefers-reduced-motion: reduce) { body[data-season="casino"]::after, body[data-season="casino"] :is(h2, .top .title, .playbtn::after, .bar > span) { animation: none; } }
+
 /* aperçus (personnalisation, boutique, récompenses) */
 .theme-eclipse.theme-swatch { background: radial-gradient(circle at 70% 35%, #000 0 6px, #ffe0b0 6.5px, #ff7a2a 7.5px, rgb(255 60 20 / .4) 10px, transparent 15px),
   radial-gradient(ellipse at 50% 120%, rgb(255 60 20 / .45), transparent 60%), linear-gradient(#2a0a0a, #0a0507); }
@@ -360,6 +427,11 @@ body[data-season="aube"] .zone { box-shadow: inset 0 0 22px rgb(0 0 0 / .7), ins
   radial-gradient(1px 1px at 45% 70%, #fff 50%, transparent), linear-gradient(150deg, transparent 35%, rgb(160 120 255 / .35) 50%, transparent 65%), linear-gradient(#0e1240, #05061a); }
 .theme-estampe.theme-swatch { background: radial-gradient(circle at 75% 30%, #c8281a 0 5px, transparent 5.5px),
   radial-gradient(circle at 50% 100%, transparent 0 3px, #2a5a7a 3px 4px, transparent 4px 6px, #2a5a7a 6px 7px, transparent 7.5px) 0 100% / 14px 7px repeat-x, #efe2c4; }
+.theme-casino.theme-swatch { background: radial-gradient(ellipse at 50% 35%, transparent 45%, rgb(0 0 0 / .5)),
+  radial-gradient(circle at 50% 42%, #f2c14e 0 6px, #5a3418 6.5px 22px, #c8901e 22.5px 24px, transparent 24.5px),
+  radial-gradient(circle at 50% 42%, transparent 0 44px, #f2c14e 44.5px 46px, #3a2410 46.5px 52px, #c8901e 52.5px 54px, #0a3a24 54.5px),
+  repeating-conic-gradient(from 0deg at 50% 42%, #b8101e 0 9.73deg, #111 9.73deg 19.46deg); }
+.theme-casino.theme-swatch:not(.theme-cover) { background: radial-gradient(circle at 70% 40%, #f2c14e 0 3px, #b8101e 3.5px 5px, transparent 5.5px), radial-gradient(ellipse at 50% 30%, #126a40, #04190f 80%); }
 .theme-aube.theme-swatch { background: radial-gradient(ellipse 60% 50% at 50% 110%, #ffd070, #ff8aa0 50%, transparent 80%), linear-gradient(#1a1430, #4a2440 70%, #8a4050); }
 
 /* rayon Thèmes de la boutique : une carte par thème, son ciel et le général par-dessus */

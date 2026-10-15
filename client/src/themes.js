@@ -4,7 +4,7 @@ import './themes.css';
 import { esc } from './common.js';
 import { themeArt } from './art.js';
 import { t } from '@jeu/engine/i18n';
-import { EXTRA_THEMES, SHOP_THEMES, themeShop } from '@jeu/engine/themes';
+import { EXTRA_THEMES, SHOP_THEMES, themeShop, themeOut } from '@jeu/engine/themes';
 import { ACHIEVEMENTS } from '@jeu/engine/rewards';
 
 // Illustration du thème affiché, en variables CSS sur <body> (lues par themes.css). Appelé à chaque rendu : ne touche au style
@@ -50,7 +50,7 @@ export function themeShopHTML(app) {
     <div><span class="eyebrow">${t('Cosmétique')}</span><h2 style="font-size:22px">${t('Thèmes de l\'interface')}</h2></div>
     <p class="hint" style="margin:0">${t('Habillez toute l\'appli aux couleurs d\'un général : menus, boutons, table de partie, et son portrait en fond. « Essayer » le montre ici sans l\'acheter. Un thème acheté est aussitôt choisi ; changez-en quand vous voulez dans votre profil, rubrique Personnalisation.')}</p>
     ${ui.msg && !ui.sheet ? `<p role="status" style="margin:0"><b>${esc(ui.msg)}</b></p>` : ''}
-    <ul class="themelist">${SHOP_THEMES.map(item).join('')}</ul>
+    <ul class="themelist">${SHOP_THEMES.filter(id => themeOut(id)).map(item).join('')}</ul>
     ${elsewhere.length ? `<div class="gal-h">${t('Dans les autres boutiques')}</div><ul class="themelist">${elsewhere.map(item).join('')}</ul>` : ''}
     <p class="hint" style="margin:0">${t('Les thèmes de saison se débloquent au palier 12 de la piste gratuite de leur passe.')}</p>
   </section>`;

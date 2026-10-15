@@ -15,6 +15,8 @@ export const PALETTE = {
   aube: { embers: [0xffd890, 0xffb0c8, 0xffffff], sparks: [0xffa040, 0xff7aa0, 0xffd060], hearth: 0xffb860, spark: [0xfff0c0, 0xffd0e0], fog: [0xc898b8, 0xffd8a0] },
   // poussière d'étoiles dorée et bleue sous la voûte d'Elyndra ; vermillon et encre sur le papier de l'estampe.
   astral: { embers: [0xfff2b0, 0xa8c8ff, 0xffffff], sparks: [0xe8b830, 0x5a78e0, 0xc8a0ff], hearth: 0x6a8aff, spark: [0xffe8a0, 0xd8e4ff], fog: [0x3a2a8a, 0x1a4a9a] },
+  // or des jetons et rouge de la roulette au-dessus du tapis vert.
+  casino: { embers: [0xffd860, 0xff3a4a, 0xfff2c0], sparks: [0xe0a020, 0xc8101e, 0xf2c14e], hearth: 0xf2c14e, spark: [0xffd860, 0xfff6d0], fog: [0x1a6a40, 0x6a5a20] },
   estampe: { embers: [0xd8301c, 0xf0a0a8, 0x3a8a9a], sparks: [0xc8281a, 0xe88a98, 0x2a6a7a], hearth: 0xd8301c, spark: [0xd8301c, 0xf0b0b8], fog: [0x6aa0aa, 0xd8c8a8] },
 };
 export const palette = () => PALETTE[season()] || PALETTE[''];
@@ -38,6 +40,8 @@ const TABLE = {
     font: 'Marcellus SC, Cinzel, serif', text: 0xffe8a0, stroke: 0x0a0a2a, band: 0x080a20, edge: 0xffd870, stars: true },
   estampe: { ground: 0xefe2c4, planks: null, seam: null, lamp: 0xffe0b0, low: null, grid: null,
     font: 'Shojumaru, Cinzel, serif', text: 0xc8281a, stroke: 0x1a1410, band: 0x1a1410, edge: 0xc8281a, waves: true },
+  casino: { ground: 0x0a3a24, planks: null, seam: null, lamp: 0xfff0c0, low: null, grid: null,
+    font: 'Limelight, Cinzel, serif', text: 0xffd860, stroke: 0x2a0606, band: 0x041a10, edge: 0xf2c14e, felt: true },
 };
 export const tableLook = () => TABLE[season()] || TABLE[''];
 
@@ -50,6 +54,7 @@ const SHOP = {
   sylve: { velvet: ['#1a4a2a', '#06140a'], awning: [0x2a5a2a, 0xd8d090], warm: 0xc8f080, flame: 0xf0ffd0, glow: 0xd0f0a0 },
   aube: { velvet: ['#6a2a5a', '#1e0a1c'], awning: [0xd890a8, 0xfff0d8], warm: 0xffc070, flame: 0xfff4d8, glow: 0xffd8b0 },
   astral: { velvet: ['#1a1a5a', '#05061a'], awning: [0x10124a, 0xe8c050], warm: 0x8aa0ff, flame: 0xfff4c0, glow: 0xb8a0ff },
+  casino: { velvet: ['#0e5a34', '#03140b'], awning: [0xb8101e, 0x111111], warm: 0xffd860, flame: 0xfff6d0, glow: 0xf2c14e },
   estampe: { velvet: ['#a8201a', '#3a0a08'], awning: [0x1a1410, 0xc8281a], warm: 0xffc890, flame: 0xfff0d0, glow: 0xffd8b0 },
 };
 export const shopColors = () => SHOP[season()] || SHOP[''];
@@ -99,6 +104,18 @@ export function featherCanvas() {
   for (let y = 14; y < 52; y += 7) { g.beginPath(); g.moveTo(26, y - 6); g.lineTo(20, y); g.moveTo(2, y - 4); g.lineTo(8, y + 1); g.stroke(); }
   g.globalCompositeOperation = 'source-over'; g.strokeStyle = '#fff'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(14, 4); g.lineTo(14, 63); g.stroke();
   return c;
+}
+// Roue de Fortuna : jetons de casino vus de face (disque, encoches blanches sur la tranche, anneau et cœur), un canevas par couleur.
+export function chipCanvases() {
+  return [['#c8101e', '#fff'], ['#151515', '#f2c14e'], ['#1a4ab8', '#fff'], ['#f2c14e', '#7a1010']].map(([body, mark]) => {
+    const c = document.createElement('canvas'); c.width = c.height = 40; const g = c.getContext('2d');
+    g.fillStyle = body; g.beginPath(); g.arc(20, 20, 19, 0, Math.PI * 2); g.fill();
+    g.fillStyle = mark; for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; g.beginPath(); g.arc(20, 20, 19, a - 0.18, a + 0.18); g.arc(20, 20, 14, a + 0.18, a - 0.18, true); g.fill(); }
+    g.strokeStyle = mark; g.lineWidth = 1.2; g.setLineDash([2, 2]); g.beginPath(); g.arc(20, 20, 11, 0, Math.PI * 2); g.stroke();
+    g.setLineDash([]); g.fillStyle = body; g.beginPath(); g.arc(20, 20, 9.5, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = 'rgb(0 0 0 / .35)'; g.lineWidth = 1; g.beginPath(); g.arc(20, 20, 18.5, 0, Math.PI * 2); g.stroke();
+    return c;
+  });
 }
 // Astral : étoile filante, une traîne qui s'éteint vers la gauche et une tête vive à droite.
 export function streakCanvas() {
