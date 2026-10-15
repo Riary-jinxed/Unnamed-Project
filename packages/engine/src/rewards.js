@@ -292,7 +292,7 @@ Object.assign(FRAMES, Object.fromEntries(ART_THEME_FRAMES));
 export const familyOf = id => (GENERALS[id] ? GENERALS[id].fam : CARDS[id]?.kw.find(k => FAMILIES.includes(k))) || null;
 
 // ---- Succès ----
-// stat : compteur du compte comparé à goal. Éclats et Prismes se règlent dans /admin ; titres, cadres et émotes (emotes.js) sont fixes.
+// stat : compteur du compte comparé à goal. Éclats et Prismes se règlent dans /admin ; titres, cadres, émotes (emotes.js) et thèmes (themes.js) sont fixes.
 // prisms : Prismes (monnaie des arts alternatifs), surtout pour les succès difficiles ; un peu pour les faciles.
 // chests : coffres d'arts offerts, réservés aux succès les plus rares.
 const A = (id, group, label, stat, goal, shards, extra = {}) => ({ id, group, label, stat, goal, shards, prisms: 0, chests: 0, ...extra });
@@ -359,7 +359,7 @@ export const ACHIEVEMENTS = [
   // Quêtes d'histoire (story.js) : chapitres gagnés pour la première fois, campagnes finies, quêtes à durée limitée finies.
   A('story1', 'Histoire', 'Gagner un premier chapitre d\'histoire', 'storyChapters', 1, 50, { prisms: 2 }),
   A('storyCamp1', 'Histoire', 'Finir une campagne d\'histoire', 'storyCampaigns', 1, 200, { prisms: 5, title: 'Conteur' }),
-  A('storyCamp3', 'Histoire', 'Finir les trois campagnes des Terres d\'Aube', 'storyCampaigns', 3, 500, { prisms: 15, chests: 1, title: 'Chroniqueur de l\'Aube' }),
+  A('storyCamp3', 'Histoire', 'Finir les trois campagnes des Terres d\'Aube', 'storyCampaigns', 3, 500, { prisms: 15, chests: 1, title: 'Chroniqueur de l\'Aube', theme: 'aube' }),
   A('storyLimited', 'Histoire', 'Finir une quête à durée limitée', 'storyLimited', 1, 200, { prisms: 5 }),
   A('login7', 'Connexion', 'Se connecter 7 jours', 'loginDays', 7, 100, { prisms: 2 }),
   A('login30', 'Connexion', 'Se connecter 30 jours', 'loginDays', 30, 300, { prisms: 10, title: 'Habitué' }),

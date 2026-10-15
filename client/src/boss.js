@@ -11,6 +11,7 @@ import { DECK_SIZE, DECK_TERRAINS, deckError } from '@jeu/engine/collection';
 import { TITLES } from '@jeu/engine/rewards';
 import { t, tp, tField, locale } from '@jeu/engine/i18n';
 import { hpBarHTML } from './clan-boss.js';
+import { themeCover, tryThemeHTML } from './themes.js';
 
 const TABS = [['boss', t('Boss')], ['classement', t('Classement')], ['magasin', t('Magasin')]];
 const WHEN = { start: t('Début du tour'), end: t('Fin du tour') };
@@ -124,11 +125,12 @@ export function createBoss(app) {
         ${ranksHTML(L.ranks)}`)}`;
   }
 
-  const KIND = { back: t('Dos de carte'), frame: t('Cadre de profil'), title: t('Titre'), shards: t('Éclats'), boosters: t('Booster'), chests: t('Coffre d\'arts'), prisms: t('Prismes'), uniEssence: t('Essence') };
+  const KIND = { theme: t('Thème de l\'interface'), back: t('Dos de carte'), frame: t('Cadre de profil'), title: t('Titre'), shards: t('Éclats'), boosters: t('Booster'), chests: t('Coffre d\'arts'), prisms: t('Prismes'), uniEssence: t('Essence') };
   function itemVisual(x) {
     const id = x.id.slice(x.kind.length + 1);
     if (x.kind === 'art') { const A = ARTS[id], card = A.card; return `<div class="citem-art">${artHTML(card, (CARDS[card] || GENERALS[card]).name, 1, '', id)}</div>`; }
     if (x.kind === 'back') return `<span class="mc back back-${esc(id)}"></span>`;
+    if (x.kind === 'theme') return `<div class="citem-art">${themeCover(id)}</div>`;
     if (x.kind === 'frame') return app.avatarHTML(ui.account, 'cav', id);
     if (x.kind === 'title') return `<span class="ctitle">${t('« {title} »', { title: esc(t(TITLES[id] || x.name.replace(/^Titre « (.*) »$/, '$1'))) })}</span>`;
     if (x.kind === 'boosters') return '<span class="bres"><span class="bpack" aria-hidden="true"></span></span>';
@@ -142,8 +144,10 @@ export function createBoss(app) {
       const soldOut = !cosmetic && x.bought >= x.limit;
       const state = x.owned ? `<span class="ok">${t('✓ Possédé')}</span>` : soldOut ? `<span class="hint">${t('Revenez lundi')}</span>`
         : `<button class="btn sm ${D.coins >= x.price ? 'primary' : ''}" data-act="boss-buy" data-item="${esc(x.id)}" ${ui.busy || D.coins < x.price ? 'disabled' : ''}>${ico('insigne')}${x.price}</button>`;
+      // un thème pas encore à soi : « Essayer » le montre sur tout l'écran du boss
+      const tryIt = x.kind === 'theme' && !x.owned ? tryThemeHTML(ui, x.id.slice(6)) : '';
       return `<div class="citem ${x.owned ? 'owned' : ''} ${soldOut ? 'locked' : ''} k-${x.kind}">${itemVisual(x)}<b>${esc(t(x.name))}</b>
-        <small class="hint">${art ? `${esc(rarityName(art))} · ${esc((CARDS[art.card] || GENERALS[art.card]).name)}` : KIND[x.kind]}${cosmetic ? '' : ` · ${t('{n}/{max} cette semaine', { n: x.bought, max: x.limit })}`}</small>${state}</div>`;
+        <small class="hint">${art ? `${esc(rarityName(art))} · ${esc((CARDS[art.card] || GENERALS[art.card]).name)}` : KIND[x.kind]}${cosmetic ? '' : ` · ${t('{n}/{max} cette semaine', { n: x.bought, max: x.limit })}`}</small>${tryIt}${state}</div>`;
     };
     return block(t('Magasin du boss · vous avez {n} Insignes', { n: coins(D.coins) }), `<p class="hint" style="margin:0">${t('Les Insignes se gagnent à chaque tentative (paliers de points) et à la fin de chaque semaine selon votre place au classement. Les ressources se rachètent chaque semaine ; arts, dos, cadre et titre, une seule fois.')}</p>
       <div class="cshop">${D.shop.map(item).join('')}</div>`);
@@ -242,7 +246,7 @@ export function createBoss(app) {
 
   // ---- Clics ----
   function click(a, ds) {
-    if (a === 'boss') { app.leaveGame?.(); ui.screen = 'boss'; ui.sheet = null; ui.error = ''; B.note = ''; load(); if (B.tab === 'classement') ladder(); app.render(); }
+    if (a === 'boss') { app.leaveGame?.(); ui.screen = 'boss'; ui.sheet = null; ui.themeTry = null; ui.error = ''; B.note = ''; load(); if (B.tab === 'classement') ladder(); app.render(); }
     else if (a === 'boss-tab') { B.tab = ds.tab; B.note = ''; ui.error = ''; if (ds.tab === 'classement') ladder(); if (ds.tab === 'magasin' && !B.data) load(); app.render(); }
     else if (a === 'boss-play' && !ui.busy) app.go();
     else if (a === 'boss-buy' && !ui.busy) buy(ds.item);
