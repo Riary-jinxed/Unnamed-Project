@@ -326,7 +326,7 @@ export const CARDS = {
   // ANGE : anges synthétiques (Implant)
   ange_synthetique:{ set: 'set3', name: 'Ange synthétique', type: 'C', cost: 2, power: 2, kw: ['Ange'], text: 'Grâce : Implant 1 sur une autre de vos créatures ici.',
                  grace: (c, st) => implant(st, weakest(st, creaturesAt(st, c.owner, c.zone).filter(x => x !== c)), 1) },
-  aureole:     { set: 'set3', name: 'Auréole chromée', type: 'S', cost: 1, power: 0, kw: ['Ange'], text: 'Implant 1 sur chacun de vos Anges ici.',
+  aureole_chromee:{ set: 'set3', name: 'Auréole chromée', type: 'S', cost: 1, power: 0, kw: ['Ange'], text: 'Implant 1 sur chacun de vos Anges ici.',
                  onReveal: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Ange')).forEach(x => implant(st, x, 1)) },
   seraphin_donnees:{ set: 'set3', name: 'Séraphin de données', type: 'C', cost: 4, power: 3, kw: ['Ange'], text: 'Révélation : Implant 1 sur vos autres Anges en jeu.',
                  onReveal: (c, st) => mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Ange')).forEach(x => implant(st, x, 1)) },
@@ -979,7 +979,7 @@ export const DECKS = {
              cards: ['gamin_augmente', 'charcudoc', 'samourai', 'bras_canon', 'implant_combat', 'surtension', 'chrome', 'cyberpsycho', 'pilote_meca', 'colosse_augmente', 'androide', 'legende_chrome', 'mercenaire_augmente', 'chevalier', 'golem'],
              terrains: ['clinique', 'centrale', 'sanctuaire', 'champ', 'forteresse'] },
   grille:  { set: 'set3', name: 'Grille céleste', fam: 'Ange', general: 'machina',
-             cards: ['ange_synthetique', 'aureole', 'seraphin_donnees', 'archange_cyber', 'cherubin', 'benediction', 'gardien', 'messagere', 'annonciatrice', 'heraut', 'juge', 'dominion', 'seraphin', 'mercenaire_augmente', 'golem'],
+             cards: ['ange_synthetique', 'aureole_chromee', 'seraphin_donnees', 'archange_cyber', 'cherubin', 'benediction', 'gardien', 'messagere', 'annonciatrice', 'heraut', 'juge', 'dominion', 'seraphin', 'mercenaire_augmente', 'golem'],
              terrains: ['nuage', 'prairie', 'sanctuaire', 'champ', 'forteresse'] },
   daemons: { set: 'set3', name: 'Daemons du réseau', fam: 'Démon', general: 'mammon',
              cards: ['daemon_parasite', 'possession', 'daemon_corrupteur', 'archidaemon', 'diablotin', 'cultiste', 'pacte', 'bourreau', 'molosse', 'rituel', 'demon_majeur', 'moissonneur', 'bete', 'seigneur', 'archidemon'],
