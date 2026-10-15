@@ -115,7 +115,7 @@ body:has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, 
 .sheet.sheet-out { pointer-events: none; animation: sheetfade .22s ease-in reverse forwards; }
 .sheet.sheet-out > .panel { animation: sheetdown .22s cubic-bezier(.4,0,1,1) forwards; }
 @keyframes sheetdown { to { opacity: 0; transform: translateY(28px) scale(.97); } }
-.tabbar.slid::before { content: ''; position: absolute; top: 0; bottom: 0; left: calc(var(--tab) * 20%); width: 20%; pointer-events: none;
+.tabbar.slid::before { content: ''; position: absolute; top: 0; bottom: 0; left: calc(var(--tab) * 100% / var(--cols, 5)); width: calc(100% / var(--cols, 5)); pointer-events: none;
   background: radial-gradient(ellipse at 50% 30%, rgb(227 181 82 / .3), transparent 70%); box-shadow: inset 0 2px 0 var(--gold);
   animation: tabslide .3s cubic-bezier(.3,.9,.3,1) forwards; }
 @keyframes tabslide { from { transform: translateX(calc((var(--from) - var(--tab)) * 100%)); } 70% { opacity: 1; } to { transform: none; opacity: 0; } }

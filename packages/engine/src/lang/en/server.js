@@ -343,4 +343,16 @@ export default {
   // Rayon Thèmes.
   "Ce thème n'est pas en vente.": "This theme is not for sale.",
   "Vous avez déjà ce thème.": "You already have this theme.",
+  // Casino du Sept d'or (server/src/casino.js)
+  "Le casino a fermé ses tables : seule la boutique est encore ouverte.": "The casino has closed its tables: only the shop is still open.",
+  "Le casino n'est pas ouvert.": "The casino is not open.",
+  "La boutique du casino est fermée.": "The casino shop is closed.",
+  "Déjà acheté {n} fois pendant cet événement.": "Already bought {n} times during this event.",
+  "Il vous faut {price} Jetons (vous en avez {have}).": "You need {price} Chips (you have {have}).",
+  "Plus de tirage aujourd'hui : revenez demain !": "No pulls left today: come back tomorrow!",
+  "Finissez d'abord la quête « La Nuit du Sept d'or ».": "Finish the quest \"The Night of the Golden Seven\" first.",
+  "Plus de montée aujourd'hui : revenez demain !": "No climbs left today: come back tomorrow!",
+  "Pas de table en cours.": "No table in progress.",
+  "Rien à encaisser pour le moment.": "Nothing to cash in right now.",
+  "Cet art se vend à la boutique du casino, contre des Jetons, pendant l'événement.": "This art is sold at the casino shop, for Chips, during the event.",
 };

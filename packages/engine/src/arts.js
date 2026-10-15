@@ -22,9 +22,10 @@ export const RARITY_IDS = Object.keys(ART_RARITIES);
 // Édition Essence : vendue seulement au rayon Essence de la boutique, contre de l'essence universelle (jamais au coffre ni en arts du jour).
 // Édition Clan : vendue seulement au magasin de clan, contre des Écus (clans.js, CLAN_SHOP).
 // Édition Boss : vendue seulement au magasin du boss mondial, contre des Insignes (boss.js, BOSS_SHOP).
+// Édition Casino : vendue seulement à la boutique du casino, contre des Jetons, pendant l'événement (casino.js, CASINO_SHOP).
 export function rarityName(art) {
   const name = t(ART_RARITIES[art.rarity]?.name || art.rarity), r = (name || '').toLowerCase();
-  return art.edition === 'promo' ? t('Promo {r}', { r }) : art.edition === 'essence' ? t('Essence {r}', { r }) : art.edition === 'clan' ? t('Clan {r}', { r }) : art.edition === 'boss' ? t('Boss {r}', { r }) : name;
+  return art.edition === 'promo' ? t('Promo {r}', { r }) : art.edition === 'essence' ? t('Essence {r}', { r }) : art.edition === 'clan' ? t('Clan {r}', { r }) : art.edition === 'boss' ? t('Boss {r}', { r }) : art.edition === 'casino' ? t('Casino {r}', { r }) : name;
 }
 // Prix par défaut des arts de l'édition Essence, en essence universelle, selon la rareté (réglables dans /admin : essArtPrice_<rareté>).
 export const ESSENCE_ART_PRICES = { rare: 150, epique: 300, legendaire: 600 };
@@ -126,6 +127,10 @@ export const ARTS = Object.fromEntries([
   A('mercenaire_clan', 'mercenaire', 'Mercenaire sous serment', 'epique', { edition: 'clan', theme: 'bannieres' }),
   A('seigneur_guerre_clan', 'seigneur_guerre', 'Seigneur de guerre, la grande bannière', 'epique', { edition: 'clan', theme: 'bannieres' }),
   A('cartographe_clan', 'cartographe', 'Cartographe des conquêtes', 'legendaire', { edition: 'clan', theme: 'bannieres' }),
+  // Édition Casino : seulement à la boutique du casino, contre des Jetons, pendant l'événement du Sept d'or (casino.js).
+  A('fortuna_grande_roue', 'fortuna', 'Fortuna, la grande roue d\'or', 'legendaire', { edition: 'casino' }),
+  A('velours_sept_or', 'velours', 'Velours, la nuit du Sept d\'or', 'epique', { edition: 'casino' }),
+  A('joueuse_des_mise', 'joueuse_des', 'Joueuse de dés, mise gagnante', 'rare', { edition: 'casino' }),
   // Édition Boss (famille Chasse aux boss) : seulement au magasin du boss mondial, contre des Insignes (boss.js).
   A('chevalier_boss', 'chevalier', 'Chevalier, tueur de boss', 'rare', { edition: 'boss', theme: 'chasse' }),
   A('vaelthar_trophee', 'vaelthar', 'Vael\'Thar, trophée du glacier', 'epique', { edition: 'boss', theme: 'chasse' }),

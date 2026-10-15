@@ -94,7 +94,12 @@ export function applyCatalog(cat) {
 export function withNewcomers(cat) {
   const sets = cat.sets.map(s => ({ ...s, cards: s.cards.slice() }));
   // Un set ajouté au code après l'enregistrement du catalogue (set 3…) y entre avec ses réglages par défaut.
-  for (const d of DEFAULT_SETS) if (!sets.some(s => s.id === d.id) && !(cat.known || []).includes(`set:${d.id}`)) sets.push({ ...d, cards: [] });
+  // Il prend sa place dans l'ordre des sets du code (juste après le set qui le précède), qui fait aussi l'ordre de la boutique.
+  DEFAULT_SETS.forEach((d, i) => {
+    if (sets.some(s => s.id === d.id) || (cat.known || []).includes(`set:${d.id}`)) return;
+    const prev = DEFAULT_SETS.slice(0, i).reverse().map(x => sets.findIndex(s => s.id === x.id)).find(k => k >= 0);
+    sets.splice(prev === undefined ? sets.length : prev + 1, 0, { ...d, cards: [] });
+  });
   const known = new Set(cat.known || [...BASE_KNOWN, ...Object.keys(cat.cards || {})]);
   for (const id of OWNABLE) {
     if (known.has(id) || sets.some(s => s.cards.includes(id))) continue;

@@ -595,4 +595,11 @@ export default {
   "Estampe d'Ysmera": "Ysmera's Print",
   "Roue de Fortuna": "Fortuna's Wheel",
   "Thème « Éclipse d'Ignaroth »": "\"Ignaroth's Eclipse\" theme",
+  // Casino du Sept d'or : cadre, titre et arts de l'édition Casino
+  "Cadre du Jackpot": "Jackpot Frame",
+  "Roi du tapis": "King of the Felt",
+  "Fortuna, la grande roue d'or": "Fortuna, the Great Golden Wheel",
+  "Velours, la nuit du Sept d'or": "Velvet, Night of the Golden Seven",
+  "Joueuse de dés, mise gagnante": "Dice Player, Winning Bet",
+  "Casino {r}": "Casino {r}",
 };

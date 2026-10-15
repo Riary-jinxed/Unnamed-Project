@@ -28,7 +28,7 @@ export const themeCover = id => { const x = EXTRA_THEMES[id], art = themeArt(x.c
 const TRY_THEMES = false;
 export const tryThemeHTML = (ui, id) => { if (!TRY_THEMES) return ''; const on = ui.themeTry === id;
   return `<button class="btn" data-act="try-theme" data-id="${esc(id)}" aria-pressed="${on}">${on ? t('Arrêter l\'essai') : t('Essayer')}</button>`; };
-const WHERE = { essence: () => t('Au rayon Essence'), boss: () => t('Au magasin du boss mondial') };
+const WHERE = { essence: () => t('Au rayon Essence'), boss: () => t('Au magasin du boss mondial'), casino: () => t('À la boutique du casino') };
 
 // app : ce que main.js prête (ui, prog, ico, canPay).
 export function themeShopHTML(app) {
@@ -47,7 +47,7 @@ export function themeShopHTML(app) {
     const tryBtn = own ? '' : tryThemeHTML(ui, id);
     return `<li class="themeitem ${cur ? 'on' : ''}">${themeCover(id)}<b>${esc(name)}</b><div class="row">${tryBtn}${act}</div></li>`;
   };
-  const elsewhere = Object.keys(EXTRA_THEMES).filter(id => WHERE[themeShop(id)]);
+  const elsewhere = Object.keys(EXTRA_THEMES).filter(id => WHERE[themeShop(id)] && themeOut(id));
   return `<section class="card-box shopset themeshop">
     <div><span class="eyebrow">${t('Cosmétique')}</span><h2 style="font-size:22px">${t('Thèmes de l\'interface')}</h2></div>
     <p class="hint" style="margin:0">${t('Habillez toute l\'appli aux couleurs d\'un général : menus, boutons, table de partie, et son portrait en fond. Un thème acheté est aussitôt choisi ; changez-en quand vous voulez dans votre profil, rubrique Personnalisation.')}</p>
@@ -70,5 +70,6 @@ export const themeLock = id => { const x = EXTRA_THEMES[id]; if (!x) return t('�
   const where = themeShop(id);
   if (where === 'boss') return t('Au magasin du boss mondial, en Insignes');
   if (where === 'essence') return t('Au rayon Essence de la boutique');
+  if (where === 'casino') return t('À la boutique du casino, en Jetons, pendant l\'événement');
   if (where === 'themes') return t('En vente au rayon Thèmes de la boutique');
   if (x.event) return t('À la boutique de l\'événement'); const w = wonBy(id); return w ? t('Succès : {label}', { label: t(w.label) }) : t('À débloquer'); };

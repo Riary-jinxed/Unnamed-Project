@@ -149,6 +149,9 @@ export const DEFAULT_SETS = [
   { id: 'base', name: 'Set de base', cards: OWNABLE.filter(id => setOf(id) === 'base'), open: true, daily: true, teaser: '', boosterExtra: 0 },
   { id: 'set2', name: 'Crépuscule', cards: OWNABLE.filter(id => setOf(id) === 'set2'), open: true, daily: false, boosterExtra: 50,
     teaser: 'Morts-vivants et Vampires rejoignent la bataille, avec de nouveaux généraux pour chaque famille. Ses cartes arriveront d\'abord ici, en boosters et à l\'unité, avant de rejoindre le booster quotidien.' },
+  // Mini-set (mini : pas de récompense par famille, seulement le set complet) : quelques cartes pour relancer la construction de decks.
+  { id: 'tapis', name: 'Faites vos jeux', cards: OWNABLE.filter(id => setOf(id) === 'tapis'), open: true, daily: false, boosterExtra: 0, reveal: '2026-10-23', mini: true,
+    teaser: 'Le casino du Sept d\'or ouvre ses tables : des Paris au dé, des cartes pour tricher, trois Sept aux couleurs des Gobelins, des Elfes et des Démons pour décrocher le Jackpot, et un coup de pouce pour les Anges, les Gobelins et les Démons.' },
   { id: 'set3', name: 'Cité Néon', cards: OWNABLE.filter(id => setOf(id) === 'set3'), open: true, daily: false, boosterExtra: 50, reveal: '2026-11-02',
     teaser: 'Hackers et Cyborgs envahissent la mégapole : Malwares glissés dans le deck adverse, Piratage, Implants et Surcharge, avec un soutien néon pour chaque famille.' },
 ];
@@ -165,6 +168,8 @@ export function unrevealed(id, day = today()) {
 }
 // Decks préconstruits que l'IA peut jouer : ceux des sets déjà sortis.
 export const aiDeckKeys = (day = today()) => Object.keys(DECKS).filter(k => { const s = DECKS[k].set && (SETS.find(x => x.id === DECKS[k].set) || DEFAULT_SETS.find(x => x.id === DECKS[k].set)); return !s || setRevealed(s, day); });
+// Mini-set : seul le set complet est récompensé (pas de récompense par famille). Réglage du code, gardé si le catalogue l'a perdu.
+export const isMini = set => !!(set?.mini ?? DEFAULT_SETS.find(d => d.id === set?.id)?.mini);
 // Supplément du booster d'un set : celui du catalogue, sinon celui du set par défaut (catalogue publié avant le réglage).
 export const boosterExtraOf = set => Math.max(0, Math.round(+(set.boosterExtra ?? DEFAULT_SETS.find(d => d.id === set.id)?.boosterExtra ?? 0) || 0));
 export const setBoosterPrice = (set, price = SHOP.boosterPrice) => price + boosterExtraOf(set);

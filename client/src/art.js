@@ -92,7 +92,7 @@ const EMBLEMS = {
   Cyborg: '<path fill-rule="evenodd" d="M44 6h12l2 10 8 3 8-6 8 8-6 8 3 8 10 2v12l-10 2-3 8 6 8-8 8-8-6-8 3-2 10H44l-2-10-8-3-8 6-8-8 6-8-3-8-10-2V44l10-2 3-8-6-8 8-8 8 6 8-3Zm6 24a20 20 0 1 0 0 40 20 20 0 0 0 0-40Zm0 12a8 8 0 1 1 0 16 8 8 0 0 1 0-16Z"/>',
   neutre: '<path d="M50 6l9 29 30-6-21 21 21 21-30-6-9 29-9-29-30 6 21-21-21-21 30 6Z"/>',
 };
-const famOfId = id => CARDS[id]?.kw?.find(k => EMBLEMS[k]) || GENERALS[id]?.fam || TERRAINS[id]?.fam || null;
+const famOfId = id => CARDS[id]?.effigy || CARDS[id]?.kw?.find(k => EMBLEMS[k]) || GENERALS[id]?.fam || TERRAINS[id]?.fam || null;
 const emblem = fam => `<svg class="prov-emb" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">${EMBLEMS[fam] || EMBLEMS.neutre}</svg>`;
 const provHTML = (id, name, cls, fam = famOfId(id)) => `<div class="art prov ${cls}" aria-hidden="true">
   <div class="art-clip"><span class="prov-ring"></span>${emblem(fam)}<span class="prov-tag">${t('Illustration à venir')}</span></div>

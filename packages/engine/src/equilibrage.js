@@ -1,4 +1,4 @@
-// Banc d'équilibrage IA contre IA, sur tous les cœurs : node packages/engine/src/equilibrage.js [decks|generaux|cartes|tout] [parties] [tous]
+// Banc d'équilibrage IA contre IA, sur tous les cœurs : node packages/engine/src/equilibrage.js [decks|generaux|cartes|tout] [parties] [tous|AAAA-MM-JJ]
 // decks    : matrice des decks préconstruits (chaque duel joué dans les deux sens), et taux de victoire des cartes jouées.
 // generaux : chaque général à la tête des decks de sa famille (les généraux neutres : de tous les decks), contre tous les decks.
 //            Référence : le Cartographe, dont l'effet n'aide pas l'IA, joue le rôle de « sans général ».
@@ -42,7 +42,9 @@ if (!isMainThread) {
   const mode = process.argv[2] || 'tout';
   const N = +process.argv[3] || 40;
   // Decks des sets déjà sortis, comme l'IA du jeu ; « tous » en 4e argument pour inclure les sets à venir.
-  const keys = process.argv[4] === 'tous' ? Object.keys(DECKS) : aiDeckKeys();
+  // Une date (AAAA-MM-JJ) en 4e argument : les decks sortis à ce jour-là, pour équilibrer un set avant sa sortie.
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(process.argv[4] || '') ? process.argv[4] : undefined;
+  const keys = process.argv[4] === 'tous' ? Object.keys(DECKS) : aiDeckKeys(day);
   const deckObj = (k, swapOut, swapIn, general) => ({ ...DECKS[k], general: general || DECKS[k].general,
     cards: swapOut ? DECKS[k].cards.map(c => c === swapOut ? swapIn : c) : DECKS[k].cards });
 
@@ -90,7 +92,7 @@ if (!isMainThread) {
 
   if (mode === 'generaux' || mode === 'tout') {
     const combos = [];
-    for (const g of Object.keys(GENERALS).filter(x => !GENERALS[x].boss)) if (process.argv[4] === 'tous' || !unrevealed(g)) for (const k of keys) if (!GENERALS[g].fam || GENERALS[g].fam === DECKS[k].fam) combos.push([g, k]);
+    for (const g of Object.keys(GENERALS).filter(x => !GENERALS[x].boss)) if (process.argv[4] === 'tous' || !unrevealed(g, day)) for (const k of keys) if (!GENERALS[g].fam || GENERALS[g].fam === DECKS[k].fam) combos.push([g, k]);
     for (const k of keys) if (!combos.some(([g, kk]) => g === 'cartographe' && kk === k)) combos.push(['cartographe', k]);
     const jobs = [];
     for (const [g, k] of combos) for (const b of keys) if (b !== k) jobs.push({ a: deckObj(k, null, null, g), b, n: Math.ceil(N / 2) * 2, key: [g, k] });

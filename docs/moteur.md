@@ -30,6 +30,7 @@ Champs d'une carte : `name`, `type`, `cost`, `power`, `kw` (la famille, ex. `['E
 | `firewall` | Pare-feu : vos créatures dans sa zone (elle comprise) ne peuvent pas être piratées. |
 | `malware(st, p)` | Malware (jeton) : la fonction s'exécute quand le joueur `p` pioche la carte, qui disparaît sans être remplacée. |
 | `egg` | Œuf : éclôt selon son propre effet. |
+| `jackpot` | Jackpot N : `onJackpot(c, st)` se déclenche une fois, dès que son propriétaire a gagné N Paris (à la révélation si c'est déjà fait). |
 
 ### Crochets
 
@@ -55,6 +56,8 @@ Une carte piratée (`c.hacked`, posé par `hack(st, c)`) perd tous ses effets : 
 Les généraux ont `activate` (+ `needsZone`, `activateCost`) pour un effet activable une fois par partie, `aura`, `preview` (voit ses terrains à venir) et les crochets `onStart`, `onStartTurn`, `onEndTurn`, `onEndGame`, `onDraw`, `onDiscard`, `onSpell`, `onAllyDestroyed`, `onMalware` (un de vos Malwares s'exécute chez l'adversaire), `onHack(p, st, carte)`, `onOverload(p, st, zone, carte)` (Surcharge payée), `onRaise` (une carte se relève), qui reçoivent le numéro du joueur (`p`) au lieu d'une carte. Ces crochets passent par `genHook` : s'il a écrit au journal, le général a agi, et `P.genFired` compte un déclenchement de plus (envoyé dans la vue, `genFired`, pour que l'appli joue son effet). Les terrains ont `flat` (bonus de zone), `aura`, `onReveal`, `onStartTurn`, `onEndTurn`, `onAllyDestroyed`, `onCardReveal`, `onSpellHere`, `onFoeReveal` (une créature adverse est révélée ici), avec `p` et la zone. Un général piraté (`hackGeneral`, `genHacked(st, p)`) est muet jusqu'à la fin du tour suivant : ni crochets, ni activation.
 
 Les effets s'écrivent avec les petites fonctions du moteur : `buff(st, carte, n)`, `addZone`, `draw`, `summon`, `horde`, `feast`, `move`, `destroy`, `drain`, `exhume`, `discardFromHand`, `malware(st, p, n, type)` (type `virus`, `ver`, `rancon` ou `mix`), `hack`, `hackGeneral`, `implant(st, carte, n)`, `overload(st, carte, n)` (renvoie `true` si la Surcharge a été payée), et les sélecteurs `creaturesAt(st, p, zone)`, `mine(st, p)`, `weakest`, `strongest`, `bestZone`.
+
+Pari (Faites vos jeux) : `roll(st, p, z, c, id)` lance un dé à 6 faces et renvoie le résultat ; `pari(st, c, bas, milieu, haut)` lance le dé de la carte `c` et appelle la fonction de sa tranche (1-2, 3-5 ou 6). `load(st, p, n)` pipe les `n` prochains dés du joueur (ils font 6), `tutor(st, p, test)` lui fait piocher la première carte de son deck qui passe le test (triche). Les cartes avec `seven: true` sont les Sept : quand les 3 d'un joueur sont en jeu, `checkJackpot` déclenche son Jackpot une fois (ses créatures +2, puis les `onJackpot` de ses cartes). Par joueur : `loaded`, `sixes`, `lows` (1 ou 2), `jackpot` (tour du Jackpot) et `rolls`, les derniers dés lancés que l'appli anime. Les généraux réagissent avec `onRoll(p, st, z, v)` ; `reroll: true` relance un 1 ou un 2, `floor3: true` (carte en jeu) met les dés à 3 au moins. `st.dice` (suite de résultats) fixe les prochains dés, pour le tutoriel ; `st.pause` allonge l'attente après une étape de révélation, le temps du dé ou de la machine à sous.
 
 ## État d'une partie
 

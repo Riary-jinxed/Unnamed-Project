@@ -49,7 +49,7 @@ const C = (id, name, place, at, goal, f, reward, intro, outro, extra = {}) => ({
 // Titres des quêtes (ajoutés aux titres de rewards.js).
 export const STORY_TITLES = [
   ['histoire:razzia', 'Pillard de légende'], ['histoire:racines', 'Voix des racines'], ['histoire:pacte', 'Briseur de sceaux'],
-  ['quete:halloween', 'Briseur de sabbat'], ['quete:eclipse', 'Porteur d\'aube'], ['quete:neon', 'Passe-mondes'],
+  ['quete:halloween', 'Briseur de sabbat'], ['quete:casino', 'Briseur de banque'], ['quete:eclipse', 'Porteur d\'aube'], ['quete:neon', 'Passe-mondes'],
 ];
 
 // book : numéro du livre (campagnes), next : la quête qui raconte la suite.
@@ -310,6 +310,55 @@ export const QUESTS = [
           ['grisk', "Toi, tu t'appelles Lanterne, et tu ne manges pas les moutons."]]),
     ] },
 
+  // Faites vos jeux : la quête du mini-set, une petite histoire à part, sans lien avec l'histoire principale ni la saison.
+  // Velours joue le deck du casino sans ses Sept ; chaque chapitre gagné en ajoute un (join), et le dernier se joue avec les trois.
+  { id: 'casino', kind: 'limitee', fam: 'Démon', hero: 'velours', name: "La Nuit du Sept d'or", map: 'casino', from: '2026-10-23', to: '2026-11-15',
+    tagline: "Une nuit par an, le casino du Sept d'or ouvre ses portes. Velours veut faire sauter la banque, et il lui faut les trois Sept.",
+    prologue: "Une petite histoire à part. Une nuit par an, au carrefour des trois routes, un casino sort de terre : le Sept d'or. La maison, Fortuna, n'a jamais perdu. Velours, sa croupière, connaît la seule façon de faire sauter la banque : jouer les trois Sept dans la même partie. Mais les Sept ne sont pas des cartes comme les autres. Ce sont trois joueurs, un Gobelin, une Elfe et un Démon, et cette nuit, chacun a perdu sa carte à la mauvaise table.",
+    deck: tweak('tapis', ['sept_pique', 'sept_trefle', 'sept_carreau'], ['mercenaire', 'chevalier', 'golem'], { name: "La table de Velours", general: 'velours' }),
+    chapters: [
+      C('pique', "Le Sept de pique", "La table des tricheurs", [14, 74], "Reprendre le Sept de pique à Snagg, qui l'a gagné avec des dés plombés.",
+        foe('Snagg, Maître de la Horde', 'snagg', tweak('gobelin', ['potion', 'barde', 'golem'], ['sept_pique', 'des_pipes', 'croupier'], { name: "Les dés de Snagg" }), 40), R({ shards: 100, xp: 50 }),
+        [[NARRATOR, "Minuit. Le Sept d'or sort de terre entre deux collines où il n'y avait rien la veille. Velours retire ses gants de croupière : cette nuit, elle joue pour elle."],
+          ['velours', "Trois Sept, trois joueurs. On commence par le plus petit."],
+          ['sept_pique', "Petit, mais honnête ! Enfin, presque. Snagg m'a pris ma carte avec des dés plus lourds que lui."],
+          ['snagg', "Des dés plombés ? Moi ? Ils sont juste bien nourris. Tu veux le Sept, croupière ? Viens le gagner."]],
+        [['snagg', "Mes dés ont fait 1 trois fois de suite. C'est toi qui les as retournés ?"],
+          ['velours', "Je suis croupière, Snagg. Je sais toujours sur quelle face un dé va tomber."],
+          ['sept_pique', "Je viens avec toi ! Une table où l'on triche mieux que moi, je veux voir ça."]],
+        { join: { card: 'sept_pique', out: 'mercenaire' } }),
+      C('trefle', "Le Sept de trèfle", "L'allée des machines", [38, 54], "Libérer le Sept de trèfle du sort d'Elyndra, qui lit l'avenir dans les machines à sous.",
+        foe('Elyndra, Tisseuse de sorts', 'elyndra', tweak('arcanes', ['alchimiste', 'cerf', 'sylvain'], ['sept_trefle', 'joueuse_des', 'machine_sous'], { name: "La chance d'Elyndra" }), 70), R({ shards: 120, xp: 60 }),
+        [[NARRATOR, "Tout au long de l'allée, les machines à sous clignotent. Une Elfe est assise devant la dernière, liée à son levier par un fil de lumière."],
+          ['sept_trefle', "N'approche pas. Elyndra m'a liée à cette machine. Tant qu'elle tourne, la chance reste de son côté."],
+          ['elyndra', "Le trèfle porte bonheur, croupière. Je ne fais que le garder près de moi."],
+          ['velours', "La chance ne se garde pas. Elle se joue."]],
+        [['elyndra', "Mes sorts ne lisent plus rien. Ta table brouille l'avenir."],
+          ['sept_trefle', "Le fil est coupé ! Je n'avais pas perdu depuis cent ans, et c'est la première fois que ça me fait plaisir."],
+          ['velours', "Garde ta chance pour la fin de la nuit. Il nous en faudra beaucoup."]],
+        { join: { card: 'sept_trefle', out: 'chevalier' } }),
+      C('carreau', "Le Sept de carreau", "La salle des coffres", [62, 40], "Racheter le Sept de carreau à Belzharoth, qui le garde au coffre en échange d'une âme.",
+        foe('Belzharoth, Marchand d\'âmes', 'belzharoth', tweak('demon', ['potion', 'barde', 'golem'], ['sept_carreau', 'flambeur', 'gros_lot'], { name: "Le coffre de Belzharoth" }), 40), R({ card: 'de_pipe', xp: 60 }),
+        [[NARRATOR, "Dans la salle des coffres, l'or monte jusqu'au plafond. Derrière une vitre, un Démon en habit rouge compte des jetons qui ne finissent jamais."],
+          ['sept_carreau', "Velours ! J'ai tout misé sur un seul coup, et j'ai perdu. Ma carte, mon âme et mon plus beau chapeau."],
+          ['belzharoth', "Un contrat est un contrat. Ce Sept est à moi, sauf si quelqu'un le rachète. À ma table, et à mon prix."],
+          ['velours', "Ton prix, je le connais. Pose-le sur le tapis."]],
+        [['belzharoth', "Tu as gagné. Prends ton Démon, et son chapeau. Mais tu sais où mènent trois Sept, croupière ?"],
+          ['velours', "Au pied de la grande roue. Là où la maison m'attend."],
+          ['sept_carreau', "Trois Sept dans la même main… Fortuna ne va pas aimer ça. Moi, j'adore."]],
+        { join: { card: 'sept_carreau', out: 'golem' } }),
+      C('jackpot', "Faire sauter la banque", "La grande roue", [86, 24], "Jouer les trois Sept contre Fortuna, la maison elle-même, et décrocher le Jackpot.",
+        foe('Fortuna, la Roue', 'fortuna', 'tapis', 60), R({ shards: 150, xp: 100, boosters: 1, title: 'quete:casino' }),
+        [[NARRATOR, "Au centre du casino tourne une grande roue d'or. Elle s'arrête quand Velours entre, suivie de trois joueurs qui n'ont plus rien à perdre."],
+          ['fortuna', "Ma propre croupière. Avec le pique, le trèfle et le carreau. Tu as bien travaillé, Velours."],
+          ['velours', "J'ai ramassé tes mises pendant cent ans. Ce soir, c'est moi qui mise."],
+          ['fortuna', "Alors pose tes Sept. Faites vos jeux."]],
+        [[NARRATOR, "Les trois Sept se posent sur le tapis. Les rouleaux de la grande roue s'arrêtent l'un après l'autre : 7, 7, 7. Une pluie de pièces d'or tombe du plafond."],
+          ['fortuna', "Jackpot. La banque a sauté. Le casino est à toi jusqu'au lever du soleil."],
+          ['sept_pique', "Et après ?"],
+          ['velours', "Après, il disparaît. On se retrouve ici l'an prochain, tous les quatre."]]),
+    ] },
+
   // Éclipse : quelques semaines, à la suite du Livre III.
   { id: 'eclipse', kind: 'limitee', canon: true, next: 'neon', fam: 'Ange', hero: 'seraphine', name: 'L\'Éclipse noire', map: 'eclipse', from: '2026-10-19', to: '2026-11-08',
     arts: { ignaroth: 'ignaroth_eclipse', vorgoth: 'vorgoth_cercle' },
@@ -486,7 +535,7 @@ export const STORY_TEXTS = { lore: LORE, titles: STORY_TITLES.map(([, name]) => 
 // Lieu de chaque chapitre (C(…).scene) : un terrain illustré (art/terrain) ou une carte. Sans illustration, l'appli montre le ciel de la carte.
 const SCENES = {
   razzia: ['terrier', 'guet', 'table', 'bois', 'aire'], racines: ['razzia', 'clairiere', 'cercle', 'couvoir', 'charnier'],
-  pacte: ['ruines', 'foire', 'chateau', 'autel', 'sanctuaire'], halloween: ['guet', 'cimetiere', 'chateau', 'cercle'],
+  pacte: ['ruines', 'foire', 'chateau', 'autel', 'sanctuaire'], halloween: ['guet', 'cimetiere', 'chateau', 'cercle'], casino: [null, null, 'salle_coffres', 'casino_fosses'],
   eclipse: ['prairie', 'charnier', 'nid', 'couvoir'], neon: [null, null, null, null],
 };
 for (const q of QUESTS) q.chapters.forEach((ch, i) => { ch.scene = SCENES[q.id]?.[i] || null; });

@@ -108,11 +108,11 @@ export function createAccounts(store) {
   // Version du catalogue de cartes publié : l'appli recharge les cartes quand elle change.
   let catalogVersion = 0;
   // Courrier (mail.js) : messages non lus ou récompenses à récupérer, pour la pastille de l'accueil.
-  let mailCount = () => 0, bossTile = () => null, storyTile = () => null, newsTile = () => null;
+  let mailCount = () => 0, bossTile = () => null, storyTile = () => null, newsTile = () => null, casinoTile = () => null;
   // boss : résumé du boss mondial de la semaine pour l'accueil (boss.js, branché par setBossTile) ; storyTile : la quête d'histoire à suivre (story.js) ;
   // news : annonces pas encore vues et la plus récente (news.js).
   // Textes composés par le moteur (missions, rangs…) : dans la langue du joueur (a.lang).
-  const me = a => inLang(a, () => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), boss: bossTile(a), storyTile: storyTile(a), news: newsTile(a), tutoShards: progress.cfg().tutoShards }));
+  const me = a => inLang(a, () => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), boss: bossTile(a), storyTile: storyTile(a), casino: casinoTile(a), news: newsTile(a), tutoShards: progress.cfg().tutoShards }));
   // Langue de l'appli du joueur (en-tête X-Lang) : rangée sur son compte pour ses notifications et ses textes ; enregistrée seulement quand elle change.
   function setLang(a, lang) { if (!lang || langOf(a) === lang) return; a.lang = lang; store.put(a).catch(e => console.error('Langue non enregistrée :', e)); }
   // Les nouvelles cartes rapportent de l'XP et peuvent compléter une famille ou un set.
@@ -444,7 +444,7 @@ export function createAccounts(store) {
   // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes les leçons de base le sont (le tutoriel avancé
   // ne rapporte que des Éclats). Affiché par le panneau de fin (silent).
   async function lessonDone(a, { lesson } = {}) {
-    const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l) throw new HttpError(400, msg('Leçon inconnue.'));
+    const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l || (l.set && !setRevealed(setById(l.set)))) throw new HttpError(400, msg('Leçon inconnue.'));
     progress.init(a);
     const done = a.tuto ||= [];
     if (done.includes(l.id)) return { reward: null, account: me(a) };
@@ -585,7 +585,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setNewsTile: f => { newsTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, buyEssenceFrame, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, buyTheme, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
+  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setCasinoTile: f => { casinoTile = f; }, setNewsTile: f => { newsTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, buyEssenceFrame, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, buyTheme, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminWelcome, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
