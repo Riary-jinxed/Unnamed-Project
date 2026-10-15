@@ -690,7 +690,10 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
       }
       let body = {};
       if (req.method !== 'GET') {
-        let raw = ''; for await (const chunk of req) { raw += chunk; if (raw.length > 100_000) throw new HttpError(413, msg('Requête trop grande.')); }
+        // Morceaux assemblés avant décodage : un caractère accentué peut être coupé entre deux morceaux.
+        const chunks = []; let size = 0;
+        for await (const chunk of req) { chunks.push(chunk); size += chunk.length; if (size > 100_000) throw new HttpError(413, msg('Requête trop grande.')); }
+        const raw = Buffer.concat(chunks).toString('utf8');
         try { body = raw ? JSON.parse(raw) : {}; } catch { throw new HttpError(400, msg('JSON invalide.')); }
       }
       // Le début de la route (jusqu'à son premier await) tourne dans la langue de la requête : deckError… y sont traduits.

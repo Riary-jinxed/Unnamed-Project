@@ -201,6 +201,8 @@ function startMatch(room) {
   // Le boss se montre avec son art (portrait).
   if (room.boss) room.seats[1].badge = { boss: true, arts: { [room.boss]: GENERALS[room.boss].art }, looks: {}, borders: {} };
   broadcast(room);
+  // Un joueur parti pendant l'attente du salon : son compte à rebours de forfait démarre avec la partie.
+  room.seats.forEach((s, i) => startAway(room, i));
 }
 // Une erreur pendant le tour ou l'enregistrement est notée sans arrêter le serveur (toutes les parties en cours tomberaient avec lui).
 async function resolve(room) {
@@ -213,34 +215,37 @@ async function resolve(room) {
   await endMatch(room).catch(e => console.error('Fin de partie en erreur :', e));
 }
 // Partie terminée (fin du dernier tour ou forfait) : enregistrée une seule fois, avec les récompenses de chacun, puis diffusée.
+// st est gardée dès le début : une revanche lancée pendant l'enregistrement remplace room.st par une nouvelle partie.
 async function endMatch(room) {
-  if (room.st.over && !room.st.recorded && room.boss) {
+  const st = room.st;
+  if (st.over && !st.recorded && room.boss) {
     // Boss mondial : le score de la tentative, ses paliers et le total de la semaine (pas de victoire ni de défaite).
     room.seats.forEach(s => s && stopAway(s));
-    room.st.recorded = true;
+    st.recorded = true;
     const acc = accounts.byToken(room.seats[0].auth);
-    const abandoned = !!room.st.result?.forfeit;
+    const abandoned = !!st.result?.forfeit;
     const r = !acc ? null : room.clanRun ? clanBoss.finish(acc, room.st, room.clanRun, { abandoned }) : boss.finish(acc, room.st, { abandoned });
     if (acc) await store.put(acc).catch(e => console.error('Tentative non enregistrée :', e));
-    room.rewards = [r ? { boss: r, account: accounts.me(acc) } : null, null];
-  } else if (room.st.over && !room.st.recorded) {
+    if (room.st === st) room.rewards = [r ? { boss: r, account: accounts.me(acc) } : null, null];
+  } else if (st.over && !st.recorded) {
     room.seats.forEach(s => s && stopAway(s));
-    room.st.recorded = true;
-    const mode = room.ranked === 'ai' ? 'pve' : 'pvp';
+    st.recorded = true;
+    const mode = room.ranked === 'ai' ? 'pve' : 'pvp', decks = room.decks, startedAt = room.startedAt || Date.now();
     // Récompenses de fin de partie (et rang en classé), affichées à chacun sur l'écran de fin.
-    const { winner, zones } = room.st.result;
+    const { winner, zones } = st.result;
     const result = i => (winner === i ? 'win' : winner < 0 ? 'draw' : 'loss');
     const ranks = room.ranked ? rankedResults(room, result) : [null, null];
-    room.rewards = await Promise.all(room.seats.map(async (s, i) => {
+    const rewards = await Promise.all(room.seats.map(async (s, i) => {
       const acc = accounts.byToken(s.auth); if (!acc) return null;
-      const reward = await accounts.recordGame(acc, { mode, result: result(i), played: room.st.p[i].played,
-        general: room.st.p[i].general, sweep: !room.st.result.forfeit && winner === i && zones.every(z => z === i),
-        zones: room.st.result.forfeit ? 0 : zones.filter(z => z === i).length, friend: !!room.invite, ranked: !!room.ranked }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
+      const reward = await accounts.recordGame(acc, { mode, result: result(i), played: st.p[i].played,
+        general: st.p[i].general, sweep: !st.result.forfeit && winner === i && zones.every(z => z === i),
+        zones: st.result.forfeit ? 0 : zones.filter(z => z === i).length, friend: !!room.invite, ranked: !!room.ranked }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
       return reward && ranks[i] ? { ...reward, ranked: ranks[i] } : reward;
     }));
     // Enregistrée avec ce que chacun a gagné, pour l'historique des joueurs.
     const kind = room.ranked === 'ai' ? 'classe-ia' : room.ranked === 'friend' ? 'defi-classe' : room.invite ? 'defi' : 'salon';
-    games.recordPvp(room.st, room.seats.map(s => s.login), room.decks, { mode, ranked: !!room.ranked, kind, ms: Date.now() - (room.startedAt || Date.now()), rewards: room.rewards });
+    games.recordPvp(st, room.seats.map(s => s.login), decks, { mode, ranked: !!room.ranked, kind, ms: Date.now() - startedAt, rewards });
+    if (room.st === st) room.rewards = rewards;
   }
   broadcast(room);
 }
@@ -379,6 +384,8 @@ function handle(ws, msg) {
     if (i < 0) return send(ws, { t: 'error', msg: tr(wsLang(ws), 'Cette partie est réservée à deux amis.') });
     if (room.seats[i]) return send(ws, { t: 'error', msg: tr(wsLang(ws), 'Cette partie est déjà complète.') });
     const seat = seatFor(ws, msg); if (!seat) return;
+    // Pas contre soi-même (même compte dans deux onglets) : chaque partie compterait une victoire et une défaite.
+    if (room.seats[1 - i]?.login === seat.login) return send(ws, { t: 'error', msg: tr(wsLang(ws), 'Cette partie est déjà complète.') });
     room.seats[i] = seat;
     ws.room = room; ws.seat = i; lobby(room); friends.changed(seat.login);
     if (room.seats[0] && room.seats[1]) startMatch(room);
@@ -448,9 +455,12 @@ function handle(ws, msg) {
   }
 }
 
-const wss = new WebSocketServer({ server, path: '/ws' });
+// Messages courts (plans, émotes) : 64 Ko suffisent. Une trame invalide déclenche « error » : notée, sans arrêter le serveur.
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 64 * 1024 });
+wss.on('error', e => console.error('WebSocket :', e));
 wss.on('connection', ws => {
   ws.alive = true;
+  ws.on('error', e => console.error('Connexion WebSocket :', e.message));
   ws.on('pong', () => { ws.alive = true; });
   ws.on('message', data => { ws.alive = true; try { handle(ws, JSON.parse(data)); } catch (e) { console.error(e); } });
   ws.on('close', () => {
@@ -469,21 +479,22 @@ setInterval(() => {
     ws.alive = false; ws.ping();
   }
 }, 30_000);
-const away = s => s && !s.ai && !(s.ws && s.ws.readyState === 1);
+// Chaque tâche est isolée : une erreur est notée sans arrêter le serveur ni sauter les suivantes.
+const task = (name, fn) => { try { fn(); } catch (e) { console.error(`${name} en erreur :`, e); } };
 setInterval(() => {
-  catalog.refresh();
+  task('Catalogue', () => catalog.refresh());
   // Fin du mois : le classement de la saison finie est figé tout de suite, sans attendre qu'un joueur revienne.
-  accounts.progress.closeSeason();
+  task('Fin de saison', () => accounts.progress.closeSeason());
   // Fin de semaine : le classement du boss mondial est figé et ses récompenses données.
-  boss.closeWeek();
-  boss.announce(push);
+  task('Fin de semaine du boss', () => boss.closeWeek());
+  task('Annonce du boss', () => boss.announce(push));
   news.announce().catch(e => console.error('Nouveautés en erreur :', e));
   // Boss de clan dont le temps est écoulé : fermés, récompenses données.
-  clanBoss.tick();
+  task('Boss de clan', () => clanBoss.tick());
   const now = Date.now();
   for (const [code, r] of rooms) {
     if (now - r.lastActive <= ROOM_TTL_MS) continue;
-    const gone = r.seats.map(away);
+    const gone = r.seats.map(isAway);
     if (gone[0] !== gone[1]) forfeit(r, gone[0] ? 0 : 1);
     abandonBoss(r);
     rooms.delete(code);
