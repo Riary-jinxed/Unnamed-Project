@@ -591,4 +591,6 @@ export default {
   // Thèmes de l'interface (themes.js).
   "Éclipse d'Ignaroth": "Ignaroth's Eclipse",
   "Aube de Séraphine": "Séraphine's Dawn",
+  "Ciel d'Elyndra": "Elyndra's Sky",
+  "Estampe d'Ysmera": "Ysmera's Print",
 };

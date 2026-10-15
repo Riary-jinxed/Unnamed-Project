@@ -13,6 +13,9 @@ export const PALETTE = {
   eclipse: { embers: [0xff5a1a, 0xff9a3a, 0xc81e1e], sparks: [0xd83a10, 0xff7a2a, 0x8a1010], hearth: 0xff4a1a, spark: [0xffb050, 0xffe0b0], fog: [0x5a1a1a, 0x3a1020] },
   sylve: { embers: [0xc8ff80, 0x7dffb0, 0xfff0a0], sparks: [0x6ac040, 0x30a070, 0xc8c040], hearth: 0x8ae060, spark: [0xe0ffa0, 0xffffd0], fog: [0x3a6a4a, 0x7a9a5a] },
   aube: { embers: [0xffd890, 0xffb0c8, 0xffffff], sparks: [0xffa040, 0xff7aa0, 0xffd060], hearth: 0xffb860, spark: [0xfff0c0, 0xffd0e0], fog: [0xc898b8, 0xffd8a0] },
+  // poussière d'étoiles dorée et bleue sous la voûte d'Elyndra ; vermillon et encre sur le papier de l'estampe.
+  astral: { embers: [0xfff2b0, 0xa8c8ff, 0xffffff], sparks: [0xe8b830, 0x5a78e0, 0xc8a0ff], hearth: 0x6a8aff, spark: [0xffe8a0, 0xd8e4ff], fog: [0x3a2a8a, 0x1a4a9a] },
+  estampe: { embers: [0xd8301c, 0xf0a0a8, 0x3a8a9a], sparks: [0xc8281a, 0xe88a98, 0x2a6a7a], hearth: 0xd8301c, spark: [0xd8301c, 0xf0b0b8], fog: [0x6aa0aa, 0xd8c8a8] },
 };
 export const palette = () => PALETTE[season()] || PALETTE[''];
 
@@ -31,6 +34,10 @@ const TABLE = {
     font: 'Uncial Antiqua, Cinzel, serif', text: 0xe8ffc0, stroke: 0x061006, band: 0x06100a, edge: 0x9ad860 },
   aube: { ground: 0x140e1a, planks: [0x1e1624, 0x1a1220], seam: 0x0a060c, lamp: 0xffd8a0, low: 0xff7aa0, grid: null,
     font: 'Cinzel Decorative, Cinzel, serif', text: 0xfff0d0, stroke: 0x2a1020, band: 0x140a16, edge: 0xffc860 },
+  astral: { ground: 0x060818, planks: null, seam: null, lamp: 0x6a7aff, low: 0x9a4ad8, grid: null,
+    font: 'Marcellus SC, Cinzel, serif', text: 0xffe8a0, stroke: 0x0a0a2a, band: 0x080a20, edge: 0xffd870, stars: true },
+  estampe: { ground: 0xefe2c4, planks: null, seam: null, lamp: 0xffe0b0, low: null, grid: null,
+    font: 'Shojumaru, Cinzel, serif', text: 0xc8281a, stroke: 0x1a1410, band: 0x1a1410, edge: 0xc8281a, waves: true },
 };
 export const tableLook = () => TABLE[season()] || TABLE[''];
 
@@ -42,6 +49,8 @@ const SHOP = {
   eclipse: { velvet: ['#5a0e0e', '#140303'], awning: [0x1a0606, 0xd8401a], warm: 0xff6a2a, flame: 0xffc080, glow: 0xff8a50 },
   sylve: { velvet: ['#1a4a2a', '#06140a'], awning: [0x2a5a2a, 0xd8d090], warm: 0xc8f080, flame: 0xf0ffd0, glow: 0xd0f0a0 },
   aube: { velvet: ['#6a2a5a', '#1e0a1c'], awning: [0xd890a8, 0xfff0d8], warm: 0xffc070, flame: 0xfff4d8, glow: 0xffd8b0 },
+  astral: { velvet: ['#1a1a5a', '#05061a'], awning: [0x10124a, 0xe8c050], warm: 0x8aa0ff, flame: 0xfff4c0, glow: 0xb8a0ff },
+  estampe: { velvet: ['#a8201a', '#3a0a08'], awning: [0x1a1410, 0xc8281a], warm: 0xffc890, flame: 0xfff0d0, glow: 0xffd8b0 },
 };
 export const shopColors = () => SHOP[season()] || SHOP[''];
 
@@ -67,29 +76,21 @@ export function batCanvases() {
   });
 }
 
-// Éclipse d'Ignaroth : dragon vu de profil, tourné vers la droite, en trois battements d'ailes (hautes, à plat, basses).
-// En blanc pour être teinté ; chaque appel dessine de nouveaux canevas.
-export function dragonCanvases() {
-  return [1, 0.15, -0.7].map(up => {
-    const c = document.createElement('canvas'); c.width = 220; c.height = 140; const g = c.getContext('2d');
-    g.fillStyle = '#fff'; g.translate(110, 72);
-    // corps, cou et tête, queue fine qui ondule
-    g.beginPath(); g.moveTo(-96, 6); g.quadraticCurveTo(-60, -6, -30, 2); g.quadraticCurveTo(0, -10, 30, -4);
-    g.quadraticCurveTo(52, -10, 66, -22); g.lineTo(84, -24); g.lineTo(96, -18); g.lineTo(84, -14); g.lineTo(92, -10); g.lineTo(76, -10);
-    g.quadraticCurveTo(62, -6, 48, 8); g.quadraticCurveTo(20, 16, -10, 12); g.quadraticCurveTo(-50, 10, -96, 6); g.fill();
-    // cornes
-    g.beginPath(); g.moveTo(72, -22); g.lineTo(60, -36); g.lineTo(78, -24); g.fill();
-    // pointe de la queue
-    g.beginPath(); g.moveTo(-96, 6); g.lineTo(-108, -2); g.lineTo(-104, 10); g.closePath(); g.fill();
-    // pattes repliées
-    g.beginPath(); g.moveTo(20, 10); g.lineTo(26, 22); g.lineTo(32, 10); g.moveTo(-14, 10); g.lineTo(-10, 22); g.lineTo(-4, 10); g.fill();
-    // aile : bras jusqu'au poignet, trois doigts, membrane festonnée entre eux qui revient au flanc
-    const y = v => v * up, tips = [[-34, y(-60)], [-62, y(-42)], [-80, y(-16)]];
-    g.beginPath(); g.moveTo(26, -2); g.lineTo(8, y(-44) - 2); g.lineTo(tips[0][0], tips[0][1]);
-    for (let i = 1; i < tips.length; i++) { const [ax, ay] = tips[i - 1], [bx, by] = tips[i]; g.quadraticCurveTo((ax + bx) / 2 * 0.8 + 6, (ay + by) / 2 * 0.45, bx, by); }
-    g.quadraticCurveTo(-60, y(-4) + 2, -34, 4); g.lineTo(-6, 2); g.closePath(); g.fill();
-    return c;
-  });
+// Estampe : pétale de cerisier, en blanc pour être teinté (rose pâle), avec l'encoche du bout.
+export function petalCanvas() {
+  const c = document.createElement('canvas'); c.width = 24; c.height = 32; const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.beginPath(); g.moveTo(12, 31); g.bezierCurveTo(-2, 22, 0, 6, 8, 2); g.lineTo(12, 6); g.lineTo(16, 2);
+  g.bezierCurveTo(24, 6, 26, 22, 12, 31); g.fill();
+  return c;
+}
+// Astral : étoile filante, une traîne qui s'éteint vers la gauche et une tête vive à droite.
+export function streakCanvas() {
+  const c = document.createElement('canvas'); c.width = 160; c.height = 12; const g = c.getContext('2d');
+  const tail = g.createLinearGradient(0, 0, 150, 0); tail.addColorStop(0, 'rgb(255 255 255 / 0)'); tail.addColorStop(1, 'rgb(255 255 255 / .9)');
+  g.fillStyle = tail; g.beginPath(); g.moveTo(0, 6); g.lineTo(150, 3.5); g.lineTo(150, 8.5); g.closePath(); g.fill();
+  const head = g.createRadialGradient(150, 6, 0, 150, 6, 6); head.addColorStop(0, '#fff'); head.addColorStop(1, 'rgb(255 255 255 / 0)');
+  g.fillStyle = head; g.fillRect(140, 0, 20, 12);
+  return c;
 }
 
 // Néon 2099 : voiture volante vue de profil (carrosserie sombre, vitre et néon cyan dessous, feu arrière rouge), tournée vers la droite.

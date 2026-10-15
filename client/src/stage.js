@@ -99,6 +99,27 @@ async function init() {
         wood.poly(pts, false).stroke({ width: 6, color: 0xff3a0a, alpha: 0.12 }).poly(pts, false).stroke({ width: 1.5, color: 0xff8a3a, alpha: 0.6 });
       }
     }
+    if (L.stars) {
+      // Ciel d'Elyndra : voie lactée en diagonale, champ d'étoiles fixe (même tirage à chaque dessin) et deux constellations reliées d'or
+      let seed = 7; const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      for (let i = 0; i < 9; i++) { const k = i / 8; wood.circle(w * (0.1 + 0.8 * k), h * (0.85 - 0.7 * k), Math.max(w, h) * 0.16).fill({ color: i % 2 ? 0x3a2a8a : 0x1a3a8a, alpha: 0.07 }); }
+      for (let i = 0; i < 160; i++) { const r = rand() < 0.9 ? 0.8 : 1.6; wood.circle(rand() * w, rand() * h, r).fill({ color: rand() < 0.2 ? 0xfff0b0 : 0xd8e4ff, alpha: 0.35 + rand() * 0.5 }); }
+      for (const pts of [[[0.06, 0.08], [0.14, 0.05], [0.2, 0.11], [0.27, 0.07], [0.31, 0.14]], [[0.7, 0.9], [0.78, 0.86], [0.85, 0.92], [0.93, 0.87], [0.88, 0.97]]]) {
+        const xy = pts.map(([x, y]) => [x * w, y * h]);
+        wood.poly(xy.flat(), false).stroke({ width: 1, color: 0xe8c050, alpha: 0.35 });
+        for (const [x, y] of xy) wood.circle(x, y, 2.2).fill({ color: 0xfff2c0, alpha: 0.9 }).circle(x, y, 6).fill({ color: 0xfff2c0, alpha: 0.12 });
+      }
+    }
+    if (L.waves) {
+      // Estampe d'Ysmera : papier, grand soleil rouge en haut à droite, et vagues seigaiha (écailles de cercles) le long du bas
+      const sx = w * 0.82, sy = h * 0.1, sr = Math.min(w, h) * 0.09;
+      wood.circle(sx, sy, sr).fill({ color: 0xc8281a, alpha: 0.85 });
+      const R = 22;
+      for (let row = 4; row >= 0; row--) for (let x = (row % 2) * R; x < w + R; x += R * 2) {
+        const y = h - row * R * 0.5;
+        for (let k = 4; k >= 1; k--) wood.circle(x, y, R * k / 4).fill({ color: k % 2 ? 0x2a5a7a : 0xefe2c4, alpha: 0.9 - row * 0.12 });
+      }
+    }
     if (L.moon) {
       // pleine lune pâle en haut à droite, avec son halo, et quelques pierres tombales penchées sur les bords du bas
       const mx = w * 0.82, my = h * 0.1, mr = Math.min(w, h) * 0.07;
@@ -317,7 +338,7 @@ export function flash(color = 0xffffff, alpha = 0.25) {
 export function ending(result) {
   if (!active()) return;
   cine?.destroy({ children: true });
-  const look = season(), tint = result === 'win' ? (look === 'cyber' ? 0x19e6ff : look === 'halloween' ? 0xff8a2a : look === 'eclipse' ? 0xff6a2a : 0xffd070) : result === 'lose' ? (look === 'cyber' ? 0xff003c : 0xb03a2a) : 0xa0a8b8, x = innerWidth / 2, y = Math.min(innerHeight * 0.2, 170);
+  const look = season(), tint = result === 'win' ? (look === 'cyber' ? 0x19e6ff : look === 'halloween' ? 0xff8a2a : look === 'eclipse' ? 0xff6a2a : look === 'astral' ? 0x8aa8ff : look === 'estampe' ? 0xd8301c : 0xffd070) : result === 'lose' ? (look === 'cyber' ? 0xff003c : 0xb03a2a) : 0xa0a8b8, x = innerWidth / 2, y = Math.min(innerHeight * 0.2, 170);
   const c = cine = new Container(); over.stage.addChild(c);
   const rays = new Container(); rays.position.set(x, y);
   for (let i = 0; i < 14; i++) { const a = (i / 14) * TAU, len = Math.max(innerWidth, innerHeight);

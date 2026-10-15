@@ -5,13 +5,15 @@
 // - Ce qui attend le joueur (booster du jour, tuile « à faire ») : une étincelle de temps en temps.
 // - Halloween : de temps en temps, quelques chauves-souris traversent l'écran.
 // - Néon 2099 : de temps en temps, une voiture volante passe au loin, phare devant et feu arrière rouge.
-// - Éclipse d'Ignaroth : des cendres tombent en continu, et de temps en temps le dragon passe devant le soleil noir en crachant des braises.
+// - Éclipse d'Ignaroth : des cendres tombent en continu.
+// - Ciel d'Elyndra : des étoiles s'allument et s'éteignent çà et là, et de temps en temps une étoile filante traverse le haut.
+// - Estampe d'Ysmera : des pétales de cerisier tombent en tournoyant.
 // Rien ne s'affiche au-dessus d'une feuille ouverte, et rien ne tourne en partie.
 import { Container, Sprite, Texture } from 'pixi.js';
 import { kit, scene } from './stage.js';
-import { season, palette, batCanvases, spinnerCanvas, dragonCanvases } from './season.js';
+import { season, palette, batCanvases, spinnerCanvas, petalCanvas, streakCanvas } from './season.js';
 
-let started = false, bats = null, batTex = null, carTex = null, dragonTex = null, lastSpark = 0, lastTodo = 0, nextBats = 0, nextCar = 0, nextDragon = 0;
+let started = false, bats = null, batTex = null, carTex = null, petalTex = null, streakTex = null, nextStar = 0, lastSpark = 0, lastTodo = 0, nextBats = 0, nextCar = 0;
 
 // L'élément est-il à l'écran et non couvert (feuille, booster qui s'ouvre) ? Renvoie sa place, ou null.
 function shown(el) {
@@ -44,13 +46,20 @@ function spinner(rnd) {
   bats.addChild(b);
 }
 
-// Le dragon : il entre par un bord, passe haut (devant le soleil noir, en haut à droite) et ressort de l'autre côté en planant.
-function dragon(rnd) {
-  const dir = Math.random() < 0.5 ? 1 : -1, y = rnd(innerHeight * 0.02, innerHeight * 0.07);
-  const b = new Sprite(dragonTex[0]); b.anchor.set(0.5); b.tint = 0x0a0204; b.alpha = 0.92;
-  const sc = rnd(0.7, 1) * Math.min(1, innerWidth / 420); b.scale.set(sc * dir, sc);
-  b.position.set(dir > 0 ? -160 : innerWidth + 160, y);
-  Object.assign(b, { vx: dir * rnd(2.4, 3.2), y0: y, amp: rnd(8, 16), seed: rnd(0, 6), flap: rnd(1.6, 2.2), dragon: true, sc });
+// Un pétale qui tombe en se balançant et en tournant sur lui-même.
+function petal(rnd) {
+  const b = new Sprite(petalTex); b.anchor.set(0.5); b.tint = Math.random() < 0.7 ? 0xf6b8c4 : 0xfbe0e4; b.alpha = rnd(0.75, 0.95);
+  const sc = rnd(0.35, 0.7); b.scale.set(sc);
+  b.position.set(rnd(-20, innerWidth), -16);
+  Object.assign(b, { petal: true, vx: rnd(0.15, 0.5), vy: rnd(0.5, 1), x0: b.x, amp: rnd(14, 34), seed: rnd(0, 6), spin: rnd(-0.03, 0.03), flipT: rnd(0.002, 0.004), sc });
+  bats.addChild(b);
+}
+// Une étoile filante en haut de l'écran, qui file en descendant un peu et s'éteint.
+function shooting(rnd) {
+  const dir = Math.random() < 0.5 ? 1 : -1, a = rnd(0.25, 0.45), b = new Sprite(streakTex);
+  b.anchor.set(1, 0.5); b.blendMode = 'add'; b.tint = Math.random() < 0.5 ? 0xfff2c0 : 0xd8e4ff; b.scale.set(rnd(0.8, 1.3) * dir, 1);
+  b.rotation = dir * a; b.position.set(rnd(innerWidth * 0.1, innerWidth * 0.9), rnd(innerHeight * 0.02, innerHeight * 0.2));
+  Object.assign(b, { star: true, vx: dir * Math.cos(a) * 9, vy: Math.sin(a) * 9, life: 1 });
   bats.addChild(b);
 }
 
@@ -59,7 +68,7 @@ export function start() {
   const { over, sparkTex, rnd } = kit();
   batTex = batCanvases().map(c => Texture.from(c));
   carTex = Texture.from(spinnerCanvas());
-  dragonTex = dragonCanvases().map(c => Texture.from(c));
+  petalTex = Texture.from(petalCanvas()); streakTex = Texture.from(streakCanvas());
   // Gardé d'une scène à l'autre : stage.js ne le détruit pas en vidant la toile (keep).
   bats = Object.assign(new Container(), { keep: true });
 
@@ -84,22 +93,31 @@ export function start() {
     if (season() === 'halloween' && !busy && now > nextBats) { if (nextBats) flock(rnd); nextBats = now + rnd(10000, 20000); }
     // Néon 2099 : une voiture volante toutes les 8 à 16 secondes.
     if (season() === 'cyber' && !busy && now > nextCar) { if (nextCar) spinner(rnd); nextCar = now + rnd(8000, 16000); }
-    // Éclipse : cendres qui tombent doucement, et le dragon toutes les 14 à 26 secondes.
+    // Éclipse : cendres qui tombent doucement.
     if (season() === 'eclipse' && !busy) {
       if (Math.random() < 0.05 * dt) { const vy = rnd(0.4, 0.8), hot = Math.random() < 0.25;
         spawn(sparkTex, rnd(0, innerWidth), -8, { tint: hot ? 0xff6a2a : 0x7a6a66, blend: hot ? 'add' : 'normal',
           vx: rnd(-0.3, 0.1), vy, drag: 1, scale: rnd(0.06, 0.13), ttl: innerHeight / vy, alpha: rnd(0.4, 0.75) }); }
-      if (now > nextDragon) { if (nextDragon) dragon(rnd); nextDragon = now + rnd(14000, 26000); }
     }
+    // Ciel d'Elyndra : étoiles qui scintillent un instant, et une étoile filante toutes les 6 à 14 secondes.
+    if (season() === 'astral' && !busy) {
+      if (Math.random() < 0.08 * dt) spawn(sparkTex, rnd(0, innerWidth), rnd(0, innerHeight), { tint: pal.embers[Math.floor(rnd(0, 3))], scale: rnd(0.08, 0.2), drag: 1, ttl: rnd(40, 90), grow: 0.004 });
+      if (now > nextStar) { if (nextStar) shooting(rnd); nextStar = now + rnd(6000, 14000); }
+    }
+    // Estampe d'Ysmera : pétales de cerisier.
+    if (season() === 'estampe' && !busy && Math.random() < 0.04 * dt && bats.children.length < 40) petal(rnd);
     bats.visible = !busy;
     for (const b of [...bats.children]) {
+      if (b.petal) {
+        // chute balancée ; le pétale se retourne (largeur qui oscille) en tournant
+        b.y += b.vy * dt; b.x0 += b.vx * dt; b.x = b.x0 + Math.sin(b.y / 60 + b.seed) * b.amp; b.rotation += b.spin * dt;
+        b.scale.x = b.sc * Math.cos(now * b.flipT + b.seed);
+        if (b.y > innerHeight + 20 || season() !== 'estampe') b.destroy();
+        continue;
+      }
+      if (b.star) { b.x += b.vx * dt; b.y += b.vy * dt; b.alpha = b.life -= 0.025 * dt; if (b.life <= 0) b.destroy(); continue; }
       b.x += b.vx * dt; b.y = b.y0 + Math.sin(b.x / 70 + b.seed) * b.amp;
-      if (b.dragon) {
-        // battement lent : ailes hautes, à plat, basses, à plat ; braises qui s'échappent de la gueule
-        b.texture = dragonTex[[0, 1, 2, 1][Math.floor(now / (1000 / b.flap / 4) + b.seed) % 4]];
-        if (!busy && Math.random() < 0.35 * dt) { const d = Math.sign(b.scale.x), mx = b.x + d * 90 * b.sc, my = b.y - 14 * b.sc;
-          spawn(sparkTex, mx, my, { tint: palette().embers[Math.floor(rnd(0, 3))], vx: d * rnd(0.5, 1.6), vy: rnd(-0.2, 0.6), g: 0.02, scale: rnd(0.12, 0.28), ttl: rnd(30, 60) }); }
-      } else if (!b.car) b.texture = batTex[Math.floor(now / (1000 / b.flap) + b.seed) % 2];
+      if (!b.car) b.texture = batTex[Math.floor(now / (1000 / b.flap) + b.seed) % 2];
       if (b.x < -260 || b.x > innerWidth + 260) b.destroy();
     }
   });

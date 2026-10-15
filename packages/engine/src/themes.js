@@ -8,6 +8,8 @@ import { SEASON_THEMES } from './pass.js';
 export const EXTRA_THEMES = {
   eclipse: { name: 'Éclipse d\'Ignaroth', card: 'ignaroth', art: 'ignaroth_eclipse', prisms: 40 },
   sylve: { name: 'Bois de Sylvaën', card: 'sylvaen', price: 2500 },
+  astral: { name: 'Ciel d\'Elyndra', card: 'elyndra', art: 'elyndra_astral', prisms: 50 },
+  estampe: { name: 'Estampe d\'Ysmera', card: 'ysmera', art: 'ysmera_estampe', price: 3000 },
   // Succès (rewards.js) : finir les trois campagnes d'histoire.
   aube: { name: 'Aube de Séraphine', card: 'seraphine' },
 };

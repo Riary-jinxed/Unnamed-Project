@@ -1,4 +1,5 @@
-/* Thèmes de l'interface à l'effigie d'un général (themes.js du moteur) : Éclipse d'Ignaroth, Bois de Sylvaën, Aube de Séraphine.
+/* Thèmes de l'interface à l'effigie d'un général (themes.js du moteur) : Éclipse d'Ignaroth, Bois de Sylvaën, Aube de Séraphine,
+   Ciel d'Elyndra, Estampe d'Ysmera.
    Écrits par main.js dans <body data-season>, comme ceux des saisons (halloween.css, cyber.css). Chaque thème donne ses couleurs
    (variables --th-…) ; les règles communes plus bas les posent sur les panneaux, boutons, onglets, jauges et la table.
    L'illustration du général (--theme-decor, --theme-perso, posées par main.js) apparaît en fond des menus, en haut, fondue dans la nuit.
@@ -54,65 +55,99 @@ body[data-season="aube"] {
     linear-gradient(#0e0a20, #2a1838 45%, #4a2440 80%, #6a3040);
   background-attachment: fixed; }
 
-/* ---- Règles communes aux trois ---- */
+/* ---- Ciel d'Elyndra : nuit étoilée, voie lactée violette et bleue, constellations reliées d'or ---- */
+body[data-season="astral"] {
+  --bg: #05061a; --surface: #10143a; --sunk: #03040f; --ink: #eef0ff; --muted: #9aa4d8; --line: #2a3070;
+  --accent: #ffd870; --accent-ink: #10123a;
+  --gold-hi: #fff4c8; --gold: #ffd870; --gold-lo: #7a5a18; --leather: #0e1240; --leather-lo: #070a24; --rim: #3a4290;
+  --th-font: "Marcellus SC", "Cinzel", serif; --th-title: #ffe8a0; --th-glow: rgb(255 216 112 / .5); --th-glow2: rgb(120 140 255 / .5);
+  --th-panel: linear-gradient(180deg, #141a4a, #080a26); --th-btn: linear-gradient(180deg, #1e2560, #0e1236); --th-btn-rim: #4a54a8;
+  --th-primary: radial-gradient(ellipse 80% 100% at 50% 70%, #fffbe0, #ffd870 40%, #c8902a 78%, #5a3a0a);
+  --th-bar: linear-gradient(90deg, #3a4ab8, #8aa8ff 60%, #fff2c0); --th-tab: rgb(255 216 112);
+  --th-zone: linear-gradient(180deg, rgb(6 8 26 / .84), rgb(16 20 58 / .84));
+  background:
+    radial-gradient(ellipse 60% 30% at 30% 60%, rgb(120 60 200 / .22), transparent 70%),
+    radial-gradient(ellipse 50% 25% at 70% 35%, rgb(40 90 220 / .22), transparent 70%),
+    linear-gradient(160deg, transparent 30%, rgb(160 140 255 / .08) 45%, rgb(120 180 255 / .1) 52%, transparent 66%),
+    linear-gradient(#0a0c2a, #05061a 60%, #03040f);
+  background-attachment: fixed; }
+
+/* ---- Estampe d'Ysmera : papier washi, encre sumi, vermillon des sceaux, indigo des vagues ---- */
+body[data-season="estampe"] {
+  --bg: #efe2c4; --surface: #f6ecd6; --sunk: #e4d4b0; --ink: #1a1410; --muted: #6a5a48; --line: #b8a078;
+  --accent: #c8281a; --accent-ink: #fff6e8;
+  --gold-hi: #8a1a10; --gold: #a8741e; --gold-lo: #6a4a1a; --leather: #ead9b4; --leather-lo: #dcc69c; --rim: #3a302a;
+  --th-font: "Shojumaru", "Cinzel", serif; --th-title: #c8281a; --th-glow: rgb(200 40 26 / .22); --th-glow2: rgb(42 90 122 / .22);
+  --th-panel: linear-gradient(180deg, #f8f0dc, #efe2c4); --th-btn: linear-gradient(180deg, #faf3e2, #e8d8b4); --th-btn-rim: #3a302a;
+  --th-primary: linear-gradient(180deg, #e44a30, #c8281a 55%, #9a180e);
+  --th-bar: linear-gradient(90deg, #1a3a5a, #2a6a8a 70%, #6aa8b8); --th-tab: rgb(200 40 26);
+  --th-zone: linear-gradient(180deg, rgb(246 236 214 / .82), rgb(232 216 180 / .82));
+  color-scheme: light;
+  background:
+    radial-gradient(circle at 18% 22%, rgb(160 120 60 / .06) 0 1px, transparent 2px) 0 0 / 7px 9px,
+    radial-gradient(circle at 70% 60%, rgb(120 90 40 / .05) 0 1px, transparent 2px) 0 0 / 11px 13px,
+    linear-gradient(#f4e9cf, #efe2c4 60%, #e8d8b4);
+  background-attachment: fixed; }
+
+/* ---- Règles communes à tous ---- */
 /* illustration du général en fond des menus, fondue vers le bas ; cachée en partie et sans illustration */
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"])::before { content: ''; position: fixed; inset: 0 0 auto 0; height: 70vh; z-index: -2; pointer-events: none;
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"])::before { content: ''; position: fixed; inset: 0 0 auto 0; height: 70vh; z-index: -2; pointer-events: none;
   background: var(--theme-perso, none) 50% 0 / cover no-repeat, var(--theme-decor, none) 50% 0 / cover no-repeat; opacity: .32;
   -webkit-mask: linear-gradient(#000 20%, transparent); mask: linear-gradient(#000 20%, transparent); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]):has(#app.ingame)::before { display: none; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]):has(#app.ingame)::before { display: none; }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) h2 { font-family: var(--th-font); font-weight: 400; letter-spacing: .04em; background: none; color: var(--th-title);
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) h2 { font-family: var(--th-font); font-weight: 400; letter-spacing: .04em; background: none; color: var(--th-title);
   -webkit-background-clip: border-box; background-clip: border-box; text-shadow: 0 2px 0 #000, 0 0 14px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .top .title { font-family: var(--th-font); font-weight: 400; color: var(--th-title);
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .top .title { font-family: var(--th-font); font-weight: 400; color: var(--th-title);
   text-shadow: 0 2px 0 #000, 0 0 14px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .eyebrow { color: var(--gold); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .eyebrow { color: var(--gold); }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) {
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) {
   background: var(--th-panel); border-color: var(--rim); --lvfill: var(--th-panel);
   box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px color-mix(in srgb, var(--gold) 14%, transparent), inset 0 -30px 40px -30px var(--th-glow2), 0 6px 18px rgb(0 0 0 / .6); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .card-box::before { border-color: color-mix(in srgb, var(--gold) 22%, transparent); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.card-box.booster.ready, .deckopt.sel, .tile.todo) { border-color: var(--accent);
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .card-box::before { border-color: color-mix(in srgb, var(--gold) 22%, transparent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.card-box.booster.ready, .deckopt.sel, .tile.todo) { border-color: var(--accent);
   box-shadow: 0 0 0 1px #000, 0 0 20px -4px var(--accent), inset 0 0 26px -10px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .tile b { font-family: var(--th-font); font-weight: 400; }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .sheet { background: color-mix(in srgb, var(--sunk) 80%, transparent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tile b { font-family: var(--th-font); font-weight: 400; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .sheet { background: color-mix(in srgb, var(--sunk) 80%, transparent); }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.btn, .seg button) { background: var(--th-btn); border-color: var(--th-btn-rim); color: var(--ink); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.btn.on, .seg button.on) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), inset 0 0 14px -4px var(--accent); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .seg button.on { background: var(--th-primary); color: var(--accent-ink); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.btn.primary, .playbtn) { background: var(--th-primary); color: var(--accent-ink); border-color: #000;
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.btn, .seg button) { background: var(--th-btn); border-color: var(--th-btn-rim); color: var(--ink); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.btn.on, .seg button.on) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), inset 0 0 14px -4px var(--accent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .seg button.on { background: var(--th-primary); color: var(--accent-ink); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.btn.primary, .playbtn) { background: var(--th-primary); color: var(--accent-ink); border-color: #000;
   text-shadow: 0 1px 0 rgb(255 255 255 / .4); box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 24px -4px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .playbtn { animation: playglow-th 3s ease-in-out infinite; }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .playbtn > span { font-family: var(--th-font); font-weight: 400; letter-spacing: .06em; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .playbtn { animation: playglow-th 3s ease-in-out infinite; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .playbtn > span { font-family: var(--th-font); font-weight: 400; letter-spacing: .06em; }
 @keyframes playglow-th { 0%, 100% { box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 24px -4px var(--th-glow); }
   50% { box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 42px 0 var(--th-glow2); } }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .chip { background: var(--sunk); border-color: var(--rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(input, textarea, .field select) { background: var(--sunk); border-color: var(--rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .showcase { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6), 0 0 26px -6px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .sc-change { background: var(--th-btn); border-color: var(--accent); color: var(--gold-hi); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .chip { background: var(--sunk); border-color: var(--rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(input, textarea, .field select) { background: var(--sunk); border-color: var(--rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .showcase { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6), 0 0 26px -6px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .sc-change { background: var(--th-btn); border-color: var(--accent); color: var(--gold-hi); }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .tabbar { background: linear-gradient(180deg, var(--leather), var(--bg)); border-top-color: var(--th-btn-rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .tabbar button { color: var(--muted); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .tabbar button.on { color: var(--gold-hi); background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); text-shadow: 0 0 10px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .tabbar.slid::before { background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); box-shadow: inset 0 2px 0 var(--th-tab); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .tabbar button.on svg { filter: drop-shadow(0 0 6px var(--th-glow)); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar { background: linear-gradient(180deg, var(--leather), var(--bg)); border-top-color: var(--th-btn-rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar button { color: var(--muted); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar button.on { color: var(--gold-hi); background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); text-shadow: 0 0 10px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar.slid::before { background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); box-shadow: inset 0 2px 0 var(--th-tab); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar button.on svg { filter: drop-shadow(0 0 6px var(--th-glow)); }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .bar { background: var(--sunk); border-color: var(--rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .bar > span { background: var(--th-bar); box-shadow: 0 0 8px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .bar { background: var(--sunk); border-color: var(--rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .bar > span { background: var(--th-bar); box-shadow: 0 0 8px var(--th-glow); }
 
 /* en partie : zones aux couleurs du thème, cartes cerclées de sa lueur */
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]):has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, var(--leather), var(--bg) 70%), var(--bg); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]):has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, var(--leather), var(--bg) 70%), var(--bg); }
 body.staged:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]):has(#app.ingame) { background: var(--bg); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .zone { background: var(--th-zone); border-color: var(--line);
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .zone { background: var(--th-zone); border-color: var(--line);
   box-shadow: inset 0 0 22px #000, inset 0 -26px 30px -18px var(--th-glow2), 0 0 0 1px #000; }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .terrain.set { background: var(--th-panel); border-color: var(--accent); color: var(--gold-hi); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .score .v { font-family: var(--th-font); font-weight: 400; }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.hc, .mc) { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 4px 10px rgb(0 0 0 / .55), 0 0 10px -3px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .hc.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 0 18px 2px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .dock { background: linear-gradient(180deg, color-mix(in srgb, var(--leather) 60%, transparent), var(--sunk)); border-top-color: var(--th-btn-rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) :is(.tturn b, .tseals b) { color: var(--accent); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .op { background: radial-gradient(circle at 50% 42%, var(--leather) 0, var(--leather-lo) 55%, #000 100%); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .terrain.set { background: var(--th-panel); border-color: var(--accent); color: var(--gold-hi); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .score .v { font-family: var(--th-font); font-weight: 400; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.hc, .mc) { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 4px 10px rgb(0 0 0 / .55), 0 0 10px -3px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .hc.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 0 18px 2px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .dock { background: linear-gradient(180deg, color-mix(in srgb, var(--leather) 60%, transparent), var(--sunk)); border-top-color: var(--th-btn-rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.tturn b, .tseals b) { color: var(--accent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .op { background: radial-gradient(circle at 50% 42%, var(--leather) 0, var(--leather-lo) 55%, #000 100%); }
 
-@media (prefers-reduced-motion: reduce) { body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]) .playbtn { animation: none; } }
+@media (prefers-reduced-motion: reduce) { body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .playbtn { animation: none; } }
 
 /* ---- Éclipse d'Ignaroth, plus loin : passe après les règles communes ---- */
 /* le soleil noir, en haut au milieu, là où l'illustration d'Ignaroth a le sien : disque d'ombre, anneau de feu qui respire, couronne de flammes qui tourne lentement (caché en partie : la table a le sien) */
@@ -158,11 +193,102 @@ body[data-season="eclipse"] .tabbar { box-shadow: 0 -1px 0 #ff5a1a, 0 -8px 24px 
 body[data-season="eclipse"] .zone { box-shadow: inset 0 0 22px #000, inset 0 -30px 34px -18px rgb(255 60 20 / .45), 0 0 0 1px #000; }
 @media (prefers-reduced-motion: reduce) { body[data-season="eclipse"]::after, body[data-season="eclipse"] :is(h2, .top .title, .playbtn, .bar > span, .card-box::after, .tile::after) { animation: none; } }
 
+/* ---- Ciel d'Elyndra, plus loin ---- */
+/* étoiles qui scintillent par-dessus le ciel, et deux constellations reliées d'or (cachées en partie : la table a les siennes) */
+body[data-season="astral"]::after { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 800'%3E%3Cg fill='none' stroke='%23e8c050' stroke-opacity='.45' stroke-width='.8'%3E%3Cpath d='M30 120 70 90 112 104 150 70 190 92'/%3E%3Cpath d='M290 560 330 530 372 548 350 600 300 610z'/%3E%3C/g%3E%3Cg fill='%23fff4c8'%3E%3Ccircle cx='30' cy='120' r='2.4'/%3E%3Ccircle cx='70' cy='90' r='1.8'/%3E%3Ccircle cx='112' cy='104' r='2.6'/%3E%3Ccircle cx='150' cy='70' r='1.8'/%3E%3Ccircle cx='190' cy='92' r='2.2'/%3E%3Ccircle cx='290' cy='560' r='2'/%3E%3Ccircle cx='330' cy='530' r='2.6'/%3E%3Ccircle cx='372' cy='548' r='1.8'/%3E%3Ccircle cx='350' cy='600' r='2.2'/%3E%3Ccircle cx='300' cy='610' r='1.8'/%3E%3C/g%3E%3C/svg%3E") 50% 0 / cover no-repeat,
+    radial-gradient(1px 1px at 12% 18%, #fff 50%, transparent), radial-gradient(1px 1px at 28% 42%, #dfe6ff 50%, transparent),
+    radial-gradient(1.5px 1.5px at 46% 12%, #fff 50%, transparent), radial-gradient(1px 1px at 63% 28%, #fff4c8 50%, transparent),
+    radial-gradient(1px 1px at 82% 46%, #fff 50%, transparent), radial-gradient(1.5px 1.5px at 92% 14%, #dfe6ff 50%, transparent),
+    radial-gradient(1px 1px at 8% 66%, #fff 50%, transparent), radial-gradient(1px 1px at 38% 78%, #fff4c8 50%, transparent),
+    radial-gradient(1.5px 1.5px at 56% 62%, #fff 50%, transparent), radial-gradient(1px 1px at 74% 86%, #dfe6ff 50%, transparent),
+    radial-gradient(1px 1px at 20% 92%, #fff 50%, transparent), radial-gradient(1px 1px at 88% 72%, #fff 50%, transparent);
+  animation: astral-twinkle 5s ease-in-out infinite; }
+body[data-season="astral"]:has(#app.ingame)::after { display: none; }
+@keyframes astral-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+body[data-season="astral"]::before { opacity: .42; }
+/* titres d'or qu'un reflet d'étoile parcourt */
+body[data-season="astral"] :is(h2, .top .title) { background: linear-gradient(100deg, #e8b840 0 40%, #fffbe8 48%, #e8b840 56% 100%) 0 0 / 300% 100%; -webkit-background-clip: text; background-clip: text;
+  color: transparent; text-shadow: none; filter: drop-shadow(0 2px 0 #000) drop-shadow(0 0 8px rgb(255 216 112 / .45)); animation: astral-glint 6s ease-in-out infinite; }
+@keyframes astral-glint { 0%, 60% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+body[data-season="astral"] .eyebrow { color: #b8c4ff; text-shadow: 0 0 8px rgb(140 160 255 / .5); }
+/* panneaux : liseré d'or fin et une étoile à quatre branches qui scintille dans le coin */
+body[data-season="astral"] :is(.card-box, .tile) { position: relative; }
+body[data-season="astral"] :is(.card-box, .tile)::after { content: '✦'; position: absolute; top: 6px; right: 10px; font-size: 13px; line-height: 1; color: #fff2c0; pointer-events: none;
+  text-shadow: 0 0 6px #ffd870, 0 0 14px rgb(140 160 255 / .8); animation: astral-twinkle 3s ease-in-out infinite; }
+body[data-season="astral"] .tile:nth-child(2n)::after { animation-delay: -1.5s; }
+body[data-season="astral"] :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) { border-color: color-mix(in srgb, #ffd870 45%, #3a4290); }
+/* bouton Jouer : nuit profonde cerclée d'or, une orbite qui tourne derrière le texte */
+body[data-season="astral"] #app .playbtn { background: radial-gradient(ellipse 90% 140% at 50% 120%, #3a4ab8, #141a4a 55%, #070a24); color: #fff4c8; border: 1px solid #ffd870;
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 3px rgb(255 216 112 / .35), 0 0 0 1px #000, 0 0 26px -4px rgb(255 216 112 / .6); overflow: hidden; }
+body[data-season="astral"] .playbtn > :is(span, small) { position: relative; z-index: 1; }
+body[data-season="astral"] .playbtn > span { color: #fff4c8; text-shadow: 0 0 10px rgb(255 216 112 / .7); }
+body[data-season="astral"] #app .playbtn::before { content: ''; position: absolute; left: 50%; top: 50%; width: 140%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  background: repeating-conic-gradient(rgb(255 230 160 / .0) 0 8deg, rgb(255 230 160 / .25) 8deg 9deg); -webkit-mask: radial-gradient(circle, transparent 38%, #000 40% 70%, transparent 72%);
+  mask: radial-gradient(circle, transparent 38%, #000 40% 70%, transparent 72%); animation: eclipse-sun 30s linear infinite; }
+@keyframes astral-flow { to { background-position: 200% 0; } }
+body[data-season="astral"] .bar > span { background: linear-gradient(90deg, #2a3aa8, #8aa8ff 30%, #fff8d8 45%, #8aa8ff 60%, #2a3aa8) 0 0 / 200% 100%; animation: astral-flow 5s linear infinite; }
+body[data-season="astral"] .tabbar { box-shadow: 0 -1px 0 rgb(255 216 112 / .7), 0 -10px 24px -10px rgb(140 160 255 / .6); }
+body[data-season="astral"] .zone { box-shadow: inset 0 0 22px #000, inset 0 -26px 30px -18px rgb(140 120 255 / .5), 0 0 0 1px #000; }
+@media (prefers-reduced-motion: reduce) { body[data-season="astral"]::after, body[data-season="astral"] :is(h2, .top .title, .playbtn::before, .bar > span, .card-box::after, .tile::after) { animation: none; } }
+
+/* ---- Estampe d'Ysmera, plus loin : thème clair, sur papier ---- */
+/* grand soleil rouge en haut à droite et vagues seigaiha en bas de l'écran (cachés en partie : la table a les siens) */
+body[data-season="estampe"]::after { content: ''; position: fixed; top: max(70px, 9vh); right: -40px; width: 170px; aspect-ratio: 1; border-radius: 50%; z-index: -1; pointer-events: none;
+  background: radial-gradient(circle at 40% 40%, #e0402a, #c8281a 60%, #a81c10); opacity: .85; animation: estampe-sun 12s ease-in-out infinite; }
+@keyframes estampe-sun { 0%, 100% { translate: 0 0; } 50% { translate: 0 8px; } }
+body[data-season="estampe"] #app::before { content: ''; position: fixed; inset: auto 0 0 0; height: 120px; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 100%, #efe2c4 0 4px, #2a5a7a 4px 6px, #efe2c4 6px 9px, #2a5a7a 9px 11px, #efe2c4 11px 14px, #2a5a7a 14px 16px, #efe2c4 16px 19px, #2a5a7a 19px 20px, transparent 20.5px) 0 0 / 40px 20px,
+    radial-gradient(circle at 50% 100%, #efe2c4 0 4px, #2a5a7a 4px 6px, #efe2c4 6px 9px, #2a5a7a 9px 11px, #efe2c4 11px 14px, #2a5a7a 14px 16px, #efe2c4 16px 19px, #2a5a7a 19px 20px, transparent 20.5px) 20px 10px / 40px 20px;
+  -webkit-mask: linear-gradient(transparent, #000 60%); mask: linear-gradient(transparent, #000 60%); opacity: .55; }
+body[data-season="estampe"]:has(#app.ingame)::after, body[data-season="estampe"] #app.ingame::before { display: none; }
+body[data-season="estampe"]::before { opacity: .5; -webkit-mask: linear-gradient(#000 25%, transparent); mask: linear-gradient(#000 25%, transparent); }
+/* encre : pas d'ombres noires épaisses sur le papier, des traits nets */
+body[data-season="estampe"] :is(h2, .top .title) { color: #c8281a; text-shadow: 1px 1px 0 rgb(26 20 16 / .25); filter: none; }
+body[data-season="estampe"] .eyebrow { color: #2a5a7a; text-shadow: none; }
+body[data-season="estampe"] .showcase .eyebrow { color: #f6c8a8; text-shadow: 0 1px 2px #000; }
+body[data-season="estampe"] :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) { border: 2px solid #1a1410;
+  box-shadow: inset 0 0 0 3px #f8f0dc, inset 0 0 0 4px rgb(26 20 16 / .25), 3px 4px 0 rgb(26 20 16 / .18); }
+body[data-season="estampe"] .card-box::before { border-color: transparent; }
+body[data-season="estampe"] :is(.card-box.booster.ready, .deckopt.sel, .tile.todo) { border-color: #c8281a; box-shadow: inset 0 0 0 3px #f8f0dc, inset 0 0 0 4px rgb(200 40 26 / .5), 3px 4px 0 rgb(200 40 26 / .25); }
+/* sceau rouge (hanko) dans le coin des panneaux */
+body[data-season="estampe"] :is(.card-box, .tile) { position: relative; }
+body[data-season="estampe"] :is(.card-box:not(.booster), .tile)::after { content: ''; position: absolute; right: 8px; top: 8px; width: 16px; height: 18px; border-radius: 2px; pointer-events: none;
+  background: linear-gradient(#f6ecd6, #f6ecd6) 50% 30% / 8px 1.5px no-repeat, linear-gradient(#f6ecd6, #f6ecd6) 50% 60% / 8px 1.5px no-repeat, linear-gradient(#f6ecd6, #f6ecd6) 50% 50% / 1.5px 10px no-repeat, #c8281a;
+  box-shadow: inset 0 0 0 1.5px #c8281a, inset 0 0 0 2.5px #f6ecd6; opacity: .85; rotate: -4deg; }
+body[data-season="estampe"] :is(.btn, .seg button) { color: var(--ink); border-width: 1.5px; }
+body[data-season="estampe"] :is(.btn.primary, .playbtn) { background: var(--th-primary); color: #fff6e8; border: 2px solid #1a1410; text-shadow: 1px 1px 0 rgb(0 0 0 / .3);
+  box-shadow: inset 0 0 0 2px #e8b860, inset 0 2px 0 3px rgb(255 255 255 / .2), 3px 4px 0 rgb(26 20 16 / .25); }
+body[data-season="estampe"] .playbtn { animation: none; }
+body[data-season="estampe"] .playbtn > span { color: #fff6e8; }
+body[data-season="estampe"] .playbtn small { color: #ffe0c8; }
+body[data-season="estampe"] .chip { background: var(--surface); color: var(--ink); }
+body[data-season="estampe"] .tabbar { background: linear-gradient(180deg, #f6ecd6, #e8d8b4); border-top: 2px solid #1a1410; }
+body[data-season="estampe"] .tabbar button.on { color: #c8281a; text-shadow: none; background: radial-gradient(ellipse at 50% 30%, rgb(200 40 26 / .14), transparent 70%); }
+body[data-season="estampe"] .bar { background: #e4d4b0; border-color: #1a1410; }
+body[data-season="estampe"] .bar > span { box-shadow: none; }
+body[data-season="estampe"] .showcase { border: 2px solid #1a1410; box-shadow: 3px 4px 0 rgb(26 20 16 / .25); }
+body[data-season="estampe"] .sheet { background: rgb(26 20 16 / .35); }
+/* en partie : zones de papier aux traits d'encre */
+body[data-season="estampe"] .zone { border: 1.5px solid #1a1410; box-shadow: inset 0 0 0 2px rgb(246 236 214 / .6), inset 0 -26px 30px -18px rgb(42 90 122 / .25); }
+body[data-season="estampe"] :is(.hc, .mc) { border-color: #1a1410; box-shadow: 2px 3px 0 rgb(26 20 16 / .3); }
+/* carte trop chère : assombrie plutôt que transparente, qui se perdrait dans le papier */
+body[data-season="estampe"] .hc.cant { opacity: 1; filter: grayscale(.7) brightness(.6); }
+body[data-season="estampe"] .dock { background: linear-gradient(180deg, rgb(239 226 196 / .6), #e8d8b4); border-top: 2px solid #1a1410; }
+body[data-season="estampe"] .op { background: radial-gradient(circle at 50% 42%, #f8f0dc, #e4d4b0); }
+@media (prefers-reduced-motion: reduce) { body[data-season="estampe"]::after { animation: none; } }
+
 /* aperçus (personnalisation, boutique, récompenses) */
 .theme-eclipse.theme-swatch { background: radial-gradient(circle at 70% 35%, #000 0 6px, #ffe0b0 6.5px, #ff7a2a 7.5px, rgb(255 60 20 / .4) 10px, transparent 15px),
   radial-gradient(ellipse at 50% 120%, rgb(255 60 20 / .45), transparent 60%), linear-gradient(#2a0a0a, #0a0507); }
 .theme-sylve.theme-swatch { background: radial-gradient(circle at 30% 40%, #e0ff90 0 1.5px, transparent 2.5px), radial-gradient(circle at 70% 65%, #a0ffc8 0 1.5px, transparent 2.5px),
   linear-gradient(110deg, transparent 35%, rgb(230 255 180 / .15) 45%, transparent 55%), linear-gradient(#1a3a24, #07110b); }
+.theme-astral.theme-swatch { background: radial-gradient(1px 1px at 20% 30%, #fff 50%, transparent), radial-gradient(1.5px 1.5px at 70% 20%, #fff4c8 50%, transparent),
+  radial-gradient(1px 1px at 45% 70%, #fff 50%, transparent), linear-gradient(150deg, transparent 35%, rgb(160 120 255 / .35) 50%, transparent 65%), linear-gradient(#0e1240, #05061a); }
+.theme-estampe.theme-swatch { background: radial-gradient(circle at 75% 30%, #c8281a 0 5px, transparent 5.5px),
+  radial-gradient(circle at 50% 100%, transparent 0 3px, #2a5a7a 3px 4px, transparent 4px 6px, #2a5a7a 6px 7px, transparent 7.5px) 0 100% / 14px 7px repeat-x, #efe2c4; }
 .theme-aube.theme-swatch { background: radial-gradient(ellipse 60% 50% at 50% 110%, #ffd070, #ff8aa0 50%, transparent 80%), linear-gradient(#1a1430, #4a2440 70%, #8a4050); }
 
 /* rayon Thèmes de la boutique : une carte par thème, son ciel et le général par-dessus */
