@@ -13,8 +13,8 @@ export const EXTRA_THEMES = {
   sylve: { name: 'Bois de Sylvaën', card: 'sylvaen', price: 2500 },
   astral: { name: 'Ciel d\'Elyndra', card: 'elyndra', art: 'elyndra_astral', essence: 800 },
   estampe: { name: 'Estampe d\'Ysmera', card: 'ysmera', art: 'ysmera_estampe', price: 3000 },
-  // Mini-set casino de mi-octobre : sort avec lui.
-  casino: { name: 'Roue de Fortuna', card: 'fortuna', price: 2500, reveal: '2026-10-23' },
+  // Mini-set casino de mi-octobre : sort avec lui, seulement à la boutique de son événement (event), en monnaie de l'événement.
+  casino: { name: 'Roue de Fortuna', card: 'fortuna', event: 'casino', reveal: '2026-10-23' },
   // Succès (rewards.js) : finir les trois campagnes d'histoire.
   aube: { name: 'Aube de Séraphine', card: 'seraphine' },
 };

@@ -68,4 +68,5 @@ export const themeLock = id => { const x = EXTRA_THEMES[id]; if (!x) return t('�
   const where = themeShop(id);
   if (where === 'boss') return t('Au magasin du boss mondial, en Insignes');
   if (where === 'essence') return t('Au rayon Essence de la boutique');
-  if (where === 'themes') return t('En vente au rayon Thèmes de la boutique'); const w = wonBy(id); return w ? t('Succès : {label}', { label: t(w.label) }) : t('À débloquer'); };
+  if (where === 'themes') return t('En vente au rayon Thèmes de la boutique');
+  if (x.event) return t('À la boutique de l\'événement'); const w = wonBy(id); return w ? t('Succès : {label}', { label: t(w.label) }) : t('À débloquer'); };
