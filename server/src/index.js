@@ -23,6 +23,7 @@ import { createCatalog } from './cards.js';
 import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
 import { createNews } from './news.js';
+import { planning } from './planning.js';
 import { createClans } from './clans.js';
 import { createBoss } from './boss.js';
 import { createClanBoss } from './clan-boss.js';
@@ -69,6 +70,8 @@ games.routes['GET /api/player'] = (...x) => { const r = playerRoute(...x); r.pla
 // Boss mondial : tentatives jouées dans un salon du serveur (message « boss »), classement de la semaine, magasin.
 const boss = createBoss(store, accounts);
 accounts.setBossTile(a => boss.tile(a));
+// Onglet « À venir » des Nouveautés : sets, saisons, quêtes, événements et Boss mondial des semaines qui viennent.
+news.setUpcoming(() => planning({ store, events: accounts.progress.events, boss, posts: news.shown }));
 // Boss de clan : ouvert par le Maître ou un adjoint, barre de PV commune à tout le clan (message « clanboss »).
 const clanBoss = createClanBoss(store, accounts, clans);
 // Quêtes d'histoire : combats joués dans la page, progression et récompenses des chapitres, quêtes à durée limitée.

@@ -26,7 +26,9 @@ const cleanDate = (d, label) => {
 };
 
 // notify(logins) : prévient les joueurs connectés (connexion de présence) qu'une annonce vient de paraître.
+// upcoming() : le planning de l'onglet « À venir » (planning.js), branché par index.js une fois le Boss mondial créé.
 export function createNews(store, accounts, { notify = () => {} } = {}) {
+  let upcoming = () => [];
   const posts = () => store.doc('nouveautes')?.posts || [];
   const save = list => store.putDoc('nouveautes', { ...store.doc('nouveautes'), posts: list.slice(-MAX_POSTS) });
   const live = (p, day = today()) => p.from <= day;
@@ -54,7 +56,7 @@ export function createNews(store, accounts, { notify = () => {} } = {}) {
   }
   accounts.setNewsTile(tile);
 
-  const reply = a => ({ news: shown().map(p => view(p, a)), account: accounts.me(a) });
+  const reply = a => ({ news: shown().map(p => view(p, a)), upcoming: upcoming(), today: today(), account: accounts.me(a) });
   // Ouvrir l'écran marque tout ce qui est paru comme vu.
   async function seen(a) {
     const ids = shown().map(p => p.id), had = read(a);
@@ -118,7 +120,7 @@ export function createNews(store, accounts, { notify = () => {} } = {}) {
   }
 
   return {
-    announce, setPush,
+    announce, setPush, shown, setUpcoming: f => { upcoming = f; },
     routes: {
       'GET /api/news': a => reply(a),
       'POST /api/news/seen': a => seen(a),
