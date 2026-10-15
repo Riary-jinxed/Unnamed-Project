@@ -63,7 +63,7 @@ npm run equilibrage -- decks 150     # matrice des decks sur tous les cœurs (30
 npm run equilibrage -- generaux 60   # apport de chaque général face au même deck sans général (Cartographe)
 npm run equilibrage -- cartes 60     # apport de chaque carte face à une créature sans effet du même coût
 npm run equilibrage -- tout 60       # les trois à la suite
-# Par défaut, seuls les decks et généraux des sets déjà sortis jouent (comme l'IA du jeu) ; ajoutez « tous » (ou une date AAAA-MM-JJ) après le nombre de parties pour inclure les sets à venir.
+# sim et equilibrage : par défaut, seuls les decks et généraux des sets déjà sortis jouent (comme l'IA du jeu) ; ajoutez « tous » (ou, pour equilibrage, une date AAAA-MM-JJ) à la fin pour inclure les sets à venir.
 npm run eco                  # jours pour compléter un set selon la façon de jouer (npm run eco -- 300 reglages.json pour d'autres réglages)
 npm run empreinte            # empreinte de parties à hasard fixé : identique avant et après un nettoyage du moteur
 npm run i18n                 # textes sans traduction anglaise (-- --all pour tout lister, -- --strict pour échouer s'il en manque)

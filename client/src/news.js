@@ -62,9 +62,9 @@ function bodyHTML(s) {
   }).join('');
 }
 // Illustration d'un set : son premier général illustré.
-const setArt = id => { const g = id && OWNABLE.find(x => GENERALS[x] && setOf(x) === id && portraitHTML(x)); return g ? portraitHTML(g) : ''; };
+const setArt = id => { const g = id && OWNABLE.find(x => GENERALS[x] && setOf(x) === id && portraitHTML(x)); return g ? portraitHTML(g, null, true) : ''; };
 // Illustration d'une saison : son premier art Promo de général (comme le bandeau du passe sur l'accueil).
-const seasonArt = x => { const promo = x?.promo.map(p => p.art).find(id => ARTS[id] && GENERALS[ARTS[id].card]); return promo ? portraitHTML(ARTS[promo].card, promo) : ''; };
+const seasonArt = x => { const promo = x?.promo.map(p => p.art).find(id => ARTS[id] && GENERALS[ARTS[id].card]); return promo ? portraitHTML(ARTS[promo].card, promo, true) : ''; };
 
 // app : ce que main.js prête aux nouveautés (état ui, render, call, errLine).
 export function createNews(app) {
@@ -132,9 +132,9 @@ export function createNews(app) {
     if (x.kind === 'set') { const s = setById(x.id); return { ico: 'set', tone: 'set', art: setArt(x.id), title: t('Sortie du set {name}', { name: t(s?.name || x.id) }), sub: t('Nouveau set') }; }
     if (x.kind === 'season') { const s = SEASONS.find(y => y.id === x.id); return { ico: 'season', tone: 'season', art: seasonArt(s), title: t('Passe de saison : {name}', { name: t(s?.name || '') }), sub: t('Nouveau passe et nouvelle saison classée') }; }
     if (x.kind === 'seasonEnd') { const s = x.pass && SEASONS.find(y => y.id === x.pass); return { ico: 'season', tone: 'season', art: seasonArt(s), title: s ? t(s.name) : t('Saison {name}', { name: seasonName(x.id) }), sub: t('Saison classée et passe de saison') }; }
-    if (x.kind === 'quest') { const q = questById(x.id); return { ico: 'quest', tone: 'quest', art: q ? portraitHTML(q.hero) : '', fam: q?.fam, title: t(q?.name || x.id), sub: t('Quête d\'histoire limitée') }; }
+    if (x.kind === 'quest') { const q = questById(x.id); return { ico: 'quest', tone: 'quest', art: q ? portraitHTML(q.hero, null, true) : '', fam: q?.fam, title: t(q?.name || x.id), sub: t('Quête d\'histoire limitée') }; }
     if (x.kind === 'event') { const fx = EVENT_EFFECTS[x.effect]; return { ico: 'event', tone: 'event', title: t(x.name), sub: `${t('Événement')} · ${multLabel(x.mult)} ${t(fx?.chip || '')}` }; }
-    if (x.kind === 'boss') { const g = GENERALS[x.id]; return { ico: 'boss', tone: 'boss', art: g ? portraitHTML(x.id, g.art) : '', fam: g?.fam, title: g?.name || x.id, sub: t('Boss mondial de la semaine') }; }
+    if (x.kind === 'boss') { const g = GENERALS[x.id]; return { ico: 'boss', tone: 'boss', art: g ? portraitHTML(x.id, g.art, true) : '', fam: g?.fam, title: g?.name || x.id, sub: t('Boss mondial de la semaine') }; }
     const p = N.list.find(y => y.id === x.id);
     return { ico: p?.kind || 'update', tone: p?.kind || 'update', title: p?.title || '', sub: kindName(p?.kind), news: x.id };
   }

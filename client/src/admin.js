@@ -1,5 +1,6 @@
-// Page d'administration : comptes des joueurs (création, profil, Éclats, collection, deck, accès), statistiques des parties,
-// éditeur de cartes et de sets (brouillon puis publication), réglages de la boutique, courrier aux joueurs et codes cadeaux, signalements de bugs, annonces des Nouveautés.
+// Page d'administration : comptes des joueurs (création, profil, Éclats, collection, deck, accès, Zone de test), statistiques des parties,
+// Suivi (rétention et contenu), éditeur de cartes et de sets (brouillon puis publication), réglages de la boutique, Récompenses,
+// Événements (bonus temporaires), Boss mondial, Quêtes d'histoire, courrier aux joueurs et codes cadeaux, signalements de bugs, annonces des Nouveautés.
 // Protégée par la clé ADMIN_KEY du serveur, gardée dans ce navigateur seulement.
 import './style.css';
 import { DECKS, CARDS, GENERALS, TERRAINS, FAMILIES } from '@jeu/engine';

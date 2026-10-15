@@ -32,10 +32,10 @@ export function createStory(app) {
 
   // ---- Portraits ----
   // Portrait d'un personnage dans une quête : un général (avec l'art choisi pour la quête) ou une carte, recadrés sur le visage ;
-  // une initiale tant qu'il n'a pas d'illustration.
-  function face(q, who, ch = null, cls = '') {
+  // une initiale tant qu'il n'a pas d'illustration. big : portrait en fond de tuile, en pleine définition (portraitHTML).
+  function face(q, who, ch = null, cls = '', big = false) {
     const g = GENERALS[who], c = CARDS[who], fam = g ? g.fam : c?.effigy || c?.kw?.[0];
-    return `<span class="gport ${cls}" style="${famStyle(fam)}">${portraitHTML(who, g ? castArt(q, who, ch) : null) || `<span class="gport-init">${esc(castName(who)[0])}</span>`}</span>`;
+    return `<span class="gport ${cls}" style="${famStyle(fam)}">${portraitHTML(who, g ? castArt(q, who, ch) : null, big) || `<span class="gport-init">${esc(castName(who)[0])}</span>`}</span>`;
   }
 
   // ---- Carte d'une quête ----
@@ -141,7 +141,7 @@ export function createStory(app) {
       <b>${esc(t(q.name))}</b><small class="hint">${t('Une nouvelle quête arrive. Revenez vite !')}</small></div></div>`;
     const done = I.won >= I.total;
     return `<button class="squest smap-${q.map} ${done ? 'done' : ''}" data-act="story-open" data-quest="${q.id}" style="${famStyle(q.fam)}">
-      <span class="squest-art">${face(q, q.hero, null, 'squest-face')}</span>
+      <span class="squest-art">${face(q, q.hero, null, 'squest-face', true)}</span>
       <span class="squest-tx"><span class="eyebrow">${eyebrow(q, I)}</span>
         <b>${esc(t(q.name))}</b><small class="hint">${esc(t(q.tagline))}</small>
         <span class="squest-foot num">${done ? t('Terminée ✓') : t('Chapitre {n} sur {total}', { n: I.won + 1, total: I.total })}</span>
@@ -346,7 +346,7 @@ export function createStory(app) {
       const q = st.id && questById(st.id);
       if (!q) return `<button class="tile stile" data-act="story"><span class="eyebrow">${t('Histoire')}</span><b>${t('Campagnes')}</b><span class="tile-foot num">${st.done ? tp(st.done, '{n} terminée ✓', '{n} terminées ✓') : t('Le monde d\'Éclats')}</span></button>`;
       const live = st.daysLeft != null;
-      return `<button class="tile stile smap-${q.map} todo" data-act="story" data-quest="${q.id}" data-tab="${live ? 'event' : 'main'}" style="${famStyle(q.fam)}"><span class="stile-art">${face(q, q.hero)}</span>
+      return `<button class="tile stile smap-${q.map} todo" data-act="story" data-quest="${q.id}" data-tab="${live ? 'event' : 'main'}" style="${famStyle(q.fam)}"><span class="stile-art">${face(q, q.hero, null, '', true)}</span>
         <span class="eyebrow">${live ? t('Événement · {n} j', { n: st.daysLeft }) : t('Histoire')}</span><b>${esc(t(q.name))}</b>
         <span class="tile-foot num">${t('Chapitre {n}/{total}', { n: st.won + 1, total: st.total })}</span><span class="bar" aria-hidden="true"><span style="width:${Math.round(100 * st.won / st.total)}%"></span></span></button>`;
     },

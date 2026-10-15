@@ -273,7 +273,7 @@ export function createBoss(app) {
     // Tuile de l'accueil : le boss de la semaine, les tentatives du jour et le total.
     tile(account) {
       const bt = account.boss; if (!bt) return '';
-      return `<button class="tile btile ${bt.left ? 'todo' : ''}" data-act="boss"><span class="btile-art">${portraitHTML(bt.id, bt.art)}</span><span class="eyebrow">${t('Boss mondial · {n} j', { n: bt.daysLeft })}</span>
+      return `<button class="tile btile ${bt.left ? 'todo' : ''}" data-act="boss"><span class="btile-art">${portraitHTML(bt.id, bt.art, true)}</span><span class="eyebrow">${t('Boss mondial · {n} j', { n: bt.daysLeft })}</span>
         <b>${esc(t(bt.name).split(/,\s*/)[0])}</b><span class="tile-foot num">${bt.left ? tp(bt.left, '{n}/{total} tentative', '{n}/{total} tentatives', { total: bt.attempts }) : t('Revenez demain')}${bt.total ? ` · ${t('{n} pts', { n: bt.total })}` : ''}</span>
         <span class="bar" aria-hidden="true"><span style="width:${pct(bt.attempts - bt.left, bt.attempts)}%"></span></span></button>`;
     },

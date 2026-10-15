@@ -6,7 +6,7 @@ Deux pages compilées par Vite : `index.html` (l'appli des joueurs : `src/boot.j
 
 | Fichier | Rôle |
 | --- | --- |
-| `index.html` | Page de l'appli : polices Google, voile de chargement déjà écrit (`veil.css`), réglage des animations posé avant le premier affichage. |
+| `index.html` | Page de l'appli : polices Google (celles de base attendues avant le premier affichage, celles des familles et des thèmes chargées sans bloquer), voile de chargement déjà écrit (`veil.css`), réglage des animations posé avant le premier affichage. |
 | `admin.html` | Page `/admin`. |
 | `vite.config.js` | Deux entrées (appli, admin), version de l'appli (`__APP_VERSION__` : commit et date de compilation), `/api` et `/ws` renvoyés au serveur local en développement. |
 | `vignettes.js` | Greffon Vite : copie des illustrations en 640 px de large (`?vignette`, sharp), gardée dans `node_modules/.cache/vignettes`. |
@@ -59,7 +59,7 @@ Les interactions passent par quelques écouteurs posés une fois sur `#app` (dé
 
 `style.css` pose la mise en page et une seule palette sombre (cuir, pierre et or), quel que soit le réglage clair ou sombre du téléphone. `habillage.css`, chargé juste après, donne l'allure de jeu « Grimoire doré » : panneaux de cuir bordés d'or, boutons en relief qui s'enfoncent au toucher, bouton principal doré, titres en Cinzel, barre d'onglets et jauges assorties. Il ne touche qu'à l'apparence : changer de style revient à remplacer ce fichier. Il porte aussi les transitions : `render()` ajoute `.screen-in` à `#app` quand l'écran change (le contenu se lève en cascade) et `.sheet-in` à la feuille qui vient de s'ouvrir (elle monte depuis le bas).
 
-Les thèmes de l'interface s'ajoutent par-dessus, selon `<body data-season>` (voir « Décor des menus et saisons » plus bas) : `halloween.css` et `cyber.css` pour les saisons, `themes.css` pour les thèmes à l'effigie d'un général. Chaque règle y commence par `body[data-season="…"]` pour passer devant `habillage.css`. Les écrans à part ont leur feuille, importée par leur module (`clan.css`, `boss.css`, `story.css`, `casino.css`, `news.css`, `shop.css`, `opening.css`).
+Les thèmes de l'interface s'ajoutent par-dessus, selon `<body data-season>` (voir « Décor des menus et saisons » plus bas) : `halloween.css` et `cyber.css` pour les saisons, `themes.css` pour les thèmes à l'effigie d'un général. Chaque règle y commence par `body[data-season="…"]` pour passer devant `habillage.css` ; les règles communes à tous les thèmes de `themes.css` visent `body.theme-extra`, classe de même priorité posée par `setThemeArt` (`themes.js`) quand le thème affiché est l'un d'`EXTRA_THEMES`. Les écrans à part ont leur feuille, importée par leur module (`clan.css`, `boss.css`, `story.css`, `casino.css`, `news.css`, `shop.css`, `opening.css`).
 
 ## Accueil (`renderHome`)
 
@@ -216,7 +216,7 @@ Un bandeau en bas de l'écran (hors partie) montre le défi reçu (Accepter, Ref
 
 ## Illustrations (`art.js`, `holo.js`)
 
-Deux calques par carte (`art/<id>/decor.webp` et `perso.webp`, en 960 × 1424), les arts alternatifs dans `art/alt/<id>/`, les terrains dans `art/terrain/` (voir `src/art/LISEZMOI.md`) ; sans fichier, un visuel provisoire aux couleurs de la famille. Les images sont listées à la compilation (`import.meta.glob`) avec leur vignette de 640 px (`vignettes.js`), proposée en `srcset` partout sauf dans les vues en grand. En vue en grand, le personnage sort du cadre à partir du niveau de carte qui le débloque (`POP_LEVEL`). Le reflet holographique (`holo.js`, `holo.css`) couvre les arts alternatifs et les cartes au niveau Or ou plus ; il suit l'inclinaison du téléphone ou la souris, écrite seulement sur les cartes holographiques à l'écran. Reflet et débordement se coupent carte par carte (`holoOff`, `popOff` du compte).
+Deux calques par carte (`art/<id>/decor.webp` et `perso.webp`, en 960 × 1424), les arts alternatifs dans `art/alt/<id>/`, les terrains dans `art/terrain/` (voir `src/art/LISEZMOI.md`) ; sans fichier, un visuel provisoire aux couleurs de la famille. Les images sont listées à la compilation (`import.meta.glob`) avec leur vignette de 640 px (`vignettes.js`), proposée en `srcset` partout sauf dans les vues en grand ; les petites cartes en main et sur le plateau (`artBg`) et les portraits (`portraitHTML`, sauf ceux en fond de tuile ou de bandeau, `big`) prennent directement la vignette. En vue en grand, le personnage sort du cadre à partir du niveau de carte qui le débloque (`POP_LEVEL`). Le reflet holographique (`holo.js`, `holo.css`) couvre les arts alternatifs et les cartes au niveau Or ou plus ; il suit l'inclinaison du téléphone ou la souris, écrite seulement sur les cartes holographiques à l'écran. Reflet et débordement se coupent carte par carte (`holoOff`, `popOff` du compte).
 
 ## Catalogue côté appli
 

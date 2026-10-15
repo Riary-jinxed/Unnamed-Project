@@ -220,7 +220,7 @@ function goCasino() {
     ui.ctrl = { ...startSolo(handlers, casino.gameOpts(ui.account.name)), rematch: null };
   });
 }
-// Tutoriel : leçons guidées contre l'IA avec un deck fixé, sans deck du joueur ni récompense (tutorial.js).
+// Tutoriel : leçons guidées contre l'IA avec un deck fixé, sans deck du joueur (tutorial.js) ; Éclats à la première fin de chaque leçon.
 // Premier lancement : un compte qui n'a pas encore de deck de départ entre directement dans l'initiation, une fois par appareil.
 const tutoKey = () => `tuto-${ui.account?.login || ''}`;
 function goTutorial(lesson = 'initiation') {
@@ -1355,7 +1355,7 @@ function renderHome() {
   // Passe de saison : grand bandeau sous Jouer (en tête de la colonne de droite sur ordinateur), à l'image d'un art Promo de la saison.
   const season = p.pass && SEASONS.find(x => x.id === p.pass.id), promo = season?.promo.map(x => x.art).find(id => ARTS[id] && GENERALS[ARTS[id].card]);
   const passBand = p.pass ? `<button class="passband theme-${p.pass.theme}" data-act="pass">
-      ${promo ? `<span class="pb-art">${portraitHTML(ARTS[promo].card, promo)}</span>` : ''}
+      ${promo ? `<span class="pb-art">${portraitHTML(ARTS[promo].card, promo, true)}</span>` : ''}
       <span class="pb-txt"><span class="eyebrow">${t('Passe de saison · {n} j', { n: p.pass.daysLeft })}</span><b>${esc(t(p.pass.name))}</b>
         <small>${p.pass.todo ? tp(p.pass.todo, '{n} mission du passe à faire', '{n} missions du passe à faire') : t('Toutes les missions du passe sont faites ✓')}</small></span>
       <span class="pb-tier num"><b>${p.pass.tier}</b><small>/${p.pass.tiers}</small></span>
