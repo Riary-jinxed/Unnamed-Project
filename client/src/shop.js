@@ -2,7 +2,7 @@
 // sous un auvent, entre deux lanternes. Toucher un paquet l'achète ou ouvre un booster offert, comme ses boutons plus bas.
 // Les paquets et le coffre restent en HTML (dessins d'opening.js) : toucher, clavier et lecteurs d'écran ne changent pas.
 // Le décor animé (auvent qui ondule, lanternes qui se balancent, rayons, poussière dorée, éclats au toucher) est dessiné
-// avec PixiJS par shop-stage.js, chargé au premier passage en boutique, seulement avec WebGL et sans « réduire les animations ».
+// avec PixiJS par shop-stage.js, chargé au premier passage en boutique, seulement avec WebGL et sans les animations réduites ou coupées (motion.js).
 // Sans lui, le décor reste en CSS (shop.css). Les sélections du jour (cartes, arts) ont la même mise en scène : voir vitrineHTML.
 import './shop.css';
 import { reduceMotion, webgl } from './fx.js';
@@ -71,10 +71,10 @@ let mod = null, loading = false, want = null, able = null;
 // Appelé à chaque rendu : `app` contient la boutique (étal, vitrines) ou un autre écran.
 export function setShop(app) {
   want = [...app.querySelectorAll('.stall, .vitrine')];
-  if (mod) { mod.show(want); return; }
+  if (mod) { mod.show(reduceMotion() ? [] : want); return; }
   if (!want.length || loading) return;
-  able ??= !reduceMotion() && webgl();
-  if (!able) return;
+  able ??= webgl();
+  if (!able || reduceMotion()) return;
   loading = true;
   import('./shop-stage.js').then(m => { mod = m; m.show(want.filter(el => el.isConnected));
     // Puis, la boutique affichée et au repos, les effets de l'ouverture des boosters et des coffres.

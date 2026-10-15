@@ -13,6 +13,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Cinzel:wght@600;700;900&family=Alegreya+Sans:wght@400;500;700&family=Cinzel+Decorative:wght@700&family=Creepster&family=Metal+Mania&family=MedievalSharp&family=Marcellus+SC&family=Shojumaru&family=Limelight&family=Pirata+One&family=Uncial+Antiqua&family=Orbitron:wght@600;700;800&family=Share+Tech+Mono&family=Rajdhani:wght@600;700&family=UnifrakturMaguntia&display=swap">
   <link rel="stylesheet" href="/src/veil.css">
+  <!-- Réglage des animations (motion.js) posé avant le premier affichage : le voile de chargement le respecte déjà. -->
+  <script>try { var m = localStorage.getItem('jeu-motion'); if (!/^(full|reduced|none)$/.test(m)) m = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduced' : 'full';
+    document.documentElement.dataset.motion = m; if (m !== 'full') document.documentElement.className += ' calm'; } catch (e) { /* stockage indisponible */ }</script>
 </head>
 <body>
   <!-- Voile de chargement (veil.js) : affiché tout de suite, avant le script ; l'astuce arrive avec lui. -->

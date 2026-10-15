@@ -37,8 +37,9 @@ import './holo.js';
 import './cosmetics.js';
 import { unlockAudio, audioContext, play, isMuted, setMuted, sfxVolume, setSfxVolume, canVibrate, vibrations, setVibrations, buzz, feel } from './sfx.js';
 import { setMusic, wakeMusic, musicVolume, setMusicVolume } from './music.js';
-import { reduceMotion, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, stageReady, sparkle, shards, trail, ending, clearEnding, setEnd, coachGuide, diceRoll, slotMachine } from './fx.js';
+import { reduceMotion, motionChanged, banner, floatNum, zoneGlow, generalFire, backFlip, flyFrom, confetti, setInGame, stageReady, sparkle, shards, trail, ending, clearEnding, setEnd, coachGuide, diceRoll, slotMachine } from './fx.js';
 import * as veil from './veil.js';
+import { MOTION_LEVELS, motionLevel, motionChoice, setMotion } from './motion.js';
 import { TABS, screenDir, slides, ghostScreen, ghostSheet } from './transition.js';
 import { openPack, openChest } from './opening.js';
 import { setHome } from './lobby.js';
@@ -1257,6 +1258,13 @@ function renderLang() {
   </div>`;
 }
 // Boutons des langues ; `on` : celle qui est mise en avant.
+// Réglage des animations (motion.js) : trois boutons, et le rappel que le système décide tant que le joueur n'a pas choisi.
+const MOTION_NAMES = { full: 'Complètes', reduced: 'Réduites', none: 'Aucune' };
+const motionField = () => { const on = motionLevel();
+  return `<div class="field"><span class="eyebrow">${t('Animations')}</span>
+    <div class="row">${MOTION_LEVELS.map(id => `<button class="btn ${id === on ? 'primary' : ''}" data-act="motion" data-level="${id}" aria-pressed="${id === on}">${t(MOTION_NAMES[id])}</button>`).join('')}</div>
+    <p class="hint" style="margin:0">${motionChoice() ? `${t('Réduites : plus de décor animé ni d\'effets en partie. Aucune : plus rien ne bouge.')} <button class="linkbtn" data-act="motion" data-level="">${t('Suivre le réglage du système')}</button>`
+      : t('Réglage du système suivi. Réduites : plus de décor animé ni d\'effets en partie. Aucune : plus rien ne bouge.')}</p></div>`; };
 const langButtons = on => LANGS.map(([id, name]) => `<button class="btn ${id === on ? 'primary' : ''}" data-act="lang" data-lang="${id}" aria-pressed="${id === on}">${name}</button>`).join('');
 function renderLogin() {
   return `<div class="top"><span class="title">${t('Jeu de cartes')}</span>${muteBtn()}</div>
@@ -1880,7 +1888,7 @@ function renderProfile() {
       <div class="field"><label class="eyebrow" for="profile-name">${t('Pseudo')}</label><input id="profile-name" maxlength="20" value="${esc(ui.nameDraft)}"></div>
       <div class="row"><button class="btn primary" type="submit" ${ui.busy || !ui.nameDraft.trim() || ui.nameDraft.trim() === a.name ? 'disabled' : ''}>${t('Enregistrer le pseudo')}</button></div>
     </form>
-    <div class="card-box"><div><span class="eyebrow">${t('Réglages')}</span><h2 style="font-size:22px">${t('Langue, son et vibrations')}</h2></div>
+    <div class="card-box"><div><span class="eyebrow">${t('Réglages')}</span><h2 style="font-size:22px">${t('Langue, son, vibrations et animations')}</h2></div>
       <div class="field"><span class="eyebrow">Langue · Language</span><div class="row">${langButtons(getLang())}</div></div>
       <label class="check"><input type="checkbox" id="sound-on" ${isMuted() ? '' : 'checked'}> ${t('Son activé')}</label>
       <div class="field"><label class="eyebrow" for="sfx-volume">${t('Bruitages')} · <span id="sfx-pct" class="num">${Math.round(sfxVolume() * 100)} %</span></label>
@@ -1888,7 +1896,8 @@ function renderProfile() {
       <div class="field"><label class="eyebrow" for="music-volume">${t('Musique')} · <span id="music-pct" class="num">${Math.round(musicVolume() * 100)} %</span></label>
         <input id="music-volume" type="range" min="0" max="100" step="5" value="${Math.round(musicVolume() * 100)}" ${isMuted() ? 'disabled' : ''}></div>
       ${canVibrate() ? `<label class="check"><input type="checkbox" id="vibrations-on" ${vibrations() ? 'checked' : ''}> ${t('Vibrations en partie')}</label>`
-        : `<p class="hint" style="margin:0">${t('Les vibrations ne marchent que sur un téléphone Android : ni sur ordinateur, ni sur iPhone.')}</p>`}</div>
+        : `<p class="hint" style="margin:0">${t('Les vibrations ne marchent que sur un téléphone Android : ni sur ordinateur, ni sur iPhone.')}</p>`}
+      ${motionField()}</div>
     ${notifs.html()}
     <div class="card-box"><div><span class="eyebrow">${t('Statistiques')}</span><h2 style="font-size:22px">${t('Victoires')}</h2></div>${stats}</div>`,
     collection: () => `<div class="card-box"><div><span class="eyebrow">${t('Collection')}</span><h2 style="font-size:22px">${tp(complete, '{n} set complété', '{n} sets complétés')}</h2></div>
@@ -2633,6 +2642,7 @@ app.addEventListener('click', e => {
     else if (a === 'logout') doLogout();
     else if (a === 'retry') boot();
     else if (a === 'lang') chooseLang(ds.lang);
+    else if (a === 'motion') { setMotion(ds.level || null); motionChanged(app); play('pick'); render(); }
     else if (a === 'starter' && ui.starterPick && !ui.busy) call('POST', '/api/starter', { starter: ui.starterPick });
     else if (a === 'booster' && !ui.busy) openBoosterNow();
     else if (a === 'collection') { ui.screen = 'collection'; ui.error = ''; render(); }

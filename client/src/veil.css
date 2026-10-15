@@ -65,9 +65,11 @@ body[data-season="halloween"] .veil-embers i:nth-child(3n+1) { background: #8fff
 body[data-season="cyber"] .veil-embers i { background: #19c8e6; box-shadow: 0 0 8px 2px rgb(25 200 230 / .6); }
 body[data-season="cyber"] .veil-embers i:nth-child(3n) { background: #ff4ad8; box-shadow: 0 0 8px 2px rgb(255 74 216 / .6); }
 
-@media (prefers-reduced-motion: reduce) {
-  .veil, .veil.on, .veil-in, .veil-tip { transition: none; }
-  .veil-emblem, .veil-emblem::after, .veil-embers i { animation: none; }
-  .veil-emblem i { animation-duration: 6s; }
-  .veil-bar.busy i { animation: none; transform: none; width: 100% !important; opacity: .6; }
-}
+.calm .veil, .calm .veil.on, .calm .veil-in, .calm .veil-tip { transition: none; }
+.calm .veil-emblem, .calm .veil-emblem::after, .calm .veil-embers i { animation: none; }
+.calm .veil-emblem i { animation-duration: 6s; }
+.calm .veil-bar.busy i { animation: none; transform: none; width: 100% !important; opacity: .6; }
+
+/* Animations « aucune » (motion.js) : plus rien ne bouge, nulle part. Les éléments s'affichent dans leur état de repos ;
+   les effets posés par-dessus la partie (fx.js) disparaissent toujours à leur minuterie. */
+:root[data-motion="none"] *, :root[data-motion="none"] *::before, :root[data-motion="none"] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }

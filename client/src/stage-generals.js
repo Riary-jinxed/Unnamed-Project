@@ -1,4 +1,4 @@
-// Généraux en partie, sur le plateau PixiJS (stage.js) : chargé avec lui, seulement avec WebGL et sans « réduire les animations ».
+// Généraux en partie, sur le plateau PixiJS (stage.js) : chargé avec lui, seulement avec WebGL et sans les animations réduites ou coupées (motion.js).
 // - Portrait vivant : quelques poussières à la couleur de la famille montent (ou tombent) du portrait, sans arrêt mais rarement,
 //   un peu plus souvent quand le général peut être activé, plus du tout une fois utilisé. La respiration du portrait est en CSS (style.css).
 // - Pouvoir : quand le général agit, un effet court (moins d'une seconde) et propre à chacun, posé sur sa carte, sans tremblement ni éclair.

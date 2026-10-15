@@ -1,4 +1,4 @@
-// Décor animé des menus, sur les toiles de stage.js : chargé avec lui, seulement avec WebGL et sans « réduire les animations ».
+// Décor animé des menus, sur les toiles de stage.js : chargé avec lui, seulement avec WebGL et sans les animations réduites ou coupées (motion.js).
 // Derrière les menus, stage.js garde sa brume, ses braises et sa lampe (aux couleurs de la saison, season.js) ; la vitrine de
 // l'accueil a sa propre toile (lobby-stage.js). Ce fichier ajoute, par-dessus les menus :
 // - Bouton Jouer : quelques étincelles qui montent de son bord.

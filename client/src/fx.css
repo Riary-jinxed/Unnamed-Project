@@ -92,12 +92,10 @@
 .tok { transition: background-color .25s, transform .25s; }
 .tok.spent { transform: scale(.82); }
 
-@media (prefers-reduced-motion: reduce) {
-  .fxbanner .fxb-in { animation: fxfade 2s linear forwards; }
-  .mc.dealt, .mc.sealed, .chip.pop, .end .zs > div, .hc.sel { animation: none; }
-  .tok { transition: none; } .tok.spent { transform: none; }
-  .hc:not(.cant):not(.sel):hover { transform: none; }
-}
+.calm .fxbanner .fxb-in { animation: fxfade 2s linear forwards; }
+.calm .mc.dealt, .calm .mc.sealed, .calm .chip.pop, .calm .end .zs > div, .calm .hc.sel { animation: none; }
+.calm .tok { transition: none; } .calm .tok.spent { transform: none; }
+.calm .hc:not(.cant):not(.sel):hover { transform: none; }
 @keyframes fxfade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
 
 /* Rien ne va plus : dé qui roule sur la carte qui parie */

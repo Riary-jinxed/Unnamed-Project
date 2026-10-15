@@ -1,7 +1,7 @@
 // Guide du tutoriel sur PixiJS, chargé avec le plateau (fx.js) : l'écran s'assombrit sauf ce qu'il faut toucher et la bulle
 // de Séraphine, un liseré d'or pulse autour de la cible, et une main montre le geste : glisser une carte de la main vers une
 // zone, ou toucher un élément. Les cibles restent en HTML (main.js) : leur place est relue quelques fois par seconde.
-// Sans WebGL ou avec « réduire les animations », ce module n'est pas chargé : le contour qui clignote (.coach-hl) suffit.
+// Sans WebGL ou avec les animations réduites ou coupées (motion.js), ce module n'est pas chargé : le contour qui clignote (.coach-hl) suffit.
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { kit } from './stage.js';
 

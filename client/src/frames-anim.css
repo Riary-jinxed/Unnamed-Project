@@ -104,4 +104,4 @@
 .essframe .avatar.big.initials { font-size: 28px; }
 .essframe > .frame { margin: 6px; flex: none; }
 
-@media (prefers-reduced-motion: reduce) { .fanim > .ffx::before, .fanim > .ffx::after { animation: none; } }
+.calm .fanim > .ffx::before, .calm .fanim > .ffx::after { animation: none; }

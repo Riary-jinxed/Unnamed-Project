@@ -96,7 +96,7 @@
 .cbhp-tx { position: relative; display: block; text-align: center; font-size: 12px; font-weight: 700; line-height: 20px; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / .7); }
 .cbhp.sm { height: 18px; flex-basis: 100%; }
 .cbhp.sm .cbhp-tx { font-size: 11px; line-height: 16px; }
-@media (prefers-reduced-motion: reduce) { .cbhp-fill { transition: none; } }
+.calm .cbhp-fill { transition: none; }
 /* À la table : le boss tient à lui seul les trois zones d'en face, en travers du plateau ; vos zones n'ont que votre côté. */
 #app.ingame > .board.oneboss, .board.oneboss { grid-template-rows: minmax(0, 1fr) minmax(0, 1.25fr); }
 .cbzone { grid-column: 1 / -1; position: relative; overflow: hidden; isolation: isolate; display: flex; align-items: flex-end; gap: 10px; min-height: 120px;

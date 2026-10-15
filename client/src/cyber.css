@@ -99,7 +99,7 @@ body[data-season="cyber"] .tturn b, body[data-season="cyber"] .tseals b { color:
 body[data-season="cyber"] .op { background: radial-gradient(circle at 50% 42%, #10234a 0, #070c1a 55%, #020308 100%); }
 body[data-season="cyber"] .op .op-skip { background: #08101f; border-color: var(--neon); border-radius: 0; color: var(--neon); }
 
-@media (prefers-reduced-motion: reduce) { body[data-season="cyber"] .top .title { animation: none; } }
+.calm body[data-season="cyber"] .top .title { animation: none; }
 
 /* aperçu d'un thème dans la personnalisation et le passe */
 .theme-swatch { display: block; width: 44px; height: 30px; border: 1px solid #000; border-radius: 3px;
