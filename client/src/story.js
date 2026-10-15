@@ -327,6 +327,8 @@ export function createStory(app) {
     // Partie relancée (Réessayer) : la victoire précédente n'est plus affichée.
     rematched() { S.result = null; },
     // Libellé de la partie dans la barre du haut.
+    // Partie en cours contre le boss d'une quête (son dernier chapitre) : la quête, pour sa musique de boss (main.js, musicFor).
+    finale() { const q = S.run && questById(S.run.quest); return q && S.run.i === q.chapters.length - 1 ? q : null; },
     label() { const q = S.run && questById(S.run.quest); return q ? `${t(q.name)} · ${S.run.i + 1}/${q.chapters.length}` : t('Histoire'); },
     // Tuile de l'accueil : la quête à suivre (la quête du moment d'abord).
     tile(account) {
