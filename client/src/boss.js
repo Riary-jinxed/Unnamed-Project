@@ -10,6 +10,7 @@ import { BOSS_IDS, bossInfo, bossBoostLabel } from '@jeu/engine/boss';
 import { DECK_SIZE, DECK_TERRAINS, deckError } from '@jeu/engine/collection';
 import { TITLES } from '@jeu/engine/rewards';
 import { t, tp, tField, locale } from '@jeu/engine/i18n';
+import { hpBarHTML } from './clan-boss.js';
 
 const TABS = [['boss', t('Boss')], ['classement', t('Classement')], ['magasin', t('Magasin')]];
 const WHEN = { start: t('Début du tour'), end: t('Fin du tour') };
@@ -181,14 +182,29 @@ export function createBoss(app) {
   // Bandeau du boss au-dessus du plateau : son action de ce tour (avant ou après votre révélation) et votre score du moment.
   function tableHTML(v) {
     const s = v.boss?.step; if (!v.boss) return '';
+    // Boss de clan : pas de bandeau, il occupe la place des trois zones d'en face (clanZoneHTML).
+    if (v.boss.clan) return '';
     return `<div class="bbar" role="status"><span class="bbar-step">${s ? `<b>${esc(t(s.name))}</b><small>${WHEN[s.when]} · ${esc(t(s.text))}</small>` : `<b>${t('Le boss attend')}</b>`}</span>
       <span class="bbar-score num"><small>${t('Score')}</small><b>${v.boss.score.total}</b></span></div>`;
+  }
+  // Boss de clan : il tient à lui seul les trois zones d'en face, en travers du plateau (main.js, renderGame) : son illustration,
+  // son action de ce tour, les dégâts du moment et sa barre de PV après ces dégâts.
+  function clanZoneHTML(v) {
+    const s = v.boss.step, c = v.boss.clan, g = GENERALS[v.boss.id], hp = Math.max(0, c.hp - v.boss.score.total);
+    const art = heroHTML(v.boss.id, g?.art) || `<span class="cbzone-init" aria-hidden="true">${esc(t(g?.name || '?')[0])}</span>`;
+    return `<div class="cbzone" role="status" style="${famStyle(g?.fam)}" aria-label="${t('Boss de clan : {name}', { name: esc(t(g?.name || '')) })}">
+      <div class="cbzone-art">${art}</div>
+      <div class="cbzone-tx"><b class="cbzone-name">${esc(t(g?.name || '').split(/,\s*/)[0])}</b>
+        <span class="bbar-step">${s ? `<b>${esc(t(s.name))}</b><small>${WHEN[s.when]} · ${esc(t(s.text))}</small>` : `<b>${t('Le boss attend')}</b>`}</span>
+        ${hpBarHTML(hp, c.max, 'sm')}</div>
+      <span class="bbar-score num"><small>${t('Dégâts')}</small><b>${v.boss.score.total}</b></span></div>`;
   }
   // Bonus d'une carte de la main contre le boss (famille ou carte renforcée).
   const handChip = (v, id) => { const n = v.boss ? bossBoost(v.boss.id, id) : 0; return n ? `<span class="bboost-tag num" title="${t('Renforcée contre le boss : +{n} sur le plateau', { n })}">+${n}</span>` : ''; };
 
   // Fin d'une tentative : score par zone, paliers atteints, gains, total de la semaine.
   function endHTML(v, asked) {
+    if (v.boss?.clan) return clanEndHTML(v, asked);
     const r = v.reward?.boss, sc = v.boss?.score;
     const zs = [0, 1, 2].map(z => { const x = (r?.zones || sc?.zones || [])[z] || { power: 0, points: 0 };
       return `<div class="${x.beat ? 'me' : ''}"><div class="eyebrow">${t(ZONE_NAMES[z])}</div><b class="num">${x.points}</b><small class="hint">${t('puissance {n}', { n: x.power })}${x.full ? ` · ${t('pleine')}` : ''}${x.beat ? ` · ${t('gagnée')}` : ''}</small></div>`; }).join('');
@@ -204,6 +220,24 @@ export function createBoss(app) {
       <p class="num" style="margin:0">${r.pos ? t('Cette semaine : <b>{n}</b> points, {pos} du classement · meilleure tentative {best}', { n: r.total, pos: nth(r.pos), best: r.best }) : t('Cette semaine : <b>{n}</b> points · meilleure tentative {best}', { n: r.total, best: r.best })}</p>
       <div class="row"><button class="btn primary" data-act="again" ${asked || r.left <= 0 ? 'disabled' : ''}>${asked ? t('Nouvelle tentative…') : r.left > 0 ? t('Nouvelle tentative ({n})', { n: r.left }) : t('Plus de tentative aujourd\'hui')}</button>
         <button class="btn" data-act="boss">${t('Boss mondial')}</button><button class="btn" data-act="log">${t('Voir le journal')}</button></div></div></div>`;
+  }
+
+  // Fin d'une tentative contre le boss de clan : dégâts par zone, PV du boss, tentatives qui restent.
+  function clanEndHTML(v, asked) {
+    const r = v.reward?.boss, sc = v.boss.score;
+    const zs = [0, 1, 2].map(z => { const x = (r?.zones || sc.zones)[z] || { power: 0, points: 0 };
+      return `<div><div class="eyebrow">${t(ZONE_NAMES[z])}</div><b class="num">${x.points}</b><small class="hint">${t('puissance {n}', { n: x.power })}${x.full ? ` · ${t('pleine')}` : ''}</small></div>`; }).join('');
+    if (!r) return `<div class="sheet"><div class="panel end bend"><h2>${t('Tentative terminée')}</h2><div class="zs">${zs}</div><p class="hint" style="margin:0">${t('Calcul des dégâts…')}</p></div></div>`;
+    const state = !r.counted ? t('Le boss était déjà reparti : ces dégâts ne comptent plus.')
+      : r.defeated ? `<b>${t('Boss vaincu ! Les récompenses arrivent à tout le clan.')}</b>` : t('Le clan lui a retiré {n} % de ses PV.', { n: r.pct });
+    return `<div class="sheet"><div class="panel end bend"><span class="eyebrow">${esc(GENERALS[r.boss]?.name || t('Boss de clan'))}${r.abandoned ? ` · ${t('tentative abandonnée')}` : ''}</span>
+      <h2 class="bend-score num">${t('{n} <small>dégâts</small>', { n: r.damage })}</h2>
+      <div class="zs">${zs}</div>
+      ${r.counted ? hpBarHTML(r.hp, r.max) : ''}
+      <p style="margin:0">${state}</p>
+      <p class="num" style="margin:0">${t('Vos dégâts contre ce boss : <b>{n}</b>', { n: r.total })}</p>
+      <div class="row"><button class="btn primary" data-act="again" ${asked || r.left <= 0 ? 'disabled' : ''}>${asked ? t('Nouvelle tentative…') : r.left > 0 ? t('Nouvelle tentative ({n})', { n: r.left }) : t('Plus de tentative contre ce boss')}</button>
+        <button class="btn" data-act="clan-boss">${t('Boss de clan')}</button><button class="btn" data-act="log">${t('Voir le journal')}</button></div></div></div>`;
   }
 
   // ---- Clics ----
@@ -226,7 +260,7 @@ export function createBoss(app) {
   }
 
   return {
-    screen, click, tableHTML, handChip, endHTML, decksHTML, bossDeck,
+    screen, click, tableHTML, clanZoneHTML, handChip, endHTML, decksHTML, bossDeck,
     // Onglet Boss de la boutique : le magasin du boss (chargé au besoin).
     shopTab() {
       if (!B.data) { load(); return `<p class="wait">${t('Chargement…')}</p>`; }

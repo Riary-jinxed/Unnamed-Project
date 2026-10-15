@@ -584,4 +584,8 @@ export default {
   '10 à 25 %': '10 to 25%',
   '25 à 50 %': '25 to 50%',
   '50 à 100 %': '50 to 100%',
+  // Boss de clan : titres et écran (clan-boss.js)
+  'Pilleur de la montagne d\'or': 'Gold Mountain Raider',
+  'Chasseur du soleil noir': 'Black Sun Hunter',
+  'Élagueur de ronces': 'Bramble Pruner',
 };
