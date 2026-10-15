@@ -149,6 +149,7 @@ function renderDetail() {
       <div class="field"><label class="eyebrow" for="p-level">Niveau</label><input id="p-level" type="number" min="1" step="1" value="${a.level}">
         <small class="hint">${a.xp} XP dans ce niveau. Changer le niveau ne donne pas les récompenses des niveaux sautés.</small></div>
       <div class="field"><label class="eyebrow" for="p-free">Boosters offerts à ouvrir</label><input id="p-free" type="number" min="0" step="1" value="${a.freeBoosters}"></div>
+      <div class="field"><label class="eyebrow" for="p-family">Boosters de famille à ouvrir</label><input id="p-family" type="number" min="0" step="1" value="${a.familyBoosters || 0}"></div>
       <div class="field"><label class="eyebrow" for="p-chests">Coffres d'arts offerts à ouvrir</label><input id="p-chests" type="number" min="0" step="1" value="${a.freeChests || 0}"></div>
     </div>
     <div class="row"><button class="btn primary" type="submit" ${dis()}>Enregistrer</button>
@@ -249,6 +250,7 @@ function renderShopSettings() {
       ${field('boosterPrice', 'Prix d\'un booster du set', 'En Éclats.')}
       ${field('boosterSize', 'Cartes par booster acheté', 'Entre 1 et 10.')}
       ${field('shardsPerDuplicate', 'Éclats par doublon', 'Gagnés pour chaque carte déjà possédée. L\'essence par doublon se règle dans l\'onglet Récompenses.')}
+      ${field('familyBoosterEvery', 'Booster de famille tous les', 'Boosters ouverts (quotidien, achetés, offerts) pour en gagner un, entre 0 et 100. 0 les retire. Le joueur choisit la famille ; ses cartes sortent des sets en vente.')}
     </div>
     <div class="row"><button class="btn primary" type="submit">Enregistrer les prix</button><button class="btn" type="button" data-act="defaults">Revenir aux valeurs par défaut</button></div>
   </form>
@@ -317,7 +319,7 @@ app.addEventListener('submit', async e => {
     const day = v('p-preview');
     act('/api/admin/account/update', { preview: day }, day ? `Compte de test : il voit le jeu au ${esc(day)}.` : 'Ce compte revient au jour réel.'); return;
   }
-  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), prisms: Number(v('p-prisms')), uniEssence: Number(v('p-uni')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')), freeChests: Number(v('p-chests')) }, 'Profil enregistré.'); return; }
+  if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), prisms: Number(v('p-prisms')), uniEssence: Number(v('p-uni')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')), familyBoosters: Number(v('p-family')), freeChests: Number(v('p-chests')) }, 'Profil enregistré.'); return; }
   if (id === 'pass') {
     const password = v('p-pass');
     try {
@@ -328,7 +330,7 @@ app.addEventListener('submit', async e => {
     render(); return;
   }
   if (id === 'settings' || id === 'rotation' || id === 'art-settings' || id === 'dup-settings') {
-    const keys = id === 'settings' ? ['cardPrice', 'boosterPrice', 'boosterSize', 'shardsPerDuplicate'] : id === 'rotation' ? ['dailyCards'] : id === 'dup-settings' ? DUP_KEYS : ART_KEYS;
+    const keys = id === 'settings' ? ['cardPrice', 'boosterPrice', 'boosterSize', 'shardsPerDuplicate', 'familyBoosterEvery'] : id === 'rotation' ? ['dailyCards'] : id === 'dup-settings' ? DUP_KEYS : ART_KEYS;
     saveSettings(Object.fromEntries(keys.map(k => [k, Number(v(`s-${k}`))])), 'Réglages enregistrés.');
   }
 });
@@ -399,8 +401,8 @@ app.addEventListener('click', e => {
       }
       break;
     case 'defaults': {
-      const { cardPrice, boosterPrice, boosterSize, shardsPerDuplicate } = st.defaults;
-      saveSettings({ cardPrice, boosterPrice, boosterSize, shardsPerDuplicate }, 'Prix remis par défaut.'); break;
+      const { cardPrice, boosterPrice, boosterSize, shardsPerDuplicate, familyBoosterEvery } = st.defaults;
+      saveSettings({ cardPrice, boosterPrice, boosterSize, shardsPerDuplicate, familyBoosterEvery }, 'Prix remis par défaut.'); break;
     }
     case 'give-art': { const id = document.getElementById('give-art')?.value; if (id) act('/api/admin/account/art', { art: id, give: true }, `Art « ${esc(ARTS[id].name)} » donné.`); break; }
     case 'give-theme': { const id = document.getElementById('give-theme')?.value; if (id) act('/api/admin/account/theme', { theme: id, give: true }, `Thème « ${esc(THEMES[id])} » donné.`); break; }

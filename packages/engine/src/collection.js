@@ -1,6 +1,6 @@
 // Collection d'un joueur : deck de départ, booster quotidien et règles de construction de deck.
 // Partagé par le serveur (qui fait foi) et l'appli (qui affiche et prévient avant d'envoyer).
-import { CARDS, GENERALS, TERRAINS, DECKS, pick, shuffle } from './engine.js';
+import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, pick, shuffle } from './engine.js';
 import { t, tp } from './i18n.js';
 
 export const STARTERS = ['gobelin', 'elfe', 'demon'];
@@ -198,6 +198,20 @@ export function dupOffers(account, n, canLevel, rand = Math.random) {
 }
 // Cartes d'un booster : size tirages au hasard parmi les cartes du set (doublons possibles).
 export function setBooster(set, size = SHOP.boosterSize, rand = pick) { return Array.from({ length: size }, () => rand(set.cards)); }
+
+// ---- Booster de famille ----
+// Gagné tous les `familyEvery` boosters ouverts (quotidien, achetés, offerts ; réglage familyBoosterEvery de /admin, 0 le retire).
+// Le joueur choisit la famille : ses cartes et généraux sortent des sets en vente, dont au moins un qui lui manque (tant qu'il en reste).
+export const FAMILY_BOOSTER_EVERY = 10;
+export const cardFamily = id => (GENERALS[id] ? GENERALS[id].fam : CARDS[id]?.kw.find(k => FAMILIES.includes(k))) || null;
+// Cartes d'une famille dans les sets en vente (sets : ceux ouverts et sortis).
+export const familyPool = (fam, sets) => [...new Set(sets.flatMap(s => s.cards))].filter(id => cardFamily(id) === fam);
+// Familles proposées : celles qui ont des cartes dans les sets en vente, dans l'ordre des familles, avec ce que le joueur en possède.
+export const familyChoices = (sets, owned = {}) => FAMILIES.map(fam => { const pool = familyPool(fam, sets); return { fam, size: pool.length, owned: pool.filter(id => owned[id]).length }; }).filter(x => x.size);
+export function familyBooster(pool, owned = {}, size = SHOP.boosterSize, rand = pick) {
+  const missing = pool.filter(id => !owned[id]);
+  return shuffle([missing.length ? rand(missing) : rand(pool), ...Array.from({ length: size - 1 }, () => rand(pool))]);
+}
 
 // ---- Change de devises ----
 // Prismes changés en Éclats par offres fixes, jamais l'inverse ni au détail : plus l'offre est grosse, plus le bonus l'est.

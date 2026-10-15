@@ -1232,3 +1232,21 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .preview-tag { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 4px); left: 50%; transform: translateX(-50%); z-index: 9999; pointer-events: none;
   padding: 2px 10px; border-radius: 999px; background: #b4235a; color: #fff; font-size: 12px; font-weight: 600; letter-spacing: .02em;
   box-shadow: 0 2px 8px rgb(0 0 0 / .35); white-space: nowrap; opacity: .92; }
+/* Booster de famille : compteur, puis liste des familles (une ligne à sa couleur par famille, cartes possédées sur le total). */
+.famboost.ready { border-color: var(--accent); }
+.famtoggle { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--sunk); border: 1px solid var(--line); border-radius: var(--r); color: var(--ink); font-weight: 600; }
+.famtoggle .chev { width: 9px; height: 9px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-3px); transition: transform .2s; }
+.famtoggle.open { border-color: var(--accent); }
+.famtoggle.open .chev { transform: rotate(-135deg) translateY(-3px); }
+.famlist[hidden] { display: none; }
+.famlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 360px; overflow-y: auto; }
+.famlist button { width: 100%; display: grid; grid-template-columns: auto 1fr minmax(90px, 40%) auto; align-items: center; gap: 10px; padding: 10px 12px;
+  background: var(--sunk); border: 1px solid var(--line); border-left: 4px solid var(--fam); border-radius: var(--r); color: var(--ink); text-align: left; }
+.famlist button:not(:disabled):hover { background: color-mix(in srgb, var(--fam) 14%, var(--sunk)); }
+.famlist .famdot { width: 10px; height: 10px; border-radius: 50%; background: var(--fam); box-shadow: 0 0 6px var(--fam); }
+.famlist .famname { font-weight: 600; font-family: var(--famfont); }
+.famlist .famown { display: flex; align-items: center; gap: 8px; }
+.famlist .famown .bar { flex: 1; height: 6px; }
+.famlist .famown .bar span { background: var(--fam); }
+.famlist .famown small { opacity: .75; min-width: 36px; text-align: right; }
+.famlist .famgo { font-size: 13px; font-weight: 600; color: var(--accent); }

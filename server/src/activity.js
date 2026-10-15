@@ -3,7 +3,7 @@
 import { today, realToday } from '@jeu/engine/collection';
 
 const KEEP_DAYS = 90, KEEP_COUNTERS = 400;
-export const COUNTERS = { boosterDaily: 'Booster du jour', boosterBought: 'Booster acheté', boosterFree: 'Booster offert', cardsBought: 'Cartes du jour achetées', chests: 'Coffres d\'arts', artsBought: 'Arts achetés', exchanges: 'Changes Prismes → Éclats', dupsBought: 'Doublons du jour achetés', essenceConverted: 'Échanges d\'essence universelle' };
+export const COUNTERS = { boosterDaily: 'Booster du jour', boosterBought: 'Booster acheté', boosterFree: 'Booster offert', cardsBought: 'Cartes du jour achetées', chests: 'Coffres d\'arts', artsBought: 'Arts achetés', exchanges: 'Changes Prismes → Éclats', dupsBought: 'Doublons du jour achetés', essenceConverted: 'Échanges d\'essence universelle', boosterFamily: 'Booster de famille' };
 const dayOf = (ms = Date.now()) => today(new Date(ms));
 
 export function createActivity(store) {
@@ -38,7 +38,7 @@ export function createActivity(store) {
     for (const s of byLogin.values()) for (const d of s) if (d in perDay) perDay[d]++;
     const doc = store.doc('compteurs') || {}, totals = Object.fromEntries(Object.keys(COUNTERS).map(k => [k, 0]));
     for (const [d, c] of Object.entries(doc)) if (d >= since) for (const k in totals) totals[k] += c[k] || 0;
-    const boosters = c => (c?.boosterDaily || 0) + (c?.boosterBought || 0) + (c?.boosterFree || 0);
+    const boosters = c => (c?.boosterDaily || 0) + (c?.boosterBought || 0) + (c?.boosterFree || 0) + (c?.boosterFamily || 0);
     const accounts = store.all();
     return {
       accounts: accounts.length, started: accounts.filter(a => a.starter).length,
