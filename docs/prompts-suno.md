@@ -86,11 +86,13 @@ instrumental halloween boss battle theme for a card game, the pumpkin king's mad
 
 ## 9. Boss de l'Éclipse (`boss-eclipse`)
 
-Ignaroth sous l'éclipse : dark fantasy, un soleil noir qui dévore la lumière. Lourd, solennel, presque désespéré. Titre : « Soleil noir ».
+Ignaroth sous l'éclipse, dans l'esprit d'un boss final de Dark Souls ou d'Elden Ring (par exemple Heolstor, le Seigneur de la nuit) : grand orchestre gothique, chœur latin massif, tragique plus que bruyant, avec un thème qui revient comme une fatalité. Ne pas écrire le nom des jeux dans Suno : il refuse les références à des œuvres existantes, le style ci-dessous les décrit. Titre : « Soleil noir ».
 
 ```
-instrumental dark fantasy boss battle theme for a card game, black sun eclipse, doom and dread, deep low brass and contrabassoon, slow heavy war drums, distorted cello ostinato, dissonant string clusters, dark ritual chanting pads (wordless, no lyrics), deep gong swells, ominous bells, grim and majestic, 120 bpm, constant intensity without a final ending, seamless loop, background game music, no vocals
+instrumental dark fantasy final boss theme for a card game, gothic orchestral requiem, massive latin-style choir chanting wordless syllables (no lyrics), tragic minor key leitmotif on low strings and horns, thundering timpani and bass drum, sweeping violin tremolo, cathedral pipe organ, deep tolling bells, solemn then furious, fallen god under a black sun eclipse, grand and sorrowful, 3/4 waltz-like pulse, 130 bpm, constant intensity without a final ending, seamless loop, video game boss music
 ```
+
+Ici le chœur est voulu : laisser **Instrumental** désactivé, mettre seulement `[Instrumental]` dans les paroles, et retirer `choir lyrics` d'Exclure si Suno le supprime. S'il chante des vrais mots, réactiver Instrumental. Trop chargé derrière le jeu : ajouter `restrained mix, choir in the background`.
 
 ## 10. Boss de Néon 2099 (`boss-neon`)
 
