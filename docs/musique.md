@@ -18,7 +18,7 @@ Avec un thème affiché (celui de la saison en cours, ou celui choisi dans la pe
    | `partie.mp3` | Pendant une partie (tutoriel compris) |
    | `menu-halloween.mp3`, `partie-halloween.mp3` | Pareil, pendant la saison Nuit des citrouilles (octobre) |
    | `menu-cyber.mp3`, `partie-cyber.mp3` | Pareil, pendant la saison Néon 2099 (novembre) : « Neon City Menu » et « Protocol Breach » |
-   | `menu-<thème>.mp3`, `partie-<thème>.mp3` | Pareil, avec un thème de l'interface choisi : `eclipse`, `astral`, `sylve`, `aube`, `estampe` (`packages/engine/src/themes.js`), `casino` |
+   | `menu-<thème>.mp3`, `partie-<thème>.mp3` | Pareil, avec un thème de l'interface choisi : `eclipse`, `astral`, `sylve`, `aube`, `estampe` (`packages/engine/src/themes.js`), `casino` (Roue de Fortuna). Déjà là : « Cherry Blossoms in Ink » et « Duel of the Blades » (Estampe), « Green Table Swing » et « High Stakes Shuffle » (casino) |
    | `boss-mondial.mp3` | Le boss mondial de la semaine, et tous les autres boss tant qu'ils n'ont pas leur morceau |
    | `boss-histoire.mp3` | Le boss du dernier chapitre des campagnes (Vael'Thar, Morgrath, Séraphine) et des quêtes d'événement sans morceau à elles |
    | `boss-halloween.mp3`, `boss-eclipse.mp3`, `boss-neon.mp3` | Le boss de la quête d'événement : Roi Citrouille, Ignaroth, Spectre. Une future quête d'événement n'a besoin que d'un `boss-<id de la quête>.mp3` |
