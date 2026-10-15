@@ -1,6 +1,6 @@
 // Courrier : messages de l'équipe du jeu (annonces, événements, cadeaux à récupérer) et codes cadeaux.
 // L'enveloppe en haut de l'accueil ouvre l'écran du courrier ; sa pastille compte les messages non lus et les récompenses à récupérer.
-// Un code cadeau se saisit dans le courrier et dans la boutique.
+// Un code cadeau se saisit dans le courrier et dans la boutique. En bas du courrier, « Signaler un bug » (bugs.js).
 import { api } from './api.js';
 import { esc } from './common.js';
 import { t, tp, tField, locale } from '@jeu/engine/i18n';
@@ -9,7 +9,7 @@ const ENVELOPE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" st
 const frDay = iso => new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'long' });
 const frDate = d => new Date(`${d}T12:00:00Z`).toLocaleDateString(locale(), { day: 'numeric', month: 'long', timeZone: 'UTC' });
 
-// app : ce que main.js prête au courrier (état ui, render, call, errLine, rewardItem, play).
+// app : ce que main.js prête au courrier (état ui, render, call, errLine, rewardItem, play, bugBox : l'encart « Signaler un bug », bugs.js).
 export function createMail(app) {
   const { ui } = app;
   const m = ui.mail = { list: null, open: null, code: '', note: '', got: null };
@@ -75,7 +75,8 @@ export function createMail(app) {
       <button class="btn primary" data-act="mail-claim-all" ${ui.busy ? 'disabled' : ''}>${t('Tout récupérer')}</button></div>` : ''}
     ${!L ? `<p class="wait">${t('Chargement…')}</p>` : L.length ? `<div class="maillist">${L.map(item).join('')}</div>`
       : `<div class="card-box"><p class="hint" style="margin:0">${t('Aucun message pour l\'instant. Les annonces, les événements et les cadeaux de l\'équipe arriveront ici.')}</p></div>`}
-    ${codeForm()}`;
+    ${codeForm()}
+    ${app.bugBox()}`;
   }
 
   // Ce qu'on vient de recevoir (message ou code cadeau).

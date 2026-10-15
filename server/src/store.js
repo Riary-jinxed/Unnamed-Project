@@ -33,6 +33,7 @@ function fileBackend() {
     remove: (_, all) => accounts.save(all),
     loadDocs: () => settings.load({}),
     saveDoc: (_, __, all) => settings.save(all),
+    removeDoc: (_, all) => settings.save(all),
     loadGames: () => games.load([]),
     addGame: (_, all) => games.save(all),
   };
@@ -52,6 +53,7 @@ async function pgBackend(url) {
     remove(login) { return pool.query('delete from comptes where login = $1', [login]); },
     async loadDocs() { return Object.fromEntries((await pool.query('select cle, data from reglages')).rows.map(r => [r.cle, r.data])); },
     saveDoc(key, data) { return pool.query('insert into reglages (cle, data) values ($1, $2) on conflict (cle) do update set data = $2, updated_at = now()', [key, data]); },
+    removeDoc(key) { return pool.query('delete from reglages where cle = $1', [key]); },
     async loadGames() { return (await pool.query('select data from parties order by id')).rows.map(r => r.data); },
     addGame(game) { return pool.query('insert into parties (data) values ($1)', [game]); },
   };
@@ -71,6 +73,7 @@ export async function openStore() {
     // Documents de réglages par clé : « jeu » (boutique), « catalogue » (cartes publiées), « brouillon » (cartes en cours).
     doc: key => docs[key],
     async putDoc(key, data) { docs[key] = data; await backend.saveDoc(key, data, docs); },
+    async removeDoc(key) { if (!(key in docs)) return; delete docs[key]; await backend.removeDoc(key, docs); },
     games: () => games,
     async addGame(game) { games.push(game); await backend.addGame(game, games); },
   };

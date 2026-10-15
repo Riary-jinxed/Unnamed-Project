@@ -22,6 +22,7 @@ import { createGames } from './games.js';
 import { createCatalog } from './cards.js';
 import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
+import { createBugs } from './bugs.js';
 import { createNews } from './news.js';
 import { NEWS_SEED } from './news-seed.js';
 import { planning } from './planning.js';
@@ -55,6 +56,8 @@ const friends = createFriends(store, accounts, { playing, inviteRoom, abortInvit
 // Courrier : un joueur connecté voit aussitôt arriver un nouveau message (par sa connexion de présence).
 const mail = createMail(store, accounts, { notify: logins => logins.forEach(l => friends.notify(l, { t: 'mail' })) });
 await mail.publishNotes(NOTES_MAJ);
+// Signalements de bugs envoyés depuis le courrier, lus dans l'onglet Signalements de /admin.
+const bugs = createBugs(store);
 // Nouveautés : annonces des mises à jour majeures et des sets ; la pastille de l'accueil se met à jour dès qu'une annonce paraît.
 const news = createNews(store, accounts, { notify: logins => logins.forEach(l => friends.notify(l, { t: 'news' })) });
 await news.publishSeed(NEWS_SEED);
@@ -86,7 +89,7 @@ catalog.setExtraCards(() => story.releasedCards());
 accounts.setStoryTile(a => story.tile(a));
 // Onglet Suivi de /admin : rétention et suivi du nouveau contenu.
 const follow = createFollow(store, accounts, { boss, events: accounts.progress.events });
-const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...news.routes, ...accounts.progress.events.routes, ...clans.routes, ...clanBoss.routes, ...push.routes, ...boss.routes, ...story.routes, ...casino.routes, ...follow.routes }, catalog.public);
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...bugs.routes, ...news.routes, ...accounts.progress.events.routes, ...clans.routes, ...clanBoss.routes, ...push.routes, ...boss.routes, ...story.routes, ...casino.routes, ...follow.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
 // Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.
