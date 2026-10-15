@@ -11,7 +11,7 @@ import './boss.css';
 import './story.css';
 import './frames-anim.css';
 import { CARDS, GENERALS, TERRAINS, DECKS, FAMILIES, SLOTS, ZONE_NAMES, renderLog, bossBoost } from '@jeu/engine';
-import { STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, setById, setOf, setRevealed, unrevealed, allowedGenerals, allowedTerrains, starterGenerals, deckError, deckCode, readDeckCode, fitDeck, recipeKeys, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder, today } from '@jeu/engine/collection';
+import { setPreviewDay, STARTERS, DECK_SIZE, DECK_TERRAINS, MAX_COPIES, MAX_DECKS, COLLECTIBLE, OWNABLE, SHARDS_PER_DUPLICATE, SETS, setById, setOf, setRevealed, unrevealed, allowedGenerals, allowedTerrains, starterGenerals, deckError, deckCode, readDeckCode, fitDeck, recipeKeys, EXCHANGE_TIERS, exchangeOffers, exchangeFor, shopOrder, today } from '@jeu/engine/collection';
 import { api } from './api.js';
 import { connectOnline } from './net.js';
 import { startSolo } from './solo.js';
@@ -270,6 +270,9 @@ function firstLaunch() {
 // ---- Compte ----
 const MENU = ['loading', 'login', 'starter'];
 // Écran d'accueil selon l'état du compte (en dehors d'une partie).
+// Compte testeur (jour d'aperçu réglé dans /admin) : l'appli vit à ce jour-là, comme le serveur pour ses requêtes.
+setPreviewDay(() => ui.account?.preview || null);
+const previewTag = () => (ui.account?.preview ? `<div class="preview-tag" role="status">${t('Aperçu au {day}', { day: new Date(`${ui.account.preview}T12:00:00Z`).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) })}</div>` : '');
 const menuScreen = () => (ui.account ? (ui.account.starter ? 'home' : 'starter') : ui.auth ? 'loading' : 'login');
 function setAccount(a) {
   ui.account = a;
@@ -2251,7 +2254,7 @@ function render() {
   const hop = moved && slides(ui.shownScreen) && slides(ui.screen), dir = hop && motion ? screenDir(ui.shownScreen, ui.screen) : 0;
   if (dir) ghostScreen(app, dir);
   if (motion && ui.shownSheet && !ui.sheet) ghostSheet(app.querySelector(':scope > .sheet'));
-  const tail = bar + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : ui.coach && ui.screen !== 'game' && !ui.sheet ? coachHTML(ui.coach, 'bottom') : '');
+  const tail = bar + previewTag() + friends.banner() + sheetHTML() + (ui.coach && ui.sheet === 'zoom' ? coachHTML(ui.coach, true) : ui.coach && ui.screen !== 'game' && !ui.sheet ? coachHTML(ui.coach, 'bottom') : '');
   // Écran inchangé (on ouvre ou ferme une carte en grand, une fenêtre…) : il reste en place et seul ce qui est par-dessus est
   // redessiné, avec la barre du bas (son onglet ne glisse qu'au premier rendu d'un écran). Refaire toute la collection (plus de
   // 200 cartes et leurs images) à chaque toucher prenait près d'une seconde sur téléphone. La partie, elle, est toujours

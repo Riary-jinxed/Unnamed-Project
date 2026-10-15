@@ -10,6 +10,7 @@ import { TUTO_LESSONS, levelCost, MAX_CARD_LEVEL, ESSENCE_FRAME } from '@jeu/eng
 import { createProgress } from './progress.js';
 import { createArts } from './arts.js';
 import { createActivity } from './activity.js';
+import { usePreview, previewOf, atPreview, DAY_RE } from './preview.js';
 import { t, msg, tr, trMsg, pickLang } from '@jeu/engine/i18n';
 import { langOf, validLang, withLang, inLang } from './i18n.js';
 
@@ -50,7 +51,7 @@ function migrateDecks(a) {
 const AVATAR_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, AVATAR_MAX = 60_000;
 
 // Ce que le joueur voit de son compte (jamais le mot de passe ni les sessions).
-export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, name: a.name, avatar: a.avatar || null, starter: a.starter, cards: a.cards, shards: a.shards || 0,
+export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, name: a.name, avatar: a.avatar || null, starter: a.starter, cards: a.cards, shards: a.shards || 0, preview: previewOf(a),
   deck: activeDeck(a), decks: (a.decks || []).map(cleanDeck), active: activeDeck(a)?.id || null, maxDecks: MAX_DECKS,
   boosterReady: a.starter !== null && a.lastBooster !== today(), shardRate: cfg.shardsPerDuplicate,
   // Éclats pour 1 Prisme au change (offres fixes, exchangeOffers du moteur ; 0 : change fermé).
@@ -493,17 +494,17 @@ export function createAccounts(store) {
   }
   const adminView = a => ({ login: a.login, name: a.name, starter: a.starter, cards: Object.values(a.cards).reduce((s, n) => s + n, 0), shards: a.shards || 0, prisms: a.prisms || 0, uniEssence: a.uniEssence || 0, level: a.level || 1,
     xp: a.xp || 0, freeBoosters: a.freeBoosters || 0, freeChests: a.freeChests || 0,
-    lastBooster: a.lastBooster, created: a.created, disabled: !!a.disabled, sessions: (a.tokens || []).length, deckName: activeDeck(a)?.name || null });
+    lastBooster: a.lastBooster, created: a.created, disabled: !!a.disabled, preview: previewOf(a), sessions: (a.tokens || []).length, deckName: activeDeck(a)?.name || null });
   // inDecks : cartes présentes dans au moins un deck du joueur (elles ne peuvent pas être retirées de sa collection).
   const adminDetail = a => ({ ...adminView(a), owned: Object.keys(a.cards).filter(id => a.cards[id]), deck: activeDeck(a), decks: (a.decks || []).length,
     inDecks: [...new Set((a.decks || []).flatMap(d => [...d.cards, d.general].filter(Boolean)))],
-    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? deckError(activeDeck(a), a) : null, arts: a.arts || {}, themes: a.cosmetics?.themes || [], welcome: a.welcome ? progress.welcomeView(a) : null });
+    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? atPreview(a, () => deckError(activeDeck(a), a)) : null, arts: a.arts || {}, themes: a.cosmetics?.themes || [], welcome: a.welcome ? progress.welcomeView(a) : null });
   const target = login => { const a = store.get(cleanLogin(login)); if (!a) throw new HttpError(404, 'Compte introuvable.'); return a; };
   const closeSessions = a => { for (const t of a.tokens || []) sessions.delete(t); a.tokens = []; };
   const done = async a => { await store.put(a); return { account: adminDetail(a) }; };
 
   // Modifie un compte : pseudo, Éclats, désactivation. Seuls les champs présents changent.
-  async function adminUpdate({ login, name, shards, prisms, uniEssence, level, freeBoosters, freeChests, disabled }) {
+  async function adminUpdate({ login, name, shards, prisms, uniEssence, level, freeBoosters, freeChests, disabled, preview }) {
     const a = target(login);
     if (name !== undefined) a.name = String(name).trim().slice(0, 20) || a.login;
     const int = (v, max, label) => { const n = Number(v); if (!Number.isInteger(n) || n < 0 || n > max) throw new HttpError(400, `${label} : un nombre entier positif.`); return n; };
@@ -515,6 +516,12 @@ export function createAccounts(store) {
     // Changer le niveau ne donne pas les récompenses des niveaux sautés ; les succès de niveau, si.
     if (level !== undefined && a.level) { const n = int(level, 1000, 'Niveau'); if (n !== a.level) { a.level = Math.max(1, n); a.xp = 0; progress.checkCollection(a); } }
     if (disabled !== undefined) { a.disabled = !!disabled; if (a.disabled) closeSessions(a); }
+    // Compte testeur : jour d'aperçu (vide pour revenir au jeu normal). Voir preview.js.
+    if (preview !== undefined) {
+      const d = String(preview || '').trim();
+      if (d && (!DAY_RE.test(d) || Number.isNaN(Date.parse(`${d}T12:00:00Z`)))) throw new HttpError(400, 'Jour d\'aperçu : une date AAAA-MM-JJ.');
+      if (d) a.preview = d; else delete a.preview;
+    }
     return done(a);
   }
   // Remplace la collection. Une carte du deck enregistré ne peut pas être retirée.
@@ -691,6 +698,8 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
         acc = accounts.byToken(token); if (!acc) throw new HttpError(401, msg('Session expirée : reconnectez-vous.'));
         accounts.activity.seen(acc);
         accounts.setLang(acc, given);
+        // Compte testeur : le reste de la requête se passe à son jour d'aperçu.
+        usePreview(acc);
       }
       let body = {};
       if (req.method !== 'GET') {
