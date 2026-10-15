@@ -63,7 +63,7 @@
 .slot-pays summary { cursor: pointer; font-size: 13px; color: var(--muted); }
 .slot-pays ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 3px; font-size: 13px; }
 .slot-pays li { display: flex; justify-content: space-between; gap: 10px; }
-@media (prefers-reduced-motion: reduce) { .slot-strip.go { animation-duration: 1ms !important; } .slotm.spinning .slot-lights, .slotm.won .slot-lights, .slotm.jackpot { animation: none; } }
+.calm .slot-strip.go { animation-duration: 1ms !important; } .calm .slotm.spinning .slot-lights, .calm .slotm.won .slot-lights, .calm .slotm.jackpot { animation: none; }
 
 /* Quitte ou double */
 .qod-ladder { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }

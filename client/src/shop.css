@@ -46,7 +46,7 @@
 .stall-new { position: absolute; top: -17px; left: 50%; translate: -50% 0; z-index: 2; padding: 1px 8px; border-radius: 99px; white-space: nowrap;
   font: 800 11px/1.3 var(--display); letter-spacing: .04em; text-transform: uppercase; color: #fff; background: linear-gradient(#e86a96, var(--pk2) 55%, #7a1f44);
   border: 1.5px solid #1a0f05; box-shadow: 0 2px 0 #000, 0 0 12px color-mix(in srgb, var(--pk2) 80%, transparent); animation: stallfree 1.8s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .stall-obj, .stall-free, .stall-new { animation: none; } }
+.calm .stall-obj, .calm .stall-free, .calm .stall-new { animation: none; }
 
 /* Section du set le plus récent : liseré et lueur aux couleurs de son paquet, pastille « Nouveau set ». */
 .shopset.pk-set2 { --pk1: #4b2a6b; --pk2: #d0547f; }
@@ -114,7 +114,7 @@ body[data-season="cyber"] .vit-velvet { background: radial-gradient(80% 60% at 5
 .vit-buy:disabled { cursor: default; color: #6a5a40; background: linear-gradient(#5a4a30, #3a2c18); box-shadow: 0 3px 0 #1a0f05; }
 .vit-buy:focus-visible { outline: 2px solid #fff3c0; outline-offset: 2px; }
 .vit-done { margin-top: 2px; padding: 4px 8px; font: 700 12px/1.2 var(--display); color: #b9a988; }
-@media (prefers-reduced-motion: reduce) { .vit-card, .vit-card::after, .vit-stamp, .vit-timer i::after { animation: none; } }
+.calm .vit-card, .calm .vit-card::after, .calm .vit-stamp, .calm .vit-timer i::after { animation: none; }
 
 /* Étal : enseigne et bouton « i » (ce que contient le coffre), et son volet sous l'étal. */
 .stall-sign { position: absolute; left: 50%; top: 42px; z-index: 2; translate: -50% 0; padding: 2px 12px; border-radius: 4px; white-space: nowrap;

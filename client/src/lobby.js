@@ -1,6 +1,6 @@
 // Accueil animé : le général du deck joué respire dans la vitrine de l'accueil, devant des braises, avec un effet de profondeur.
 // Ce fichier ne fait que charger lobby-stage.js (et PixiJS) au premier passage sur l'accueil, puis lui confier la vitrine à
-// chaque rendu. Sans WebGL, avec « réduire les animations » ou si le chargement échoue, l'illustration en HTML reste telle quelle.
+// chaque rendu. Sans WebGL, avec les animations réduites ou coupées (motion.js) ou si le chargement échoue, l'illustration en HTML reste telle quelle.
 import { reduceMotion, webgl } from './fx.js';
 
 let mod = null, loading = false, want = null;
@@ -12,10 +12,10 @@ export function setHome(app) {
   const face = imgs.length ? getComputedStyle(imgs[0].parentNode) : null;
   want = imgs.length ? { host, decor: imgs[0].src, perso: imgs[1]?.src || null, fam: getComputedStyle(host).getPropertyValue('--fam').trim(),
     fx: Number(face.getPropertyValue('--fx')) || 0.5, fy: Number(face.getPropertyValue('--fy')) || 0.25 } : null;
-  if (mod) { want ? mod.show(want) : mod.hide(); return; }
+  if (mod) { want && !reduceMotion() ? mod.show(want) : mod.hide(); return; }
   if (!want || loading) return;
-  able ??= !reduceMotion() && webgl();
-  if (!able) return;
+  able ??= webgl();
+  if (!able || reduceMotion()) return;
   loading = true;
   // Un court délai : l'accueil s'affiche d'abord avec son image fixe, PixiJS arrive ensuite sans retarder le premier rendu.
   setTimeout(() => import('./lobby-stage.js').then(m => { mod = m; if (want) m.show(want); })

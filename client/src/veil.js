@@ -8,6 +8,7 @@
 import { rich, famStyle } from './common.js';
 import { setById, setRevealed } from '@jeu/engine/collection';
 import { t } from '@jeu/engine/i18n';
+import { reduceMotion } from './motion.js';
 
 // jeu : règles et conseils de partie ; menu : collection, boutique, progression. Le texte passe par rich() (mots-clés en gras).
 const TIPS = [
@@ -43,7 +44,7 @@ const TIPS = [
   { k: 'menu', t: t('En classé, quitter une partie en cours compte comme une défaite.') },
 ];
 const TIP_MS = 5200, IN_MS = 240, OUT_MS = 460, MAX_MS = 12000;
-const reduce = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduce = reduceMotion;
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 let root = document.getElementById('veil');

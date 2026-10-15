@@ -96,7 +96,7 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
 .gencard.used .gport-art { animation-play-state: paused; }
 @keyframes gbreath { 50% { scale: 1.04; } }
 @keyframes gdrift { 33% { translate: -1px .5px; } 66% { translate: 1px -.5px; } }
-@media (prefers-reduced-motion: reduce) { .gencard.ready, .gencard .gport-art { animation: none; } }
+.calm .gencard.ready, .calm .gencard .gport-art { animation: none; }
 
 /* tour (barre du haut, sous le type de partie) et sceaux (en bas, à côté de Valider) */
 .tturn { margin-right: auto; min-width: 0; display: grid; gap: 1px; }
@@ -119,7 +119,7 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
   box-shadow: inset 0 0 0 1px color-mix(in srgb, #000 20%, var(--accent)); transition: background .2s, opacity .2s; }
 .tok.spent { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); }
 .tok.cost { animation: tokcost 1s ease-in-out infinite alternate; }
-@media (prefers-reduced-motion: reduce) { .tok.cost { animation: none; opacity: .4; } }
+.calm .tok.cost { animation: none; opacity: .4; }
 @keyframes tokcost { to { opacity: .3; } }
 
 /* plateau */
@@ -240,7 +240,7 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
 .dock .toast { position: absolute; left: 16px; right: 16px; bottom: calc(100% + 8px); padding: 8px 12px; border-radius: var(--r); background: var(--surface);
   border: 1px solid var(--down); color: var(--ink); font-size: 13.5px; line-height: 1.35; box-shadow: 0 6px 18px rgb(0 0 0 / .3); animation: toastin .2s ease-out; }
 @keyframes toastin { from { opacity: 0; transform: translateY(6px); } }
-@media (prefers-reduced-motion: reduce) { .dock .toast { animation: none; } }
+.calm .dock .toast { animation: none; }
 /* partie en ligne : connexion perdue (la sienne ou celle de l'adversaire), la partie reprend au retour */
 .link-lost { padding: 6px 12px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--down); color: var(--ink); font-size: 13.5px; line-height: 1.35; }
 .link-lost.foe { border-color: var(--line); color: var(--muted); }
@@ -295,7 +295,7 @@ body:has(#app.ingame) { margin: 0; }
   .score .v { font-size: 19px; }
   .top .title { font-size: 16px; }
 }
-@media (prefers-reduced-motion: reduce) { .hc.sel { transform: none; } .mc.reveal, .mc.reveal-foe, .mc.reveal::after, .mc.reveal-foe::after, .mc.dropin, .hc.drawn, .p.pup, .p.pdown, .score .v.bump, .zone.spellcast, .terrain.terrain-in, .panel.end-in, .panel.end-in h2, .zoomcard.zoom-in { animation: none; } .zone { transition: none; } }
+.calm .hc.sel { transform: none; } .calm .mc.reveal, .calm .mc.reveal-foe, .calm .mc.reveal::after, .calm .mc.reveal-foe::after, .calm .mc.dropin, .calm .hc.drawn, .calm .p.pup, .calm .p.pdown, .calm .score .v.bump, .calm .zone.spellcast, .calm .terrain.terrain-in, .calm .panel.end-in, .calm .panel.end-in h2, .calm .zoomcard.zoom-in { animation: none; } .calm .zone { transition: none; }
 
 /* accueil, salon, réseau */
 .field { display: grid; gap: 4px; }
@@ -351,7 +351,7 @@ body:has(#app.ingame) { margin: 0; }
 .pickrow small { color: var(--muted); font-size: 12.5px; }
 .pickrow .p { font-family: var(--display); font-size: 22px; }
 .pickrow .p.sm { font-family: var(--body); font-size: 12px; color: var(--muted); }
-@media (prefers-reduced-motion: reduce) { .bcard { animation: none; } }
+.calm .bcard { animation: none; }
 
 /* boutique */
 .offer { display: grid; grid-template-rows: 1fr auto; gap: 6px; }
@@ -564,7 +564,7 @@ body:has(#app.ingame) { margin: 0; }
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px;
   background: var(--surface); border: 1px solid var(--accent); border-radius: 10px; box-shadow: 0 6px 24px rgb(0 0 0 / .25); animation: fbin .25s ease-out; }
 @keyframes fbin { from { transform: translateY(20px); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .fbanner { animation: none; } }
+.calm .fbanner { animation: none; }
 /* le bandeau ne cache pas le bas de la page */
 #app:has(.fbanner) { padding-bottom: 120px; }
 
@@ -597,7 +597,7 @@ body:has(#app.ingame) { margin: 0; }
 .coach-hl { outline: 3px solid var(--accent); outline-offset: 2px; animation: coachhl 1s ease-in-out infinite alternate; }
 @keyframes coachhl { to { outline-color: transparent; } }
 body.coached .coach-hl { outline-color: transparent; animation: none; }
-@media (prefers-reduced-motion: reduce) { .coach-hl, .coach.new, .coach.new .coach-face { animation: none; } }
+.calm .coach-hl, .calm .coach.new, .calm .coach.new .coach-face { animation: none; }
 /* Initiation : pas de terrain, la case reste vide. */
 .terrain.none { visibility: hidden; }
 /* Apprendre : les leçons, numérotées. */
@@ -619,7 +619,7 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .panel.gift p strong { color: var(--accent); }
 .gift-card { width: 150px; margin: 4px auto; animation: giftin .6s cubic-bezier(.2, .8, .2, 1); }
 @keyframes giftin { from { opacity: 0; transform: translateY(16px) rotate(-4deg) scale(.9); } }
-@media (prefers-reduced-motion: reduce) { .gift-card { animation: none; } }
+.calm .gift-card { animation: none; }
 
 /* Codex des mots-clés */
 .cxs { display: grid; gap: 8px; }
@@ -683,7 +683,7 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 @keyframes astralring { from { transform: scale(.3); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
 @keyframes astralrays { from { transform: rotate(0) scale(.4); opacity: 0; } 30% { opacity: 1; } to { transform: rotate(40deg) scale(1.1); opacity: 0; } }
 @keyframes astralspark { from { transform: rotate(var(--r)) translateY(0) scale(1); opacity: 1; } to { transform: rotate(var(--r)) translateY(calc(var(--s) * -.85)) scale(.3); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .lv-astral, .mc.astral-in, .zoomcard.lv-up { animation: none; } }
+.calm .lv-astral, .calm .mc.astral-in, .calm .zoomcard.lv-up { animation: none; }
 
 /* Illustration de carte (art.js) : décor coupé à la fenêtre de la carte, personnage détouré par-dessus.
    Gabarit 960x1424, fenêtre 832x1168 à (64, 192) : le personnage déborde de la fenêtre au niveau qui le débloque (.pop). */
@@ -804,7 +804,7 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .artsw { flex: none; width: 22px; height: 28px; border-radius: 4px; background: linear-gradient(160deg, var(--rar, var(--line)), var(--rar2, var(--sunk))); border: 1px solid var(--line); }
 .gotart .gotcard { width: min(240px, 70%); justify-self: center; }
 .zoomart.art-swap { animation: zoomin .3s cubic-bezier(.2,.9,.3,1.2); }
-@media (prefers-reduced-motion: reduce) { .art.rar::after { animation: none; } .zoomart.art-swap { animation: none; } }
+.calm .art.rar::after { animation: none; } .calm .zoomart.art-swap { animation: none; }
 .artthumb .art { width: 100%; border-radius: var(--r); }
 
 /* Boutique : onglets Sets et Arts */
@@ -1147,7 +1147,7 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
   color: #2a1606; background: radial-gradient(circle at 35% 30%, #fff0b8, #f0b04a 55%, #a5631c); box-shadow: 0 0 0 2px #000, 0 0 16px -2px #f0b04a; animation: evpulse 2.4s ease-in-out infinite; }
 .ev-ranked .evmult { background: radial-gradient(circle at 35% 30%, #e8f4ff, #7fb6f0 55%, #2f5f9a); box-shadow: 0 0 0 2px #000, 0 0 16px -2px #7fb6f0; }
 @keyframes evpulse { 50% { transform: scale(1.06); } }
-@media (prefers-reduced-motion: reduce) { .evmult, .medal { animation: none; } }
+.calm .evmult, .calm .medal { animation: none; }
 .evtag { display: inline-block; padding: 0 6px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #2a1606; background: #f0b04a; }
 
 /* Réglages des notifications (notifs.js) : une case par sorte, avec son explication dessous. */
@@ -1176,12 +1176,12 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .pslot > .ebubble.foe::after { top: -6px; box-shadow: -1px -1px 0 #4a3214; }
 .pslot > .ebubble.me::after { bottom: -6px; }
 @keyframes ebub { 0% { opacity: 0; transform: scale(.4); } 8% { opacity: 1; transform: scale(1.06); } 13% { transform: scale(1); } 88% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(.94); } }
-@media (prefers-reduced-motion: reduce) { .pslot > .ebubble { animation-name: ebubfade; animation-timing-function: linear; } }
+.calm .pslot > .ebubble { animation-name: ebubfade; animation-timing-function: linear; }
 @keyframes ebubfade { 0% { opacity: 0; } 6%, 90% { opacity: 1; } 100% { opacity: 0; } }
 .emotepick { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 40; display: grid; gap: 8px; padding: 10px; border-radius: var(--r);
   background: var(--surface); border: 1px solid var(--rim, var(--line)); box-shadow: 0 10px 30px rgb(0 0 0 / .6); animation: emopop .16s ease-out both; }
 @keyframes emopop { from { opacity: 0; transform: translateY(8px); } }
-@media (prefers-reduced-motion: reduce) { .emotepick { animation: none; } }
+.calm .emotepick { animation: none; }
 .emogrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .emo { position: relative; display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 6px 10px 6px 8px; text-align: left; border-radius: 12px;
   border: 1px solid var(--line); background: color-mix(in srgb, #fbf3dc 7%, var(--surface)); color: var(--ink); font-size: 13px; line-height: 1.2; cursor: pointer; }

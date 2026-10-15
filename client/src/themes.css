@@ -164,7 +164,7 @@ body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [d
 body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.tturn b, .tseals b) { color: var(--accent); }
 body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .op { background: radial-gradient(circle at 50% 42%, var(--leather) 0, var(--leather-lo) 55%, #000 100%); }
 
-@media (prefers-reduced-motion: reduce) { body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .playbtn { animation: none; } }
+.calm body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .playbtn { animation: none; }
 
 /* ---- Éclipse d'Ignaroth, plus loin : passe après les règles communes ---- */
 /* le soleil noir, en haut au milieu, là où l'illustration d'Ignaroth a le sien : disque d'ombre, anneau de feu qui respire, couronne de flammes qui tourne lentement (caché en partie : la table a le sien) */
@@ -208,7 +208,7 @@ body[data-season="eclipse"] .bar > span { background: linear-gradient(90deg, #6a
 body[data-season="eclipse"] .tabbar { box-shadow: 0 -1px 0 #ff5a1a, 0 -8px 24px -8px rgb(255 70 20 / .6); }
 /* en partie : les zones gagnent une faille rougeoyante au fond */
 body[data-season="eclipse"] .zone { box-shadow: inset 0 0 22px #000, inset 0 -30px 34px -18px rgb(255 60 20 / .45), 0 0 0 1px #000; }
-@media (prefers-reduced-motion: reduce) { body[data-season="eclipse"]::after, body[data-season="eclipse"] :is(h2, .top .title, .playbtn, .bar > span, .card-box::after, .tile::after) { animation: none; } }
+.calm body[data-season="eclipse"]::after, .calm body[data-season="eclipse"] :is(h2, .top .title, .playbtn, .bar > span, .card-box::after, .tile::after) { animation: none; }
 
 /* ---- Ciel d'Elyndra, plus loin ---- */
 /* étoiles qui scintillent par-dessus le ciel, et deux constellations reliées d'or (cachées en partie : la table a les siennes) */
@@ -248,7 +248,7 @@ body[data-season="astral"] #app .playbtn::before { content: ''; position: absolu
 body[data-season="astral"] .bar > span { background: linear-gradient(90deg, #2a3aa8, #8aa8ff 30%, #fff8d8 45%, #8aa8ff 60%, #2a3aa8) 0 0 / 200% 100%; animation: astral-flow 5s linear infinite; }
 body[data-season="astral"] .tabbar { box-shadow: 0 -1px 0 rgb(255 216 112 / .7), 0 -10px 24px -10px rgb(140 160 255 / .6); }
 body[data-season="astral"] .zone { box-shadow: inset 0 0 22px #000, inset 0 -26px 30px -18px rgb(140 120 255 / .5), 0 0 0 1px #000; }
-@media (prefers-reduced-motion: reduce) { body[data-season="astral"]::after, body[data-season="astral"] :is(h2, .top .title, .playbtn::before, .bar > span, .card-box::after, .tile::after) { animation: none; } }
+.calm body[data-season="astral"]::after, .calm body[data-season="astral"] :is(h2, .top .title, .playbtn::before, .bar > span, .card-box::after, .tile::after) { animation: none; }
 
 /* ---- Estampe d'Ysmera, plus loin : thème clair, sur papier ---- */
 /* grand soleil rouge en haut à droite et vagues seigaiha en bas de l'écran (cachés en partie : la table a les siens) */
@@ -295,7 +295,7 @@ body[data-season="estampe"] :is(.hc, .mc) { border-color: #1a1410; box-shadow: 2
 body[data-season="estampe"] .hc.cant { opacity: 1; filter: grayscale(.7) brightness(.6); }
 body[data-season="estampe"] .dock { background: linear-gradient(180deg, rgb(239 226 196 / .6), #e8d8b4); border-top: 2px solid #1a1410; }
 body[data-season="estampe"] .op { background: radial-gradient(circle at 50% 42%, #f8f0dc, #e4d4b0); }
-@media (prefers-reduced-motion: reduce) { body[data-season="estampe"]::after { animation: none; } }
+.calm body[data-season="estampe"]::after { animation: none; }
 
 /* ---- Bois de Sylvaën, plus loin ---- */
 /* rais de lumière qui filtrent de la canopée et ondulent lentement (cachés en partie : la table a les siens) */
@@ -326,7 +326,7 @@ body[data-season="sylve"] .playbtn > small { color: #d8f0b0; }
 body[data-season="sylve"] .bar > span { background: linear-gradient(90deg, #2a6a2a, #8ae060 30%, #f0ffb0 45%, #8ae060 60%, #2a6a2a) 0 0 / 200% 100%; animation: sylve-sap 5s linear infinite; }
 body[data-season="sylve"] .tabbar { box-shadow: 0 -1px 0 #6aa040, 0 -10px 24px -10px rgb(170 240 100 / .5); }
 body[data-season="sylve"] .zone { box-shadow: inset 0 0 22px #000, inset 0 -30px 30px -18px rgb(120 210 80 / .4), 0 0 0 1px #000; }
-@media (prefers-reduced-motion: reduce) { body[data-season="sylve"]::after, body[data-season="sylve"] :is(h2, .top .title, .bar > span) { animation: none; } }
+.calm body[data-season="sylve"]::after, .calm body[data-season="sylve"] :is(h2, .top .title, .bar > span) { animation: none; }
 
 /* ---- Aube de Séraphine, plus loin ---- */
 /* gloire de rayons qui tournent lentement depuis le bas, et une mer de nuages roses (cachés en partie : la table a les siens) */
@@ -366,7 +366,7 @@ body[data-season="aube"] .playbtn > small { color: #6a3020; }
 body[data-season="aube"] .bar > span { background: linear-gradient(90deg, #e87a9a, #ffd070 30%, #fffbe0 45%, #ffd070 60%, #e87a9a) 0 0 / 200% 100%; animation: aube-light 6s linear infinite; }
 body[data-season="aube"] .tabbar { box-shadow: 0 -1px 0 rgb(255 220 150 / .8), 0 -12px 26px -10px rgb(255 200 150 / .5); }
 body[data-season="aube"] .zone { box-shadow: inset 0 0 22px rgb(0 0 0 / .7), inset 0 -30px 34px -18px rgb(255 180 160 / .4), 0 0 0 1px #000; }
-@media (prefers-reduced-motion: reduce) { body[data-season="aube"]::after, body[data-season="aube"] #app::before, body[data-season="aube"] .bar > span { animation: none; } }
+.calm body[data-season="aube"]::after, .calm body[data-season="aube"] #app::before, .calm body[data-season="aube"] .bar > span { animation: none; }
 
 /* ---- Roue de Fortuna, plus loin ---- */
 /* roue de roulette rouge et noire cerclée d'or, en haut à droite, qui tourne lentement, et lampe de table au-dessus du tapis
@@ -436,7 +436,7 @@ body[data-season="casino"] .playbtn > span::after { animation-delay: -1.5s; }
 @keyframes casino-seven { 0%, 100% { scale: 1; } 50% { scale: 1.15; } }
 /* onglet actif : posé sur un jeton d'or */
 body[data-season="casino"] .tabbar button.on { background: radial-gradient(circle at 50% 36%, rgb(242 193 78 / .22) 0 16px, #f2c14e 16.5px 18px, transparent 18.5px); text-shadow: 0 0 10px rgb(255 216 96 / .7); }
-@media (prefers-reduced-motion: reduce) { body[data-season="casino"]::after, body[data-season="casino"] :is(h2, .top .title, .playbtn::after, .bar > span, .showcase::before, .card-box.booster.ready, .playbtn > span::before, .playbtn > span::after) { animation: none; } }
+.calm body[data-season="casino"]::after, .calm body[data-season="casino"] :is(h2, .top .title, .playbtn::after, .bar > span, .showcase::before, .card-box.booster.ready, .playbtn > span::before, .playbtn > span::after) { animation: none; }
 
 /* aperçus (personnalisation, boutique, récompenses) */
 .theme-eclipse.theme-swatch { background: radial-gradient(circle at 70% 35%, #000 0 6px, #ffe0b0 6.5px, #ff7a2a 7.5px, rgb(255 60 20 / .4) 10px, transparent 15px),

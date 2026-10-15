@@ -122,7 +122,7 @@
 .stile-art { position: absolute; inset: 0 0 0 45%; z-index: -1; opacity: .55; background: var(--sq-sky);
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 60%); mask-image: linear-gradient(90deg, transparent, #000 60%); }
 .stile-art .gport { position: absolute; inset: 0; background: transparent; border: 0; }
-@media (prefers-reduced-motion: reduce) { .snode.next .gport, .stalk-face, .stalk-scene img { animation: none; } }
+.calm .snode.next .gport, .calm .stalk-face, .calm .stalk-scene img { animation: none; }
 /* Enjeu du chapitre : sur sa fiche et à la dernière réplique avant le combat. */
 .sgoal, .stalk-goal { margin: 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--fam, var(--accent)) 12%, transparent); border-left: 3px solid var(--fam, var(--accent)); line-height: 1.4; }
 .sgoal b, .stalk-goal b { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }

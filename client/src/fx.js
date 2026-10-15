@@ -1,10 +1,11 @@
 // Effets visuels de la partie posés par-dessus la table (bandeaux, nombres, lueurs, confettis).
 // Ils vivent dans <body>, hors de #app : le rendu suivant (une vue toutes les 850 ms pendant la révélation) ne les coupe pas.
 import './fx.css';
+import { reduceMotion } from './motion.js';
 
-export const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+export { reduceMotion };
 
-// Plateau PixiJS (stage.js) : chargé au premier écran, seulement avec WebGL et sans « réduire les animations ».
+// Plateau PixiJS (stage.js) : chargé au premier écran, seulement avec WebGL et sans les animations réduites ou coupées (motion.js).
 // Tant qu'il n'est pas prêt, ou s'il ne peut pas l'être, chaque effet garde sa version en CSS ci-dessous.
 let stage = null, gens = null, coach = null, coachWant = null, scene = null, entering = Promise.resolve(false);
 // WebGL disponible ? Testé une seule fois pour toute l'appli, et le contexte d'essai est aussitôt rendu : chaque essai en
@@ -27,6 +28,11 @@ export function setInGame(app, on) {
       .catch(err => { console.warn('Plateau PixiJS indisponible', err); return false; });
   };
   if (stage || on) go(); else (window.requestIdleCallback || (f => setTimeout(f, 1200)))(go, { timeout: 2500 });
+}
+// Le réglage des animations vient de changer : le plateau PixiJS s'en va (réduites, aucune) ou revient (complètes).
+export function motionChanged(app) {
+  const was = scene; scene = null;
+  if (was) setInGame(app, was === 'game');
 }
 // Guide du tutoriel (stage-coach.js) : { hl, drag, tap, text } de tutorial.js, ou null. Appelé après chaque rendu.
 // En partie comme dans les menus (guide « Améliorer une carte »). Sans PixiJS, rien : le contour CSS des cibles (.coach-hl)
@@ -129,7 +135,7 @@ export function ending(result) { staged()?.ending(result); }
 export function clearEnding() { staged()?.clearEnding(); }
 
 // Récompenses de fin de partie qui défilent sur PixiJS (end-stage.js), dans le panneau de fin, à la place du bloc HTML
-// (gardé pour les lecteurs d'écran). Sans WebGL ou avec « réduire les animations », le bloc HTML reste affiché.
+// (gardé pour les lecteurs d'écran). Sans WebGL ou avec les animations réduites ou coupées (motion.js), le bloc HTML reste affiché.
 // w : { key, reward, result } quand le panneau de fin montre des récompenses, sinon null. Appelé après chaque rendu.
 let endMod = null, endSince = null, endLoading = false, endWant = null, endGl = null;
 export function setEnd(app, w) {

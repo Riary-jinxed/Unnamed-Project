@@ -126,7 +126,5 @@ button.nws:hover, button.nws:focus-visible { border-color: var(--nw); }
   .nwf-band { min-height: 190px; padding: 24px 22px 18px; }
   .nwf-medal { width: 84px; height: 84px; } .nwf-medal b { font-size: 34px; }
 }
-@media (prefers-reduced-motion: no-preference) {
-  .nw-banner .nw-badge { animation: nw-pulse 2.4s ease-in-out infinite; }
-}
+:root:not(.calm) .nw-banner .nw-badge { animation: nw-pulse 2.4s ease-in-out infinite; }
 @keyframes nw-pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--nw) 18%, transparent); } }

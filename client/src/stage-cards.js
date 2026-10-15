@@ -1,4 +1,4 @@
-// Cartes du plateau, sur la toile des effets de stage.js : chargé avec lui, seulement avec WebGL et sans « réduire les animations ».
+// Cartes du plateau, sur la toile des effets de stage.js : chargé avec lui, seulement avec WebGL et sans les animations réduites ou coupées (motion.js).
 // - Pose : une carte posée face cachée, ou déplacée vers une autre zone pendant la préparation, soulève un petit nuage de
 //   poussière et une onde au sol quand elle arrive dans sa case.
 // - État : une créature renforcée (puissance au-dessus de l'imprimée) dégage de temps en temps une étincelle à la couleur de
