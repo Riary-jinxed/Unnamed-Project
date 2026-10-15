@@ -6,7 +6,7 @@ La musique tourne en boucle selon l'écran : `menu` partout hors partie, `partie
 - boss de clan : `boss-clan`, sinon `boss-mondial` ;
 - boss d'une quête d'histoire (son dernier chapitre) : pour une quête d'événement, `boss-` suivi de l'identifiant de la quête (`boss-halloween`, `boss-eclipse`, `boss-neon`), puis pour toutes `boss-histoire`, puis `boss-mondial`.
 
-Avec un thème de saison affiché (celui de la saison en cours, ou celui choisi dans la personnalisation), sa version passe avant (`menu-halloween`, `partie-halloween`…, d'après le `theme` de la saison dans `packages/engine/src/pass.js`). Un fichier absent est ignoré : la version normale prend le relais, et sans aucun fichier c'est le silence.
+Avec un thème affiché (celui de la saison en cours, ou celui choisi dans la personnalisation, saison passée ou thème de l'interface), sa version passe avant (`menu-halloween`, `partie-estampe`…, d'après l'identifiant du thème : `theme` de la saison dans `packages/engine/src/pass.js`, ou clé de `EXTRA_THEMES` dans `packages/engine/src/themes.js`). Un fichier absent est ignoré : la version normale prend le relais, et sans aucun fichier c'est le silence.
 
 ## Ajouter un morceau
 
@@ -18,6 +18,7 @@ Avec un thème de saison affiché (celui de la saison en cours, ou celui choisi 
    | `partie.mp3` | Pendant une partie (tutoriel compris) |
    | `menu-halloween.mp3`, `partie-halloween.mp3` | Pareil, pendant la saison Nuit des citrouilles (octobre) |
    | `menu-cyber.mp3`, `partie-cyber.mp3` | Pareil, pendant la saison Néon 2099 (novembre) : « Neon City Menu » et « Protocol Breach » |
+   | `menu-<thème>.mp3`, `partie-<thème>.mp3` | Pareil, avec un thème de l'interface choisi : `eclipse`, `astral`, `sylve`, `aube`, `estampe` (`packages/engine/src/themes.js`), `casino` |
    | `boss-mondial.mp3` | Le boss mondial de la semaine, et tous les autres boss tant qu'ils n'ont pas leur morceau |
    | `boss-histoire.mp3` | Le boss du dernier chapitre des campagnes (Vael'Thar, Morgrath, Séraphine) et des quêtes d'événement sans morceau à elles |
    | `boss-halloween.mp3`, `boss-eclipse.mp3`, `boss-neon.mp3` | Le boss de la quête d'événement : Roi Citrouille, Ignaroth, Spectre. Une future quête d'événement n'a besoin que d'un `boss-<id de la quête>.mp3` |
