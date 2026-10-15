@@ -2,7 +2,7 @@ extends Control
 ## Une carte, dessinée à la main : illustration (décor puis personnage) recadrée dans la fenêtre du gabarit,
 ## bandeau du nom, cadre aux couleurs de la famille, pastilles de coût et de puissance. Face cachée : le dos.
 
-signal tapped(uid: int)
+signal pressed(uid: int)
 
 var uid := -1
 var id := ""
@@ -40,7 +40,7 @@ func set_data(d: Dictionary) -> void:
 func _gui_input(e: InputEvent) -> void:
 	# Sur téléphone, Godot change les touchers en clics (emulate_mouse_from_touch, réglage par défaut).
 	if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-		tapped.emit(uid)
+		pressed.emit(uid)
 		accept_event()
 
 

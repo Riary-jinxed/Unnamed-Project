@@ -3,8 +3,9 @@
 //    Le moteur reste la seule source des règles : Godot n'en lit que ce qu'il affiche.
 // 2. godot/art/ : les illustrations de client/src/art en 640 px de large (sharp), comme les vignettes de l'appli.
 //    Seules les images absentes ou plus anciennes que l'original sont refaites.
-// Les deux dossiers sont produits ici et ne sont pas suivis par git (godot/.gitignore).
-import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync, existsSync } from 'node:fs';
+// 3. godot/music/ : les musiques de partie et de menu de client/public/music.
+// Ces dossiers sont produits ici et ne sont pas suivis par git (godot/.gitignore).
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CARDS, GENERALS, TERRAINS, FAMILIES, ZONE_NAMES, SLOTS, TURNS, HAND_MAX } from '../packages/engine/src/engine.js';
@@ -51,3 +52,8 @@ for (const [src, dst] of jobs) {
   made++;
 }
 console.log(`Illustrations : ${made} refaites, ${jobs.length - made} déjà à jour.`);
+
+// Musiques : les morceaux de base (les variantes des thèmes viendront avec les thèmes).
+mkdirSync(join(OUT, 'music'), { recursive: true });
+for (const f of ['partie.mp3', 'menu.mp3']) copyFileSync(join(ROOT, 'client/public/music', f), join(OUT, 'music', f));
+console.log('Musiques : partie.mp3, menu.mp3.');

@@ -16,6 +16,9 @@ var _frames_dir := ""
 var _frame_t := 0.0
 var _frame_n := 0
 var _reveal_shot := false
+var room := ""
+var seat_token := ""
+var _reconnecting := false
 
 
 func _ready() -> void:
@@ -28,10 +31,18 @@ func _ready() -> void:
 	if args.has("shots"):
 		DirAccess.make_dir_recursive_absolute(str(args.shots))
 	Net.message.connect(_on_message)
-	Net.closed.connect(func(): _error("Connexion au serveur perdue."))
+	Net.closed.connect(_reconnect)
+	Net.server = str(Sfx.cfg.get_value("compte", "serveur", Net.server)) if not args.has("server") else Net.server
+	Net.token = str(Sfx.cfg.get_value("compte", "jeton", ""))
 	_build_login()
 	if args.has("login") and args.has("password"):
 		_do_login(str(args.login), str(args.password))
+	elif Net.token != "":
+		# Session gardée : vérifiée auprès du serveur, sinon retour à la connexion.
+		var me := await Net.api(HTTPClient.METHOD_GET, "/api/me")
+		if me.has("error") or not me.has("account"):
+			Net.token = ""
+			_show_home()
 
 
 func _build_login() -> void:
@@ -43,10 +54,26 @@ func _build_login() -> void:
 	add_child(bg)
 	login_box = VBoxContainer.new()
 	login_box.set_anchors_preset(Control.PRESET_CENTER)
-	login_box.custom_minimum_size = Vector2(520, 0)
-	login_box.position = Vector2(-260, -260)
-	login_box.add_theme_constant_override("separation", 18)
+	login_box.custom_minimum_size = Vector2(560, 0)
+	login_box.position = Vector2(-280, -330)
+	login_box.add_theme_constant_override("separation", 16)
 	add_child(login_box)
+	err_label = Label.new()
+	err_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	err_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	err_label.add_theme_color_override("font_color", Color("ff9c8f"))
+	_show_home()
+
+
+## Accueil : connexion, ou « Jouer » si une session est gardée sur l'appareil.
+func _show_home() -> void:
+	Sfx.music("menu")
+	login_box.visible = true
+	for c in login_box.get_children():
+		if c != err_label:
+			c.queue_free()
+	if err_label.get_parent():
+		login_box.remove_child(err_label)
 	var title := Label.new()
 	title.text = "Jeu de cartes"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -56,21 +83,42 @@ func _build_login() -> void:
 	title.add_theme_constant_override("outline_size", 12)
 	title.add_theme_color_override("font_outline_color", Color(0.12, 0.05, 0.02))
 	login_box.add_child(title)
-	var sub := Label.new()
-	sub.text = "Prototype Godot · %s" % Net.server
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.add_theme_color_override("font_color", Color(1, 0.9, 0.75, 0.6))
-	login_box.add_child(sub)
-	var user := _field("Identifiant", false)
-	var pwd := _field("Mot de passe", true)
-	var go := Board.gold_button("Jouer contre l'IA")
-	go.custom_minimum_size = Vector2(0, 72)
-	go.pressed.connect(func(): _do_login(user.text, pwd.text))
-	login_box.add_child(go)
-	err_label = Label.new()
-	err_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	err_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	err_label.add_theme_color_override("font_color", Color("ff9c8f"))
+	var who := str(Sfx.cfg.get_value("compte", "nom", ""))
+	if Net.token != "":
+		var hello := Label.new()
+		hello.text = "Bonjour %s" % who
+		hello.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hello.add_theme_font_size_override("font_size", 26)
+		hello.add_theme_color_override("font_color", Color(1, 0.92, 0.78, 0.85))
+		login_box.add_child(hello)
+		var go := Board.gold_button("Partie classée contre l'IA")
+		go.custom_minimum_size = Vector2(0, 80)
+		go.add_theme_font_size_override("font_size", 26)
+		go.pressed.connect(_play)
+		login_box.add_child(go)
+		var out := LinkButton.new()
+		out.text = "Changer de compte"
+		out.add_theme_font_size_override("font_size", 20)
+		out.add_theme_color_override("font_color", Color(1, 0.9, 0.75, 0.6))
+		out.pressed.connect(func():
+			Net.token = ""
+			Sfx.cfg.set_value("compte", "jeton", "")
+			Sfx.save()
+			_show_home())
+		login_box.add_child(out)
+	else:
+		var server := _field("Adresse du serveur", false)
+		server.text = Net.server
+		var user := _field("Identifiant", false)
+		user.text = str(Sfx.cfg.get_value("compte", "login", ""))
+		var pwd := _field("Mot de passe", true)
+		var go := Board.gold_button("Se connecter")
+		go.custom_minimum_size = Vector2(0, 72)
+		go.pressed.connect(func():
+			Net.server = server.text.strip_edges().trim_suffix("/")
+			_do_login(user.text.strip_edges(), pwd.text))
+		pwd.text_submitted.connect(func(_t): go.pressed.emit())
+		login_box.add_child(go)
 	login_box.add_child(err_label)
 
 
@@ -101,6 +149,20 @@ func _do_login(user: String, password: String) -> void:
 		err_label.text = err
 		return
 	err_label.text = ""
+	var me := await Net.api(HTTPClient.METHOD_GET, "/api/me")
+	Sfx.cfg.set_value("compte", "serveur", Net.server)
+	Sfx.cfg.set_value("compte", "login", user)
+	Sfx.cfg.set_value("compte", "jeton", Net.token)
+	Sfx.cfg.set_value("compte", "nom", str(me.get("account", {}).get("name", user)))
+	Sfx.save()
+	if args.has("auto"):
+		_play()
+	else:
+		_show_home()
+
+
+func _play() -> void:
+	err_label.text = ""
 	Net.open_socket()
 	_start_game()
 
@@ -108,19 +170,58 @@ func _do_login(user: String, password: String) -> void:
 func _start_game() -> void:
 	if board:
 		board.queue_free()
+	room = ""
 	board = Board.new()
 	board.auto_play = args.has("auto")
+	board.drag_test = args.has("drag-test")
 	board.new_game_requested.connect(func():
 		Net.send({"t": "leave"})
 		_start_game())
+	board.quit_requested.connect(func():
+		Net.send({"t": "leave"})
+		_leave_board())
 	board.shot_requested.connect(_shot)
 	add_child(board)
 	login_box.visible = false
+	Sfx.music("partie")
 	Net.send({"t": "ranked", "auth": Net.token, "lang": "fr"})
+
+
+func _leave_board() -> void:
+	if board:
+		board.queue_free()
+		board = null
+	room = ""
+	_show_home()
+
+
+## Connexion perdue en pleine partie : le serveur garde la place 60 secondes, on revient avec le jeton du salon (rejoin).
+func _reconnect() -> void:
+	if board == null or room == "" or _reconnecting:
+		_error("Connexion au serveur perdue.")
+		return
+	_reconnecting = true
+	board.toast("Connexion perdue, reconnexion…")
+	for i in 8:
+		await get_tree().create_timer(1.0 + i).timeout
+		if board == null:
+			break
+		Net.open_socket()
+		Net.send({"t": "rejoin", "room": room, "token": seat_token, "lang": "fr"})
+		await get_tree().create_timer(2.0).timeout
+		if Net.is_open():
+			_reconnecting = false
+			return
+	_reconnecting = false
+	_leave_board()
+	_error("Impossible de rejoindre la partie.")
 
 
 func _on_message(d: Dictionary) -> void:
 	match str(d.get("t", "")):
+		"lobby":
+			room = str(d.get("room", ""))
+			seat_token = str(d.get("token", ""))
 		"state":
 			if board:
 				var v: Dictionary = d.view
@@ -133,9 +234,16 @@ func _on_message(d: Dictionary) -> void:
 					await get_tree().create_timer(3.5).timeout
 					get_tree().quit()
 		"error":
-			_error(str(d.get("msg", "Erreur du serveur.")))
-		"left", "gone":
+			if board:
+				board.toast(str(d.get("msg", "Erreur du serveur.")))
+			else:
+				_error(str(d.get("msg", "Erreur du serveur.")))
+		"gone":
+			_leave_board()
 			_error("La partie est terminée.")
+		"left":
+			if board:
+				board.toast("L'adversaire a quitté la partie.")
 
 
 func _error(text: String) -> void:

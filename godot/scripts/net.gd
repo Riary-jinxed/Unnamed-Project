@@ -50,10 +50,15 @@ func login(user: String, password: String) -> String:
 
 
 func open_socket() -> void:
+	_queue.clear()
 	_ws = WebSocketPeer.new()
 	_ws.inbound_buffer_size = 1 << 20
 	_ws.connect_to_url(server.replace("http", "ws") + "/ws")
 	_was_open = false
+
+
+func is_open() -> bool:
+	return _ws.get_ready_state() == WebSocketPeer.STATE_OPEN
 
 
 func send(d: Dictionary) -> void:

@@ -3,6 +3,7 @@ extends Control
 ## Comme l'appli web, rien n'est décidé ici : le serveur applique le plan (applyPlan) et renvoie chaque étape de la révélation.
 
 signal new_game_requested
+signal quit_requested
 signal shot_requested(name: String)
 
 const CardView := preload("res://scripts/card_view.gd")
@@ -14,6 +15,7 @@ const HAND_CARD := Vector2(146, 204)
 
 var view: Dictionary = {}
 var auto_play := false
+var drag_test := false
 
 # Préparation du tour en cours.
 var pending: Array = []     # [{ uid, zone, cost }] cartes posées face cachée, dans l'ordre de pose
@@ -43,6 +45,10 @@ var over_panel: Control
 var _last_phase := ""
 var _last_turn := 0
 var _shots_taken := {}
+var _prev_me := {}
+var _sounds := {}           # bruitages à jouer à la fin de la mise à jour (un de chaque)
+var _drag := {}             # carte touchée : { uid, start, offset, on }
+var journal: Control
 
 
 func _ready() -> void:
@@ -60,6 +66,7 @@ func _ready() -> void:
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.draw.connect(func(): _draw_hud(hud))
 	add_child(hud)
+	_add_embers()
 	for z in 3:
 		var zv := ZoneView.new()
 		zv.zone = z
@@ -82,7 +89,11 @@ func _ready() -> void:
 	log_label.add_theme_color_override("font_color", Color(1, 0.93, 0.8, 0.85))
 	log_label.add_theme_constant_override("outline_size", 4)
 	log_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-	log_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	log_label.mouse_filter = Control.MOUSE_FILTER_STOP
+	log_label.tooltip_text = "Journal"
+	log_label.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			_show_journal())
 	add_child(log_label)
 
 	end_btn = gold_button("Terminer le tour")
@@ -193,18 +204,25 @@ func set_view(v: Dictionary) -> void:
 		sel_hand = -1
 		sel_move = -1
 		plan_turn = turn
-	_sync_cards()
+	var old_me: Dictionary = _prev_me
+	_prev_me = me()
+	_sync_cards(first)
 	_place_cards(not first)
-	_update_zones()
+	_update_zones(first)
 	_update_controls()
 	_update_log()
+	if not first and not old_me.is_empty():
+		if bool(me().get("generalUsed", false)) and not bool(old_me.get("generalUsed", false)):
+			_sound("general", "general")
 	if phase != _last_phase or turn != _last_turn:
 		if phase == "reveal" and _last_phase == "plan":
 			_show_banner("Révélation")
 		elif phase == "plan":
 			_show_banner("Tour %d" % turn if turn < int(v.get("turns", 7)) else "Dernier tour")
+			_sound("turn", "turn")
 		elif phase == "over":
 			_game_over()
+	_flush_sounds()
 	_last_phase = phase
 	_last_turn = turn
 	_redraw()
@@ -269,7 +287,7 @@ func _hand_card(uid: int) -> Dictionary:
 	return {}
 
 
-func _sync_cards() -> void:
+func _sync_cards(quiet := false) -> void:
 	var seen := {}
 	for e in _layout_list():
 		var uid := int(e.d.uid)
@@ -278,14 +296,18 @@ func _sync_cards() -> void:
 		var fresh := cv == null
 		if fresh:
 			cv = CardView.new()
-			cv.tapped.connect(_on_card_tapped)
+			cv.pressed.connect(_on_card_pressed)
 			card_layer.add_child(cv)
 			cards[uid] = cv
 			# Une carte qui arrive : de la pioche (main), du haut de l'écran (adversaire).
 			if e.where == "hand":
 				cv.size = HAND_CARD
 				cv.position = Vector2(size.x + 40, _hand_top())
+				if not quiet:
+					_sound("draw")
 			else:
+				if not quiet and not e.mine:
+					_sound("deal")
 				cv.size = card_size
 				cv.position = Vector2(size.x * 0.5 - card_size.x * 0.5, -card_size.y - 20) if not e.mine else Vector2(size.x * 0.5, size.y)
 		var was_face_down := cv.face_down
@@ -299,8 +321,17 @@ func _sync_cards() -> void:
 		var now_revealed := bool(e.d.get("revealed", false))
 		if now_revealed and not had and not fresh:
 			_reveal_fx(cv, was_face_down)
+			var spell: bool = Data.card(e.d.get("id", "")).get("type", "C") == "S"
+			_sound("spell" if spell else "reveal" if e.mine else "revealFoe", "spell" if spell else "place")
 		elif now_revealed and had and last_power.has(uid) and e.d.get("power") != null and int(e.d.power) != int(last_power[uid]):
-			_float_text(cv, int(e.d.power) - int(last_power[uid]))
+			var delta := int(e.d.power) - int(last_power[uid])
+			_float_text(cv, delta)
+			if delta > 0:
+				_sound("up")
+			elif e.mine:
+				_sound("down")
+			else:
+				_sound("hit", "hit")
 		if now_revealed:
 			was_revealed[uid] = true
 			last_power[uid] = e.d.get("power", 0)
@@ -309,10 +340,20 @@ func _sync_cards() -> void:
 		if not seen.has(uid):
 			var cv: CardView = cards[uid]
 			cards.erase(uid)
+			var gone: Dictionary = cv.get_meta("place")
+			if was_revealed.has(uid) and gone.where == "zone" and not quiet:
+				# Créature détruite (ou sort parti à la défausse) : elle s'enfonce et s'éteint.
+				if Data.card(cv.id).get("type", "C") == "C":
+					_sound("destroy", "destroy")
+				var tw := cv.create_tween().set_parallel()
+				tw.tween_property(cv, "modulate", Color(1, 0.3, 0.2, 0.0), 0.45)
+				tw.tween_property(cv, "scale", Vector2(0.6, 0.6), 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+				tw.chain().tween_callback(cv.queue_free)
+			else:
+				var tw := cv.create_tween()
+				tw.tween_property(cv, "modulate:a", 0.0, 0.3)
+				tw.tween_callback(cv.queue_free)
 			was_revealed.erase(uid)
-			var tw := cv.create_tween()
-			tw.tween_property(cv, "modulate:a", 0.0, 0.3)
-			tw.tween_callback(cv.queue_free)
 
 
 func _target_of(e: Dictionary) -> Dictionary:
@@ -346,13 +387,15 @@ func _place_cards(animate: bool) -> void:
 			cv.rotation = t.rot
 
 
-func _update_zones() -> void:
+func _update_zones(quiet := false) -> void:
 	var mt: Array = me().get("terrains", [null, null, null])
 	var ft: Array = foe().get("terrains", [null, null, null])
 	var mp: Array = me().get("zonePower", [0, 0, 0])
 	var fp: Array = foe().get("zonePower", [0, 0, 0])
 	for z in 3:
 		var zv = zones[z]
+		if not quiet and ((mt[z] != null and zv.my_terrain != mt[z]) or (ft[z] != null and zv.foe_terrain != ft[z])):
+			_sound("terrain", "terrain")
 		zv.my_terrain = mt[z]
 		zv.foe_terrain = ft[z]
 		zv.set_powers(int(mp[z]), int(fp[z]))
@@ -458,8 +501,11 @@ func _on_card_tapped(uid: int) -> void:
 			sel_hand = uid
 			sel_move = -1
 			gen_arming = false
+			Sfx.play("pick")
 		else:
-			_toast("Pas assez de sceaux.")
+			Sfx.play("deny")
+			Sfx.feel("deny")
+			toast("Pas assez de sceaux.")
 			_show_detail(cv.id)
 			return
 		_refresh()
@@ -471,15 +517,18 @@ func _on_card_tapped(uid: int) -> void:
 		for i in pending.size():
 			if pending[i].uid == uid:
 				pending.remove_at(i)
+				Sfx.play("unplace")
 				_refresh()
 				return
 		for i in moves.size():
 			if moves[i].uid == uid:
 				moves.remove_at(i)
+				Sfx.play("unplace")
 				_refresh()
 				return
 		if cv.mobile:
 			sel_move = uid
+			Sfx.play("pick")
 			_refresh()
 			return
 	if not cv.face_down:
@@ -492,17 +541,24 @@ func _on_zone_tapped(z: int) -> void:
 	if gen_arming:
 		gen_zone = z
 		gen_arming = false
+		Sfx.play("general")
 	elif sel_hand >= 0:
 		var c := _hand_card(sel_hand)
 		if _room(z) <= 0:
-			_toast("Cette zone est pleine.")
+			Sfx.play("deny")
+			Sfx.feel("deny")
+			toast("Cette zone est pleine.")
 			return
 		pending.append({"uid": sel_hand, "zone": z, "cost": _cost_of(c)})
 		sel_hand = -1
+		Sfx.play("place")
+		Sfx.feel("place")
 	elif sel_move >= 0:
 		var from := _move_from(sel_move)
 		if z != from and _room(z) > 0:
 			moves.append({"uid": sel_move, "zone": z, "from": from})
+			Sfx.play("place")
+			Sfx.feel("place")
 		sel_move = -1
 	else:
 		return
@@ -520,11 +576,12 @@ func _on_general() -> void:
 			gen_arming = true
 			sel_hand = -1
 			sel_move = -1
-			_toast("Touchez la zone où activer votre général.")
+			toast("Touchez la zone où activer votre général.")
 		else:
 			gen_zone = 1
+			Sfx.play("general")
 	else:
-		_toast(str(_general().get("text", "")))
+		toast(str(_general().get("text", "")))
 	_refresh()
 
 
@@ -546,11 +603,245 @@ func _send_plan() -> void:
 		"turn": int(view.get("turn", 0)),
 	}
 	Net.send(plan)
+	Sfx.play("validate")
+	Sfx.feel("validate")
 	end_btn.text = "En attente…"
 	end_btn.disabled = true
 
 
+## Retour Android : ferme la carte en grand ou le journal.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		if detail:
+			detail.queue_free()
+			detail = null
+		elif journal:
+			journal.queue_free()
+			journal = null
+
+
+# ————— Glisser-déposer —————
+# Une carte de la main (ou une carte déplaçable du plateau) se pose en la glissant sur une zone ; un simple toucher marche toujours.
+
+func _on_card_pressed(uid: int) -> void:
+	var cv: CardView = cards.get(uid)
+	if cv == null:
+		return
+	_drag = {"uid": uid, "start": get_global_mouse_position(), "offset": get_global_mouse_position() - cv.position, "on": false}
+
+
+func _input(e: InputEvent) -> void:
+	if _drag.is_empty():
+		return
+	var cv: CardView = cards.get(_drag.uid)
+	if cv == null:
+		_drag = {}
+		return
+	if e is InputEventMouseMotion:
+		var p := get_global_mouse_position()
+		if not _drag.on and p.distance_to(_drag.start) > 14.0 and _draggable(cv):
+			_drag.on = true
+			var place: Dictionary = cv.get_meta("place")
+			if place.where == "hand":
+				sel_hand = _drag.uid
+				sel_move = -1
+			else:
+				sel_move = _drag.uid
+				sel_hand = -1
+			gen_arming = false
+			_update_zones(true)
+			cv.z_index = 120
+			cv.rotation = 0.0
+			cv.create_tween().tween_property(cv, "scale", Vector2(1.08, 1.08), 0.12)
+			Sfx.play("pick")
+		if _drag.on:
+			cv.position = p - _drag.offset
+	elif e is InputEventMouseButton and not e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+		var d := _drag
+		_drag = {}
+		if not d.on:
+			_on_card_tapped(d.uid)
+			return
+		cv.create_tween().tween_property(cv, "scale", Vector2.ONE, 0.12)
+		var z := _zone_at(get_global_mouse_position())
+		if z >= 0:
+			_on_zone_tapped(z)
+		sel_hand = -1
+		sel_move = -1
+		_refresh()
+
+
+func _simulate_drag(uid: int, z: int) -> void:
+	var cv: CardView = cards[uid]
+	var from := cv.get_global_rect().get_center()
+	var to: Vector2 = (zones[z] as Control).get_global_rect().get_center() + Vector2(0, 120)
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_LEFT
+	ev.pressed = true
+	ev.position = from
+	ev.global_position = from
+	Input.parse_input_event(ev)
+	await get_tree().process_frame
+	for i in 13:
+		var m := InputEventMouseMotion.new()
+		m.position = from.lerp(to, i / 12.0)
+		m.global_position = m.position
+		Input.warp_mouse(m.position)
+		Input.parse_input_event(m)
+		await get_tree().process_frame
+	var up := InputEventMouseButton.new()
+	up.button_index = MOUSE_BUTTON_LEFT
+	up.pressed = false
+	up.position = to
+	up.global_position = to
+	Input.parse_input_event(up)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
+func _draggable(cv: CardView) -> bool:
+	if not _can_plan() or detail:
+		return false
+	var place: Dictionary = cv.get_meta("place")
+	if place.where == "hand":
+		return _affordable(place.d)
+	return place.mine and cv.mobile and not cv.moving
+
+
+## Zone sous le doigt : votre moitié, ou le bandeau du milieu (une carte lâchée un peu haut compte quand même).
+func _zone_at(p: Vector2) -> int:
+	for z in 3:
+		var zv: Control = zones[z]
+		var r: Rect2 = zv.get_global_rect()
+		r.position.y += r.size.y * 0.35
+		r.size.y *= 0.65
+		if r.grow(6).has_point(p):
+			return z
+	return -1
+
+
+# ————— Sons —————
+
+func _sound(name: String, haptic := "") -> void:
+	_sounds[name] = haptic
+
+
+func _flush_sounds() -> void:
+	var i := 0
+	for name in _sounds:
+		var h: String = _sounds[name]
+		get_tree().create_timer(0.05 * i).timeout.connect(func():
+			Sfx.play(name)
+			if h != "":
+				Sfx.feel(h))
+		i += 1
+	_sounds.clear()
+
+
 # ————— Effets —————
+
+## Braises qui montent lentement du bas du plateau.
+func _add_embers() -> void:
+	var p := CPUParticles2D.new()
+	p.amount = 26
+	p.lifetime = 9.0
+	p.preprocess = 9.0
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = Vector2(420, 10)
+	p.position = Vector2(360, 1320)
+	p.direction = Vector2(0, -1)
+	p.spread = 12
+	p.gravity = Vector2.ZERO
+	p.initial_velocity_min = 60
+	p.initial_velocity_max = 140
+	p.scale_amount_min = 1.5
+	p.scale_amount_max = 3.5
+	p.orbit_velocity_min = 0.0
+	var grad := Gradient.new()
+	grad.set_color(0, Color(1.0, 0.7, 0.3, 0.0))
+	grad.add_point(0.2, Color(1.0, 0.72, 0.32, 0.55))
+	grad.set_color(grad.get_point_count() - 1, Color(1.0, 0.5, 0.2, 0.0))
+	p.color_ramp = grad
+	add_child(p)
+	resized.connect(func():
+		p.position = Vector2(size.x * 0.5, size.y + 40)
+		p.emission_rect_extents = Vector2(size.x * 0.6, 10))
+
+
+## Journal de la partie et réglages (son, vibrations) ; un toucher hors du panneau le referme.
+func _show_journal() -> void:
+	if journal or view.is_empty():
+		return
+	journal = Control.new()
+	journal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	journal.z_index = 180
+	var veil := ColorRect.new()
+	veil.color = Color(0.02, 0.01, 0.0, 0.75)
+	veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	journal.add_child(veil)
+	var panel := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.09, 0.06, 0.045, 0.98)
+	sb.border_color = Data.GOLD_DARK
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(18)
+	sb.set_content_margin_all(18)
+	panel.add_theme_stylebox_override("panel", sb)
+	panel.position = Vector2(24, HEAD_H)
+	panel.size = Vector2(size.x - 48, size.y - HEAD_H - BAR_H)
+	journal.add_child(panel)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10)
+	panel.add_child(col)
+	var title := Label.new()
+	title.text = "Journal"
+	title.add_theme_font_override("font", Data.font_title)
+	title.add_theme_font_size_override("font_size", 30)
+	title.add_theme_color_override("font_color", Data.GOLD)
+	col.add_child(title)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	col.add_child(scroll)
+	var lines := VBoxContainer.new()
+	lines.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(lines)
+	for line in view.get("log", []):
+		var l := Label.new()
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.text = Data.render_log(line, int(view.get("seat", 0)), view.get("names", []))
+		if str(line.get("kind", "")) == "turn":
+			l.add_theme_font_override("font", Data.font_title)
+			l.add_theme_color_override("font_color", Data.GOLD)
+			l.add_theme_font_size_override("font_size", 22)
+		else:
+			l.add_theme_font_size_override("font_size", 20)
+			l.add_theme_color_override("font_color", Color("efe1c6"))
+		lines.add_child(l)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	col.add_child(row)
+	for opt in [["Son", "sound_on"], ["Vibrations", "haptics_on"]]:
+		var c := CheckButton.new()
+		c.text = opt[0]
+		c.button_pressed = Sfx.get(opt[1])
+		c.add_theme_font_size_override("font_size", 22)
+		c.toggled.connect(func(on: bool):
+			if opt[1] == "sound_on":
+				Sfx.set_sound(on)
+			else:
+				Sfx.haptics_on = on
+				Sfx.save())
+		row.add_child(c)
+	veil.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed:
+			var j := journal
+			journal = null
+			j.queue_free())
+	add_child(journal)
+	await get_tree().process_frame
+	scroll.scroll_vertical = int(scroll.get_v_scroll_bar().max_value)
+
 
 func _reveal_fx(cv: CardView, flip: bool) -> void:
 	cv.pivot_offset = cv.size * 0.5
@@ -563,6 +854,7 @@ func _reveal_fx(cv: CardView, flip: bool) -> void:
 		cv.id = ""
 		tw.tween_property(cv, "scale", Vector2(0.0, 1.12), 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		tw.tween_callback(func():
+			Sfx.play("flip")
 			cv.face_down = false
 			cv.id = data_id
 			cv.queue_redraw())
@@ -628,7 +920,7 @@ func _show_banner(text: String) -> void:
 	tw.tween_property(banner, "modulate:a", 0.0, 0.35)
 
 
-func _toast(text: String) -> void:
+func toast(text: String) -> void:
 	var l := Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -701,6 +993,9 @@ func _game_over() -> void:
 	var w := int(res.get("winner", -1))
 	var seat := int(view.get("seat", 0))
 	var title := "Victoire" if w == seat else "Égalité" if w < 0 else "Défaite"
+	var tune := "win" if w == seat else "tie" if w < 0 else "lose"
+	Sfx.play(tune)
+	Sfx.feel(tune)
 	_show_banner(title)
 	await get_tree().create_timer(1.4).timeout
 	over_panel = Control.new()
@@ -726,6 +1021,14 @@ func _game_over() -> void:
 	b.position = Vector2((size.x - 320) * 0.5, size.y * 0.32 + 170)
 	b.pressed.connect(func(): new_game_requested.emit())
 	over_panel.add_child(b)
+	var q := LinkButton.new()
+	q.text = "Retour à l'accueil"
+	q.add_theme_font_size_override("font_size", 22)
+	q.add_theme_color_override("font_color", Color(1, 0.9, 0.75, 0.75))
+	q.position = Vector2((size.x - 200) * 0.5, b.position.y + 100)
+	q.size = Vector2(200, 40)
+	q.pressed.connect(func(): quit_requested.emit())
+	over_panel.add_child(q)
 	add_child(over_panel)
 	over_panel.modulate.a = 0.0
 	await over_panel.create_tween().tween_property(over_panel, "modulate:a", 1.0, 0.4).finished
@@ -811,6 +1114,11 @@ func _auto_step() -> void:
 				best_gap = gap
 				best = z
 		if best >= 0:
+			if drag_test and turn >= 2 and pending.is_empty():
+				# Essai du glisser-déposer : vrais événements de souris, de la carte jusqu'à la zone.
+				await _simulate_drag(int(c.uid), best)
+				print("glisser-déposer : ", "posée" if pending.any(func(p): return p.uid == int(c.uid)) else "ÉCHEC")
+				continue
 			pending.append({"uid": int(c.uid), "zone": best, "cost": int(c.get("cost", 0))})
 	if _can_general() and not _general().get("needsZone", false) and turn >= 5:
 		gen_zone = 1
