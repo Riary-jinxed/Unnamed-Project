@@ -588,4 +588,10 @@ export default {
   'Pilleur de la montagne d\'or': 'Gold Mountain Raider',
   'Chasseur du soleil noir': 'Black Sun Hunter',
   'Élagueur de ronces': 'Bramble Pruner',
+  // Thèmes de l'interface (themes.js).
+  "Éclipse d'Ignaroth": "Ignaroth's Eclipse",
+  "Aube de Séraphine": "Séraphine's Dawn",
+  "Ciel d'Elyndra": "Elyndra's Sky",
+  "Estampe d'Ysmera": "Ysmera's Print",
+  "Thème « Éclipse d'Ignaroth »": "\"Ignaroth's Eclipse\" theme",
 };

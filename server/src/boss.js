@@ -9,6 +9,7 @@ import { GENERALS } from '@jeu/engine';
 import { today, draftError, deckError } from '@jeu/engine/collection';
 import { artExists } from '@jeu/engine/arts';
 import { TITLES, FRAMES, BACKS } from '@jeu/engine/rewards';
+import { THEMES } from '@jeu/engine/themes';
 import { DEFAULT_BOSS, BOSS_IDS, BOSS_SHOP, BOSS_LIMITS, isBoss, bossInfo, bossWeek, addWeeks, weekLast, weekDaysLeft, bossOfWeek, bossScore,
   tiersReached, rankBracket, bossItem, itemPrice, itemLimit } from '@jeu/engine/boss';
 import { isClanBoss } from '@jeu/engine/clan-boss';
@@ -120,9 +121,10 @@ export function createBoss(store, accounts) {
     const id = x.id.slice(x.kind.length + 1);
     if (x.kind === 'art') return !!a.arts?.[id];
     const cos = a.cosmetics || {};
-    return x.kind === 'title' ? !!cos.titles?.includes(id) : x.kind === 'frame' ? !!cos.frames?.includes(id) : x.kind === 'back' ? !!cos.backs?.includes(id) : false;
+    return x.kind === 'title' ? !!cos.titles?.includes(id) : x.kind === 'frame' ? !!cos.frames?.includes(id) : x.kind === 'back' ? !!cos.backs?.includes(id)
+      : x.kind === 'theme' ? !!cos.themes?.includes(id) : false;
   }
-  const isCosmetic = x => ['art', 'title', 'frame', 'back'].includes(x.kind);
+  const isCosmetic = x => ['art', 'title', 'frame', 'back', 'theme'].includes(x.kind);
   function shopView(a) {
     const c = cfg(), n = buys(a);
     return BOSS_SHOP.filter(x => x.kind !== 'art' || artExists(x.id.slice(4))).map(x => ({ ...x, price: itemPrice(x, c), limit: isCosmetic(x) ? 0 : itemLimit(x, c),
@@ -141,14 +143,14 @@ export function createBoss(store, accounts) {
     if (!a.level) progress.init(a);
     a.bossCoins -= price; n[x.id] = (n[x.id] || 0) + 1;
     if (x.kind === 'art') a.arts = { ...(a.arts || {}), [id]: { at: now(), boss: true } };
-    else if (isCosmetic(x)) progress.grant(a, { [x.kind]: id }, { silent: true });
+    else if (isCosmetic(x)) { progress.grant(a, { [x.kind]: id }, { silent: true }); if (x.kind === 'theme') a.uiTheme = id; }
     else if (x.kind === 'uniEssence') a.uniEssence = (a.uniEssence || 0) + x.n;
     else progress.grant(a, { [x.kind]: x.n }, { silent: true });
     progress.check(a);
     await store.put(a);
     accounts.activity.count('bossBuys');
     return { ...view(a), account: accounts.me(a), msg: tr(langOf(a), '{name} : à vous !', { name: tr(langOf(a), x.name) }),
-      got: x.kind === 'art' ? { art: id } : isCosmetic(x) ? { [x.kind]: id, label: { title: TITLES, frame: FRAMES, back: BACKS }[x.kind][id] } : null };
+      got: x.kind === 'art' ? { art: id } : isCosmetic(x) ? { [x.kind]: id, label: { title: TITLES, frame: FRAMES, back: BACKS, theme: THEMES }[x.kind][id] } : null };
   }
 
   // Arrivée du boss de la semaine : une notification push (sorte « events » de push.js) dès 10 h (heure de Paris), une fois par semaine

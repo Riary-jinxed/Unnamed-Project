@@ -24,6 +24,8 @@ import { createClan, crestHTML } from './clan.js';
 import { createBoss } from './boss.js';
 import { createStory } from './story.js';
 import { createHistory } from './history.js';
+import { themeShopHTML, themeEssenceHTML, themeLock, setThemeArt } from './themes.js';
+import { THEMES, EXTRA_THEMES } from '@jeu/engine/themes';
 import { questOfCard } from '@jeu/engine/story';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
@@ -42,7 +44,7 @@ import { FRAMES, BACKS, TITLES, ANIMATED_FRAMES, rewardSourceOf, REWARD_CARDS, C
 import { EMOTES, EMOTE_SLOTS, EMOTE_COOLDOWN_MS, EMOTE_SHOW_MS, SHOP_EMOTES, FREE_EMOTES } from '@jeu/engine/emotes';
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { EVENT_EFFECTS, multLabel } from '@jeu/engine/events';
-import { SEASONS, PASS_TIERS, SEASON_THEMES, seasonOfCard, seasonStarted, seasonStart, currentSeason, releaseMonth } from '@jeu/engine/pass';
+import { SEASONS, PASS_TIERS, seasonOfCard, seasonStarted, seasonStart, currentSeason, releaseMonth } from '@jeu/engine/pass';
 import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName, chestPool, MAX_FAV_ARTS } from '@jeu/engine/arts';
 
 const famVar = kw => famStyle(kw[0]);
@@ -320,7 +322,7 @@ async function openBoosterNow() {
   if (r) showCards(r, SETS.find(x => x.daily)?.id);
 }
 async function openShop(tab = ui.shopTab || 'sets') {
-  ui.screen = 'shop'; ui.shopTab = tab; ui.error = ''; ui.msg = ''; render();
+  ui.screen = 'shop'; ui.shopTab = tab; ui.themeTry = null; ui.error = ''; ui.msg = ''; render();
   const r = await call('GET', '/api/shop');
   if (r) { ui.shop = r.shop; render(); }
 }
@@ -587,7 +589,7 @@ function missionsHTML() {
 function rewardItem(r) {
   const art = r.art && ARTS[r.art];
   const extra = [r.title ? t('Titre « {name} »', { name: esc(titleLabel(r.title) || t(r.title)) }) : '', r.frame ? esc(t(FRAMES[r.frame] || r.frame)) : '', r.back ? esc(t(BACKS[r.back] || r.back)) : '',
-    art ? t('Art Promo « {name} »', { name: esc(t(art.name)) }) : '', r.theme ? t('Thème de l\'interface « {name} » (Profil, Personnalisation)', { name: esc(t(SEASON_THEMES[r.theme] || r.theme)) }) : '',
+    art ? t('Art Promo « {name} »', { name: esc(t(art.name)) }) : '', r.theme ? t('Thème de l\'interface « {name} » (Profil, Personnalisation)', { name: esc(t(THEMES[r.theme] || r.theme)) }) : '',
     r.emote && EMOTES[r.emote] ? t('Émote {icon} « {text} » (Profil, Personnalisation)', { icon: EMOTES[r.emote].icon, text: esc(t(EMOTES[r.emote].text)) }) : ''].filter(Boolean).join(' · ');
   return `<div class="reward"><div><b>${esc(tField(r, 'label'))}</b>${gains(r) ? `<div class="num">${gains(r)}</div>` : ''}${extra ? `<div class="hint">${extra}</div>` : ''}</div>
     ${r.card ? `<button class="ccard" data-zoom="${zoomKey(r.card)}">${anyCard(r.card)}</button>` : ''}
@@ -734,7 +736,7 @@ function passGift(r) {
     r.title ? `<span class="pgift">${t('Titre « {name} »', { name: esc(t(TITLES[r.title] || r.title)) })}</span>` : '',
     r.frame ? `<span class="pgift"><span class="frame frame-${r.frame} swatch"></span>${esc(t(FRAMES[r.frame] || r.frame))}</span>` : '',
     r.back ? `<span class="pgift"><span class="mc back back-${r.back}"></span>${esc(t(BACKS[r.back] || r.back))}</span>` : '',
-    r.theme ? `<span class="pgift"><span class="theme-swatch theme-${r.theme}"></span>${t('Thème « {name} »', { name: esc(t(SEASON_THEMES[r.theme] || r.theme)) })}</span>` : '',
+    r.theme ? `<span class="pgift"><span class="theme-swatch theme-${r.theme}"></span>${t('Thème « {name} »', { name: esc(t(THEMES[r.theme] || r.theme)) })}</span>` : '',
     r.shards ? `<span class="pgift">${ico('shard')}<span class="num">${r.shards}</span></span>` : '',
     r.prisms ? `<span class="pgift">${ico('prism')}<span class="num">${r.prisms}</span></span>` : '',
     r.chests ? `<span class="pgift">${ico('chest')}<span>${r.chests > 1 ? t('{n} coffres d\'arts', { n: r.chests }) : t('Coffre d\'arts')}</span></span>` : '',
@@ -1430,15 +1432,16 @@ function renderCollection() {
 // Cadenas d'un rayon fermé.
 const LOCK = '<svg class="lockico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 function renderShop() {
-  const sh = ui.shop, a = ui.account, tab = ['arts', 'essence', 'change'].includes(ui.shopTab) && sh?.arts ? ui.shopTab : ui.shopTab === 'clan' && a.clan ? 'clan' : ui.shopTab === 'boss' ? 'boss' : ui.shopTab === 'emotes' ? 'emotes' : 'sets';
+  const sh = ui.shop, a = ui.account, tab = ['arts', 'essence', 'change'].includes(ui.shopTab) && sh?.arts ? ui.shopTab : ui.shopTab === 'clan' && a.clan ? 'clan' : ui.shopTab === 'boss' ? 'boss' : ui.shopTab === 'emotes' ? 'emotes' : ui.shopTab === 'themes' ? 'themes' : 'sets';
   const tabBtn = (id, label, badge) => `<button role="tab" data-act="shop-tab" data-tab="${id}" class="${tab === id ? 'on' : ''}" aria-selected="${tab === id}">${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
   // Rayon du clan : verrouillé (cadenas) tant que le joueur n'a pas de clan ; le toucher mène alors à l'écran des clans.
   const clanTab = a.clan ? tabBtn('clan', `${ico('ecu')}${t('Clan')}`) : `<button role="tab" class="locked" data-act="clan" aria-disabled="true" title="${t('Rejoignez un clan pour l\'ouvrir')}">${LOCK}${t('Clan')}</button>`;
   const top = `<div class="top"><span class="title">${t('Boutique')}</span><span class="chip num cur" title="${t('Éclats')}" aria-label="${t('{n} Éclats', { n: a.shards })}">${ico('shard')}${a.shards}</span>${sh?.arts ? `<span class="chip num cur prism" title="${t('Prismes')}" aria-label="${t('{n} Prismes', { n: sh.arts.prisms })}">${ico('prism')}${sh.arts.prisms}</span>` : ''}${tab === 'essence' && sh?.essence ? `<span class="chip num cur uni" title="${t('Essence universelle')}" aria-label="${t('{n} essence universelle', { n: sh.essence.universal })}">${ico('essence')}${fmt(sh.essence.universal)}</span>` : ''}</div>
-    ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="${t('Rayons de la boutique')}">${tabBtn('sets', t('Sets'))}${tabBtn('arts', t('Arts'), sh.arts.chest.free)}${sh.essence ? tabBtn('essence', t('Essence')) : ''}${tabBtn('change', t('Change'))}${tabBtn('emotes', t('Émotes'))}${clanTab}${tabBtn('boss', `${ico('insigne')}${t('Boss')}`)}</div>` : ''}`;
+    ${sh?.arts ? `<div class="seg shoptabs" role="tablist" aria-label="${t('Rayons de la boutique')}">${tabBtn('sets', t('Sets'))}${tabBtn('arts', t('Arts'), sh.arts.chest.free)}${sh.essence ? tabBtn('essence', t('Essence')) : ''}${tabBtn('change', t('Change'))}${tabBtn('emotes', t('Émotes'))}${tabBtn('themes', t('Thèmes'))}${clanTab}${tabBtn('boss', `${ico('insigne')}${t('Boss')}`)}</div>` : ''}`;
   if (tab === 'clan') return `${top}${clan.shopTab()}`;
   if (tab === 'boss') return `${top}${boss.shopTab()}`;
   if (tab === 'emotes') return `${top}${errLine()}${emoteShopHTML()}`;
+  if (tab === 'themes') return `${top}${errLine()}${themeShopHTML({ ui, prog, ico, canPay })}`;
   if (!sh) return `${top}${errLine()}<p class="wait">${t('Chargement…')}</p>`;
   if (tab === 'arts') return `${top}${artStall(sh.arts)}${errLine()}${artShopHTML(sh.arts)}`;
   if (tab === 'change') return `${top}${errLine()}${exchangeHTML(sh.arts)}`;
@@ -1506,6 +1509,7 @@ function essenceShopHTML(E) {
     ${vit}
     <p class="hint" style="margin:0">${t('Toujours en vente ici, jamais au coffre ni dans les arts du jour. Réunissez-les tous pour compléter la famille d\'arts Astrale et gagner son titre.')}</p>
     ${essFrameHTML(E.frame, have)}
+    ${Object.keys(EXTRA_THEMES).filter(id => EXTRA_THEMES[id].essence).map(id => themeEssenceHTML({ ui, prog, ico }, id, have)).join('')}
   </section>`;
 }
 // Cadre de la nébuleuse (animé), vendu seulement au rayon Essence : montré sur l'image de profil du joueur.
@@ -1552,6 +1556,13 @@ function emoteShopHTML() {
     <ul class="emolist free">${FREE_EMOTES.map(id => `<li>${bubble(id)}</li>`).join('')}</ul>
     <p class="hint" style="margin:0">${t('Choisissez les {n} émotes de votre sélecteur dans votre profil, rubrique Personnalisation.', { n: EMOTE_SLOTS })}</p>
   </section>`;
+}
+async function buyTheme(id) {
+  const r = await call('POST', '/api/shop/theme', { theme: id }, true);
+  if (!r) return;
+  if (r.shop) ui.shop = r.shop;
+  ui.themeTry = null; ui.msg = t('Thème « {name} » obtenu et choisi.', { name: t(THEMES[id]) });
+  play('reveal'); render();
 }
 async function buyEmote(id) {
   const r = await call('POST', '/api/shop/emote', { emote: id }, true);
@@ -1740,11 +1751,12 @@ function themePicks(p) {
   const own = id => p.cosmetics.themes?.some(t => t.id === id), cur = currentSeason(today());
   const pick = (val, label, swatch, on, ok = true, hint = '') => `<button class="pickc ${on ? 'on' : ''} ${ok ? '' : 'locked'}" ${ok ? `data-theme="${val}"` : 'disabled'} title="${esc(hint)}">
     <span class="theme-swatch theme-${swatch}"></span><small>${esc(t(label))}</small></button>`;
-  const themes = Object.entries(SEASON_THEMES).filter(([id]) => own(id) || !futureSeasons().some(x => x.theme === id));
+  const themes = Object.entries(THEMES).filter(([id]) => own(id) || !futureSeasons().some(x => x.theme === id));
   return `<div class="gal-h">${t('Thème de l\'interface')}</div>
-    <p class="hint" style="margin:0">${t('Chaque passe de saison débloque son thème au palier 12 de la piste gratuite. Changez-en quand vous voulez.')}</p>
+    <p class="hint" style="margin:0">${t('Chaque passe de saison débloque son thème au palier 12 de la piste gratuite ; d\'autres thèmes s\'achètent en boutique ou se gagnent avec les succès. Changez-en quand vous voulez.')}</p>
     <div class="picks">${pick('', cur ? t('Saison en cours ({name})', { name: t(cur.name) }) : t('Saison en cours'), cur?.theme || 'base', !p.theme)}${pick('base', t('Classique'), 'base', p.theme === 'base')}
-      ${themes.map(([id, name]) => pick(id, name, id, p.theme === id, own(id), own(id) ? '' : t('À débloquer avec le passe de cette saison'))).join('')}</div>`;
+      ${themes.map(([id, name]) => pick(id, name, id, p.theme === id, own(id), own(id) ? '' : themeLock(id))).join('')}</div>
+    <div class="row"><button class="btn" data-act="shop-themes">${t('D\'autres thèmes en boutique')}</button></div>`;
 }
 function customizeHTML() {
   const a = ui.account, p = prog(), c = p.cosmetics;
@@ -1809,7 +1821,8 @@ function achievementsHTML() {
   const groups = [...new Set(list.map(x => x.group))], done = list.filter(x => x.done).length;
   return `<div class="card-box"><div><span class="eyebrow">${t('Succès')}</span><h2 style="font-size:22px">${t('{n} sur {total}', { n: done, total: list.length })}</h2></div>
     ${groups.map(g => `<div class="gal-h">${esc(t(g))}</div><div class="achs">${list.filter(x => x.group === g).map(x => `<div class="ach ${x.done ? 'done' : ''}">
-      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(t(x.label))}</span><small class="hint">${[x.shards ? t('{n} Éclats', { n: x.shards }) : '', x.prisms ? tp(x.prisms, '{n} Prisme', '{n} Prismes') : '', x.chests ? tp(x.chests, '{n} coffre d\'arts', '{n} coffres d\'arts') : '', x.title ? t('titre « {title} »', { title: esc(t(x.title)) }) : '', x.frame ? `${x.frameId ? `<span class="frame frame-${esc(x.frameId)} swatch"></span>` : ''}${esc(t(x.frame))}` : '', x.emote && EMOTES[x.emote] ? t('émote {icon} « {text} »', { icon: EMOTES[x.emote].icon, text: esc(t(EMOTES[x.emote].text)) }) : ''].filter(Boolean).join(' · ')}</small></div>
+      <div class="row" style="justify-content:space-between;gap:8px"><span>${x.done ? '✓ ' : ''}${esc(t(x.label))}</span><small class="hint">${[x.shards ? t('{n} Éclats', { n: x.shards }) : '', x.prisms ? tp(x.prisms, '{n} Prisme', '{n} Prismes') : '', x.chests ? tp(x.chests, '{n} coffre d\'arts', '{n} coffres d\'arts') : '', x.title ? t('titre « {title} »', { title: esc(t(x.title)) }) : '', x.frame ? `${x.frameId ? `<span class="frame frame-${esc(x.frameId)} swatch"></span>` : ''}${esc(t(x.frame))}` : '', x.emote && EMOTES[x.emote] ? t('émote {icon} « {text} »', { icon: EMOTES[x.emote].icon, text: esc(t(EMOTES[x.emote].text)) }) : '',
+        x.theme && THEMES[x.theme] ? `<span class="theme-swatch theme-${esc(x.theme)} swatch"></span>${t('thème « {name} »', { name: esc(t(THEMES[x.theme])) })}` : ''].filter(Boolean).join(' · ')}</small></div>
       ${x.done ? '' : `<div class="row" style="gap:8px"><div class="bar" style="flex:1"><span style="width:${pct(x.value, x.goal)}%"></span></div><small class="num">${x.value}/${x.goal}</small></div>`}</div>`).join('')}</div>`).join('')}</div>`;
 }
 // Profil en onglets : le haut (image, pseudo, niveau) reste, la rubrique change en dessous.
@@ -2141,6 +2154,7 @@ function render() {
   // Thème de l'interface (décors PixiJS, habillage.css) : ?saison=… dans l'adresse pour en essayer un (« base » : aucun), sinon celui
   // choisi dans la personnalisation, sinon celui de la saison en cours.
   document.body.dataset.season = SEASON_OVERRIDE ?? uiTheme();
+  setThemeArt(document.body.dataset.season);
   setInGame(app, ui.screen === 'game');
   setMusic(musicFor());
   // Transitions (transition.js, habillage.css) : seulement quand l'écran ou la feuille change, pas à chaque rafraîchissement.
@@ -2193,6 +2207,8 @@ function render() {
 
 // Thème choisi (null : celui de la saison en cours ; « base » : thème de base ; sinon un thème débloqué).
 function uiTheme() {
+  // Thème à l'essai, seulement tant que la boutique où il se trouve est affichée : rayons Thèmes, Essence et Boss, écran du boss.
+  if (ui.themeTry && ((ui.screen === 'shop' && ['themes', 'essence', 'boss'].includes(ui.shopTab)) || ui.screen === 'boss')) return ui.themeTry;
   const p = ui.account ? prog() : null, pick = p?.theme;
   if (pick === 'base') return '';
   if (pick && p.cosmetics.themes?.some(t => t.id === pick)) return pick;
@@ -2558,6 +2574,10 @@ app.addEventListener('click', e => {
     else if (a === 'emote-slot' && !ui.busy) toggleEmoteSlot(ds.id);
     else if (a === 'buy-emote' && !ui.busy) { const e = EMOTES[ds.id], go = () => buyEmote(ds.id); if (e.prisms || !lacksShards(e.price, t('acheter'), go)) go(); }
     else if (a === 'shop-emotes') openShop('emotes');
+    else if (a === 'shop-themes') openShop('themes');
+    else if (a === 'try-theme') { ui.themeTry = ui.themeTry === ds.id ? null : ds.id; play('pick'); render(); }
+    else if (a === 'buy-theme' && !ui.busy) { const x = EXTRA_THEMES[ds.id], go = () => buyTheme(ds.id); if (!x.price || !lacksShards(x.price, t('acheter'), go)) go(); }
+    else if (a === 'theme-where') openShop(ds.where);
     else if (a === 'logout') doLogout();
     else if (a === 'retry') boot();
     else if (a === 'lang') chooseLang(ds.lang);
