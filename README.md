@@ -35,6 +35,14 @@ npm run build
 npm start   # tout sur http://localhost:8787
 ```
 
+## Tests des mécaniques
+
+```bash
+npm test                     # règles et effets des cartes (Défausse, Pari, Jackpot, Horde, terrains…), environ 1 s
+```
+
+Ils tournent aussi sur GitHub à chaque pull request et à chaque push sur `main` (`.github/workflows/tests.yml`), sans rien ajouter au déploiement sur Render. Un nouvel effet se teste dans `packages/engine/test/mecaniques.test.js` avec les outils de `aide.js` : `partie()`, `enJeu`, `enMain`, `enDeck`, `jouer`, et `st.dice = [6]` pour fixer les dés.
+
 ## Tester l'équilibrage
 
 ```bash

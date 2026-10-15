@@ -173,6 +173,7 @@ Un événement multiplie un gain (`EVENT_EFFECTS` : `xp`, `ranked`, `shards`, `p
 ## Outils
 
 ```bash
+npm test                     # tests des mécaniques (packages/engine/test), aussi lancés sur GitHub à chaque pull request
 npm run sim -- 60            # taux de victoire de chaque deck contre chaque deck (60 parties par duel)
 npm run sim -- 20 generaux   # chaque général avec le deck de sa famille, contre tous les decks
 npm run equilibrage -- decks 150     # matrice des decks sur tous les cœurs (300 parties par paire)
