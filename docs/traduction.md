@@ -30,7 +30,8 @@ tp(n, '{n} coffre d\'arts', '{n} coffres d\'arts', { x })  // d'autres variables
   est déjà dans la bonne langue. Une table du moteur affichée par `t(x.champ)` s'ajoute à `scripts/i18n-tables.js`.
   Un nouveau mot-clé de carte s'ajoute aussi à `KEYWORDS_EN` (`client/src/common.js`), qui le met en gras en anglais.
 - Un texte calculé au chargement d'un module (`const LABELS = { a: t('…') }`) marche aussi : la langue est fixée avant
-  le chargement des autres modules (premier import de `main.js`), et changer de langue recharge la page.
+  le chargement des autres modules (`client/src/boot.js` attend `loadLang` avant de charger `main.js`), et changer de
+  langue recharge la page. Les dictionnaires anglais sont téléchargés à part, seulement par qui joue en anglais.
 - Attention aux variables locales nommées `t` (élément touché, temps…) : elles masquent la fonction. Renommez la variable locale.
 - Dates et nombres : `toLocaleDateString(locale(), …)`, `locale()` venant de `@jeu/engine/i18n`.
 
@@ -78,7 +79,7 @@ npm run i18n -- --strict # code d'erreur s'il manque des textes
 ## Ajouter une langue
 
 Ajouter la langue à `LANGS` et `LOCALES` (`packages/engine/src/i18n.js`), créer ses dictionnaires sur le modèle de `lang/en`, et les charger
-dans `client/src/lang.js` (et `server/src/index.js` pour le serveur, `scripts/i18n.js` pour la vérification). `deviceLang` (`lang.js`)
+dans `loadLang` de `client/src/lang.js` (import dynamique, comme l'anglais), `server/src/index.js` pour le serveur, `scripts/i18n.js` pour la vérification. `deviceLang` (`lang.js`)
 ne propose que le français ou l'anglais d'après l'appareil, et les annonces des Nouveautés n'ont qu'une version anglaise (`en`).
 
 ## Lexique anglais

@@ -1,11 +1,13 @@
 // Serveur de parties : salons à code, règles appliquées côté serveur, cartes cachées jamais envoyées.
 // Sert aussi l'appli web compilée (client/dist) pour n'avoir qu'un seul service à héberger.
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
-import { gzipSync } from 'node:zlib';
+import { promisify } from 'node:util';
+import { gzip as gzipCb, brotliCompress as brotliCb, constants as Z } from 'node:zlib';
 import { WebSocketServer } from 'ws';
 import { DECKS, GENERALS, newGame, startTurn, runTurn, viewFor, aiPlan, pick, forfeitGame, interruptGame, bossStep } from '@jeu/engine';
 import { newBossGame, bossScore } from '@jeu/engine/boss';
@@ -34,6 +36,7 @@ import { createCasino } from './casino.js';
 import { createPush } from './push.js';
 import { createFollow } from './follow.js';
 import { NOTES_MAJ } from './notes-maj.js';
+import { atPreview, inRequest, previewOf } from './preview.js';
 
 // Traductions anglaises (moteur et serveur) : messages d'erreur, notifications et textes envoyés aux joueurs dans leur langue.
 addStrings('en', engineEn);
@@ -92,24 +95,40 @@ const follow = createFollow(store, accounts, { boss, events: accounts.progress.e
 const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...bugs.routes, ...news.routes, ...accounts.progress.events.routes, ...clans.routes, ...clanBoss.routes, ...push.routes, ...boss.routes, ...story.routes, ...casino.routes, ...follow.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
-// Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.
+// Les fichiers de client/dist ne changent pas pendant que le serveur tourne.
+// Les textes (HTML, JS, CSS…) sont lus et compressés une seule fois (gzip et brotli), puis gardés en mémoire.
+// Les images et musiques (près de 200 Mo) sont lues sur le disque à chaque demande : les garder toutes en mémoire
+// dépasserait celle du service. Seules leur taille et leurs en-têtes sont retenus.
 // Les fichiers de /assets/ portent une empreinte dans leur nom (Vite) : le navigateur peut les garder un an.
 const files = new Map();
 const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.json', '.webmanifest', '.svg']);
-async function staticFile(path) {
-  if (files.has(path)) return files.get(path);
-  let body;
-  try { body = await readFile(join(DIST, path)); } catch { return null; }
-  const ext = extname(path);
-  const file = { body, gz: COMPRESSIBLE.has(ext) && body.length > 1024 ? gzipSync(body) : null, type: MIME[ext] || 'application/octet-stream',
+const gzip = promisify(gzipCb), brotli = promisify(brotliCb);
+async function loadFile(path) {
+  const full = join(DIST, path), ext = extname(path);
+  const info = await stat(full).catch(() => null);
+  if (!info?.isFile()) return null;
+  const file = { full, size: info.size, type: MIME[ext] || 'application/octet-stream',
     cache: path.startsWith('assets/') ? 'public, max-age=31536000, immutable' : path.startsWith('music/') ? 'public, max-age=86400' : 'no-cache' };
-  files.set(path, file);
+  if (COMPRESSIBLE.has(ext)) {
+    file.body = await readFile(full);
+    if (file.body.length > 1024) [file.gz, file.br] = await Promise.all([gzip(file.body, { level: 9 }),
+      brotli(file.body, { params: { [Z.BROTLI_PARAM_QUALITY]: 11, [Z.BROTLI_PARAM_SIZE_HINT]: file.body.length } })]);
+  }
   return file;
+}
+// La promesse est gardée : deux demandes simultanées du même fichier ne le lisent qu'une fois. Un fichier absent n'est pas retenu.
+function staticFile(path) {
+  if (!files.has(path)) files.set(path, loadFile(path).then(f => { if (!f) files.delete(path); return f; }));
+  return files.get(path);
+}
+// Envoie un fichier lu sur le disque (images, musiques), en entier ou une partie (start, end inclus).
+function streamFile(res, file, start = 0, end = file.size - 1) {
+  createReadStream(file.full, { start, end }).on('error', () => res.destroy()).pipe(res);
 }
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/health') { res.end('ok'); return; }
-  if (await api(req, res, url)) return;
+  if (await inRequest(() => api(req, res, url))) return;
   if (url.pathname === '/admin') url.pathname = '/admin.html';
   let path;
   try { path = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, ''); } catch { path = '..'; }
@@ -121,14 +140,18 @@ const server = http.createServer(async (req, res) => {
   // Le lecteur audio lit les musiques par morceaux (Safari l'exige) : requête « Range: bytes=début-fin ».
   const range = file.type.startsWith('audio/') && /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
   if (range && (range[1] || range[2])) {
-    const size = file.body.length, start = range[1] ? +range[1] : Math.max(0, size - +range[2]), end = range[1] && range[2] ? Math.min(+range[2], size - 1) : size - 1;
+    const size = file.size, start = range[1] ? +range[1] : Math.max(0, size - +range[2]), end = range[1] && range[2] ? Math.min(+range[2], size - 1) : size - 1;
     if (start >= size || start > end) { res.writeHead(416, { 'content-range': `bytes */${size}` }); res.end(); return; }
-    res.writeHead(206, { 'content-type': file.type, 'cache-control': file.cache, 'accept-ranges': 'bytes', 'content-range': `bytes ${start}-${end}/${size}` });
-    res.end(file.body.subarray(start, end + 1)); return;
+    res.writeHead(206, { 'content-type': file.type, 'cache-control': file.cache, 'accept-ranges': 'bytes', 'content-range': `bytes ${start}-${end}/${size}`, 'content-length': end - start + 1 });
+    streamFile(res, file, start, end); return;
   }
-  const gz = file.gz && /\bgzip\b/.test(req.headers['accept-encoding'] || '');
-  res.writeHead(200, { 'content-type': file.type, 'cache-control': file.cache, vary: 'accept-encoding', ...(file.type.startsWith('audio/') ? { 'accept-ranges': 'bytes' } : {}), ...(gz ? { 'content-encoding': 'gzip' } : {}) });
-  res.end(gz ? file.gz : file.body);
+  const accept = req.headers['accept-encoding'] || '';
+  const enc = file.br && /\bbr\b/.test(accept) ? 'br' : file.gz && /\bgzip\b/.test(accept) ? 'gzip' : null;
+  const body = enc === 'br' ? file.br : enc === 'gzip' ? file.gz : file.body;
+  res.writeHead(200, { 'content-type': file.type, 'cache-control': file.cache, 'content-length': body ? body.length : file.size,
+    ...(file.body ? { vary: 'accept-encoding' } : {}), ...(file.type.startsWith('audio/') ? { 'accept-ranges': 'bytes' } : {}), ...(enc ? { 'content-encoding': enc } : {}) });
+  if (req.method === 'HEAD') { res.end(); return; }
+  if (body) res.end(body); else streamFile(res, file);
 });
 
 // ---- Salons ----
@@ -169,7 +192,7 @@ function lobby(room) {
 function startMatch(room) {
   if (room.ranked === 'ai') { const acc = accounts.byToken(room.seats[0].auth); if (acc) room.seats[1] = aiSeat(acc); }
   const decks = room.seats.map(s => { if (s.boss) return null; if (s.ai) return pick(aiDeckKeys());
-    const acc = accounts.byToken(s.auth), d = acc && ((room.boss && boss.deckFor(acc, room.boss)) || deckOf(acc, s.deckId)); return d && !deckError(d, acc) ? d : s.deck; });
+    const acc = accounts.byToken(s.auth), d = acc && ((room.boss && boss.deckFor(acc, room.boss)) || deckOf(acc, s.deckId)); return d && !atPreview(acc, () => deckError(d, acc)) ? d : s.deck; });
   room.decks = decks.map(d => (!d ? [] : typeof d === 'string' ? DECKS[d].cards : d.cards));
   room.st = room.boss ? newBossGame(decks[0], room.boss, room.seats[0].name)
     : newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => (typeof d === 'string' ? null : d.general)) });
@@ -179,6 +202,8 @@ function startMatch(room) {
   // Le boss se montre avec son art (portrait).
   if (room.boss) room.seats[1].badge = { boss: true, arts: { [room.boss]: GENERALS[room.boss].art }, looks: {}, borders: {} };
   broadcast(room);
+  // Un joueur parti pendant l'attente du salon : son compte à rebours de forfait démarre avec la partie.
+  room.seats.forEach((s, i) => startAway(room, i));
 }
 // Une erreur pendant le tour ou l'enregistrement est notée sans arrêter le serveur (toutes les parties en cours tomberaient avec lui).
 async function resolve(room) {
@@ -191,34 +216,37 @@ async function resolve(room) {
   await endMatch(room).catch(e => console.error('Fin de partie en erreur :', e));
 }
 // Partie terminée (fin du dernier tour ou forfait) : enregistrée une seule fois, avec les récompenses de chacun, puis diffusée.
+// st est gardée dès le début : une revanche lancée pendant l'enregistrement remplace room.st par une nouvelle partie.
 async function endMatch(room) {
-  if (room.st.over && !room.st.recorded && room.boss) {
+  const st = room.st;
+  if (st.over && !st.recorded && room.boss) {
     // Boss mondial : le score de la tentative, ses paliers et le total de la semaine (pas de victoire ni de défaite).
     room.seats.forEach(s => s && stopAway(s));
-    room.st.recorded = true;
+    st.recorded = true;
     const acc = accounts.byToken(room.seats[0].auth);
-    const abandoned = !!room.st.result?.forfeit;
+    const abandoned = !!st.result?.forfeit;
     const r = !acc ? null : room.clanRun ? clanBoss.finish(acc, room.st, room.clanRun, { abandoned }) : boss.finish(acc, room.st, { abandoned });
     if (acc) await store.put(acc).catch(e => console.error('Tentative non enregistrée :', e));
-    room.rewards = [r ? { boss: r, account: accounts.me(acc) } : null, null];
-  } else if (room.st.over && !room.st.recorded) {
+    if (room.st === st) room.rewards = [r ? { boss: r, account: accounts.me(acc) } : null, null];
+  } else if (st.over && !st.recorded) {
     room.seats.forEach(s => s && stopAway(s));
-    room.st.recorded = true;
-    const mode = room.ranked === 'ai' ? 'pve' : 'pvp';
+    st.recorded = true;
+    const mode = room.ranked === 'ai' ? 'pve' : 'pvp', decks = room.decks, startedAt = room.startedAt || Date.now();
     // Récompenses de fin de partie (et rang en classé), affichées à chacun sur l'écran de fin.
-    const { winner, zones } = room.st.result;
+    const { winner, zones } = st.result;
     const result = i => (winner === i ? 'win' : winner < 0 ? 'draw' : 'loss');
     const ranks = room.ranked ? rankedResults(room, result) : [null, null];
-    room.rewards = await Promise.all(room.seats.map(async (s, i) => {
+    const rewards = await Promise.all(room.seats.map(async (s, i) => {
       const acc = accounts.byToken(s.auth); if (!acc) return null;
-      const reward = await accounts.recordGame(acc, { mode, result: result(i), played: room.st.p[i].played,
-        general: room.st.p[i].general, sweep: !room.st.result.forfeit && winner === i && zones.every(z => z === i),
-        zones: room.st.result.forfeit ? 0 : zones.filter(z => z === i).length, friend: !!room.invite, ranked: !!room.ranked }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
+      const reward = await accounts.recordGame(acc, { mode, result: result(i), played: st.p[i].played,
+        general: st.p[i].general, sweep: !st.result.forfeit && winner === i && zones.every(z => z === i),
+        zones: st.result.forfeit ? 0 : zones.filter(z => z === i).length, friend: !!room.invite, ranked: !!room.ranked }).catch(e => { console.error('Récompenses non enregistrées :', e); return null; });
       return reward && ranks[i] ? { ...reward, ranked: ranks[i] } : reward;
     }));
     // Enregistrée avec ce que chacun a gagné, pour l'historique des joueurs.
     const kind = room.ranked === 'ai' ? 'classe-ia' : room.ranked === 'friend' ? 'defi-classe' : room.invite ? 'defi' : 'salon';
-    games.recordPvp(room.st, room.seats.map(s => s.login), room.decks, { mode, ranked: !!room.ranked, kind, ms: Date.now() - (room.startedAt || Date.now()), rewards: room.rewards });
+    games.recordPvp(st, room.seats.map(s => s.login), decks, { mode, ranked: !!room.ranked, kind, ms: Date.now() - startedAt, rewards });
+    if (room.st === st) room.rewards = rewards;
   }
   broadcast(room);
 }
@@ -319,6 +347,8 @@ function handle(ws, msg) {
   if (msg.t === 'ping') return send(ws, { t: 'pong' });
   if (msg.lang && validLang(msg.lang)) ws.lang = validLang(msg.lang);
   if (friends.handle(ws, msg)) return;
+  // Compte testeur (jour d'aperçu) : pas de classé ni de Boss, dont les classements sont partagés avec les autres joueurs.
+  if (['ranked', 'boss', 'clanboss'].includes(msg.t) && previewOf(accounts.byToken(msg.auth))) return send(ws, { t: 'error', msg: tr(wsLang(ws), 'Compte de test : le classé et les Boss sont fermés tant qu\'un jour d\'aperçu est réglé.') });
   if (msg.t === 'create') {
     const seat = seatFor(ws, msg); if (!seat) return;
     const room = { code: newCode(), seats: [null, null], plans: [null, null], st: null, busy: false, lastActive: Date.now() };
@@ -357,6 +387,8 @@ function handle(ws, msg) {
     if (i < 0) return send(ws, { t: 'error', msg: tr(wsLang(ws), 'Cette partie est réservée à deux amis.') });
     if (room.seats[i]) return send(ws, { t: 'error', msg: tr(wsLang(ws), 'Cette partie est déjà complète.') });
     const seat = seatFor(ws, msg); if (!seat) return;
+    // Pas contre soi-même (même compte dans deux onglets) : chaque partie compterait une victoire et une défaite.
+    if (room.seats[1 - i]?.login === seat.login) return send(ws, { t: 'error', msg: tr(wsLang(ws), 'Cette partie est déjà complète.') });
     room.seats[i] = seat;
     ws.room = room; ws.seat = i; lobby(room); friends.changed(seat.login);
     if (room.seats[0] && room.seats[1]) startMatch(room);
@@ -426,11 +458,14 @@ function handle(ws, msg) {
   }
 }
 
-const wss = new WebSocketServer({ server, path: '/ws' });
+// Messages courts (plans, émotes) : 64 Ko suffisent. Une trame invalide déclenche « error » : notée, sans arrêter le serveur.
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 64 * 1024 });
+wss.on('error', e => console.error('WebSocket :', e));
 wss.on('connection', ws => {
   ws.alive = true;
+  ws.on('error', e => console.error('Connexion WebSocket :', e.message));
   ws.on('pong', () => { ws.alive = true; });
-  ws.on('message', data => { ws.alive = true; try { handle(ws, JSON.parse(data)); } catch (e) { console.error(e); } });
+  ws.on('message', data => { ws.alive = true; try { const m = JSON.parse(data); atPreview(m && accounts.byToken(m.auth), () => handle(ws, m)); } catch (e) { console.error(e); } });
   ws.on('close', () => {
     friends.gone(ws);
     const room = ws.room; if (!room) return;
@@ -447,21 +482,22 @@ setInterval(() => {
     ws.alive = false; ws.ping();
   }
 }, 30_000);
-const away = s => s && !s.ai && !(s.ws && s.ws.readyState === 1);
+// Chaque tâche est isolée : une erreur est notée sans arrêter le serveur ni sauter les suivantes.
+const task = (name, fn) => { try { fn(); } catch (e) { console.error(`${name} en erreur :`, e); } };
 setInterval(() => {
-  catalog.refresh();
+  task('Catalogue', () => catalog.refresh());
   // Fin du mois : le classement de la saison finie est figé tout de suite, sans attendre qu'un joueur revienne.
-  accounts.progress.closeSeason();
+  task('Fin de saison', () => accounts.progress.closeSeason());
   // Fin de semaine : le classement du boss mondial est figé et ses récompenses données.
-  boss.closeWeek();
-  boss.announce(push);
+  task('Fin de semaine du boss', () => boss.closeWeek());
+  task('Annonce du boss', () => boss.announce(push));
   news.announce().catch(e => console.error('Nouveautés en erreur :', e));
   // Boss de clan dont le temps est écoulé : fermés, récompenses données.
-  clanBoss.tick();
+  task('Boss de clan', () => clanBoss.tick());
   const now = Date.now();
   for (const [code, r] of rooms) {
     if (now - r.lastActive <= ROOM_TTL_MS) continue;
-    const gone = r.seats.map(away);
+    const gone = r.seats.map(isAway);
     if (gone[0] !== gone[1]) forfeit(r, gone[0] ? 0 : 1);
     abandonBoss(r);
     rooms.delete(code);

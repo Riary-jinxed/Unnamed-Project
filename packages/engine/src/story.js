@@ -461,7 +461,6 @@ export const QUESTS = [
 ];
 
 export const questById = id => QUESTS.find(q => q.id === id) || null;
-export const QUEST_IDS = QUESTS.map(q => q.id);
 export const isLimited = q => q.kind === 'limitee';
 
 // Deck joué au chapitre i : celui de la quête, avec les alliés rejoints aux chapitres précédents (join, gagné à la fin du chapitre).

@@ -4,7 +4,7 @@
 // et son score est calculé ici à la fin (ou à l'abandon, avec le plateau du moment). Documents : « boss » (réglages de /admin),
 // « boss-classement » ({ [semaine]: { closed, boss, n, top } }). Compte : boss ({ week, boss, total, best, runs, day, used, last }),
 // bossCoins (Insignes), bossBuys ({ week, n: { objet: achats } }). Statistiques des succès : bossRuns, bossBest, bossKinds, bossTop10.
-import { createHash } from 'node:crypto';
+import { avatarKey } from './avatar.js';
 import { GENERALS } from '@jeu/engine';
 import { today, draftError, deckError } from '@jeu/engine/collection';
 import { artExists } from '@jeu/engine/arts';
@@ -19,7 +19,6 @@ import { langOf } from './i18n.js';
 
 const LADDER_SIZE = 50, HISTORY = 10;
 const now = () => new Date().toISOString();
-const avatarKey = a => (a.avatar ? createHash('sha1').update(a.avatar).digest('hex').slice(0, 12) : null);
 const nth = n => (n === 1 ? '1re' : `${n}e`);
 
 export function createBoss(store, accounts) {

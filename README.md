@@ -18,7 +18,7 @@ Les sets du jeu (décompte tiré de `engine.js`, sans les jetons) :
 | Set de base | dès le début | 60 | 12 | 15 | Ange, Démon, Gobelin, Elfe et Dragon (11 cartes chacune), 5 neutres |
 | Crépuscule (set 2) | sorti | 57 | 10 | 11 | Mort-vivant et Vampire (11 chacune), 6 cartes de soutien pour chacune des 5 familles de base, 5 neutres |
 | Faites vos jeux (mini-set 2.5, casino) | 23 octobre 2026 | 24 | 2 | 3 | 15 neutres (Pari au dé, triche, les trois Sept du Jackpot), 3 cartes chacune pour Ange, Gobelin et Démon |
-| Cité Néon (set 3) | 2 novembre 2026 | 56 | 12 | 13 | Hacker et Cyborg (12 chacune), soutien des 7 autres familles, 5 neutres |
+| Cité Néon (set 3) | 2 novembre 2026 | 57 | 12 | 13 | Hacker et Cyborg (12 chacune), soutien des 7 autres familles, 5 neutres |
 
 S'y ajoutent 29 cartes de récompense (familles et sets complétés, jamais en booster), 5 cartes uniques des passes de saison, et 22 decks préconstruits (12 du Set de base, 1 de Faites vos jeux, 9 de Cité Néon). Un set daté reste caché aux joueurs, à l'IA et à la boutique jusqu'à sa sortie.
 
@@ -90,6 +90,8 @@ Le disque d'un service Render gratuit est effacé à chaque déploiement : les c
 3. Ouvrez `https://<votre-adresse>/admin`, entrez `ADMIN_KEY`, puis créez un compte par joueur (identifiant, pseudo, mot de passe) et communiquez-leur.
 
 Les tables sont créées toutes seules au premier démarrage. Sans `DATABASE_URL`, le serveur écrit dans un fichier local et l'indique dans ses journaux (un avertissement de plus sur Render, où ce fichier serait perdu).
+
+Pour tester du contenu avant sa sortie (set, deck, événement, saison, quête, annonce programmée), ouvrez un compte sur `/admin` et réglez son « jour d'aperçu » dans la carte « Zone de test » : ce compte voit et joue le jeu en ligne comme à cette date, sans rien changer pour les autres joueurs (le classé et les Boss lui sont fermés pendant ce temps). Videz le jour pour le ramener au présent.
 
 ### Autres variables d'environnement (facultatives)
 

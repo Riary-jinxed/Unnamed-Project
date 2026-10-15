@@ -34,8 +34,15 @@ export function createProgress(store) {
   // Événements temporaires (week-end double XP…) : multiplient certains gains tant qu'ils durent.
   const events = createEvents(store);
   // Réglages : valeurs par défaut, puis celles enregistrées depuis /admin.
+  // Calculés une fois par version du document (saveSettings en écrit un nouveau) : cfg() est appelé des dizaines de fois par requête.
+  // Le résultat est partagé : à lire seulement.
+  let cfgOf, cfgMemo;
   function cfg() {
-    const doc = store.doc('recompenses') || {};
+    const saved = store.doc('recompenses');
+    if (cfgMemo && cfgOf === saved) return cfgMemo;
+    cfgOf = saved; return (cfgMemo = buildCfg(saved || {}));
+  }
+  function buildCfg(doc) {
     const missions = Object.fromEntries(Object.entries(ALL_MISSIONS).map(([id, m]) => [id, { target: m.target, xp: m.xp, shards: m.shards, on: true, ...(doc.missions || {})[id] }]));
     const achievements = Object.fromEntries(ACHIEVEMENTS.map(x => [x.id, (doc.achievements || {})[x.id] ?? x.shards]));
     const achievementPrisms = Object.fromEntries(ACHIEVEMENTS.map(x => [x.id, (doc.achievementPrisms || {})[x.id] ?? x.prisms]));

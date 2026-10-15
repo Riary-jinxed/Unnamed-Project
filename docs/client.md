@@ -1,6 +1,6 @@
 # Appli et administration (`client`)
 
-Deux pages compilées par Vite : `index.html` (l'appli des joueurs, `src/main.js`) et `admin.html` (`src/admin.js`). Pas de framework : chaque écran est une fonction qui renvoie du HTML.
+Deux pages compilées par Vite : `index.html` (l'appli des joueurs : `src/boot.js` règle la langue puis charge `src/main.js`, que la page précharge) et `admin.html` (`src/admin.js`). Pas de framework : chaque écran est une fonction qui renvoie du HTML.
 
 ## Fichiers
 
@@ -224,7 +224,7 @@ Au démarrage puis chaque fois que la version change (`account.catalog`), l'appl
 
 ## Hors ligne et cache
 
-`public/sw.js` (service worker, enregistré seulement dans l'appli compilée) rend l'appli installable sur téléphone (`manifest.webmanifest`) et affiche les notifications push ; touchée, une notification ramène l'appli ouverte sur l'écran voulu (message `notif-open`) ou l'ouvre avec `?ouvrir=`. Les fichiers de `/assets/` (leur nom contient une empreinte, ils ne changent jamais) sont servis depuis le cache ; les pages passent par le réseau, avec le cache en secours. Les musiques (`/music/`) ne passent pas par le service worker. À l'activation d'une nouvelle version du service worker, tout cache autre que `CACHE` est effacé : changer cette constante vide les fichiers gardés, et le cache des cosmétiques part aussi (ils sont redessinés ensuite). L'API et le WebSocket ne passent jamais par le cache.
+`public/sw.js` (service worker) rend l'appli installable sur téléphone (`manifest.webmanifest`) et affiche les notifications push ; touchée, une notification ramène l'appli ouverte sur l'écran voulu (message `notif-open`) ou l'ouvre avec `?ouvrir=`. Le code et les styles de `/assets/` (leur nom contient une empreinte, ils ne changent jamais) sont servis depuis le cache, limité aux 120 plus récents ; les images de `/assets/` passent par le cache HTTP du navigateur (gardées un an), sans copie dans celui du service worker ; les pages passent par le réseau, avec le cache en secours. Les musiques (`/music/`) ne passent pas par le service worker. Un changement de la constante `CACHE` efface les anciens caches `jeu-…` (pas celui des cosmétiques, `cosmetiques`). Après une mise à jour, un morceau de code disparu du serveur recharge la page (`vite:preloadError`, `boot.js`). L'API et le WebSocket ne passent jamais par le cache.
 
 `localStorage` garde la langue (`jeu-lang`), la session (`jeu-auth`), le salon en cours (`jeu-session`, pour reprendre après un rechargement), le son coupé (`jeu-muted`), le volume des bruitages (`jeu-sfx`) et de la musique (`jeu-music`), les vibrations (`jeu-vibrations`), le réglage des animations (`jeu-motion`, absent quand il suit le système), les émotes adverses coupées (`jeu-emotes-off`) et l'initiation déjà lancée (`jeu-tuto-<identifiant>`).
 

@@ -6,6 +6,7 @@
 import { CARDS, GENERALS } from '@jeu/engine';
 import { ARTS, artExists, isClassic, artPrice, artOffers, chestPool, chestRates, weightedPick, rarityName, isEssenceArt, essenceArts, essenceArtPrice } from '@jeu/engine/arts';
 import { today } from '@jeu/engine/collection';
+import { msg } from '@jeu/engine/i18n';
 import { CLAN_SHOP } from '@jeu/engine/clans';
 import { BOSS_SHOP } from '@jeu/engine/boss';
 import { CASINO_SHOP } from '@jeu/engine/casino';

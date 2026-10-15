@@ -1,11 +1,13 @@
 // Amis : demandes par pseudo ou identifiant, statut en ligne, défis entre amis.
 // Les listes sont rangées dans les comptes (friends, friendsIn, friendsOut : identifiants). La présence et les défis
 // passent par une connexion WebSocket que l'appli garde ouverte tant que le joueur est connecté (message « hello »).
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
+import { avatarKey } from './avatar.js';
 import { deckError } from '@jeu/engine/collection';
 import { HttpError } from './accounts.js';
 import { msg, tr, trMsg } from '@jeu/engine/i18n';
 import { langOf } from './i18n.js';
+import { atPreview, previewOf } from './preview.js';
 
 const MAX_FRIENDS = 100;
 const CHALLENGE_TTL_MS = 2 * 60 * 1000;
@@ -25,8 +27,6 @@ export function createFriends(store, accounts, rooms) {
   let push = null;
   const pushTo = (login, msg) => push?.send(login, 'social', { tag: 'friends', open: 'friends', ...msg }).catch(e => console.error('Notification :', e));
   const status = login => (rooms.playing(login) ? 'game' : online.has(login) ? 'online' : 'off');
-  // Les images de profil sont lourdes : la liste n'en donne qu'une empreinte, l'appli les demande quand elle change.
-  const avatarKey = a => (a.avatar ? createHash('sha1').update(a.avatar).digest('hex').slice(0, 12) : null);
   const player = login => {
     const a = store.get(login); if (!a) return null;
     const b = accounts.progress.badge(a);
@@ -130,7 +130,8 @@ export function createFriends(store, accounts, rooms) {
     notify(c.from, { t: 'challenge-gone', id: c.id, ...(toFrom ? { msg: toFrom } : {}) });
     notify(c.to, { t: 'challenge-gone', id: c.id, ...(toTo ? { msg: toTo } : {}) });
   }
-  const hasPlayableDeck = a => (a.decks || []).some(d => !deckError(d, a));
+  // Au jour d'aperçu du joueur s'il est testeur : ses decks peuvent contenir des cartes pas encore sorties.
+  const hasPlayableDeck = a => atPreview(a, () => (a.decks || []).some(d => !deckError(d, a)));
   // ranked : défi classé, qui compte pour le rang des deux amis.
   function challenge(ws, to, ranked) {
     const a = store.get(ws.presence); if (!a) return;
@@ -138,6 +139,7 @@ export function createFriends(store, accounts, rooms) {
     const err = !b || !list(a, 'friends').includes(b.login) ? msg('Ce joueur n\'est pas dans vos amis.')
       : rooms.playing(a.login) ? msg('Vous êtes déjà dans une partie.')
       : !hasPlayableDeck(a) ? msg('Aucun de vos decks n\'est jouable.')
+      : ranked && (previewOf(a) || previewOf(b)) ? msg('Pas de défi classé avec un compte de test.')
       : !online.has(b.login) ? msg('{name} n\'est pas connecté.', { name: b.name })
       : rooms.playing(b.login) ? msg('{name} est déjà en partie.', { name: b.name })
       : pending.some(c => c.from === a.login) ? msg('Vous avez déjà lancé un défi : attendez la réponse ou annulez-le.')

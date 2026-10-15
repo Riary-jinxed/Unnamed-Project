@@ -24,7 +24,6 @@ const pt = (cx, cy, r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
 const seeded = s => () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
 // Arc seul, sans trait qui le relie au tracé précédent.
 const arc = (g, cx, cy, r, a0, a1) => g.moveTo(...pt(cx, cy, r, a0)).arc(cx, cy, r, a0, a1);
-const G = c => add(c, new Graphics());
 const add = (parent, ...kids) => { kids.forEach(k => parent.addChild(k)); return kids[0]; };
 // Feuille à calques : on y trace comme dans un Graphics ; un enfant ajouté (addChild) se pose par-dessus ce qui est déjà tracé,
 // et la suite se trace au-dessus de lui. « root » est le Container qui porte le tout.
