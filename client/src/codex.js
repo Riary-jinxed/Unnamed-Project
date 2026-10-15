@@ -40,7 +40,7 @@ export const CODEX = [
     { name: t('Jeton'), text: t('Créature créée par un effet (Horde, Chèvre, Magot, Festin). Elle ne va jamais à la défausse ni dans une collection.'), ex: ['horde', 'chevre'] },
   ] },
   { id: 'set2', title: t('Mots-clés du Crépuscule'), items: [
-    { name: t('Défausse'), fam: 'Mort-vivant', text: t('Défausse N : vous défaussez jusqu\'à N cartes avec Relève de votre main, les plus chères d\'abord. Les autres cartes restent en main.'), ex: ['goule', 'danse_macabre'] },
+    { name: t('Défausse'), fam: 'Mort-vivant', text: t('Défausse N : vous défaussez N cartes de votre main, d\'abord celles avec Relève (les plus chères d\'abord), puis au hasard. Si votre main ne suffit pas, le reste part du dessus de votre deck.'), ex: ['goule', 'danse_macabre'] },
     { name: t('Relève'), fam: 'Mort-vivant', text: t('Quand cette carte est défaussée de votre main (par un effet ou main pleine), elle entre en jeu gratuitement avec +1 et son effet Révélation, dans la zone où vous êtes le plus en retard avec un emplacement libre.'), ex: ['squelette', 'zombie'] },
     { name: t('Exhumation'), fam: 'Mort-vivant', text: t('Ramène en jeu la créature la plus puissante de votre défausse, avec son effet Révélation.'), ex: ['necromancien', 'reanimation'] },
     { name: t('Drain'), fam: 'Vampire', text: t('Drain N : la cible perd N et le Vampire gagne N. La cible peut être une créature adverse en jeu, une carte de la main adverse ou du deck adverse (elle aura -N quand elle sera jouée).'), ex: ['novice', 'chauve_souris'] },

@@ -266,25 +266,26 @@ const SACRIFICE_LESSON = {
   end: t('Leçon finie : sacrifier ses créatures faibles rend les Démons plus forts, et Destruction tire profit de chaque perte.'),
 };
 
-// Morts-vivants : la Goule défausse le Zombie, la Danse macabre le Chevalier de la mort, qui défausse le Squelette en se relevant,
+// Morts-vivants : la Goule défausse le Zombie, la Danse macabre le Chevalier de la mort (qui défausse le Squelette en se relevant)
+// puis, la main vide, le Mercenaire du dessus du deck,
 // et le Fossoyeur le Spectre hurlant. Mordrek donne +1 à la zone la plus faible à chaque carte défaussée.
 const RISE_LESSON = {
   title: t('Défausse et Relève'), turns: 4, noTerrain: true,
-  me: { general: 'mordrek', hand: 3, order: ['goule', 'zombie', 'danse_macabre', 'squelette', 'chevalier_mort', 'fossoyeur', 'spectre', 'golem', 'mercenaire', 'chevalier', 'barde'], terrains: [] },
+  me: { general: 'mordrek', hand: 3, order: ['goule', 'zombie', 'danse_macabre', 'squelette', 'chevalier_mort', 'mercenaire', 'fossoyeur', 'spectre', 'golem', 'chevalier', 'barde'], terrains: [] },
   foe: { general: 'cartographe', hand: 3, order: ['eclaireuse', 'mercenaire', 'chevalier', 'barde', 'golem', 'potion', 'cerf'], terrains: [],
     plays: { 1: [['eclaireuse', 2]], 2: [['mercenaire', 0]], 3: [['chevalier', 2]], 4: [['golem', 1]] } },
   steps: [
     { info: true, hl: '.pbar.me .gencard', text: t('Votre général, Mordrek, mène les Morts-vivants : chaque carte **défaussée** de votre main donne +1 à votre zone la plus faible.') },
     { hl: () => [card('goule'), zone(1)], drag: () => [card('goule'), zone(1)], done: t => t.pend('goule'),
-      text: t('Posez la Goule affamée au Centre. **Révélation : Défausse 1** : elle défausse une carte avec **Relève** de votre main, la plus chère d\'abord.') },
+      text: t('Posez la Goule affamée au Centre. **Révélation : Défausse 1** : elle défausse en priorité une carte avec **Relève** de votre main, la plus chère d\'abord.') },
     { go: true, text: t('Validez le tour, et regardez votre main à la révélation.') },
 
     { info: true, turn: 2, hl: '.mc[data-id="zombie"]', text: t('Le Zombie a **Relève** : défaussé, il est entré en jeu gratuitement avec +1, dans la zone où vous étiez le plus en retard.') },
     { hl: card('danse_macabre'), drag: () => [card('danse_macabre'), zone(1)], done: t => t.pend('danse_macabre'),
-      text: t('La Danse macabre défausse jusqu\'à 2 cartes avec Relève, puis vous fait piocher 2 cartes. Posez-la où vous voulez.') },
+      text: t('La Danse macabre défausse 2 cartes, celles avec Relève d\'abord, puis vous fait piocher 2 cartes. Posez-la où vous voulez.') },
     { go: true, text: t('Validez le tour.') },
 
-    { info: true, turn: 3, hl: '.mc[data-id="chevalier_mort"]', text: t('Le Chevalier de la mort, qui coûte 4, s\'est relevé gratuitement, et sa Révélation a défaussé le Squelette, qui s\'est relevé à son tour !') },
+    { info: true, turn: 3, hl: '.mc[data-id="chevalier_mort"]', text: t('Le Chevalier de la mort, qui coûte 4, s\'est relevé gratuitement, et sa Révélation a défaussé le Squelette, qui s\'est relevé à son tour ! Votre main étant vide, la 2e Défausse de la Danse a pris le Mercenaire sur le dessus de votre deck.') },
     { hl: card('fossoyeur'), drag: t => [card('fossoyeur'), zone(t.weakest())], done: t => t.pend('fossoyeur'),
       text: t('Le Fossoyeur défausse 1 carte avec Relève, puis vous fait piocher. Posez-le : le Spectre hurlant de votre main se relèvera.') },
     { go: true, text: t('Validez le tour.') },

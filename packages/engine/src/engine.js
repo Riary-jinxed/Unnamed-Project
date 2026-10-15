@@ -1172,11 +1172,17 @@ function discardCard(st, p, c, silent) {
   genHook(st, p, 'onDiscard', c);
   if (CARDS[c.id].raise) raise(st, p, c);
 }
-// Défausse N : défausse jusqu'à N cartes avec Relève de votre main, les plus chères d'abord. Les autres cartes restent en main.
+// Défausse N : N cartes partent de la main, d'abord celles avec Relève (les plus chères d'abord), puis au hasard.
+// Si la main ne suffit pas, le reste est pris sur le dessus du deck (une carte avec Relève s'y relève aussi).
 function discardFromHand(st, p, n) {
+  const P = st.p[p];
   for (let i = 0; i < n; i++) {
-    const c = st.p[p].hand.filter(x => CARDS[x.id].raise).sort((a, b) => CARDS[b.id].cost - CARDS[a.id].cost)[0];
-    if (!c) return; discardCard(st, p, c);
+    const c = P.hand.filter(x => CARDS[x.id].raise).sort((a, b) => CARDS[b.id].cost - CARDS[a.id].cost)[0] || (P.hand.length ? pick(P.hand) : null);
+    if (c) { discardCard(st, p, c); continue; }
+    const t = P.deck.shift(); if (!t) return;
+    log(st, '{card} part du deck de ⟦{p}⟧ à la défausse.', 'down', { card: nm(t.id), p });
+    if (CARDS[t.id].token) continue;
+    P.discard.push(t); if (CARDS[t.id].raise) raise(st, p, t);
   }
 }
 // Relève : la carte défaussée entre en jeu avec +1, dans la zone où l'on est le plus en retard (le Cimetière l'attire et donne +1 de plus).

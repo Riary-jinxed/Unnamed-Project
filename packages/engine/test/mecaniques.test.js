@@ -79,12 +79,38 @@ describe('Défausse et Relève (Morts-vivants)', () => {
     assert.equal(pw(st, z), 5);
   });
 
-  test('Défausse sans carte avec Relève : rien ne part', () => {
+  test('Défausse sans carte avec Relève : les cartes de la main partent au hasard', () => {
     const st = partie();
-    enMain(st, 0, 'mercenaire'); enMain(st, 0, 'golem');
+    enMain(st, 0, 'mercenaire'); enMain(st, 0, 'golem'); enMain(st, 0, 'chevalier');
+    jouer(st, 0, 'goule', 0);
+    assert.equal(st.p[0].hand.length, 2, 'une seule carte part');
+    assert.equal(st.p[0].discard.length, 1);
+  });
+
+  test('Défausse : Relève d\'abord, puis au hasard pour le reste', () => {
+    const st = partie();
+    const z = enMain(st, 0, 'zombie'); enMain(st, 0, 'mercenaire'); enMain(st, 0, 'golem');
     enDeck(st, 0, 'barde'); enDeck(st, 0, 'potion');
     jouer(st, 0, 'danse_macabre', 0);
-    assert.deepEqual(ids(st.p[0].hand).sort(), ['barde', 'golem', 'mercenaire', 'potion']);
+    assert.ok(z.zone >= 0, 'le Zombie s\'est relevé');
+    assert.equal(st.p[0].discard.filter(c => ['mercenaire', 'golem'].includes(c.id)).length, 1, 'une autre carte part au hasard');
+    assert.equal(st.p[0].hand.length, 3, '1 carte restée + 2 piochées');
+  });
+
+  test('Défausse avec la main trop courte : le reste vient du dessus du deck', () => {
+    const st = partie();
+    enMain(st, 0, 'mercenaire');
+    const sq = enDeck(st, 0, 'squelette'); enDeck(st, 0, 'golem'); enDeck(st, 0, 'barde');
+    jouer(st, 0, 'danse_macabre', 0);
+    assert.ok(st.p[0].discard.some(c => c.id === 'mercenaire'));
+    assert.ok(sq.zone >= 0, 'le Squelette pris sur le deck se relève');
+    assert.deepEqual(ids(st.p[0].hand), ['golem', 'barde']);
+  });
+
+  test('Défausse avec main et deck vides : rien ne se passe', () => {
+    const st = partie();
+    jouer(st, 0, 'goule', 0);
+    assert.equal(st.p[0].discard.length, 0);
   });
 
   test('Fossoyeur : Défausse 1, puis pioche 1', () => {

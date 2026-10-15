@@ -308,7 +308,7 @@ export default {
   'Créature créée par un effet (Horde, Chèvre, Magot, Festin). Elle ne va jamais à la défausse ni dans une collection.': 'Creature created by an effect (Horde, Goat, Hoard, Feast). It never goes to the discard pile or into a collection.',
   'Mots-clés du Crépuscule': 'Twilight keywords',
   'Défausse': 'Discard',
-  'Défausse N : vous défaussez jusqu\'à N cartes avec Relève de votre main, les plus chères d\'abord. Les autres cartes restent en main.': 'Discard N: you discard up to N cards with Rise from your hand, most expensive first. Other cards stay in hand.',
+  'Défausse N : vous défaussez N cartes de votre main, d\'abord celles avec Relève (les plus chères d\'abord), puis au hasard. Si votre main ne suffit pas, le reste part du dessus de votre deck.': 'Discard N: you discard N cards from your hand, cards with Rise first (most expensive first), then at random. If your hand runs short, the rest comes off the top of your deck.',
   'Relève': 'Rise',
   'Quand cette carte est défaussée de votre main (par un effet ou main pleine), elle entre en jeu gratuitement avec +1 et son effet Révélation, dans la zone où vous êtes le plus en retard avec un emplacement libre.': 'When this card is discarded from your hand (by an effect or a full hand), it enters play for free with +1 and its Reveal effect, in the zone where you are furthest behind that has a free slot.',
   'Exhumation': 'Exhume',
