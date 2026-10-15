@@ -208,7 +208,7 @@ function artsCatalog() {
   if (!st.arts) return '<p class="wait">Chargement des arts…</p>';
   const rows = st.arts.map(x => `<tr><td><b>${esc(x.name)}</b>${x.exists ? '' : ' <span class="chip off">carte absente</span>'}<br><small class="hint">${esc(x.id)}</small></td><td>${esc(CARDS[x.card]?.name || GENERALS[x.card]?.name || x.card)}</td>
     <td>${esc(x.rarityName)}${x.edition === 'promo' && x.how ? `<br><small class="hint">${esc(x.how)}</small>` : ''}</td>
-    <td class="num">${x.price === null ? '—' : x.edition === 'essence' ? `${x.price} essence` : x.edition === 'clan' ? `${x.price} Écus` : x.price}</td><td class="num">${x.owners}</td></tr>`).join('');
+    <td class="num">${x.price === null ? '—' : x.edition === 'essence' ? `${x.price} essence` : x.edition === 'clan' ? `${x.price} Écus` : x.edition === 'casino' ? `${x.price} Jetons` : x.price}</td><td class="num">${x.owners}</td></tr>`).join('');
   return `<div class="card-box" style="overflow-x:auto"><h2 style="font-size:20px">Catalogue des arts</h2>
     <p class="hint" style="margin:0">Les arts se déclarent dans <code>packages/engine/src/arts.js</code> et leurs images dans <code>client/src/art/alt/&lt;id&gt;/</code> ; sans image, l'appli montre un art provisoire.</p>
     <table class="admin"><thead><tr><th>Art</th><th>Carte</th><th>Rareté</th><th>Prix (Prismes, ou essence universelle pour l'édition Essence)</th><th>Joueurs</th></tr></thead><tbody>${rows}</tbody></table></div>`;

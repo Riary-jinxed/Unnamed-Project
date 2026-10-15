@@ -29,6 +29,7 @@ import { createClans } from './clans.js';
 import { createBoss } from './boss.js';
 import { createClanBoss } from './clan-boss.js';
 import { createStory } from './story.js';
+import { createCasino } from './casino.js';
 import { createPush } from './push.js';
 import { createFollow } from './follow.js';
 import { NOTES_MAJ } from './notes-maj.js';
@@ -77,12 +78,15 @@ news.setUpcoming(() => planning({ store, events: accounts.progress.events, boss,
 // Boss de clan : ouvert par le Maître ou un adjoint, barre de PV commune à tout le clan (message « clanboss »).
 const clanBoss = createClanBoss(store, accounts, clans);
 // Quêtes d'histoire : combats joués dans la page, progression et récompenses des chapitres, quêtes à durée limitée.
-const story = createStory(store, accounts, { onChange: () => catalog.refresh() });
+// Événement du casino du Sept d'or : Jetons (aussi gagnés aux chapitres de sa quête), machine à sous, Quitte ou double, boutique.
+const casino = createCasino(store, accounts);
+accounts.setCasinoTile(a => casino.tile(a));
+const story = createStory(store, accounts, { onChange: () => catalog.refresh(), onChapter: (...x) => casino.onChapter(...x) });
 catalog.setExtraCards(() => story.releasedCards());
 accounts.setStoryTile(a => story.tile(a));
 // Onglet Suivi de /admin : rétention et suivi du nouveau contenu.
 const follow = createFollow(store, accounts, { boss, events: accounts.progress.events });
-const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...news.routes, ...accounts.progress.events.routes, ...clans.routes, ...clanBoss.routes, ...push.routes, ...boss.routes, ...story.routes, ...follow.routes }, catalog.public);
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...news.routes, ...accounts.progress.events.routes, ...clans.routes, ...clanBoss.routes, ...push.routes, ...boss.routes, ...story.routes, ...casino.routes, ...follow.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
 // Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.

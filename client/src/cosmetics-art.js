@@ -534,6 +534,13 @@ const FRAMES = {
     const k = new Graphics(); k.roundRect(-18, -26, 36, 50, 5).fill(0xfff8e8).stroke(ink(3));
     k.circle(-5, 2, 7).circle(5, 2, 7).fill(0x1d1d1d); k.poly([-11, 0, 0, -15, 11, 0]).fill(0x1d1d1d); k.poly([-3, 4, 3, 4, 5, 14, -5, 14]).fill(0x1d1d1d);
     k.position.set(C, C - RB - 14); g.addChild(k); },
+  // Boutique du casino : anneau rouge laqué cerclé d'or, ampoules d'enseigne tout autour, et trois 7 en haut.
+  jackpot: g => { ring(g, { base: 0x9a1420, hi: 0xe0505a, lo: 0x4a070c });
+    g.circle(C, C, RB + 3).stroke({ width: 4, color: 0xe3b552 }).circle(C, C, RH - 3).stroke({ width: 4, color: 0xe3b552 });
+    for (let i = 0; i < 20; i++) { const [x, y] = pt(C, C, (RH + RB) / 2, i * TAU / 20); g.circle(x, y, 4.5).fill(i % 2 ? 0xfff3cf : 0xffd36a).stroke(ink(1.5)); }
+    for (let k = -1; k <= 1; k++) { const s = new Graphics(); s.roundRect(-14, -18, 28, 36, 5).fill(0xfff8e8).stroke(ink(3));
+      s.poly([-7, -10, 8, -10, 8, -6, -1, 12, -6, 12, 2, -5, -7, -5]).fill(0xc8141f).stroke({ width: 1.5, color: 0x400a0e });
+      s.position.set(C + k * 32, C - RB - 12 + Math.abs(k) * 6); s.rotation = k * 0.18; g.addChild(s); } },
   halloween: g => { const r = add(g, new Graphics()), m = (RH + RB) / 2, w = RB - RH;
     for (let i = 0; i < 12; i++) arc(r, C, C, m, i * TAU / 12, (i + 1) * TAU / 12).stroke({ width: w, color: i % 2 ? 0x1d1226 : 0xe8741c });
     r.circle(C, C, RB).stroke(ink(4.5)).circle(C, C, RH).stroke(ink(4.5));

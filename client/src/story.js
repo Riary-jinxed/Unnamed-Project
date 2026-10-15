@@ -9,6 +9,7 @@ import { CARDS, GENERALS, ZONE_NAMES, renderLog } from '@jeu/engine';
 import { ARTS } from '@jeu/engine/arts';
 import { TITLES } from '@jeu/engine/rewards';
 import { t, tp, locale } from '@jeu/engine/i18n';
+import { QUEST_CHIPS, CASINO_QUEST } from '@jeu/engine/casino';
 import { LORE, NARRATOR, CARD_SHARDS, questById, isLimited, questTab, chapterDeck, foeDeck, castArt, castName, lineScene } from '@jeu/engine/story';
 
 const ROMAN = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V' };
@@ -125,7 +126,7 @@ export function createStory(app) {
   // ---- Récompenses ----
   function rewardChips(r) {
     const card = r.card && CARDS[r.card], art = r.art && ARTS[r.art];
-    return [r.shards ? `<span class="chip num">${ico('shard')}${r.shards}</span>` : '', r.prisms ? `<span class="chip num">${ico('prism')}${r.prisms}</span>` : '',
+    return [r.chips ? `<span class="chip num">${ico('jeton')}${t('{n} Jetons', { n: r.chips })}</span>` : '', r.shards ? `<span class="chip num">${ico('shard')}${r.shards}</span>` : '', r.prisms ? `<span class="chip num">${ico('prism')}${r.prisms}</span>` : '',
       r.xp ? `<span class="chip num">${r.xp} XP</span>` : '', r.boosters ? `<span class="chip">${tp(r.boosters, '{n} booster offert', '{n} boosters offerts')}</span>` : '',
       r.chests ? `<span class="chip">${ico('chest')}${tp(r.chests, '{n} coffre d\'arts', '{n} coffres d\'arts')}</span>` : '',
       card ? `<button class="chip sgift" data-zoom="${app.zoomKey(r.card)}">${t('Carte · {name}', { name: esc(card.name) })}</button>` : '',
@@ -175,7 +176,7 @@ export function createStory(app) {
   // ---- Écran : une quête ----
   const nextOf = I => Math.min(I.won, I.total - 1);
   function chapterHTML(q, I, i) {
-    const ch = q.chapters[i], won = i < I.won, locked = i > I.won, r = I.rewards[i] || {};
+    const ch = q.chapters[i], won = i < I.won, locked = i > I.won, r = { ...(I.rewards[i] || {}), ...(q.id === CASINO_QUEST && I.state === 'open' ? { chips: QUEST_CHIPS[i] } : {}) };
     const deck = chapterDeck(q, i), joined = q.chapters.slice(0, i).filter(c => c.join).map(c => CARDS[c.join.card].name);
     return `<div class="card-box schap" style="${famStyle(GENERALS[ch.foe.general]?.fam)}">
       <span class="eyebrow">${t('Chapitre {n} sur {total} · {place}', { n: i + 1, total: q.chapters.length, place: esc(t(ch.place)) })}</span><h2>${esc(t(ch.name))}</h2>
@@ -199,8 +200,12 @@ export function createStory(app) {
         <p class="sprologue">${esc(t(q.prologue))}</p>${note ? `<p class="hint" style="margin:0">${note}</p>` : ''}</div>
       ${mapHTML(q, I, sel)}
       <p class="hint num" style="margin:0">${I.won >= I.total ? t('Quête terminée ✓ : chaque chapitre peut se rejouer.') : tp(I.won, '{n} chapitre gagné sur {total}. Touchez une étape de la carte.', '{n} chapitres gagnés sur {total}. Touchez une étape de la carte.', { total: I.total })}</p>
-      ${chapterHTML(q, I, sel)}`;
+      ${chapterHTML(q, I, sel)}${q.id === CASINO_QUEST && I.state === 'open' ? casinoHTML(I) : ''}`;
   }
+  // Quête du casino : l'entrée du casino de l'événement (machine à sous, Quitte ou double après la quête, boutique en Jetons).
+  const casinoHTML = I => `<div class="card-box chead"><span class="eyebrow">${t('Événement · Casino du Sept d\'or')}</span>
+    <p style="margin:0">${t('Chaque chapitre gagné rapporte aussi des Jetons, à dépenser à la boutique du casino. La machine à sous se tire chaque jour, et Quitte ou double s\'ouvre à la fin de la quête.')}</p>
+    <button class="btn primary" data-act="casino" data-from="story">${I.won >= I.total ? t('Entrer au casino') : t('Voir le casino')}</button></div>`;
 
   function screen() {
     const q = S.sel && questById(S.sel), I = q && info(q.id);

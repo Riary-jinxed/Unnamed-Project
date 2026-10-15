@@ -186,6 +186,8 @@ export const FRAMES = {
   // Cadres des paliers des familles d'arts : ajoutés plus bas (ART_THEME_FRAMES).
   // Cadres du magasin du boss mondial (boss.js).
   ...Object.fromEntries(BOSS_FRAMES),
+  // Cadre de la boutique du casino, en Jetons (casino.js, CASINO_FRAME).
+  jackpot: 'Cadre du Jackpot',
   // Cadre du rayon Essence (ESSENCE_FRAME).
   essence_nebuleuse: 'Cadre de la nébuleuse',
 };
@@ -406,6 +408,8 @@ export const TITLES = Object.fromEntries([
   ...BOSS_TITLES,
   ...CLAN_BOSS_TITLES,
   ...STORY_TITLES,
+  // Boutique du casino, en Jetons (casino.js, CASINO_TITLE).
+  ['roi_tapis', 'Roi du tapis'],
   [WELCOME_TITLE, 'Recrue prometteuse'],
 ]);
 

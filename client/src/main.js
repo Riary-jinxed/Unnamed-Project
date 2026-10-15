@@ -24,6 +24,7 @@ import { createNotifs } from './notifs.js';
 import { createClan, crestHTML } from './clan.js';
 import { createBoss } from './boss.js';
 import { createStory } from './story.js';
+import { createCasino } from './casino.js';
 import { createHistory } from './history.js';
 import { themeShopHTML, themeEssenceHTML, themeLock, setThemeArt } from './themes.js';
 import { THEMES, EXTRA_THEMES } from '@jeu/engine/themes';
@@ -87,6 +88,10 @@ const boss = createBoss({ ui, render: () => render(), call: (...x) => call(...x)
 const story = createStory({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), ico: k => ico(k), play: (...x) => play(...x),
   anyCard: (...x) => anyCard(...x), zoomKey: (...x) => zoomKey(...x), rewardItem: r => rewardItem(r), setAccount: a => setAccount(a), go: (q, i) => goStory(q, i), quit: () => quit(),
   leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
+// Casino du Sept d'or (casino.js) : Jetons, machine à sous, Quitte ou double (joué dans la page, goCasino) et boutique de l'événement.
+const casino = createCasino({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), ico: k => ico(k), play: (...x) => play(...x),
+  avatarHTML: (...x) => avatarHTML(...x), gotArt: id => { ui.gotArt = { id }; ui.sheet = 'art'; render(); }, go: () => goCasino(), quit: () => quit(),
+  toStory: () => story.click('story', { quest: 'casino', tab: 'event' }), leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
 // Historique des parties (history.js) : onglet du profil et détail d'une partie.
 const gameHistory = createHistory({ ui, render: () => render(), zoomKey: (...x) => zoomKey(...x) });
 // Notifications push (notifs.js) : réglées dans le profil ; en toucher une ouvre l'écran qu'elle annonce.
@@ -205,6 +210,13 @@ function goStory(quest, i) {
     ui.ctrl = { ...ctrl, rematch: () => { story.rematched(); rematch(); } };
   });
 }
+// Quitte ou double (casino.js) : une table du casino contre l'IA, dans la page, avec le deck joué ; le serveur tient le pot.
+function goCasino() {
+  toTable(t('Le croupier distribue…'), () => {
+    ui.mode = 'casino'; ui.sheet = null; ui.lastTurn = 0; ui.soloReward = null; ui.error = '';
+    ui.ctrl = { ...startSolo(handlers, casino.gameOpts(ui.account.name)), rematch: null };
+  });
+}
 // Tutoriel : leçons guidées contre l'IA avec un deck fixé, sans deck du joueur ni récompense (tutorial.js).
 // Premier lancement : un compte qui n'a pas encore de deck de départ entre directement dans l'initiation, une fois par appareil.
 const tutoKey = () => `tuto-${ui.account?.login || ''}`;
@@ -263,7 +275,7 @@ function setAccount(a) {
   if (MENU.includes(ui.screen)) ui.screen = a.starter ? 'home' : 'starter';
 }
 function signedOut(msg = '') {
-  friends.stop(); clan.stop(); boss.stop(); story.stop();
+  friends.stop(); clan.stop(); boss.stop(); story.stop(); casino.stop();
   store.set('auth', null); ui.auth = null; ui.account = null; ui.screen = 'login'; ui.error = msg; ui.busy = false;
 }
 // Appel à l'API avec la session du joueur ; une session expirée renvoie à l'écran de connexion.
@@ -576,7 +588,7 @@ const gains = r => [r.xp ? `+${r.xp} XP` : '', r.shards ? t('+{n} Éclats', { n:
   r.chests ? tp(r.chests, '+{n} coffre d\'arts offert', '+{n} coffres d\'arts offerts') : '', r.boosters ? tp(r.boosters, '+{n} booster offert', '+{n} boosters offerts') : '',
   r.passXp ? t('+{n} XP de saison', { n: r.passXp }) : '', r.essence ? (r.essenceCard ? t('+{n} essence de {card}', { n: r.essence, card: nameOf(r.essenceCard) }) : t('+{n} essence', { n: r.essence })) : '',
   r.uniEssence ? t('+{n} essence universelle', { n: r.uniEssence }) : '', r.clanCoins ? tp(r.clanCoins, '+{n} Écu de clan', '+{n} Écus de clan') : '',
-  r.bossCoins ? tp(r.bossCoins, '+{n} Insigne', '+{n} Insignes') : ''].filter(Boolean).join(' · ');
+  r.bossCoins ? tp(r.bossCoins, '+{n} Insigne', '+{n} Insignes') : '', r.chips ? tp(r.chips, '+{n} Jeton du casino', '+{n} Jetons du casino') : ''].filter(Boolean).join(' · ');
 const titleLabel = id => t(prog().cosmetics.titles.find(x => x.id === id)?.label || '');
 // Missions du jour (qu'on peut changer) puis de la semaine, avec le bonus quand toutes celles de la semaine sont faites.
 const missionRow = (m, i, reroll) => `<div class="mission ${m.done ? 'done' : ''}">
@@ -813,7 +825,7 @@ function endRewardHTML() {
 }
 // Ce que l'écran de fin anime sur PixiJS (fx.js, setEnd) : les récompenses de la partie, une fois connues.
 function endReel() {
-  if (ui.sheet !== 'end' || ui.mode === 'tuto' || ui.mode === 'story' || !ui.view?.result || ui.view.boss) return null;
+  if (ui.sheet !== 'end' || ui.mode === 'tuto' || ui.mode === 'story' || ui.mode === 'casino' || !ui.view?.result || ui.view.boss) return null;
   const r = ui.mode === 'online' ? ui.view.reward : ui.soloReward; if (!r) return null;
   const w = ui.view.result.winner;
   return { key: JSON.stringify(r), reward: r, result: w === ui.view.seat ? 'win' : w < 0 ? 'tie' : 'lose' };
@@ -1166,7 +1178,7 @@ function renderGame() {
       <span class="n">${esc(d.name)}</span>${d.text ? `<span class="x">${rich(d.text)}</span>` : `<span class="k">${kwLine(d)}</span>`}${boss.handChip(v, c.id)}</button>`; }).join('');
   const canGen = play && g.activate && !m.generalUsed && m.seals >= (g.activateCost || 0);
   const goLabel = v.phase === 'reveal' ? t('Révélation…') : v.ready.me ? t('En attente…') : v.turn === v.turns ? t('Valider le dernier tour') : t('Valider le tour');
-  const mode = ui.mode === 'online' ? (v.boss ? (one ? t('Boss de clan') : t('Boss mondial')) : v.ranked ? t('Partie classée') : t('Partie {room}', { room: esc(ui.room || '') })) : ui.mode === 'tuto' ? t('Tutoriel') : ui.mode === 'story' ? esc(story.label()) : t('Contre l\'IA');
+  const mode = ui.mode === 'online' ? (v.boss ? (one ? t('Boss de clan') : t('Boss mondial')) : v.ranked ? t('Partie classée') : t('Partie {room}', { room: esc(ui.room || '') })) : ui.mode === 'tuto' ? t('Tutoriel') : ui.mode === 'story' ? esc(story.label()) : ui.mode === 'casino' ? esc(casino.label()) : t('Contre l\'IA');
   // Hors tutoriel, pas d'encadré d'info : une double touche ouvre la carte en grand, et un refus (zone pleine, sceaux) s'affiche en bulle au-dessus de la main.
   const toast = ui.msg ? `<div class="toast" role="alert">${esc(ui.msg)}</div>` : '';
   return `
@@ -1318,7 +1330,7 @@ function renderHome() {
     quick('learn', 'M4 5a1 1 0 0 1 1-1h5a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 5a1 1 0 0 0-1-1h-5a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', t('Apprendre'), t('Tuto, codex')),
   ].join('');
   const modes = [
-    story.tile(a), boss.tile(a),
+    story.tile(a), casino.tile(a), boss.tile(a),
     p.ranked ? `<button class="tile rtile" data-act="ranked"><span class="eyebrow">${t('Classé')}</span><b>${esc(t(p.ranked.seasonName))}</b>
       <span class="tile-foot">${rankHTML(p.ranked.rank)}</span></button>` : '',
     clan.tile(a),
@@ -2122,6 +2134,7 @@ function sheetHTML() {
   }
   if (ui.sheet === 'end' && ui.view?.result && ui.view.boss) return boss.endHTML(ui.view, ui.rematchAsked);
   if (ui.sheet === 'end' && ui.view?.result && ui.mode === 'story') return story.endHTML(ui.view);
+  if (ui.sheet === 'end' && ui.view?.result && ui.mode === 'casino') return casino.endHTML(ui.view);
   if (ui.sheet === 'end' && ui.view && ui.view.result) {
     const r = ui.view.result, s = ui.view.seat;
     const title = r.interrupted ? t('Partie interrompue') : r.winner === s ? t('Victoire') : r.winner < 0 ? t('Match nul') : t('Défaite');
@@ -2149,7 +2162,7 @@ function render() {
   const stx = app.querySelector('.shoptabs')?.scrollLeft || 0;
   // Défilement de la fenêtre ouverte, gardé quand elle se redessine (ex. : après une amélioration, en bas de la fiche).
   const sp = app.querySelector(':scope > .sheet .panel'); const sy = sp && ui.sheet === ui.shownSheet && ui.zoom?.id === ui.shownZoom ? sp.scrollTop : 0;
-  const screens = { lang: renderLang, loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, pass: renderPass, lobby: renderLobby, game: renderGame, friends: friends.screen, mail: mail.screen, news: news.screen, clan: clan.screen, boss: boss.screen, story: story.screen };
+  const screens = { lang: renderLang, loading: renderLoading, login: renderLogin, starter: renderStarter, home: renderHome, collection: renderCollection, shop: renderShop, deck: renderDeck, decks: renderDecks, profile: renderProfile, ranked: renderRanked, pass: renderPass, lobby: renderLobby, game: renderGame, friends: friends.screen, mail: mail.screen, news: news.screen, clan: clan.screen, boss: boss.screen, story: story.screen, casino: casino.screen };
   // Récompenses gagnées (niveau, missions, succès, familles et sets complétés) : affichées en revenant à l'accueil.
   if (ui.screen === 'home' && !ui.sheet && prog().inbox.length) ui.sheet = 'inbox';
   // Cadeau de bienvenue du jour pas encore récupéré : la bienvenue s'ouvre une fois par visite, avant le calendrier.
@@ -2500,8 +2513,9 @@ function leaveTable() {
   if (ui.ctrl) ui.ctrl.leave();
   store.set('session', null);
   // Un chapitre d'histoire ramène à la carte de sa quête.
-  const back = ui.mode === 'story' && ui.account?.starter ? 'story' : menuScreen();
+  const back = ui.mode === 'story' && ui.account?.starter ? 'story' : ui.mode === 'casino' && ui.account?.starter ? 'casino' : menuScreen();
   if (back === 'story') { ui.mode = null; story.reload(); }
+  if (back === 'casino') { ui.mode = null; casino.reload(); }
   ui.ctrl = null; ui.view = null; ui.friendFoe = null; ui.rankedAi = false; ui.bossRun = false; ui.screen = back; ui.sheet = null; ui.pending = []; ui.lastTurn = 0; ui.soloReward = null; render();
   // Le compte a pu changer pendant la partie (XP, Éclats, missions, succès).
   if (ui.auth) api('GET', '/api/me', undefined, ui.auth).then(r => { setAccount(r.account); render(); }).catch(() => {});
@@ -2549,7 +2563,7 @@ app.addEventListener('click', e => {
   if (ds.act) {
     const a = ds.act;
     if (a === 'friends' && ui.sheet === 'play-friend') { ui.sheet = null; ui.error = ''; }
-    if (friends.click(a, ds) || mail.click(a, ds) || news.click(a, ds) || clan.click(a, ds) || boss.click(a, ds) || story.click(a, ds) || gameHistory.click(a, ds) || notifs.click(a)) return;
+    if (friends.click(a, ds) || mail.click(a, ds) || news.click(a, ds) || clan.click(a, ds) || boss.click(a, ds) || story.click(a, ds) || casino.click(a, ds) || gameHistory.click(a, ds) || notifs.click(a)) return;
     if (a === 'close') closeSheet();
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }
@@ -2597,7 +2611,7 @@ app.addEventListener('click', e => {
     else if (a === 'shop-themes') openShop('themes');
     else if (a === 'try-theme') { ui.themeTry = ui.themeTry === ds.id ? null : ds.id; play('pick'); render(); }
     else if (a === 'buy-theme' && !ui.busy) { const x = EXTRA_THEMES[ds.id], go = () => buyTheme(ds.id); if (!x.price || !lacksShards(x.price, t('acheter'), go)) go(); }
-    else if (a === 'theme-where') openShop(ds.where);
+    else if (a === 'theme-where') { if (ds.where === 'casino') casino.open(); else openShop(ds.where); }
     else if (a === 'logout') doLogout();
     else if (a === 'retry') boot();
     else if (a === 'lang') chooseLang(ds.lang);

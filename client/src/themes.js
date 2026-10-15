@@ -26,7 +26,7 @@ export const themeCover = id => { const x = EXTRA_THEMES[id], art = themeArt(x.c
 // Bouton « Essayer » d'un thème pas encore possédé (main.js montre le thème tant que la boutique où il est vendu est affichée).
 export const tryThemeHTML = (ui, id) => { const on = ui.themeTry === id;
   return `<button class="btn" data-act="try-theme" data-id="${esc(id)}" aria-pressed="${on}">${on ? t('Arrêter l\'essai') : t('Essayer')}</button>`; };
-const WHERE = { essence: () => t('Au rayon Essence'), boss: () => t('Au magasin du boss mondial') };
+const WHERE = { essence: () => t('Au rayon Essence'), boss: () => t('Au magasin du boss mondial'), casino: () => t('À la boutique du casino') };
 
 // app : ce que main.js prête (ui, prog, ico, canPay).
 export function themeShopHTML(app) {
@@ -68,4 +68,5 @@ export const themeLock = id => { const x = EXTRA_THEMES[id]; if (!x) return t('�
   const where = themeShop(id);
   if (where === 'boss') return t('Au magasin du boss mondial, en Insignes');
   if (where === 'essence') return t('Au rayon Essence de la boutique');
+  if (where === 'casino') return t('À la boutique du casino, en Jetons, pendant l\'événement');
   if (where === 'themes') return t('En vente au rayon Thèmes de la boutique'); const w = wonBy(id); return w ? t('Succès : {label}', { label: t(w.label) }) : t('À débloquer'); };
