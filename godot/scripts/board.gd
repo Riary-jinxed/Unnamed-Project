@@ -63,6 +63,8 @@ var _time := 0.0
 var _pool_alpha := [0.0, 0.0, 0.0]
 var _shake := 0.0
 var _shake_amp := 0.0
+var _events: Array = []     # effets de l'étape en cours : { kind, cv, delta } (voir _play_events)
+var _just_revealed := {}    # uid → true : cartes retournées par cette étape
 
 
 func _ready() -> void:
@@ -287,17 +289,42 @@ func set_view(v: Dictionary) -> void:
 		plan_turn = turn
 	var old_me: Dictionary = _prev_me
 	_prev_me = me()
+	_events.clear()
+	_just_revealed.clear()
+	var zone_before := zones.map(func(zv): return [zv.my_power, zv.foe_power])
 	_sync_cards(first)
 	_place_cards(not first)
 	_update_zones(first)
 	_update_controls()
 	_update_log()
+	# Source de l'étape : la carte qui agit (flash du serveur), ou un général qui vient de se déclencher.
+	var src = null
+	var src_delay := 0.0
+	var src_col := Data.GOLD
 	if not first and not old_me.is_empty():
 		if bool(me().get("generalUsed", false)) and not bool(old_me.get("generalUsed", false)):
 			_sound("general", "general")
 			_general_fx(true)
+			src = _gen_center(true)
+			src_delay = 0.35
+			src_col = Data.fam_color(_general().get("fam"))
 	if not first and not prev.is_empty() and bool(foe().get("generalUsed", false)) and not bool(prev.get("foe", {}).get("generalUsed", false)):
 		_general_fx(false)
+		src = _gen_center(false)
+		src_delay = 0.35
+		src_col = Data.fam_color(Data.generals.get(str(foe().get("general", "")), {}).get("fam"))
+	var fl = v.get("flash")
+	if fl != null and cards.has(int(fl)) and src == null:
+		var scv: CardView = cards[int(fl)]
+		var t := _target_of(scv.get_meta("place"))
+		src = t.pos + t.size * 0.5
+		src_delay = 0.62 if _just_revealed.has(int(fl)) else 0.05
+		src_col = Data.fam_color(Data.card(scv.id).get("fam"))
+		if not _just_revealed.has(int(fl)) and not _events.is_empty():
+			_act_pulse(scv)
+		_events = _events.filter(func(ev): return ev.cv != scv)
+	if not first:
+		_play_events(src, src_delay, src_col, zone_before)
 	if phase != _last_phase or turn != _last_turn:
 		if phase == "reveal" and _last_phase == "plan":
 			_banner("Révélation", "Les cartes se retournent", Data.FOE)
@@ -413,6 +440,15 @@ func _sync_cards(quiet := false) -> void:
 				cv.rotation = -0.18 if not e.mine else 0.0
 				cv.set_meta("delay", 0.09 * deal_i)
 				deal_i += 1
+				if not quiet and bool(e.d.get("revealed", false)) and str(view.get("phase", "")) == "reveal":
+					# Invoquée par un effet : elle apparaît sur place (voir _impact, « summon »).
+					var t := _target_of(e)
+					cv.size = t.size
+					cv.position = t.pos
+					cv.rotation = 0.0
+					cv.pivot_offset = t.size * 0.5
+					cv.scale = Vector2(0.01, 0.01)
+					cv.set_meta("summon", true)
 		var was_face_down := cv.face_down
 		var had := was_revealed.has(uid)
 		cv.in_hand = e.where == "hand"
@@ -426,20 +462,21 @@ func _sync_cards(quiet := false) -> void:
 		cv.playable = e.where != "hand" or _affordable(e.d) or not _can_plan()
 		var now_revealed := bool(e.d.get("revealed", false))
 		if now_revealed and not had and not fresh:
+			_just_revealed[uid] = true
 			_reveal_fx(cv, was_face_down)
 			var spell: bool = Data.card(e.d.get("id", "")).get("type", "C") == "S"
 			_sound("spell" if spell else "reveal" if e.mine else "revealFoe", "spell" if spell else "place")
 			if cv.level >= 5:
 				_sound("astral", "astral")
 		elif now_revealed and had and last_power.has(uid) and e.d.get("power") != null and int(e.d.power) != int(last_power[uid]):
-			var delta := int(e.d.power) - int(last_power[uid])
-			_float_text(cv.position + Vector2(cv.size.x - 14, cv.size.y - 30), delta, Data.UP if delta > 0 else Data.DOWN)
-			if delta > 0:
-				_sound("up")
-			elif e.mine:
-				_sound("down")
-			else:
-				_sound("hit", "hit")
+			_events.append({"kind": "power", "cv": cv, "delta": int(e.d.power) - int(last_power[uid]), "mine": e.mine})
+		elif fresh and not quiet and e.where == "zone" and now_revealed:
+			# Créature invoquée pendant la révélation (jeton, œuf qui éclot…).
+			_events.append({"kind": "summon", "cv": cv})
+		elif fresh and not quiet and e.where == "hand" and str(view.get("phase", "")) == "reveal":
+			_events.append({"kind": "draw", "cv": cv})
+		elif not fresh and e.where == "zone" and now_revealed and cv.has_meta("place") and cv.get_meta("place").get("zone", -1) != e.zone and str(view.get("phase", "")) == "reveal":
+			_events.append({"kind": "move", "cv": cv})
 		if now_revealed:
 			was_revealed[uid] = true
 			last_power[uid] = e.d.get("power", 0)
@@ -451,7 +488,7 @@ func _sync_cards(quiet := false) -> void:
 			var gone: Dictionary = cv.get_meta("place")
 			if was_revealed.has(uid) and gone.where == "zone" and not quiet:
 				if Data.card(cv.id).get("type", "C") == "C":
-					_destroy_fx(cv)
+					_events.append({"kind": "destroy", "cv": cv})
 				else:
 					_spell_out(cv)
 			else:
@@ -490,7 +527,8 @@ func _place_cards(animate: bool) -> void:
 			tw.tween_property(cv, "position", t.pos, 0.38).set_delay(delay)
 			tw.tween_property(cv, "size", t.size, 0.38).set_delay(delay)
 			tw.tween_property(cv, "rotation", t.rot, 0.38).set_delay(delay)
-			tw.tween_property(cv, "scale", Vector2.ONE * t.scale, 0.18).set_delay(delay)
+			if not cv.has_meta("summon"):
+				tw.tween_property(cv, "scale", Vector2.ONE * t.scale, 0.18).set_delay(delay)
 		else:
 			cv.position = t.pos
 			cv.size = t.size
@@ -1056,6 +1094,106 @@ func _reveal_fx(cv: CardView, flip: bool) -> void:
 	tw.tween_callback(func(): cv.z_index -= 40)
 	cv.glow = 1.0
 	cv.create_tween().tween_property(cv, "glow", 0.0, 0.9).set_delay(0.35)
+
+
+## Effets d'une étape de la révélation : un projectile part de la source (carte qui agit, ou général) vers chaque cible,
+## puis l'effet joue à l'impact : chiffre de bonus ou de malus, destruction, invocation, déplacement, pioche.
+## Sans source connue (fin de tour, terrain), les effets jouent tout de suite.
+func _play_events(src, delay: float, col: Color, zone_before: Array) -> void:
+	var hit := delay
+	for ev in _events:
+		var cv: CardView = ev.cv
+		var to := cv.position + cv.size * 0.5
+		if ev.kind in ["draw", "summon", "move"]:
+			var t := _target_of(cv.get_meta("place"))
+			to = t.pos + t.size * 0.5
+		var kind: String = ev.kind
+		var c: Color = col
+		match kind:
+			"power": c = Data.UP if ev.delta > 0 else Data.DOWN
+			"destroy": c = Color("ff5a3c")
+		var travel := 0.0
+		if src != null and src.distance_to(to) > 20.0:
+			travel = clampf(src.distance_to(to) / 1400.0, 0.22, 0.42)
+			Fx.bolt(fx_layer, src, to, c, hit, travel, kind)
+		var at := hit + travel
+		get_tree().create_timer(maxf(at, 0.01)).timeout.connect(func(): _impact(ev))
+		if src != null:
+			hit += 0.07
+	# Zones dont la puissance change sans qu'une carte de la zone ne change : effet sur la zone (terrain, bonus de zone).
+	if src != null:
+		for z in 3:
+			var zv = zones[z]
+			for mine in [true, false]:
+				var before: int = zone_before[z][0 if mine else 1]
+				var now: int = zv.my_power if mine else zv.foe_power
+				if before == now:
+					continue
+				var explained := _events.any(func(ev): return ev.cv.get_meta("place").get("zone", -1) == z and ev.cv.get_meta("place").get("mine", false) == mine)
+				if not explained:
+					var to: Vector2 = zv.position + zv.power_pos(mine)
+					Fx.bolt(fx_layer, src, to, Data.UP if now > before else Data.DOWN, hit, 0.3, "zone")
+					hit += 0.07
+
+
+func _impact(ev: Dictionary) -> void:
+	var cv: CardView = ev.cv
+	if not is_instance_valid(cv):
+		return
+	match str(ev.kind):
+		"power":
+			var d: int = ev.delta
+			_float_text(cv.position + Vector2(cv.size.x - 14, cv.size.y - 30), d, Data.UP if d > 0 else Data.DOWN)
+			Fx.aura(fx_layer, cv.position + cv.size * 0.5, cv.size, Data.UP if d > 0 else Data.DOWN, d > 0)
+			cv.pivot_offset = cv.size * 0.5
+			var tw := cv.create_tween()
+			tw.tween_property(cv, "scale", Vector2(1.12, 1.12) if d > 0 else Vector2(0.92, 0.92), 0.1)
+			tw.tween_property(cv, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			if d < 0:
+				var x0 := cv.position.x
+				var sh := cv.create_tween()
+				for i in 4:
+					sh.tween_property(cv, "position:x", x0 + (6 if i % 2 == 0 else -6), 0.04)
+				sh.tween_property(cv, "position:x", x0, 0.04)
+			if d > 0:
+				Sfx.play("up")
+			elif ev.mine:
+				Sfx.play("down")
+			else:
+				Sfx.play("hit")
+				Sfx.feel("hit")
+		"destroy":
+			_destroy_fx(cv)
+			_flush_sounds()
+		"summon":
+			var c := Data.fam_color(Data.card(cv.id).get("fam"))
+			var t := _target_of(cv.get_meta("place"))
+			Fx.summon(fx_layer, t.pos + t.size * 0.5, t.size, c)
+			cv.remove_meta("summon")
+			cv.pivot_offset = t.size * 0.5
+			var tw := cv.create_tween()
+			tw.tween_property(cv, "scale", Vector2(1.15, 1.15), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tw.tween_property(cv, "scale", Vector2.ONE, 0.2)
+			Sfx.play("spell")
+		"draw":
+			Sfx.play("draw")
+		"move":
+			_dust(cv)
+
+
+## La carte qui agit se soulève un instant et brille avant de lancer son effet.
+func _act_pulse(cv: CardView) -> void:
+	cv.pivot_offset = cv.size * 0.5
+	var tw := cv.create_tween()
+	tw.tween_property(cv, "scale", Vector2(1.15, 1.15), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(cv, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	cv.glow = 1.0
+	cv.create_tween().tween_property(cv, "glow", 0.0, 0.6)
+
+
+func _gen_center(mine: bool) -> Vector2:
+	var r := _gen_rect(mine)
+	return r.position + Vector2(r.size.y * 0.36 + 10, r.size.y * 0.5)
 
 
 ## Créature détruite : elle pâlit, penche, tombe et rétrécit ; éclats, étincelles orange et petit tremblement.

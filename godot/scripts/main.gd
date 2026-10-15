@@ -30,6 +30,9 @@ func _ready() -> void:
 		DirAccess.make_dir_recursive_absolute(_frames_dir)
 	if args.has("shots"):
 		DirAccess.make_dir_recursive_absolute(str(args.shots))
+	if args.has("quit"):
+		# Essais sans écran : on s'arrête quoi qu'il arrive (serveur absent, partie bloquée).
+		get_tree().create_timer(240.0).timeout.connect(get_tree().quit)
 	Net.message.connect(_on_message)
 	Net.closed.connect(_reconnect)
 	Net.server = str(Sfx.cfg.get_value("compte", "serveur", Net.server)) if not args.has("server") else Net.server

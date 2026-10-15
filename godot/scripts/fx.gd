@@ -416,3 +416,139 @@ class Tilt extends Node:
 		if e is InputEventMouseMotion and _touch_on:
 			var d: Vector2 = (e.position - r.get_center()) / (r.size * 0.5)
 			_touch = Vector2(clampf(d.x, -1, 1), clampf(d.y, -1, 1))
+
+
+## Projectile d'effet : une boule de lumière part de la carte qui agit, suit un arc et frappe la cible (petit éclat à l'impact).
+static func bolt(parent: Node, from: Vector2, to: Vector2, col: Color, delay: float, travel: float, kind := "") -> void:
+	var b := Bolt.new()
+	b.from = from
+	b.to = to
+	b.col = col
+	b.big = kind == "destroy"
+	parent.add_child(b)
+	b.visible = false
+	var tw := b.create_tween()
+	tw.tween_interval(delay)
+	tw.tween_callback(func(): b.visible = true)
+	tw.tween_property(b, "t", 1.0, travel).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func():
+		var p := _burst(parent, to, 10, 0.45)
+		p.spread = 180
+		p.initial_velocity_min = 60
+		p.initial_velocity_max = 160
+		p.gravity = Vector2.ZERO
+		p.damping_min = 150
+		p.damping_max = 220
+		p.scale_amount_min = 0.5
+		p.scale_amount_max = 0.9
+		p.color_ramp = _fade(col, true)
+		ring(parent, to, Vector2(26, 26), Color(col.lightened(0.3), 0.9), 0.3))
+	tw.tween_property(b, "fade", 1.0, 0.25)
+	tw.tween_callback(b.queue_free)
+
+
+class Bolt extends Node2D:
+	var from := Vector2.ZERO
+	var to := Vector2.ZERO
+	var col := Color.WHITE
+	var big := false
+	var fade := 0.0:
+		set(v):
+			fade = v
+			queue_redraw()
+	var t := 0.0:
+		set(v):
+			t = v
+			queue_redraw()
+
+	func _point(k: float) -> Vector2:
+		# Arc : le point de contrôle est décalé sur le côté du trajet, vers le haut.
+		var mid := (from + to) * 0.5
+		var n := (to - from).orthogonal().normalized()
+		if n.y > 0:
+			n = -n
+		var ctrl := mid + n * clampf(from.distance_to(to) * 0.3, 30.0, 160.0)
+		return from.lerp(ctrl, k).lerp(ctrl.lerp(to, k), k)
+
+	func _draw() -> void:
+		var a := 1.0 - fade
+		# Traînée : la fin du trajet parcouru, de plus en plus fine et transparente.
+		var steps := 14
+		var prev := _point(maxf(t - 0.35, 0.0))
+		for i in range(1, steps + 1):
+			var k := maxf(t - 0.35, 0.0) + (t - maxf(t - 0.35, 0.0)) * i / steps
+			var p := _point(k)
+			var w := (2.0 + (6.0 if big else 4.0) * i / steps)
+			draw_line(prev, p, Color(col, a * 0.75 * i / steps), w, true)
+			prev = p
+		if fade > 0.0:
+			return
+		var head := _point(t)
+		var r := 11.0 if big else 8.0
+		draw_circle(head, r * 2.2, Color(col, 0.18), true, -1.0, true)
+		draw_circle(head, r * 1.4, Color(col, 0.4), true, -1.0, true)
+		draw_circle(head, r, col.lightened(0.4), true, -1.0, true)
+		draw_circle(head, r * 0.5, Color(1, 1, 1, 0.95), true, -1.0, true)
+
+
+## Aura sur une carte touchée : étincelles qui montent (bonus) ou fumée sombre qui retombe (malus).
+static func aura(parent: Node, at: Vector2, size: Vector2, col: Color, up: bool) -> void:
+	var p := _burst(parent, at + Vector2(0, size.y * (0.3 if up else -0.2)), 16, 0.9)
+	p.explosiveness = 0.7
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = Vector2(size.x * 0.45, size.y * 0.15)
+	p.direction = Vector2(0, -1) if up else Vector2(0, 1)
+	p.spread = 15
+	p.initial_velocity_min = 40 if up else 20
+	p.initial_velocity_max = 110 if up else 60
+	p.gravity = Vector2(0, -40 if up else 60)
+	p.scale_amount_min = 0.5
+	p.scale_amount_max = 1.0 if up else 1.6
+	if up:
+		p.color_ramp = _fade(col, false)
+	else:
+		var g := Gradient.new()
+		g.set_color(0, Color(col, 0.8))
+		g.set_color(1, Color(0.16, 0.1, 0.19, 0.0))
+		p.color_ramp = g
+
+
+## Invocation : cercle magique qui tourne et grandit sous la carte, colonne d'étincelles.
+static func summon(parent: Node, at: Vector2, size: Vector2, col: Color) -> void:
+	var c := Circle.new()
+	c.position = at
+	c.radius = size.x * 0.7
+	c.col = col
+	parent.add_child(c)
+	var tw := c.create_tween()
+	tw.tween_property(c, "t", 1.0, 0.9)
+	tw.tween_callback(c.queue_free)
+	rise(parent, at, size, col)
+
+
+class Circle extends Node2D:
+	var radius := 60.0
+	var col := Color.WHITE
+	var t := 0.0:
+		set(v):
+			t = v
+			rotation = t * 2.0
+			queue_redraw()
+
+	func _draw() -> void:
+		var grow := minf(t / 0.3, 1.0)
+		var a := 1.0 - clampf((t - 0.6) / 0.4, 0.0, 1.0)
+		var r := radius * (0.4 + 0.6 * grow)
+		draw_arc(Vector2.ZERO, r, 0, TAU, 48, Color(col, 0.9 * a), 2.5, true)
+		draw_arc(Vector2.ZERO, r * 0.78, 0, TAU, 48, Color(col, 0.6 * a), 1.5, true)
+		# Six runes (losanges) entre les deux cercles, et une étoile au centre.
+		for i in 6:
+			var ang := TAU * i / 6.0
+			var p := Vector2(cos(ang), sin(ang)) * r * 0.89
+			var d := r * 0.07
+			draw_colored_polygon(PackedVector2Array([p + Vector2(0, -d), p + Vector2(d, 0), p + Vector2(0, d), p + Vector2(-d, 0)]), Color(col.lightened(0.3), a))
+		var star := PackedVector2Array()
+		for k in 7:
+			var ang := -PI / 2 + k * TAU * 2.0 / 6.0
+			star.append(Vector2(cos(ang), sin(ang)) * r * 0.7)
+		draw_polyline(star, Color(col, 0.5 * a), 1.5, true)
