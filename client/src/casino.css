@@ -53,7 +53,7 @@
 @keyframes reelSpin { from { transform: translateY(0); } to { transform: translateY(calc(var(--n) * var(--sym) * -1)); } }
 .sym { height: var(--sym); display: grid; place-items: center; font-family: Georgia, serif; font-size: calc(var(--sym) * .56); line-height: 1; color: #1d1d1d; }
 .sym.red { color: #b8202a; }
-.sym.bar { font-family: var(--display); font-size: calc(var(--sym) * .32); letter-spacing: .04em; }
+.sym.sym-bar { font-family: var(--display); font-size: calc(var(--sym) * .32); letter-spacing: .04em; }
 .sym.seven { color: #c8141f; font-weight: 700; text-shadow: 0 2px 0 #e3b552; }
 .slot-win { min-height: 1.4em; margin-top: -4px; font-size: 14px; text-align: center; }
 .slot-win.won b { color: var(--gold, #e3b552); font-size: 15px; }

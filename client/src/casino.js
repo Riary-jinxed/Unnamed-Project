@@ -16,7 +16,8 @@ import './casino.css';
 const frDate = d => new Date(`${d}T12:00:00Z`).toLocaleDateString(locale(), { day: 'numeric', month: 'long', timeZone: 'UTC' });
 // Machine à sous : hauteur d'un symbole (casino.css, --sym) et durée de rotation de chaque rouleau (ms).
 const SYM = 64, SPIN_MS = [1100, 1500, 1900], STRIP = 16;
-const symHTML = s => `<b class="sym ${s === '7' ? 'seven' : s === 'BAR' ? 'bar' : '♥♦'.includes(s) ? 'red' : ''}">${esc(s)}</b>`;
+// sym-bar et non bar : .bar est déjà la barre de progression de style.css (8 px de haut), qui écrasait le symbole BAR.
+const symHTML = s => `<b class="sym ${s === '7' ? 'seven' : s === 'BAR' ? 'sym-bar' : '♥♦'.includes(s) ? 'red' : ''}">${esc(s)}</b>`;
 
 // app : ce que main.js prête (ui, render, call, errLine, ico, play, avatarHTML, gotArt, go : lance une table, quit, toStory).
 export function createCasino(app) {
