@@ -224,31 +224,33 @@ instrumental halloween boss battle theme for a card game, the pumpkin king's mad
 
 ## 9. Boss de l'Éclipse (`boss-eclipse`)
 
-Ignaroth sous l'éclipse, dans le style du thème de Heolstor (Elden Ring Nightreign), lui-même proche de celui de Gael (Dark Souls III). Ce qui fait ce style : une ouverture à la harpe seule, belle et désolée ; des cordes qui montent en crescendo et installent le rythme ; puis des cordes bondissantes et frénétiques à trois temps, un grand chœur mixte majestueux et des cuivres, tragique plus que brutal. Pas d'orgue ni de cloches au premier plan, pas de percussions modernes. Ne pas écrire le nom des jeux dans Suno : il refuse les références à des œuvres existantes. Titre : « Soleil noir ».
+Ignaroth sous l'éclipse, dans le style du thème de Heolstor (Elden Ring Nightreign) : ça commence comme une berceuse jouée par une boîte à musique, fragile et un peu inquiétante, puis tout éclate en un grand final gothique (cordes frénétiques, chœur massif, cuivres), tragique plus que brutal. Ne pas écrire le nom des jeux dans Suno : il refuse les références à des œuvres existantes. Titre : « Berceuse du soleil noir ».
 
-Style :
-
-```
-tragic dark fantasy final boss orchestral theme, live symphony orchestra and large mixed choir, opens with a lonely solo harp and a mournful solo violin, beautiful and forlorn, slow strings crescendo building the rhythm, then a frantic galloping string ostinato in 6/8, prancing violins, majestic wordless choir in latin-like syllables, heroic horns and trombones, timpani rolls, melancholic minor key, sorrowful grandeur of a fallen god, cinematic, no electronic sounds, no modern drums, no guitar
-```
-
-Paroles (le champ des paroles sert ici à poser la structure ; Instrumental désactivé) :
+Style (Instrumental désactivé) :
 
 ```
-[Intro: solo harp, soft violin, forlorn]
+dark fantasy final boss orchestral theme, begins as a fragile music box lullaby, delicate celesta and music box melody in 3/4, soft solo harp, eerie and innocent, the lullaby melody slowly warps, then suddenly explodes into a full gothic symphony orchestra and huge mixed choir, the same lullaby melody played fortissimo by choir and brass, frantic galloping strings, thundering timpani, tragic minor key, sorrowful grandeur of a fallen god under a black sun, cinematic, no electronic sounds, no modern drums, no guitar
+```
 
-[Build: strings crescendo, choir enters softly]
+Paroles (elles posent juste la structure) :
 
-[Main theme: frantic galloping strings, full choir, brass]
+```
+[Intro: music box lullaby, celesta, soft harp, fragile and eerie]
 
-[Instrumental break: prancing violins, timpani]
+[Verse: lullaby continues, a lone violin joins, the melody slowly warps]
+
+[Break: sudden silence, one deep timpani hit]
+
+[Climax: explosion, full orchestra and choir play the lullaby melody fortissimo]
+
+[Main theme: frantic galloping strings, full choir, heroic brass]
+
+[Bridge: music box melody returns over dark strings]
 
 [Climax: full orchestra and choir, tragic and majestic]
-
-[Main theme: frantic galloping strings, full choir, brass]
 ```
 
-Garder la version qui monte vite : l'intro à la harpe sera raccourcie au montage (au moment du découpage, je ne garde que 5 à 10 secondes avant la montée, et la boucle repart sur la partie rapide). Si Suno chante de vrais mots, ajouter `choir vowels only, aah ooh` au style. Trop lent : ajouter `fast tempo 160 bpm, relentless`.
+Garder la version où l'explosion arrive le plus nettement. Si le chœur chante de vrais mots, ajouter `choir vowels only, aah ooh` au style. Si l'explosion manque de force : ajouter `massive dynamic contrast, epic orchestral explosion`.
 
 ## 10. Boss de Néon 2099 (`boss-neon`)
 
