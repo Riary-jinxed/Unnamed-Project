@@ -58,8 +58,27 @@ Partie :
 instrumental cyberpunk tactical battle ambience for a card game match, pulsing dark synth bass ostinato, glitchy percussion, tense string synth pads, digital blips and data sounds, focused hacking mood, 110 bpm, restrained dynamics, no drop, seamless loop, background game music, no vocals
 ```
 
+## 6. Boss final (`boss-final`)
+
+Le dernier chapitre de chaque quête : Vael'Thar dans les Monts d'Or, Morgrath au fond des Fosses, Séraphine devant le Septième Sceau, puis les boss des quêtes d'événement. Ici, et seulement ici, la musique a le droit de monter : c'est l'affrontement qu'on attendait depuis le début de la quête. Elle doit rester épique sans couvrir les bruitages, et tourner en boucle pendant toute la partie. Titre : « Le Septième Sceau ».
+
+```
+instrumental epic dark fantasy final boss battle theme for a card game, apocalyptic and heroic, full orchestra, driving low strings ostinato, massive taiko and war drums, pounding timpani, brass fanfare motif in minor key, wordless epic choir pads (aah, ooh, no lyrics), pipe organ swells, tolling bells, celestial harp glints against demonic low brass, rising tension, relentless, 140 bpm, constant intensity without a final ending, seamless loop, background game music, no vocals
+```
+
+Si Suno chante malgré tout : retirer `wordless epic choir pads` et ajouter `choir` à Exclure.
+
+## 7. Boss mondial (`boss-mondial`, facultatif)
+
+Le boss de la semaine. Sans ce morceau, le boss mondial joue le boss final : ne le faire que pour les distinguer. Plus menaçant que dramatique : une créature immense qui frappe à chaque tour. Titre : « Le Colosse de la semaine ».
+
+```
+instrumental ominous colossal monster battle theme for a card game, heavy and menacing, deep brass stabs, low cello and contrabass riffs, booming taiko and anvil hits, dissonant horn calls, dark synth sub drones, tribal war drums, relentless pulse, 128 bpm, steady intensity without climax or drop, seamless loop, background game music, no vocals
+```
+
 ## Si un morceau ne plaît pas
 
+- Boss pas assez épique : ajouter `cinematic trailer intensity, huge percussion` ; trop chargé, ajouter `fewer layers, clear melody`.
 - Trop agité : ajouter `calm, sparse, minimal percussion` au début du style.
 - Trop triste : ajouter `hopeful, major key`.
 - Trop « film » : ajouter `lo-fi, intimate, small ensemble`.

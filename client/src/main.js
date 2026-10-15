@@ -2150,9 +2150,15 @@ function uiTheme() {
   return currentSeason(today())?.theme || '';
 }
 // Musique de l'écran : la partie ou les menus, dans la version du thème affiché si elle existe (music.js).
+// Contre un boss, sa musique passe avant le thème : le boss final d'une quête (dernier chapitre) et le boss mondial,
+// qui reprend celle du boss final tant qu'il n'a pas la sienne.
 function musicFor() {
   const scene = ui.screen === 'game' ? 'partie' : 'menu', theme = document.body.dataset.season;
-  return theme ? [`${scene}-${theme}`, scene] : [scene];
+  const list = theme ? [`${scene}-${theme}`, scene] : [scene];
+  if (scene !== 'partie') return list;
+  if (ui.mode === 'story' && story.finale()) return ['boss-final', ...list];
+  if (ui.bossRun || ui.view?.boss) return ['boss-mondial', 'boss-final', ...list];
+  return list;
 }
 
 // ---- Animations et bruitages ----
