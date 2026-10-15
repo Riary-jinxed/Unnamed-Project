@@ -352,10 +352,10 @@ const SPELLS_LESSON = {
 };
 
 // Rien ne va plus : le dé tombe toujours pareil (dice : 4 pour la Joueuse). Le Croupier pipe le dé de Quitte ou double (6),
-// les Cartes biseautées font piocher le Sept des Fosses, et les 3 Sept en jeu au tour 5 déclenchent le Jackpot.
+// le Sept de pique pipe celui du Sept de trèfle, les Cartes biseautées font piocher le Sept de carreau, et les 3 Sept en jeu au tour 5 déclenchent le Jackpot.
 const BETS_LESSON = {
   title: t('Dés, triche et Jackpot'), turns: 5, noGeneral: true, noTerrain: true, dice: [4],
-  me: { general: 'erudit', hand: 3, order: ['joueuse_des', 'croupier', 'sept_pillards', 'quitte_double', 'sept_sylves', 'cartes_biseautees', 'chevalier', 'golem', 'sept_fosses'], terrains: [] },
+  me: { general: 'erudit', hand: 3, order: ['joueuse_des', 'croupier', 'sept_pique', 'quitte_double', 'sept_trefle', 'cartes_biseautees', 'chevalier', 'golem', 'sept_carreau'], terrains: [] },
   foe: { general: 'cartographe', hand: 3, order: ['eclaireuse', 'mercenaire', 'chevalier', 'barde', 'golem', 'potion', 'cerf'], terrains: [],
     plays: { 1: [['eclaireuse', 2]], 2: [['mercenaire', 0]], 3: [['chevalier', 1]], 4: [['barde', 2]], 5: [['golem', 0]] } },
   steps: [
@@ -368,21 +368,21 @@ const BETS_LESSON = {
       text: t('Le Croupier triche : à sa révélation, votre **prochain dé** fera 6, sans être lancé. Posez-le à Gauche.') },
     { go: true, text: t('Validez le tour.') },
 
-    { turn: 3, hl: () => [card('sept_pillards'), zone(2)], drag: () => [card('sept_pillards'), zone(2)], done: t => t.pend('sept_pillards'),
-      text: t('Voici un **Sept**. Il y en a trois, un par famille de départ : Pillards (Gobelin), Sylves (Elfe) et Fosses (Démon). Quand les 3 sont en jeu en même temps, c\'est le **Jackpot**. Posez le Sept des Pillards à Droite.') },
+    { turn: 3, hl: () => [card('sept_pique'), zone(2)], drag: () => [card('sept_pique'), zone(2)], done: t => t.pend('sept_pique'),
+      text: t('Voici un **Sept**. Il y en a trois : pique, trèfle et carreau. Quand les 3 sont en jeu en même temps, c\'est le **Jackpot**. Le Sept de pique pipe aussi votre prochain dé. Posez-le à Droite.') },
     { hl: t => [card('quitte_double'), zone(t.zoneOf('joueuse_des'))], drag: t => [card('quitte_double'), zone(t.zoneOf('joueuse_des'))], done: t => t.together('quitte_double', 'joueuse_des'),
       text: t('Quitte ou double parie sur votre créature la plus puissante de sa zone. Grâce au Croupier, son dé fera 6 : la Joueuse doublera sa puissance. Posez-le avec la Joueuse.') },
     { go: true, text: t('Validez le tour.') },
 
     { info: true, turn: 4, hl: '.mc[data-id="joueuse_des"]', text: t('6 : la Joueuse est passée de 3 à 6. Le dé pipé ne rate jamais.') },
-    { hl: () => [card('sept_sylves'), zone(0)], drag: () => [card('sept_sylves'), zone(0)], done: t => t.pend('sept_sylves'),
-      text: t('Deuxième Sept : posez le Sept des Sylves à Gauche.') },
+    { hl: () => [card('sept_trefle'), zone(0)], drag: () => [card('sept_trefle'), zone(0)], done: t => t.pend('sept_trefle'),
+      text: t('Deuxième Sept : le Sept de trèfle a Pari, et le Sept de pique a pipé son dé. Posez-le à Gauche.') },
     { hl: () => [card('cartes_biseautees'), zone(0)], drag: () => [card('cartes_biseautees'), zone(0)], done: t => t.pend('cartes_biseautees'),
       text: t('On peut aussi tricher sur le deck : les Cartes biseautées vous font piocher un Sept, celui qui vous manque. Posez-les à Gauche.') },
-    { go: true, text: t('Validez le tour : le Sept des Fosses arrivera dans votre main.') },
+    { go: true, text: t('Validez le tour : le Sept de carreau arrivera dans votre main.') },
 
-    { turn: 5, hl: t => [card('sept_fosses'), zone(t.weakest())], drag: t => [card('sept_fosses'), zone(t.weakest())], done: t => t.pend('sept_fosses'),
-      text: t('Le dernier Sept ! Posez le Sept des Fosses où vous voulez : à sa révélation, vos 3 Sept seront en jeu.') },
+    { turn: 5, hl: t => [card('sept_carreau'), zone(t.weakest())], drag: t => [card('sept_carreau'), zone(t.weakest())], done: t => t.pend('sept_carreau'),
+      text: t('Le dernier Sept ! Posez le Sept de carreau où vous voulez : à sa révélation, vos 3 Sept seront en jeu, et le Jackpot lui donnera +4.') },
     { free: true, text: t('Il vous reste 1 sceau : posez une autre carte si vous voulez, puis validez et regardez la machine à sous.') },
   ],
   end: t('Leçon finie : un Pari, c\'est un dé à 6 faces. Les cartes qui trichent pipent le dé ou le deck, et vos 3 Sept en jeu déclenchent le Jackpot : vos créatures gagnent +2.'),

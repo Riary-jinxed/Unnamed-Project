@@ -37,7 +37,7 @@ export function createHistory(app) {
   const cardChip = id => {
     const d = CARDS[id] || GENERALS[id];
     if (!d) return `<span class="chip hcard">${esc(id)}</span>`;
-    return `<button class="chip hcard" style="${famStyle(CARDS[id]?.kw?.[0] || GENERALS[id]?.fam)}" data-zoom="${app.zoomKey(id)}">${esc(d.name)}</button>`;
+    return `<button class="chip hcard" style="${famStyle(CARDS[id]?.effigy || CARDS[id]?.kw?.[0] || GENERALS[id]?.fam)}" data-zoom="${app.zoomKey(id)}">${esc(d.name)}</button>`;
   };
   const tile = (label, value, sub = '') => `<div class="stat"><span class="eyebrow">${label}</span><b class="num">${value}</b>${sub ? `<small class="hint num">${sub}</small>` : ''}</div>`;
   const recLine = r => `${tp(r.games, '{n} partie', '{n} parties')} · ${r.wins} ${W1} · ${r.losses} ${L1}${r.draws ? ` · ${r.draws} ${D1}` : ''}`;

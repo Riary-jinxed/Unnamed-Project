@@ -46,6 +46,8 @@ import { SEASONS, PASS_TIERS, SEASON_THEMES, seasonOfCard, seasonStarted, season
 import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName, chestPool, MAX_FAV_ARTS } from '@jeu/engine/arts';
 
 const famVar = kw => famStyle(kw[0]);
+// Couleur et emblème d'une carte : sa famille, ou la famille dont elle porte l'effigie (les Sept, neutres).
+const effigyKw = d => (d.effigy ? [d.effigy] : d.kw);
 const kwLine = d => (d.token ? `${t('Jeton')} · ` : '') + (d.kw.map(k => t(k)).join(' · ') || t('Neutre'));
 const typeName = d => d.type === 'C' ? t('Créature') : t('Sort');
 const costLabel = (d, cost) => d.x ? 'X' : cost ?? d.cost;
@@ -497,7 +499,7 @@ const winTiles = st => `<div class="stats">${winTile(t('Toutes les parties'), st
 function smallCard(c) {
   const d = CARDS[c.id], g = GENERALS[c.id], name = (d || g).name;
   const p = g ? `<span class="p sm">${t('Général')}</span>` : d.type === 'C' ? `<span class="p num">${d.power}</span>` : `<span class="p sm">${t('Sort')}</span>`;
-  return `<button class="mc topmc${lvCls(c.border || c.level)}" style="${famVar(g ? [g.fam] : d.kw)}" data-zoom="${zoomKey(c.id, c.art || '')}" aria-label="${t('{name} : voir en grand', { name: esc(name) })}">
+  return `<button class="mc topmc${lvCls(c.border || c.level)}" style="${famVar(g ? [g.fam] : effigyKw(d))}" data-zoom="${zoomKey(c.id, c.art || '')}" aria-label="${t('{name} : voir en grand', { name: esc(name) })}">
     ${artBg(c.id, c.art)}<span class="n">${esc(name)}</span>${p}</button>`;
 }
 const topCard = (c, n) => `<div class="topcard">${smallCard(c)}<small class="hint num">${n}</small></div>`;
@@ -991,7 +993,7 @@ function miniCard(c, opts = {}) {
   const mv = opts.mine && ui.view.phase === 'plan' && moveOf(c.uid);
   const mobile = opts.mine && c.mobile && canPlay();
   const seat = opts.mine || opts.pending ? ui.view.seat : 1 - ui.view.seat, lv = lvCls(borderIn(seat, c.id));
-  return `<div class="mc${lv} ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.drag === c.uid ? 'dragging' : ''}" style="${famVar(d.kw)}"
+  return `<div class="mc${lv} ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.drag === c.uid ? 'dragging' : ''}" style="${famVar(effigyKw(d))}"
     data-card="${c.uid}" data-id="${c.id}" ${opts.pending ? 'data-pending="1"' : ''} ${mobile ? 'data-mobile="1"' : ''} title="${esc(d.name)}">
     ${artBg(c.id, artIn(seat, c.id))}${mv ? `<span class="mv" title="${t('Déplacée depuis {zone}', { zone: t(ZONE_NAMES[boardZone(c.uid)]) })}" aria-label="${t('Déplacée depuis {zone}', { zone: t(ZONE_NAMES[boardZone(c.uid)]) })}">⇄</span>` : mobile ? `<span class="mv" aria-label="${t('Déplaçable')}">⇄</span>` : ''}
     <span class="n">${esc(d.name)}</span>${d.type === 'C' ? `<span class="p num ${cls}">${pw}</span>` : `<span class="p" style="font-size:12px">${t('Sort')}</span>`}</div>`;
@@ -1139,7 +1141,7 @@ function renderGame() {
   const hand = (planning ? handLeft() : m.hand).map(c => { const d = CARDS[c.id];
     const cant = d.x ? seals <= 0 : c.cost > seals;
     const pcls = c.power > d.power ? 'up' : c.power < d.power ? 'down' : '';
-    return `<button class="hc${lvCls(myBorder(c.id))} ${ui.sel === c.uid ? 'sel' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${cant ? 'cant' : ''}" style="${famVar(d.kw)}" data-hand="${c.uid}" data-id="${c.id}">${artBg(c.id, mySel(c.id))}
+    return `<button class="hc${lvCls(myBorder(c.id))} ${ui.sel === c.uid ? 'sel' : ''} ${ui.drag === c.uid ? 'dragging' : ''} ${cant ? 'cant' : ''}" style="${famVar(effigyKw(d))}" data-hand="${c.uid}" data-id="${c.id}">${artBg(c.id, mySel(c.id))}
       <span class="top2"><span class="seal">${costLabel(d, c.cost)}</span>${d.type === 'C' ? `<span class="p num ${pcls}">${c.power}</span>` : `<span class="t">${t('Sort')}</span>`}</span>
       <span class="n">${esc(d.name)}</span>${d.text ? `<span class="x">${rich(d.text)}</span>` : `<span class="k">${kwLine(d)}</span>`}${boss.handChip(v, c.id)}</button>`; }).join('');
   const canGen = play && g.activate && !m.generalUsed && m.seals >= (g.activateCost || 0);
@@ -1412,7 +1414,7 @@ function renderShop() {
   const offers = set => vitrineHTML({ title: t('Sélection du jour'), sub: t('Cartes à l\'unité'), key: `set-${set.id}`, slots: set.offers.map(o => {
     const d = CARDS[o.id], gen = GENERALS[o.id], name = esc(nameOf(o.id));
     return { art: artHTML(o.id, nameOf(o.id)), zoom: zoomKey(o.id), name, caption: false, sub: gen ? t('Général · {kind}', { kind: esc(t(gen.kind)) }) : `${typeName(d)} · ${kwLine(d)}`, cost: gen ? null : d.x ? 'X' : d.cost,
-      style: `${famVar(gen ? [gen.fam] : d.kw)};--glow:var(--fam)`, badge: o.owned || o.bought ? '' : t('Nouvelle'),
+      style: `${famVar(gen ? [gen.fam] : effigyKw(d))};--glow:var(--fam)`, badge: o.owned || o.bought ? '' : t('Nouvelle'),
       state: o.bought ? 'sold' : o.owned ? 'owned' : 'sale', act: 'buy-card', id: o.id, set: set.id, off: !canPay(P.cardPrice) || ui.busy,
       price: `${ico('shard')}${P.cardPrice}`, label: t('Acheter {name} pour {price} Éclats', { name, price: P.cardPrice }) }; }) });
   const section = (set, i) => { const price = set.boosterPrice ?? P.boosterPrice, fresh = set.open && i === 0 && open.length > 1;
@@ -1436,7 +1438,7 @@ function dupsHTML(sh) {
     const d = CARDS[o.id], gen = GENERALS[o.id], name = esc(nameOf(o.id)), lvl = myLevel(o.id), c = nextCost(o.id);
     return { art: artHTML(o.id, nameOf(o.id), lvl, '', mySel(o.id)), zoom: zoomKey(o.id, mySel(o.id) || ''), name, caption: false,
       sub: c ? t('Niv. {n} · {have} essence', { n: lvl, have: `<span class="num">${essenceOf(o.id)}/${c.essence}</span>` }) : t('Niveau maximum'), cost: gen ? null : d.x ? 'X' : d.cost,
-      style: `${famVar(gen ? [gen.fam] : d.kw)};--glow:var(--fam)`, badge: t('+{n} essence', { n: rate }),
+      style: `${famVar(gen ? [gen.fam] : effigyKw(d))};--glow:var(--fam)`, badge: t('+{n} essence', { n: rate }),
       state: o.bought ? 'sold' : o.capped ? 'owned' : 'sale', done: o.capped && !o.bought ? t('Essence au complet') : '', act: 'buy-dup', id: o.id, off: !canPay(price) || ui.busy,
       price: `${ico('shard')}${price}`, label: t('Acheter un doublon de {name} pour {price} Éclats', { name, price }) }; }) });
   return `<section class="card-box shopset dupbox">
@@ -1672,7 +1674,7 @@ function renderDeck() {
   } else {
     help = `${t('Choisissez {n} cartes différentes de votre collection.', { n: DECK_SIZE })}${e.boss ? ` ${t('Les cartes marquées +N sont renforcées contre ce boss.')}` : ''}`;
     const row = (id, on) => { const d = CARDS[id];
-      return `<button class="pickrow ${on ? 'on' : ''}" data-pick="${id}" style="${famVar(d.kw)}" aria-pressed="${on}">
+      return `<button class="pickrow ${on ? 'on' : ''}" data-pick="${id}" style="${famVar(effigyKw(d))}" aria-pressed="${on}">
         <span class="seal">${d.x ? 'X' : d.cost}</span><span class="pn"><b>${esc(d.name)}</b><small>${kwLine(d)} · ${d.text ? rich(d.text) : t('Pas d\'effet.')}</small></span>
         ${d.type === 'C' ? `<span class="p num">${d.power}</span>` : `<span class="p sm">${t('Sort')}</span>`}${e.boss && bossBoost(e.boss, id) ? `<span class="bboost-tag num" title="${t('Renforcée contre ce boss')}">+${bossBoost(e.boss, id)}</span>` : ''}</button>`; };
     body = `<div class="picklist">${COLLECTIBLE.filter(owned).sort(byFamCost).map(id => row(id, e.cards.includes(id))).join('')}</div>`;
@@ -1866,7 +1868,7 @@ function renderLobby() {
   </div>`;
 }
 function fullCard(id, lvl = 1, art = null, border = lvl, cls = '') { const d = CARDS[id];
-  return `<div class="fc${lvCls(border)}" style="${famVar(d.kw)}">${artHTML(id, d.name, lvl, cls, art)}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
+  return `<div class="fc${lvCls(border)}" style="${famVar(effigyKw(d))}">${artHTML(id, d.name, lvl, cls, art)}<div class="h"><b>${esc(d.name)}</b><span class="seal">${d.x ? 'X' : d.cost}</span></div>
     <span class="k">${typeName(d)} · ${kwLine(d)}</span><span class="x">${d.text ? rich(d.text) : t('Pas d\'effet.')}</span>${d.type === 'C' ? `<span class="p num">${d.power}</span>` : ''}</div>`; }
 const genCard = (k, lvl = 1, art = null, border = lvl, cls = '') => { const g = GENERALS[k]; return `<div class="fc${lvCls(border)}" style="${famVar([g.fam])}">${artHTML(k, g.name, lvl, cls, art)}<b>${g.name}</b><span class="k">${t('Général')} · ${t(g.kind)}</span><span class="x">${rich(g.text)}</span></div>`; };
 const terrainCard = k => { const tn = TERRAINS[k]; return `<div class="fc" style="${famVar([tn.fam])}">${terrainHTML(k, tn.name)}<b>${tn.name}</b><span class="k">${t('Terrain')}</span><span class="x">${rich(tn.text)}</span></div>`; };
@@ -1899,7 +1901,7 @@ function zoomHTML() {
       acts.push(`<span class="eyebrow">${t('Déplacer vers')}</span><div class="row">${[0, 1, 2].filter(z => z !== now).map(z => `<button class="btn" data-act="zmove" data-zone="${z}" ${freeSlots(z) > 0 ? '' : 'disabled'}>${t(ZONE_NAMES[z])}</button>`).join('')}</div>`);
       if (moveOf(zm.uid)) acts.push(`<button class="btn" data-act="zstay" ${freeSlots(onBoard.z) > 0 ? '' : 'disabled'}>${t('Annuler le déplacement')}</button>`);
     }
-    style = famVar(d.kw);
+    style = famVar(effigyKw(d));
     body = `
       <div class="zh"><span class="seal" title="${t('Coût')}">${cost}</span><h2>${esc(d.name)}</h2>${d.type === 'C' ? `<span class="zp num ${pcls}" title="${t('Puissance')}">${pw}</span>` : ''}</div>
       <span class="k">${typeName(d)} · ${kwLine(d)}${d.type === 'C' && pw !== d.power ? ` · ${t('puissance de base {n}', { n: d.power })}` : ''}${lvl > 1 ? ` · ${t('niveau {n}', { n: lvl })}` : ''}${artLine(art)}</span>

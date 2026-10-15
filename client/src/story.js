@@ -33,7 +33,7 @@ export function createStory(app) {
   // Portrait d'un personnage dans une quête : un général (avec l'art choisi pour la quête) ou une carte, recadrés sur le visage ;
   // une initiale tant qu'il n'a pas d'illustration.
   function face(q, who, ch = null, cls = '') {
-    const g = GENERALS[who], c = CARDS[who], fam = g ? g.fam : c?.kw?.[0];
+    const g = GENERALS[who], c = CARDS[who], fam = g ? g.fam : c?.effigy || c?.kw?.[0];
     return `<span class="gport ${cls}" style="${famStyle(fam)}">${portraitHTML(who, g ? castArt(q, who, ch) : null) || `<span class="gport-init">${esc(castName(who)[0])}</span>`}</span>`;
   }
 
