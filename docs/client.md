@@ -139,7 +139,7 @@ Au démarrage puis chaque fois que la version change (`account.catalog`), l'appl
 
 ## Hors ligne et cache
 
-`public/sw.js` (service worker) rend l'appli installable sur téléphone. Les fichiers de `/assets/` (leur nom contient une empreinte, ils ne changent jamais) sont servis depuis le cache ; les pages passent par le réseau, avec le cache en secours. Les musiques (`/music/`) ne passent pas par le service worker. Un changement de la constante `CACHE` efface les anciens caches. L'API et le WebSocket ne passent jamais par le cache.
+`public/sw.js` (service worker) rend l'appli installable sur téléphone. Le code et les styles de `/assets/` (leur nom contient une empreinte, ils ne changent jamais) sont servis depuis le cache, limité aux 120 plus récents ; les images de `/assets/` passent par le cache HTTP du navigateur (gardées un an), sans copie dans celui du service worker ; les pages passent par le réseau, avec le cache en secours. Les musiques (`/music/`) ne passent pas par le service worker. Un changement de la constante `CACHE` efface les anciens caches `jeu-…` (pas celui des cosmétiques, `cosmetiques`). Après une mise à jour, un morceau de code disparu du serveur recharge la page (`vite:preloadError`, `boot.js`). L'API et le WebSocket ne passent jamais par le cache.
 
 `localStorage` garde la session (`jeu-auth`), le salon en cours (`jeu-session`, pour reprendre après un rechargement), le son coupé (`jeu-muted`), le volume des bruitages (`jeu-sfx`) et de la musique (`jeu-music`), les vibrations (`jeu-vibrations`) et l'initiation déjà lancée (`jeu-tuto-<identifiant>`).
 
