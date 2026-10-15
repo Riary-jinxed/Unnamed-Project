@@ -1,7 +1,8 @@
 // Amis : demandes par pseudo ou identifiant, statut en ligne, défis entre amis.
 // Les listes sont rangées dans les comptes (friends, friendsIn, friendsOut : identifiants). La présence et les défis
 // passent par une connexion WebSocket que l'appli garde ouverte tant que le joueur est connecté (message « hello »).
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
+import { avatarKey } from './avatar.js';
 import { deckError } from '@jeu/engine/collection';
 import { HttpError } from './accounts.js';
 import { msg, tr, trMsg } from '@jeu/engine/i18n';
@@ -25,8 +26,6 @@ export function createFriends(store, accounts, rooms) {
   let push = null;
   const pushTo = (login, msg) => push?.send(login, 'social', { tag: 'friends', open: 'friends', ...msg }).catch(e => console.error('Notification :', e));
   const status = login => (rooms.playing(login) ? 'game' : online.has(login) ? 'online' : 'off');
-  // Les images de profil sont lourdes : la liste n'en donne qu'une empreinte, l'appli les demande quand elle change.
-  const avatarKey = a => (a.avatar ? createHash('sha1').update(a.avatar).digest('hex').slice(0, 12) : null);
   const player = login => {
     const a = store.get(login); if (!a) return null;
     const b = accounts.progress.badge(a);

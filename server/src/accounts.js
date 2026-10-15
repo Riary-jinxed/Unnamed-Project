@@ -1,7 +1,7 @@
 // Comptes joueurs : pas d'inscription, l'administrateur crée les identifiants et les communique.
 // API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, boutique, administration.
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
-import { gzipSync } from 'node:zlib';
+import { gzip } from 'node:zlib';
 import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, setRevealed, dailyOffers, dupOffers, exchangeOffers, setBoosterPrice, shopOrder } from '@jeu/engine/collection';
 import { pick, CARDS, GENERALS } from '@jeu/engine';
 import { ART_RARITIES, RARITY_IDS, ESSENCE_ART_PRICES, RETIRED_ARTS } from '@jeu/engine/arts';
@@ -103,7 +103,9 @@ export function createAccounts(store) {
   for (const a of store.all()) for (const t of a.tokens || []) sessions.set(t, a.login);
   // Un compte désactivé n'a plus de session valable.
   const byToken = token => { const login = sessions.get(String(token || '')); const a = login && store.get(login); return a && !a.disabled ? a : null; };
-  const cfg = () => ({ ...DEFAULT_SETTINGS, ...store.doc('jeu') });
+  // Réglages, recalculés seulement quand /admin enregistre un nouveau document (à lire seulement).
+  let cfgOf, cfgMemo;
+  const cfg = () => { const doc = store.doc('jeu'); if (!cfgMemo || doc !== cfgOf) { cfgOf = doc; cfgMemo = { ...DEFAULT_SETTINGS, ...doc }; } return cfgMemo; };
   const progress = createProgress(store), arts = createArts(store, cfg), activity = createActivity(store);
   // Version du catalogue de cartes publié : l'appli recharge les cartes quand elle change.
   let catalogVersion = 0;
@@ -667,11 +669,13 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     const key = `${req.method} ${url.pathname}`;
     if (!url.pathname.startsWith('/api/')) return false;
     // Les réponses un peu lourdes (catalogue, statistiques, comptes) sont compressées si le navigateur l'accepte.
+    // Compression hors du fil principal : les autres requêtes et les parties n'attendent pas.
     const json = (status, data) => {
-      let body = Buffer.from(JSON.stringify(data));
+      const body = Buffer.from(JSON.stringify(data));
       const headers = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', vary: 'accept-encoding' };
-      if (body.length > 2048 && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) { body = gzipSync(body); headers['content-encoding'] = 'gzip'; }
-      res.writeHead(status, headers); res.end(body);
+      const send = (b, enc) => { res.writeHead(status, enc ? { ...headers, 'content-encoding': enc } : headers); res.end(b); };
+      if (body.length > 2048 && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) gzip(body, (err, gz) => (err ? send(body) : send(gz, 'gzip')));
+      else send(body);
     };
     // Langue des messages : en-tête X-Lang (français sans en-tête : /admin et anciennes versions de l'appli).
     const lang = pickLang(req.headers['x-lang']), given = validLang(req.headers['x-lang']);
