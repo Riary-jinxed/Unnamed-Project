@@ -5,6 +5,7 @@
 // d'écran ne changent pas ; PixiJS lit leur place à l'écran (getBoundingClientRect) pour s'y caler.
 // Sans WebGL, opening.js garde ses effets en CSS.
 import { Application, Color, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { guardGL } from './gl-guard.js';
 
 let back = null, front = null, ready = null, glowTex = null, sparkTex = null, shardTex = null, flakeTex = null;
 let parts = [], anims = [], loops = [], dust = null;
@@ -28,7 +29,7 @@ async function makeApp() {
   // Arrêtée tant qu'aucune ouverture n'est en cours : mount() la lance, unmount() l'arrête.
   await a.init({ backgroundAlpha: 0, resizeTo: window, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 2), preference: 'webgl', autoStart: false });
   Object.assign(a.canvas.style, { position: 'fixed', inset: '0', width: '100vw', height: '100vh', pointerEvents: 'none' });
-  a.canvas.setAttribute('aria-hidden', 'true'); a.canvas.className = 'opstage';
+  a.canvas.setAttribute('aria-hidden', 'true'); a.canvas.className = 'opstage'; guardGL(a.canvas);
   return a;
 }
 async function init() {

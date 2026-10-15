@@ -11,6 +11,7 @@
 // boucle s'arrête hors de l'accueil ou quand la vitrine sort de l'écran.
 import { Application, Assets, Color, Container, Sprite, Texture } from 'pixi.js';
 import { season, palette, batCanvases } from './season.js';
+import { guardGL } from './gl-guard.js';
 
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const BREATH_MS = 4600, MARGIN = 18;
@@ -31,7 +32,7 @@ async function boot() {
   app = new Application();
   await app.init({ backgroundAlpha: 0, width: 300, height: 300, antialias: false, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 1.5), preference: 'webgl' });
   Object.assign(app.canvas.style, { position: 'absolute', inset: '0', width: '100%', height: '100%', pointerEvents: 'none' });
-  app.canvas.setAttribute('aria-hidden', 'true'); app.canvas.className = 'sc-live';
+  app.canvas.setAttribute('aria-hidden', 'true'); app.canvas.className = 'sc-live'; guardGL(app.canvas);
   app.ticker.maxFPS = 45;
   const glowTex = radial(256, [[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(255,255,255,.35)'], [1, 'rgba(255,255,255,0)']]);
   sparkTex = radial(32, [[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(255,255,255,.8)'], [1, 'rgba(255,255,255,0)']]);
