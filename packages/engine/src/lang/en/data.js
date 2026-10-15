@@ -599,5 +599,6 @@ export default {
   "Roi du tapis": "King of the Felt",
   "Fortuna, la grande roue d'or": "Fortuna, the Great Golden Wheel",
   "Velours, la nuit du Sept d'or": "Velvet, Night of the Golden Seven",
+  "Joueuse de dés, mise gagnante": "Dice Player, Winning Bet",
   "Casino {r}": "Casino {r}",
 };

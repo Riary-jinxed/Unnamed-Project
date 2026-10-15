@@ -130,6 +130,7 @@ export const ARTS = Object.fromEntries([
   // Édition Casino : seulement à la boutique du casino, contre des Jetons, pendant l'événement du Sept d'or (casino.js).
   A('fortuna_grande_roue', 'fortuna', 'Fortuna, la grande roue d\'or', 'legendaire', { edition: 'casino' }),
   A('velours_sept_or', 'velours', 'Velours, la nuit du Sept d\'or', 'epique', { edition: 'casino' }),
+  A('joueuse_des_mise', 'joueuse_des', 'Joueuse de dés, mise gagnante', 'rare', { edition: 'casino' }),
   // Édition Boss (famille Chasse aux boss) : seulement au magasin du boss mondial, contre des Insignes (boss.js).
   A('chevalier_boss', 'chevalier', 'Chevalier, tueur de boss', 'rare', { edition: 'boss', theme: 'chasse' }),
   A('vaelthar_trophee', 'vaelthar', 'Vael\'Thar, trophée du glacier', 'epique', { edition: 'boss', theme: 'chasse' }),

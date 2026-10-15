@@ -90,6 +90,7 @@ export const CASINO_SHOP = [
   { id: `frame:${CASINO_FRAME}`, kind: 'frame', name: 'Cadre du Jackpot', price: 1200 },
   { id: 'art:fortuna_grande_roue', kind: 'art', name: 'Fortuna, la grande roue d\'or', price: 1500 },
   { id: 'art:velours_sept_or', kind: 'art', name: 'Velours, la nuit du Sept d\'or', price: 1000 },
+  { id: 'art:joueuse_des_mise', kind: 'art', name: 'Joueuse de dés, mise gagnante', price: 600 },
   { id: `title:${CASINO_TITLE}`, kind: 'title', name: 'Titre « Roi du tapis »', price: 400 },
   { id: 'boosters', kind: 'boosters', n: 1, name: 'Booster offert', price: 250, limit: 6 },
   { id: 'shards', kind: 'shards', n: 300, name: '300 Éclats', price: 150, limit: 10 },
