@@ -30,7 +30,7 @@ import { themeShopHTML, themeEssenceHTML, themeLock, setThemeArt } from './theme
 import { THEMES, EXTRA_THEMES, themeOut } from '@jeu/engine/themes';
 import { questOfCard } from '@jeu/engine/story';
 import { applyCatalog } from '@jeu/engine/catalog';
-import { esc, famStyle, rich } from './common.js';
+import { esc, famStyle, rich, KW_FILTERS } from './common.js';
 import { artBg, artHTML, heroHTML, portraitHTML, terrainBg, terrainHTML, holoCard, setHoloOff, popCard, setPopOff } from './art.js';
 import './holo.js';
 import './cosmetics.js';
@@ -64,7 +64,7 @@ const store = {
 const params = new URLSearchParams(location.search);
 const ui = {
   screen: 'loading', auth: store.get('auth', null), account: null, loginId: '', loginPass: '', starterPick: null, busy: false,
-  booster: null, shop: null, edit: null, deckStep: 0, renaming: null, profile: null, nameDraft: '', colFam: '', joinCode: (params.get('code') || '').toUpperCase(),
+  booster: null, shop: null, edit: null, deckStep: 0, renaming: null, profile: null, nameDraft: '', colFam: '', colCost: '', colKw: '', colSet: '', joinCode: (params.get('code') || '').toUpperCase(),
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
   drag: null, fx: null, zoom: null, soloReward: null, avatars: null, player: null, friendFoe: null, rankedAi: false, bossRun: false, rankedData: null,
@@ -248,7 +248,7 @@ function lessonDone() {
 async function takeGift() {
   const r = await call('POST', '/api/tuto/gift');
   if (!r) return;
-  ui.guide = { gen: r.card }; ui.sheet = null; ui.screen = 'collection'; play('fresh'); render();
+  ui.guide = { gen: r.card }; ui.sheet = null; ui.screen = 'collection'; ui.colFam = ui.colCost = ui.colKw = ui.colSet = ''; play('fresh'); render();
 }
 function guideCoach() {
   const g = ui.guide; if (!g) return null;
@@ -1441,9 +1441,27 @@ function lockLabel(id) {
   const set = SETS.find(x => x.id === src.set)?.name || src.set;
   return src.kind === 'family' ? t('Récompense : famille {fam} complète ({set})', { fam: t(src.fam), set }) : t('Récompense : set {set} complet', { set });
 }
+// Filtres de la collection, combinables : famille (boutons), coût, mot-clé et set (listes). Les généraux n'ont pas de coût.
+const COST_MAX = 7;
+const costFilter = id => GENERALS[id] ? '' : CARDS[id].x ? 'X' : String(Math.min(CARDS[id].cost, COST_MAX));
+const kwOfCard = id => { const d = CARDS[id] || GENERALS[id], txt = `${d.text || ''} ${GENERALS[id]?.kind || ''}`;
+  return KW_FILTERS.filter(k => k.re.test(txt)).map(k => k.name); };
+const colFiltered = () => !!(ui.colFam || ui.colCost || ui.colKw || ui.colSet);
+function colFilters(all) {
+  const costs = new Set(all.map(costFilter)), kws = new Set(all.flatMap(kwOfCard)), sets = new Set(all.map(setOf));
+  const sel = (id, label, cur, opts) => `<label class="colf${cur ? ' on' : ''}"><span class="eyebrow">${label}</span><select id="${id}">
+    <option value="">${t('Tous')}</option>${opts.map(([v, l]) => `<option value="${esc(v)}" ${cur === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+  const costOpts = [...Array(COST_MAX + 1).keys()].map(String).filter(c => costs.has(c)).map(c => [c, c === String(COST_MAX) ? `${c}+` : c]);
+  if (costs.has('X')) costOpts.push(['X', 'X']);
+  return `<div class="colfilters">${sel('col-cost', t('Coût'), ui.colCost, costOpts)}
+    ${sel('col-kw', t('Mot-clé'), ui.colKw, KW_FILTERS.filter(k => kws.has(k.name)).map(k => [k.name, t(k.name)]))}
+    ${sel('col-set', t('Set'), ui.colSet, [...SETS.map(x => [x.id, t(x.name)]), ['recompense', t('Récompenses')], ['saison', t('Passe de saison')]].filter(([id]) => sets.has(id)))}</div>`;
+}
 function renderCollection() {
   const a = ui.account, fams = [...shownFamilies(), 'Neutre'];
-  const shown = OWNABLE.filter(id => !hiddenCard(id) && (!ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam)).sort(byFamCost);
+  const all = OWNABLE.filter(id => !hiddenCard(id));
+  const shown = all.filter(id => (!ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam) && (!ui.colCost || costFilter(id) === ui.colCost)
+    && (!ui.colSet || setOf(id) === ui.colSet) && (!ui.colKw || kwOfCard(id).includes(ui.colKw))).sort(byFamCost);
   const tile = id => { const n = owned(id), lvl = myLevel(id), up = canUpgrade(id);
     return `<button class="ccard ${n ? '' : 'locked'} ${n && (lvl > 1 || up) ? 'tagged' : ''}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? (up ? t(', niveau {n}, peut monter de niveau', { n: lvl }) : t(', niveau {n}', { n: lvl })) : t(', pas encore obtenue')}">
       ${anyCard(id, n ? lvl : 1, n ? mySel(id) : null, n ? myBorder(id) : 1)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
@@ -1451,7 +1469,9 @@ function renderCollection() {
   return `<div class="top"><span class="title">${t('Ma collection')}</span><button class="btn" data-act="edit">${t('Modifier le deck')}</button></div>
   <p class="hint" style="margin:0">${t('{n} cartes sur {total}, généraux compris. Touchez une carte pour la voir en grand et la faire monter de niveau avec l\'essence de ses doublons.', { n: OWNABLE.filter(owned).length, total: OWNABLE.filter(id => !hiddenCard(id)).length })}</p>
   <div class="seg famseg" role="group" aria-label="${t('Famille')}"><button data-fam="" class="${ui.colFam ? '' : 'on'}">${t('Toutes')}</button>${fams.map(f => `<button data-fam="${f}" class="${ui.colFam === f ? 'on' : ''}">${t(f)}</button>`).join('')}</div>
-  <div class="gallery vignettes">${shown.map(tile).join('')}</div>
+  ${colFilters(all)}
+  ${colFiltered() ? `<div class="row colcount"><span class="hint" role="status">${tp(shown.length, '{n} carte', '{n} cartes')}</span><button class="btn sm" data-act="col-reset">${t('Effacer les filtres')}</button></div>` : ''}
+  ${shown.length ? `<div class="gallery vignettes">${shown.map(tile).join('')}</div>` : `<p class="wait">${t('Aucune carte ne correspond à ces filtres.')}</p>`}
   <div class="gal-h">${t('Vos terrains')}</div><p class="hint" style="margin:0">${t('Les terrains neutres, et ceux des familles dont vous possédez un général.')}</p>
   <div class="gallery">${allowedTerrains(a).map(terrainCard).join('')}</div>`;
 }
@@ -2557,6 +2577,7 @@ app.addEventListener('change', e => {
   if (e.target.id === 'avatar-file') { pickAvatar(e.target.files[0]); e.target.value = ''; }
   if (e.target.id === 'title-pick') equip({ title: e.target.value || null }, t('Titre changé.'));
   if (e.target.id === 'emotes-off') store.set('emotes-off', e.target.checked);
+  if (['col-cost', 'col-kw', 'col-set'].includes(e.target.id)) { ui[{ 'col-cost': 'colCost', 'col-kw': 'colKw', 'col-set': 'colSet' }[e.target.id]] = e.target.value; render(); }
 });
 app.addEventListener('submit', e => {
   e.preventDefault(); if (ui.busy) return;
@@ -2632,6 +2653,7 @@ app.addEventListener('click', e => {
     else if (a === 'starter' && ui.starterPick && !ui.busy) call('POST', '/api/starter', { starter: ui.starterPick });
     else if (a === 'booster' && !ui.busy) openBoosterNow();
     else if (a === 'collection') { ui.screen = 'collection'; ui.error = ''; render(); }
+    else if (a === 'col-reset') { ui.colFam = ui.colCost = ui.colKw = ui.colSet = ''; render(); }
     else if (a === 'shop') openShop('sets');
     else if (a === 'buy-card' && !ui.busy) { const go = () => buy('/api/shop/card', { set: ds.set, card: ds.id }); if (!lacksShards(ui.shop?.prices.cardPrice, t('acheter'), go)) go(); }
     else if (a === 'buy-booster' && !ui.busy) { const go = () => buy('/api/shop/booster', { set: ds.set }); if (!lacksShards(boosterPriceOf(ds.set), t('acheter'), go)) go(); }

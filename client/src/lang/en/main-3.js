@@ -191,4 +191,14 @@ export default {
   'Nouveautés': "What's new",
   '{n} à lire': '{n} to read',
   'Annonces': 'Announcements',
+  // Filtres de la collection
+  'Tous': 'All',
+  'Mot-clé': 'Keyword',
+  'Set': 'Set',
+  'Effacer les filtres': 'Clear filters',
+  'Aucune carte ne correspond à ces filtres.': 'No card matches these filters.',
+  'Pari': 'Bet',
+  'Sept': 'Seven',
+  'Jackpot': 'Jackpot',
+  'Passe de saison': 'Season pass',
 };
