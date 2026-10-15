@@ -1,6 +1,6 @@
 # Appli et administration (`client`)
 
-Deux pages compilées par Vite : `index.html` (l'appli des joueurs, `src/main.js`) et `admin.html` (`src/admin.js`). Pas de framework : chaque écran est une fonction qui renvoie du HTML.
+Deux pages compilées par Vite : `index.html` (l'appli des joueurs : `src/boot.js` règle la langue puis charge `src/main.js`, que la page précharge) et `admin.html` (`src/admin.js`). Pas de framework : chaque écran est une fonction qui renvoie du HTML.
 
 ## Boucle de l'appli (`main.js`)
 

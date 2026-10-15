@@ -1,5 +1,5 @@
 // Appli web : connexion, collection et deck, accueil, salon en ligne, partie (en ligne ou contre l'IA).
-// Langue d'abord (lang.js) : les autres modules affichent leurs textes avec t() dans la langue choisie.
+// Langue d'abord : boot.js la règle (lang.js) avant de charger ce module, pour que les textes soient traduits au chargement.
 import { langChosen, chooseLang, localizeCatalog, deviceLang } from './lang.js';
 import { t, tp, tMsg, tField, getLang, LANGS, locale } from '@jeu/engine/i18n';
 import './style.css';
