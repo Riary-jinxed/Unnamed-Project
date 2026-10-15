@@ -1,6 +1,6 @@
 // Activité pour l'onglet Stats de /admin : jours où chaque joueur est venu, et compteurs du jour (boosters, achats, coffres).
 // Compte : activeDays = derniers jours (« AAAA-MM-JJ ») où le joueur a utilisé l'appli. Document « compteurs » : { jour: { clé: n } }.
-import { today } from '@jeu/engine/collection';
+import { today, realToday } from '@jeu/engine/collection';
 
 const KEEP_DAYS = 90, KEEP_COUNTERS = 400;
 export const COUNTERS = { boosterDaily: 'Booster du jour', boosterBought: 'Booster acheté', boosterFree: 'Booster offert', cardsBought: 'Cartes du jour achetées', chests: 'Coffres d\'arts', artsBought: 'Arts achetés', exchanges: 'Changes Prismes → Éclats', dupsBought: 'Doublons du jour achetés', essenceConverted: 'Échanges d\'essence universelle', boosterFamily: 'Booster de famille' };
@@ -9,7 +9,7 @@ const dayOf = (ms = Date.now()) => today(new Date(ms));
 export function createActivity(store) {
   // Première requête du jour d'un joueur : le jour est ajouté à son compte (une écriture par joueur et par jour).
   function seen(a) {
-    const d = today(), days = a.activeDays ||= [];
+    const d = realToday(), days = a.activeDays ||= [];
     if (days.at(-1) === d) return;
     days.push(d); if (days.length > KEEP_DAYS) days.splice(0, days.length - KEEP_DAYS);
     store.put(a).catch(e => console.error('Activité non enregistrée :', e));
@@ -17,7 +17,7 @@ export function createActivity(store) {
   // key : une clé, ou plusieurs comptées ensemble (une seule écriture).
   function count(key, n = 1) {
     if (!n) return;
-    const doc = { ...store.doc('compteurs') }, d = today();
+    const doc = { ...store.doc('compteurs') }, d = realToday();
     doc[d] = { ...doc[d] };
     for (const k of [].concat(key)) doc[d][k] = (doc[d][k] || 0) + n;
     for (const k of Object.keys(doc).sort().slice(0, -KEEP_COUNTERS)) delete doc[k];

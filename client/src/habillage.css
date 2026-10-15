@@ -74,7 +74,7 @@ input, textarea, .field select { background: #0e0a07; border: 1px solid #6a4f2a;
 .tile:active { transform: translateY(2px); }
 .tile.todo { border-color: var(--gold); box-shadow: 0 0 0 1px #000, 0 0 16px -4px var(--gold), inset 0 0 20px -8px rgb(227 181 82 / .35); }
 .tile b { color: var(--gold-hi); }
-@media (prefers-reduced-motion: reduce) { .playbtn, .playbtn::after { animation: none; } }
+.calm .playbtn, .calm .playbtn::after { animation: none; }
 
 /* jauges : rainure creusée, remplissage doré */
 .bar { background: #0b0806; border: 1px solid #5a4530; box-shadow: inset 0 1px 3px #000; }
@@ -97,7 +97,7 @@ body:has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, 
 .dock .btn.primary.grow { font-size: 18px; padding-inline: 22px; }
 .dock .btn.primary.grow:not(:disabled) { animation: playglow 2.6s ease-in-out infinite; }
 .tturn b, .tseals b { color: var(--gold-hi); }
-@media (prefers-reduced-motion: reduce) { .dock .btn.primary.grow { animation: none; } }
+.calm .dock .btn.primary.grow { animation: none; }
 
 /* transitions (transition.js) : l'écran qui part glisse et s'efface (.screen-ghost), le nouveau arrive du côté opposé
    (--dx, --dy posés par render() : de côté entre deux menus, d'un peu plus bas sinon) ; une feuille monte depuis le bas
@@ -115,11 +115,11 @@ body:has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, 
 .sheet.sheet-out { pointer-events: none; animation: sheetfade .22s ease-in reverse forwards; }
 .sheet.sheet-out > .panel { animation: sheetdown .22s cubic-bezier(.4,0,1,1) forwards; }
 @keyframes sheetdown { to { opacity: 0; transform: translateY(28px) scale(.97); } }
-.tabbar.slid::before { content: ''; position: absolute; top: 0; bottom: 0; left: calc(var(--tab) * 20%); width: 20%; pointer-events: none;
+.tabbar.slid::before { content: ''; position: absolute; top: 0; bottom: 0; left: calc(var(--tab) * 100% / var(--cols, 5)); width: calc(100% / var(--cols, 5)); pointer-events: none;
   background: radial-gradient(ellipse at 50% 30%, rgb(227 181 82 / .3), transparent 70%); box-shadow: inset 0 2px 0 var(--gold);
   animation: tabslide .3s cubic-bezier(.3,.9,.3,1) forwards; }
 @keyframes tabslide { from { transform: translateX(calc((var(--from) - var(--tab)) * 100%)); } 70% { opacity: 1; } to { transform: none; opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { #app.screen-in > *, .sheet.sheet-in, .sheet.sheet-in > .panel { animation: none; } .screen-ghost, .sheet.sheet-out, .tabbar.slid::before { display: none; } .btn { transition: none; } }
+.calm #app.screen-in > *, .calm .sheet.sheet-in, .calm .sheet.sheet-in > .panel { animation: none; } .calm .screen-ghost, .calm .sheet.sheet-out, .calm .tabbar.slid::before { display: none; } .calm .btn { transition: none; }
 
 /* ouverture des boosters et coffres : même fond de cuir et de braise que le reste */
 body .op { background: radial-gradient(circle at 50% 42%, #3a2a1a 0, #1a120c 55%, #080503 100%); }

@@ -24,7 +24,6 @@ const pt = (cx, cy, r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
 const seeded = s => () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
 // Arc seul, sans trait qui le relie au tracé précédent.
 const arc = (g, cx, cy, r, a0, a1) => g.moveTo(...pt(cx, cy, r, a0)).arc(cx, cy, r, a0, a1);
-const G = c => add(c, new Graphics());
 const add = (parent, ...kids) => { kids.forEach(k => parent.addChild(k)); return kids[0]; };
 // Feuille à calques : on y trace comme dans un Graphics ; un enfant ajouté (addChild) se pose par-dessus ce qui est déjà tracé,
 // et la suite se trace au-dessus de lui. « root » est le Container qui porte le tout.
@@ -526,6 +525,21 @@ const FRAMES = {
   set3: g => { add(g, glow(() => new Graphics().circle(C, C, RB).stroke({ width: 10, color: 0xffffff }), 0x3ad7ff, 10, 0.8));
     ring(g, METAL.neon); beads(g, 12, (RH + RB) / 2, 0xff4fbf, 3.5); crown(g, 0x3ad7ff, [0x3ad7ff, 0xff4fbf, 0x3ad7ff]);
     g.circle(C, C, RB - 3).stroke({ width: 2.5, color: 0x3ad7ff }).circle(C, C, RH + 3).stroke({ width: 2.5, color: 0xff4fbf }); },
+  // Faites vos jeux : anneau de feutre vert cerclé d'or, jetons de casino rouges et noirs, et un as de pique en haut.
+  tapis: g => { ring(g, { base: 0x1a7a4a, hi: 0x5ad28a, lo: 0x0c3a22 });
+    g.circle(C, C, RB + 3).stroke({ width: 4, color: 0xe3b552 }).circle(C, C, RH - 3).stroke({ width: 4, color: 0xe3b552 });
+    for (let i = 0; i < 8; i++) { const a = Math.PI / 2 + (i - 3.5) * 0.36, [x, y] = pt(C, C, (RH + RB) / 2, a), col = i % 2 ? 0xb8202a : 0x1d1d1d;
+      g.circle(x, y, 9).fill(col).stroke(ink(2)).circle(x, y, 5).stroke({ width: 2, color: 0xfff3cf }); }
+    const k = new Graphics(); k.roundRect(-18, -26, 36, 50, 5).fill(0xfff8e8).stroke(ink(3));
+    k.circle(-5, 2, 7).circle(5, 2, 7).fill(0x1d1d1d); k.poly([-11, 0, 0, -15, 11, 0]).fill(0x1d1d1d); k.poly([-3, 4, 3, 4, 5, 14, -5, 14]).fill(0x1d1d1d);
+    k.position.set(C, C - RB - 14); g.addChild(k); },
+  // Boutique du casino : anneau rouge laqué cerclé d'or, ampoules d'enseigne tout autour, et trois 7 en haut.
+  jackpot: g => { ring(g, { base: 0x9a1420, hi: 0xe0505a, lo: 0x4a070c });
+    g.circle(C, C, RB + 3).stroke({ width: 4, color: 0xe3b552 }).circle(C, C, RH - 3).stroke({ width: 4, color: 0xe3b552 });
+    for (let i = 0; i < 20; i++) { const [x, y] = pt(C, C, (RH + RB) / 2, i * TAU / 20); g.circle(x, y, 4.5).fill(i % 2 ? 0xfff3cf : 0xffd36a).stroke(ink(1.5)); }
+    for (let k = -1; k <= 1; k++) { const s = new Graphics(); s.roundRect(-14, -18, 28, 36, 5).fill(0xfff8e8).stroke(ink(3));
+      s.poly([-7, -10, 8, -10, 8, -6, -1, 12, -6, 12, 2, -5, -7, -5]).fill(0xc8141f).stroke({ width: 1.5, color: 0x400a0e });
+      s.position.set(C + k * 32, C - RB - 12 + Math.abs(k) * 6); s.rotation = k * 0.18; g.addChild(s); } },
   halloween: g => { const r = add(g, new Graphics()), m = (RH + RB) / 2, w = RB - RH;
     for (let i = 0; i < 12; i++) arc(r, C, C, m, i * TAU / 12, (i + 1) * TAU / 12).stroke({ width: w, color: i % 2 ? 0x1d1226 : 0xe8741c });
     r.circle(C, C, RB).stroke(ink(4.5)).circle(C, C, RH).stroke(ink(4.5));
@@ -662,6 +676,31 @@ FRAMES.boss_crocs = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 4)
     const [x, y] = pt(C, C, RB - 4, a); k.position.set(x, y); k.rotation = a + Math.PI / 2; g.addChild(k); }
   ring(g, METAL.fer); beads(g, 10, (RH + RB) / 2, 0xd8dde4, 3, -Math.PI / 2);
   gem(g, C, C - RB + 2, 15, 0xff6a1a, 0xffd080); };
+// Cadres animés du magasin du boss : l'anneau fixe est dessiné ici, le mouvement est un calque CSS (frames-anim.css).
+FRAMES.boss_comete = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 2).stroke({ width: 12, color: 0xffffff }), 0x6a8aff, 10, 0.7));
+  ring(g, METAL.nuit); const rnd = seeded(5);
+  for (let i = 0; i < 30; i++) { const [x, y] = pt(C, C, RH + 3 + rnd() * (RB - RH - 6), rnd() * TAU); g.circle(x, y, 0.7 + rnd() * 1.4).fill(0xffffff); }
+  beads(g, 8, (RH + RB) / 2, 0xe3b552, 3.5, Math.PI / 8);
+  star(g, C, C - RB + 2, 16, 4, 0.35).fill(0xfff3cf).stroke(ink(2.5)); };
+FRAMES.boss_brasier = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 6).stroke({ width: 16, color: 0xffffff }), 0xff5a1a, 14, 0.8));
+  ring(g, METAL.fer);
+  // Fêlures de lave sur l'anneau, et le bord intérieur en fusion.
+  for (const [a0, a1] of [[0.2, 0.75], [1.3, 1.9], [2.5, 3.0], [3.6, 4.3], [4.8, 5.5]]) {
+    add(g, glow(() => arc(new Graphics(), C, C, (RH + RB) / 2, a0, a1).stroke({ width: 6, color: 0xffffff, cap: 'round' }), 0xff8a2a, 5, 1));
+    arc(g, C, C, (RH + RB) / 2, a0, a1).stroke({ width: 3, color: 0xffcf4a, cap: 'round' }); }
+  g.circle(C, C, RH + 3).stroke({ width: 3, color: 0xffb02a });
+  gem(g, C, C - RB + 2, 14, 0xff6a1a, 0xffd080); };
+// Cadre de la nébuleuse du rayon Essence (animé, frames-anim.css) : anneau de nuit violette semé d'étoiles, constellations dorées,
+// étoile à huit branches et gemme turquoise au sommet.
+FRAMES.essence_nebuleuse = g => { add(g, glow(() => new Graphics().circle(C, C, RB + 4).stroke({ width: 14, color: 0xffffff }), 0xa585e6, 12, 0.8));
+  ring(g, { base: 0x2a1a5a, hi: 0x8a6ad0, lo: 0x120a2e }); const rnd = seeded(11), m = (RH + RB) / 2;
+  for (let i = 0; i < 34; i++) { const [x, y] = pt(C, C, RH + 3 + rnd() * (RB - RH - 6), rnd() * TAU); g.circle(x, y, 0.7 + rnd() * 1.4).fill(0xffffff); }
+  // Trois constellations : des étoiles reliées par un trait fin, le long de l'anneau.
+  for (const a0 of [0.35, 2.3, 4.2]) { const pts = [0, 0.18, 0.36, 0.52].map((d, i) => pt(C, C, m + (i % 2 ? 5 : -5), a0 + d));
+    g.moveTo(...pts[0]); pts.slice(1).forEach(p => g.lineTo(...p)); g.stroke({ width: 1.6, color: 0xffe9a8, alpha: 0.8 });
+    pts.forEach(([x, y]) => star(g, x, y, 4.5, 4, 0.35).fill(0xfff3cf)); }
+  star(g, C, C - RB + 2, 26, 8, 0.42).fill(0xe3b552).stroke(ink(3)); star(g, C, C - RB + 2, 15, 8, 0.5, -Math.PI / 2 + Math.PI / 8).fill(0xfff0b0).stroke(ink(2));
+  roundGem(g, C, C - RB + 2, 7, 0x4fbcad); };
 export function drawFrame(id) {
   const f = FRAMES[id]; if (!f) return null;
   const c = new Container(), g = layers(); f(g); c.addChild(g.root);

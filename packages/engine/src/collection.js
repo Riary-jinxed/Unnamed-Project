@@ -10,7 +10,6 @@ export const COLLECTIBLE = Object.keys(CARDS).filter(k => !CARDS[k].token);
 // Les généraux se collectionnent comme les cartes : même collection, mêmes boosters, mêmes doublons.
 // Les boss mondiaux (boss: true) n'en font pas partie.
 export const GENERAL_IDS = Object.keys(GENERALS).filter(g => !GENERALS[g].boss);
-export const isGeneral = id => !!GENERALS[id];
 // Tout ce qui peut sortir d'un booster : cartes et généraux.
 export const OWNABLE = [...COLLECTIBLE, ...GENERAL_IDS];
 // Booster quotidien : les cartes et généraux des sets marqués « daily », tous avec la même chance de sortir.
@@ -56,7 +55,13 @@ export function openBooster(owned = {}, rand = pick) {
 // Jour courant à Paris (AAAA-MM-JJ) : le booster quotidien revient à minuit, heure française.
 // Le format est créé une fois : en créer un à chaque appel coûtait cher (unrevealed() le demande pour chaque carte affichée).
 const PARIS_DAY = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' });
-export const today = (d = new Date()) => PARIS_DAY.format(d);
+// Jour d'aperçu (compte testeur, réglé dans /admin) : today() sans argument rend ce jour-là, pour voir sets, événements, saisons
+// et quêtes avant leur sortie. Le serveur le donne requête par requête (preview.js), l'appli d'après le compte connecté.
+// today(new Date()) reste le vrai jour : classé, Boss mondial, clans et compteurs partagés s'en servent.
+let previewDay = () => null;
+export const setPreviewDay = fn => { previewDay = fn || (() => null); };
+export const today = d => (d === undefined && previewDay()) || PARIS_DAY.format(d || new Date());
+export const realToday = () => PARIS_DAY.format(new Date());
 
 // Renvoie un message d'erreur, ou null si le deck est jouable avec cette collection.
 export function deckError(deck, account) {
@@ -93,7 +98,8 @@ export function draftError(deck, account) {
   }
   if (deck.terrains.length > DECK_TERRAINS || new Set(deck.terrains).size !== deck.terrains.length) return t('Choisissez {n} terrains différents au plus.', { n: DECK_TERRAINS });
   if (deck.terrains.some(t => unrevealed(t))) return t('Ce terrain n\'est pas encore sorti.');
-  if (deck.terrains.some(t => !allowedTerrains(account).includes(t))) return t('Ce terrain demande un général de sa famille dans votre collection.');
+  const terrains = allowedTerrains(account);
+  if (deck.terrains.some(t => !terrains.includes(t))) return t('Ce terrain demande un général de sa famille dans votre collection.');
   if (deck.general !== null && deck.general !== undefined && !allowedGenerals(account).includes(deck.general)) return t('Vous ne possédez pas ce général.');
   return null;
 }
@@ -149,6 +155,9 @@ export const DEFAULT_SETS = [
   { id: 'base', name: 'Set de base', cards: OWNABLE.filter(id => setOf(id) === 'base'), open: true, daily: true, teaser: '', boosterExtra: 0 },
   { id: 'set2', name: 'Crépuscule', cards: OWNABLE.filter(id => setOf(id) === 'set2'), open: true, daily: false, boosterExtra: 50,
     teaser: 'Morts-vivants et Vampires rejoignent la bataille, avec de nouveaux généraux pour chaque famille. Ses cartes arriveront d\'abord ici, en boosters et à l\'unité, avant de rejoindre le booster quotidien.' },
+  // Mini-set (mini : pas de récompense par famille, seulement le set complet) : quelques cartes pour relancer la construction de decks.
+  { id: 'tapis', name: 'Faites vos jeux', cards: OWNABLE.filter(id => setOf(id) === 'tapis'), open: true, daily: false, boosterExtra: 0, reveal: '2026-10-23', mini: true,
+    teaser: 'Le casino du Sept d\'or ouvre ses tables : des Paris au dé, des cartes pour tricher, trois Sept aux couleurs des Gobelins, des Elfes et des Démons pour décrocher le Jackpot, et un coup de pouce pour les Anges, les Gobelins et les Démons.' },
   { id: 'set3', name: 'Cité Néon', cards: OWNABLE.filter(id => setOf(id) === 'set3'), open: true, daily: false, boosterExtra: 50, reveal: '2026-11-02',
     teaser: 'Hackers et Cyborgs envahissent la mégapole : Malwares glissés dans le deck adverse, Piratage, Implants et Surcharge, avec un soutien néon pour chaque famille.' },
 ];
@@ -157,7 +166,8 @@ export const setById = id => SETS.find(s => s.id === id);
 // Date de sortie d'un set (reveal, AAAA-MM-JJ heure de Paris) : avant, il n'existe pas pour les joueurs (boutique, collection, IA).
 export const setRevealed = (set, day = today()) => !set?.reveal || day >= set.reveal;
 // Un identifiant (carte, général, terrain, deck) dont le set d'origine n'est pas encore sorti. Les cartes de récompense suivent le set qui les donne.
-export function unrevealed(id, day = today()) {
+// La date du jour n'est lue que pour un id d'un set daté (setRevealed) : la plupart des appels s'arrêtent avant.
+export function unrevealed(id, day) {
   const set = (CARDS[id] || GENERALS[id] || TERRAINS[id])?.set;
   if (!set || set === 'base') return false;
   const s = SETS.find(x => x.id === set) || DEFAULT_SETS.find(x => x.id === set);
@@ -165,6 +175,8 @@ export function unrevealed(id, day = today()) {
 }
 // Decks préconstruits que l'IA peut jouer : ceux des sets déjà sortis.
 export const aiDeckKeys = (day = today()) => Object.keys(DECKS).filter(k => { const s = DECKS[k].set && (SETS.find(x => x.id === DECKS[k].set) || DEFAULT_SETS.find(x => x.id === DECKS[k].set)); return !s || setRevealed(s, day); });
+// Mini-set : seul le set complet est récompensé (pas de récompense par famille). Réglage du code, gardé si le catalogue l'a perdu.
+export const isMini = set => !!(set?.mini ?? DEFAULT_SETS.find(d => d.id === set?.id)?.mini);
 // Supplément du booster d'un set : celui du catalogue, sinon celui du set par défaut (catalogue publié avant le réglage).
 export const boosterExtraOf = set => Math.max(0, Math.round(+(set.boosterExtra ?? DEFAULT_SETS.find(d => d.id === set.id)?.boosterExtra ?? 0) || 0));
 export const setBoosterPrice = (set, price = SHOP.boosterPrice) => price + boosterExtraOf(set);
@@ -184,7 +196,8 @@ export function dupOffers(account, n, canLevel, rand = Math.random) {
   const inDecks = new Set((account.decks || []).flatMap(d => [...d.cards, d.general]));
   return [...order(mine.filter(id => inDecks.has(id))), ...order(mine.filter(id => !inDecks.has(id)))].slice(0, n);
 }
-export function setBooster(set, rand = pick) { return Array.from({ length: SHOP.boosterSize }, () => rand(set.cards)); }
+// Cartes d'un booster : size tirages au hasard parmi les cartes du set (doublons possibles).
+export function setBooster(set, size = SHOP.boosterSize, rand = pick) { return Array.from({ length: size }, () => rand(set.cards)); }
 
 // ---- Booster de famille ----
 // Gagné tous les `familyEvery` boosters ouverts (quotidien, achetés, offerts ; réglage familyBoosterEvery de /admin, 0 le retire).

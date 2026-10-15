@@ -22,9 +22,10 @@ export const RARITY_IDS = Object.keys(ART_RARITIES);
 // Édition Essence : vendue seulement au rayon Essence de la boutique, contre de l'essence universelle (jamais au coffre ni en arts du jour).
 // Édition Clan : vendue seulement au magasin de clan, contre des Écus (clans.js, CLAN_SHOP).
 // Édition Boss : vendue seulement au magasin du boss mondial, contre des Insignes (boss.js, BOSS_SHOP).
+// Édition Casino : vendue seulement à la boutique du casino, contre des Jetons, pendant l'événement (casino.js, CASINO_SHOP).
 export function rarityName(art) {
   const name = t(ART_RARITIES[art.rarity]?.name || art.rarity), r = (name || '').toLowerCase();
-  return art.edition === 'promo' ? t('Promo {r}', { r }) : art.edition === 'essence' ? t('Essence {r}', { r }) : art.edition === 'clan' ? t('Clan {r}', { r }) : art.edition === 'boss' ? t('Boss {r}', { r }) : name;
+  return art.edition === 'promo' ? t('Promo {r}', { r }) : art.edition === 'essence' ? t('Essence {r}', { r }) : art.edition === 'clan' ? t('Clan {r}', { r }) : art.edition === 'boss' ? t('Boss {r}', { r }) : art.edition === 'casino' ? t('Casino {r}', { r }) : name;
 }
 // Prix par défaut des arts de l'édition Essence, en essence universelle, selon la rareté (réglables dans /admin : essArtPrice_<rareté>).
 export const ESSENCE_ART_PRICES = { rare: 150, epique: 300, legendaire: 600 };
@@ -44,6 +45,8 @@ export const ART_THEMES = {
   chasse: { name: 'Chasse aux boss', style: 'trophées de chasse, crocs, braises et givre, lumière de forge', title: 'Tueur de boss' },
   chroniques: { name: 'Chroniques', style: 'enluminure de manuscrit, parchemin, encre et feuille d\'or', title: 'Enlumineur' },
   bal: { name: 'Bal masqué', style: 'bal masqué vénitien, masques, velours pourpre et soieries', title: 'Maître du bal' },
+  citrouilles: { name: 'Nuit des citrouilles', style: 'citrouilles sculptées, lanternes, brume orange et violette, cimetière sous la pleine lune', title: 'Roi des citrouilles' },
+  estampe: { name: 'Encre et estampe', style: 'lavis d\'encre chinoise et estampe japonaise, papier washi, vagues stylisées, sceau rouge', title: 'Maître de l\'estampe' },
 };
 export const THEME_IDS = Object.keys(ART_THEMES);
 
@@ -92,6 +95,24 @@ export const ARTS = Object.fromEntries([
   A('muse_bal', 'muse', 'Muse du bal', 'rare', { theme: 'bal' }),
   A('prince_nuit_bal', 'prince_nuit', 'Prince de la nuit, maître du bal', 'epique', { theme: 'bal' }),
   A('carmilla_bal', 'carmilla', 'Carmilla, reine du bal masqué', 'legendaire', { theme: 'bal' }),
+  A('squelette_citrouille', 'squelette', 'Squelette de la nuit des citrouilles', 'rare', { theme: 'citrouilles' }),
+  A('chauve_souris_citrouille', 'chauve_souris', 'Chauve-souris de la pleine lune', 'rare', { theme: 'citrouilles' }),
+  A('fossoyeur_citrouille', 'fossoyeur', 'Fossoyeur à la lanterne', 'rare', { theme: 'citrouilles' }),
+  A('spectre_citrouille', 'spectre', 'Spectre des citrouilles', 'rare', { theme: 'citrouilles' }),
+  A('necromancien_citrouille', 'necromancien', 'Nécromancien des citrouilles', 'epique', { theme: 'citrouilles' }),
+  A('ossa_citrouille', 'ossa', 'Ossa, reine des citrouilles', 'legendaire', { theme: 'citrouilles' }),
+  A('choeur_vitrail', 'choeur', 'Chœur de la rosace', 'epique', { theme: 'vitraux' }),
+  A('ophaniel_vitrail', 'ophaniel', 'Ophaniel en vitrail', 'legendaire', { theme: 'vitraux' }),
+  A('grand_druide_automne', 'grand_druide', 'Grand druide d\'automne', 'epique', { theme: 'saisons' }),
+  A('mage_bois_hiver', 'mage_bois', 'Mage des bois en hiver', 'rare', { theme: 'saisons' }),
+  A('gorbag_taverne', 'gorbag', 'Gorbag, tournée générale', 'epique', { theme: 'taverne' }),
+  A('goinfre_taverne', 'goinfre', 'Goinfre de la taverne', 'rare', { theme: 'taverne' }),
+  A('rodeur_nuit_estampe', 'rodeur_nuit', 'Rôdeur nocturne à l\'encre', 'rare', { theme: 'estampe' }),
+  A('apprentie_estampe', 'apprentie', 'Apprentie de l\'estampe', 'rare', { theme: 'estampe' }),
+  A('garde_pont_estampe', 'garde_pont', 'Garde du pont arqué', 'rare', { theme: 'estampe' }),
+  A('oeuf_tempete_estampe', 'oeuf_tempete', 'Œuf sous la grande vague', 'rare', { theme: 'estampe' }),
+  A('matriarche_estampe', 'matriarche', 'Matriarche des nuées d\'encre', 'epique', { theme: 'estampe' }),
+  A('ysmera_estampe', 'ysmera', 'Ysmera, dragon des nuages', 'legendaire', { theme: 'estampe' }),
   // Édition Essence (famille Astrale) : seulement au rayon Essence de la boutique, contre de l'essence universelle.
   A('seraphin_constellation', 'seraphin', 'Séraphin des constellations', 'rare', { edition: 'essence', theme: 'astral' }),
   A('eclaireur_etoiles', 'eclaireur', 'Éclaireur, voleur d\'étoiles', 'rare', { edition: 'essence', theme: 'astral' }),
@@ -99,12 +120,17 @@ export const ARTS = Object.fromEntries([
   A('wyverne_comete', 'wyverne', 'Wyverne, la comète', 'epique', { edition: 'essence', theme: 'astral' }),
   A('vorgoth_nebuleuse', 'vorgoth', 'Vorgoth de la nébuleuse', 'epique', { edition: 'essence', theme: 'astral' }),
   A('archidemon_trou_noir', 'archidemon', 'Archidémon du trou noir', 'legendaire', { edition: 'essence', theme: 'astral' }),
+  A('elyndra_astral', 'elyndra', 'Elyndra, tisseuse d\'étoiles', 'legendaire', { edition: 'essence', theme: 'astral' }),
   // Édition Clan (famille Bannières) : seulement au magasin de clan, contre des Écus (clans.js).
   A('porte_etendard_clan', 'porte_etendard', 'Porte-étendard du clan', 'rare', { edition: 'clan', theme: 'bannieres' }),
   A('heraut_clan', 'heraut', 'Héraut des bannières', 'rare', { edition: 'clan', theme: 'bannieres' }),
   A('mercenaire_clan', 'mercenaire', 'Mercenaire sous serment', 'epique', { edition: 'clan', theme: 'bannieres' }),
   A('seigneur_guerre_clan', 'seigneur_guerre', 'Seigneur de guerre, la grande bannière', 'epique', { edition: 'clan', theme: 'bannieres' }),
   A('cartographe_clan', 'cartographe', 'Cartographe des conquêtes', 'legendaire', { edition: 'clan', theme: 'bannieres' }),
+  // Édition Casino : seulement à la boutique du casino, contre des Jetons, pendant l'événement du Sept d'or (casino.js).
+  A('fortuna_grande_roue', 'fortuna', 'Fortuna, la grande roue d\'or', 'legendaire', { edition: 'casino' }),
+  A('velours_sept_or', 'velours', 'Velours, la nuit du Sept d\'or', 'epique', { edition: 'casino' }),
+  A('joueuse_des_mise', 'joueuse_des', 'Joueuse de dés, mise gagnante', 'rare', { edition: 'casino' }),
   // Édition Boss (famille Chasse aux boss) : seulement au magasin du boss mondial, contre des Insignes (boss.js).
   A('chevalier_boss', 'chevalier', 'Chevalier, tueur de boss', 'rare', { edition: 'boss', theme: 'chasse' }),
   A('vaelthar_trophee', 'vaelthar', 'Vael\'Thar, trophée du glacier', 'epique', { edition: 'boss', theme: 'chasse' }),

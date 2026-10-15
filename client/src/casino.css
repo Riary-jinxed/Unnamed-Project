@@ -1,0 +1,96 @@
+/* Casino du Sept d'or (casino.js) : Jeton, machine à sous, Quitte ou double et tuile de l'accueil. */
+.ico-jeton { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='8.6' fill='%23b8202a' stroke='%23400a0e' stroke-width='1.2'/%3E%3Cpath d='M10 1.4v3.2M10 15.4v3.2M1.4 10h3.2M15.4 10h3.2M3.9 3.9l2.3 2.3M13.8 13.8l2.3 2.3M16.1 3.9l-2.3 2.3M6.2 13.8l-2.3 2.3' stroke='%23fff3cf' stroke-width='1.8'/%3E%3Ccircle cx='10' cy='10' r='4.6' fill='%23e3b552' stroke='%23400a0e' stroke-width='.9'/%3E%3Ctext x='10' y='12.6' font-size='7' font-weight='700' text-anchor='middle' fill='%23400a0e' font-family='Georgia,serif'%3E7%3C/text%3E%3C/svg%3E"); }
+.chipn { white-space: nowrap; }
+.chipn .ico { margin-right: 3px; }
+.top .chipbal { margin-left: auto; font-weight: 700; font-size: 17px; padding: 4px 10px; border-radius: 999px; background: var(--sunk); border: 1px solid var(--line); }
+
+/* Bandeau de l'événement : tapis vert, liseré d'or, un grand 7 en filigrane */
+.chero { position: relative; overflow: hidden; isolation: isolate; display: grid; gap: 4px; padding: 16px 16px 12px; border-radius: var(--r); border: 2px solid #e3b552;
+  background: radial-gradient(120% 90% at 20% 0%, #1d7a4c, #0b3d26 55%, #051a10); box-shadow: inset 0 0 0 4px rgb(0 0 0 / .25), 0 6px 18px rgb(0 0 0 / .35); color: #f4ead2; }
+.chero::after { content: ''; position: absolute; inset: 6px; border: 1px dashed rgb(227 181 82 / .35); border-radius: calc(var(--r) - 4px); pointer-events: none; z-index: -1; }
+.chero-art { position: absolute; right: -6px; top: -26px; z-index: -1; font: 700 150px/1 Georgia, serif; color: #c8141f; text-shadow: 0 4px 0 #e3b552; opacity: .32; transform: rotate(10deg); }
+.chero .eyebrow { color: #e3b552; }
+.chero-name { font-family: var(--display); font-size: 24px; line-height: 1.1; color: #fff3cf; text-shadow: 0 2px 0 #000; }
+.chero-when { color: #cfe6d6; font-size: 13.5px; }
+.cpills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.cpill { display: grid; gap: 0; padding: 5px 12px; border-radius: 10px; background: rgb(0 0 0 / .35); border: 1px solid rgb(227 181 82 / .35); line-height: 1.2; }
+.cpill small { font-size: 11px; color: #cfe6d6; }
+.cpill b { font-size: 16px; color: #fff3cf; }
+.cpill.todo { border-color: #e3b552; box-shadow: 0 0 10px rgb(227 181 82 / .35); }
+.cpill.off b { font-size: 13px; color: #cfe6d6; font-weight: 600; }
+.cmore summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.chow { margin-top: 6px; }
+.chow summary { color: #e3b552; }
+.cmore p, .cmore ul { margin: 6px 0 0; font-size: 13.5px; }
+.chow ul { padding-left: 18px; display: grid; gap: 3px; }
+.chow .ok { color: #8fe0a8; font-weight: 700; }
+.casinotabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+.casinotabs button { padding-block: 9px; font-size: 15px; }
+
+/* Ressources de la boutique : une ligne chacune */
+.creslist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cres { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r); background: var(--sunk); border: 1px solid var(--line); }
+.cres > span:nth-child(2) { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.cres b { font-size: 14px; }
+.cres .bres { width: 44px; min-height: 0; flex: none; }
+.cres .bres .ico { width: 30px; height: 30px; }
+.cres .bres .num { display: none; }
+.cres .bpack { width: 30px; height: 42px; border-width: 1.5px; }
+.cres.locked { opacity: .55; }
+
+/* Machine à sous */
+.slotm { --gold: #e3b552; position: relative; display: grid; place-items: center; padding: 16px; border-radius: 18px;
+  background: linear-gradient(180deg, #7a121c, #3a070c); border: 3px solid var(--gold); box-shadow: inset 0 0 18px rgb(0 0 0 / .55), 0 6px 18px rgb(0 0 0 / .35); }
+.slot-lights { position: absolute; inset: 5px; border-radius: 14px; pointer-events: none;
+  background: radial-gradient(circle, #ffe9a8 0 2.2px, transparent 3px) 0 0 / 16px 16px; opacity: .35; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; padding: 6px; }
+.slotm.spinning .slot-lights, .slotm.won .slot-lights { animation: slotBlink .5s steps(2) infinite; opacity: .9; }
+@keyframes slotBlink { 50% { background-position: 8px 8px; } }
+.slot-reels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(100%, 300px); }
+.slot-reel { height: var(--sym); overflow: hidden; border-radius: 10px; background: linear-gradient(180deg, #d9cfb8, #fffaf0 30% 70%, #d9cfb8); border: 2px solid #2a0508;
+  box-shadow: inset 0 6px 8px rgb(0 0 0 / .35), inset 0 -6px 8px rgb(0 0 0 / .35); }
+.slot-strip { display: flex; flex-direction: column; }
+.slot-strip.go { animation-name: reelSpin; animation-timing-function: cubic-bezier(.2, .6, .25, 1.04); animation-fill-mode: both; }
+@keyframes reelSpin { from { transform: translateY(0); } to { transform: translateY(calc(var(--n) * var(--sym) * -1)); } }
+.sym { height: var(--sym); display: grid; place-items: center; font-family: Georgia, serif; font-size: calc(var(--sym) * .56); line-height: 1; color: #1d1d1d; }
+.sym.red { color: #b8202a; }
+.sym.bar { font-family: var(--display); font-size: calc(var(--sym) * .32); letter-spacing: .04em; }
+.sym.seven { color: #c8141f; font-weight: 700; text-shadow: 0 2px 0 #e3b552; }
+.slot-win { min-height: 1.4em; margin-top: -4px; font-size: 14px; text-align: center; }
+.slot-win.won b { color: var(--gold, #e3b552); font-size: 15px; }
+.slotm.jackpot { animation: slotJack .9s ease-out 2; }
+@keyframes slotJack { 30% { transform: scale(1.03); box-shadow: 0 0 34px #e3b552; } }
+.slotbtn { width: 100%; }
+.slot-pays summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.slot-pays ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 3px; font-size: 13px; }
+.slot-pays li { display: flex; justify-content: space-between; gap: 10px; }
+.calm .slot-strip.go { animation-duration: 1ms !important; } .calm .slotm.spinning .slot-lights, .calm .slotm.won .slot-lights, .calm .slotm.jackpot { animation: none; }
+
+/* Quitte ou double */
+.qod-ladder { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.qod-ladder li { display: grid; gap: 1px; justify-items: center; padding: 6px 2px; border-radius: 8px; background: var(--sunk); border: 1px solid var(--line); font-size: 11px; text-align: center; line-height: 1.15; }
+.qod-ladder li b { font-size: 13px; }
+.qod-ladder li.done { border-color: var(--up); color: var(--up); }
+.qod-ladder li.now { border-color: #e3b552; box-shadow: 0 0 0 2px #e3b55255; }
+.qod-table { display: grid; gap: 8px; padding: 10px; border-radius: var(--r); background: linear-gradient(160deg, rgb(15 74 46 / .45), transparent), var(--sunk); border: 1px solid var(--fam, var(--line)); }
+.qod-foe { display: flex; gap: 10px; align-items: center; }
+.qod-foe .gport { width: 56px; height: 56px; flex: none; }
+.qod-foe > div { display: grid; gap: 1px; min-width: 0; }
+.qod-rule { margin: 0; display: grid; gap: 2px; font-size: 13.5px; }
+.qod-pot, .qod-won { margin: 0; font-size: 15px; }
+.qod-won { font-weight: 700; color: #e3b552; }
+.cqod.locked { opacity: .9; }
+
+/* Tuile de l'accueil */
+.ctile { position: relative; overflow: hidden; isolation: isolate; background: linear-gradient(150deg, #0f4a2e, #062014 70%); border-color: #e3b55588; }
+.ctile-art { position: absolute; right: 8px; top: 50%; transform: translateY(-50%) rotate(-8deg); z-index: -1; font: 700 34px Georgia, serif; color: #c8141f;
+  text-shadow: 0 2px 0 #e3b552; opacity: .55; letter-spacing: 2px; }
+
+/* Onglet du casino dans la barre du bas, pendant l'événement : son jeton en couleurs, et des libellés plus serrés à six onglets */
+.tabbar .tab-event svg { color: #e3b552; filter: drop-shadow(0 0 4px rgb(200 20 31 / .7)); }
+.tabbar .tab-event:not(.on) span:not(.badge) { color: #e8c877; }
+.tabbar[style*="--cols:6"] button { font-size: 11px; letter-spacing: 0; }
+
+/* Le bandeau garde ses couleurs sous tous les thèmes (themes.css recolore les .eyebrow), et les gros boutons tiennent sur une ligne */
+body .chero .eyebrow, body[data-season] .chero .eyebrow { color: #e3b552; text-shadow: 0 1px 2px #000; }
+body[data-season] .chero .eyebrow::before { color: inherit; }
+:is(.cslot, .cqod) .playbtn > span { font-size: clamp(19px, 6.2vw, 26px); }

@@ -2,11 +2,11 @@
 // sous un auvent, entre deux lanternes. Toucher un paquet l'achète ou ouvre un booster offert, comme ses boutons plus bas.
 // Les paquets et le coffre restent en HTML (dessins d'opening.js) : toucher, clavier et lecteurs d'écran ne changent pas.
 // Le décor animé (auvent qui ondule, lanternes qui se balancent, rayons, poussière dorée, éclats au toucher) est dessiné
-// avec PixiJS par shop-stage.js, chargé au premier passage en boutique, seulement avec WebGL et sans « réduire les animations ».
+// avec PixiJS par shop-stage.js, chargé au premier passage en boutique, seulement avec WebGL et sans les animations réduites ou coupées (motion.js).
 // Sans lui, le décor reste en CSS (shop.css). Les sélections du jour (cartes, arts) ont la même mise en scène : voir vitrineHTML.
 import './shop.css';
-import { reduceMotion } from './fx.js';
-import { packSVG, chestSVG } from './opening.js';
+import { reduceMotion, webgl } from './fx.js';
+import { packSVG, chestSVG, warmOpening } from './opening.js';
 import { t } from '@jeu/engine/i18n';
 
 // items : [{ kind: 'pack' | 'chest', act, set, setName, n, tag, free, fresh, off, label }] ; fresh : ruban « Nouveau » (set le plus récent).
@@ -17,7 +17,7 @@ export function stallHTML(items, { title = '', info = '', infoLabel = '' } = {})
       <span class="stall-obj" data-px>${x.kind === 'chest' ? chestSVG(`shc${i}`) : packSVG(x.setName, x.n, `shp${i}`)}</span>
       ${x.free ? `<span class="stall-free num">${t('Offert')}${x.free > 1 ? ` ×${x.free}` : ''}</span>` : ''}${x.fresh ? `<span class="stall-new">${t('Nouveau')}</span>` : ''}
       <span class="stall-tag">${x.tag}</span></button>`;
-  return `<div class="stall" aria-label="${t('Étal')}"><div class="stall-wall"></div><div class="stall-awning"></div><div class="stall-shelf"></div>
+  return `<div class="stall" data-scene="stall-${items[0]?.kind || ''}" aria-label="${t('Étal')}"><div class="stall-wall"></div><div class="stall-awning"></div><div class="stall-shelf"></div>
     ${title ? `<span class="stall-sign">${title}</span>` : ''}
     ${info ? `<button class="stall-info" data-act="${info}" aria-haspopup="dialog" aria-label="${infoLabel || (title ? t('{title} : ce qu\'il contient', { title }) : t('ce qu\'il contient'))}">i</button>` : ''}
     <div class="stall-items">${items.map(item).join('')}</div></div>`;
@@ -28,7 +28,8 @@ export function stallHTML(items, { title = '', info = '', infoLabel = '' } = {})
 // slots : [{ art, zoom, style (avec --glow, la couleur de sa lumière), cls, badge, cost, price, act, id, set, state: 'sale' | 'sold' | 'owned', done, off, label, name, sub }]
 // done : ce qui remplace « Possédée » sous une offre qui n'est plus en vente (« Niveau max » pour un doublon).
 // Sans zoom, l'illustration ne s'agrandit pas (offres de change). timer : false pour une vitrine qui ne change pas à minuit.
-export function vitrineHTML({ title, sub, slots, timer = true, cls = '' }) {
+// key : nom de son décor animé (shop-stage.js), qui le retrouve d'un rendu à l'autre ; par défaut cls, sinon le titre.
+export function vitrineHTML({ title, sub, slots, timer = true, cls = '', key = '' }) {
   const slot = (x, i) => `<div class="vit-slot ${x.state}${x.cls ? ` ${x.cls}` : ''}" style="--i:${i};${x.style}">
       ${x.zoom ? `<button class="vit-card" data-px data-zoom="${x.zoom}" aria-label="${t('Voir {name} en grand', { name: x.name })}">` : '<div class="vit-card still" data-px>'}${x.art}
         ${x.cost != null ? `<span class="vit-cost num">${x.cost}</span>` : ''}${x.badge ? `<span class="vit-badge">${x.badge}</span>` : ''}
@@ -36,7 +37,7 @@ export function vitrineHTML({ title, sub, slots, timer = true, cls = '' }) {
       ${x.caption === false ? '' : `<span class="vit-name">${x.name}</span>`}${x.sub ? `<span class="vit-sub">${x.sub}</span>` : ''}
       ${x.state === 'sale' ? `<button class="vit-buy" data-act="${x.act}" data-id="${x.id}"${x.set ? ` data-set="${x.set}"` : ''} ${x.off ? 'disabled' : ''} aria-label="${x.label}">${x.price}</button>`
         : `<span class="vit-done">${x.state === 'sold' ? t('Achetée') : x.done || t('Possédée')}</span>`}</div>`;
-  return `<div class="vitrine${cls ? ` ${cls}` : ''}"><div class="vit-velvet"></div>
+  return `<div class="vitrine${cls ? ` ${cls}` : ''}" data-scene="vit-${String(key || cls || title).replace(/[^\w-]/g, '')}"><div class="vit-velvet"></div>
     <div class="vit-head"><div><span class="eyebrow">${sub}</span><h3 class="vit-title">${title}</h3></div>
       ${timer ? `<span class="vit-timer" title="${t('Nouvelle sélection à minuit')}"><i aria-hidden="true"></i><span data-reset>${resetIn()}</span></span>` : ''}</div>
     <div class="vit-row">${slots.map(slot).join('')}</div></div>`;
@@ -66,16 +67,17 @@ export function resetIn(now = new Date()) {
 setInterval(() => { for (const el of document.querySelectorAll('[data-reset]')) el.textContent = resetIn(); }, 30000);
 
 let mod = null, loading = false, want = null, able = null;
-const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } };
 
 // Appelé à chaque rendu : `app` contient la boutique (étal, vitrines) ou un autre écran.
 export function setShop(app) {
   want = [...app.querySelectorAll('.stall, .vitrine')];
-  if (mod) { mod.show(want); return; }
+  if (mod) { mod.show(reduceMotion() ? [] : want); return; }
   if (!want.length || loading) return;
-  able ??= !reduceMotion() && webgl();
-  if (!able) return;
+  able ??= webgl();
+  if (!able || reduceMotion()) return;
   loading = true;
-  import('./shop-stage.js').then(m => { mod = m; m.show(want.filter(el => el.isConnected)); })
+  import('./shop-stage.js').then(m => { mod = m; m.show(want.filter(el => el.isConnected));
+    // Puis, la boutique affichée et au repos, les effets de l'ouverture des boosters et des coffres.
+    (window.requestIdleCallback || (f => setTimeout(f, 1500)))(warmOpening, { timeout: 4000 }); })
     .catch(err => console.warn('Étal animé indisponible', err));
 }

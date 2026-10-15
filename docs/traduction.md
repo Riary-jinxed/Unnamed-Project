@@ -26,7 +26,8 @@ tp(n, '{n} coffre d\'arts', '{n} coffres d\'arts', { x })  // d'autres variables
   sont traduits une fois pour toutes au démarrage de l'appli (`localizeCatalog`, `client/src/lang.js`) : `CARDS[id].name`
   est déjà dans la bonne langue. Une table du moteur affichée par `t(x.champ)` s'ajoute à `scripts/i18n-tables.js`.
 - Un texte calculé au chargement d'un module (`const LABELS = { a: t('…') }`) marche aussi : la langue est fixée avant
-  le chargement des autres modules (premier import de `main.js`), et changer de langue recharge la page.
+  le chargement des autres modules (`client/src/boot.js` attend `loadLang` avant de charger `main.js`), et changer de
+  langue recharge la page. Les dictionnaires anglais sont téléchargés à part, seulement par qui joue en anglais.
 - Attention aux variables locales nommées `t` (élément touché, temps…) : elles masquent la fonction. Renommez la variable locale.
 - Dates et nombres : `toLocaleDateString(locale(), …)`, `locale()` venant de `@jeu/engine/i18n`.
 
@@ -71,7 +72,7 @@ npm run i18n -- --all # la liste complète
 ## Ajouter une langue
 
 Ajouter la langue à `LANGS` et `LOCALES` (`i18n.js`), créer ses dictionnaires sur le modèle de `lang/en`, et les charger
-dans `client/src/lang.js` (et `server/src/index.js` pour le serveur).
+dans `loadLang` de `client/src/lang.js` (import dynamique, comme l'anglais) et dans `server/src/index.js` pour le serveur.
 
 ## Lexique anglais
 
@@ -94,6 +95,7 @@ Les noms propres (généraux, personnages) gardent leur nom ; leur titre se trad
 | Début de tour, Fin de tour, Début de partie, Fin de partie | Start of turn, End of turn, Start of game, End of game |
 | Sacrifice, Horde, Drain, Festin, Défausse | Sacrifice, Horde, Drain, Feast, Discard |
 | Malware, Piratage, Implant, Surcharge, Pare-feu | Malware, Hack, Implant, Overload, Firewall |
+| Pari, dé pipé, Sept, Jackpot | Bet, loaded die, Seven, Jackpot |
 | tour, Valider, Victoire, Défaite, Égalité, Match nul | turn, Confirm, Victory, Defeat, Tie, Draw |
 | partie, partie classée, rang, saison, passe de saison, palier | match, ranked match, rank, season, season pass, tier |
 | missions du jour, succès, titre, cadre, dos de carte, émote, thème | daily missions, achievements, title, frame, card back, emote, theme |

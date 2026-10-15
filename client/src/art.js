@@ -20,7 +20,8 @@ const add = (list, key) => { for (const [path, url] of Object.entries(list)) {
   if (id) ((alt ? ALT : ART)[id] ||= {})[key ? `${layer}${key}` : layer] = url;
 } };
 add(files); add(thumbs, 'Thumb');
-export const hasArt = id => !!ART[id]?.decor;
+// Illustration d'un thème de l'interface (themes.js) : { decor, perso } de l'art alternatif s'il existe, sinon de la carte.
+export const themeArt = (card, artId = null) => (artId && ALT[artId]?.decor ? ALT[artId] : ART[card]) || null;
 
 // Visuels des terrains : une image par terrain, art/terrain/<id>.webp, en 832x1168 (le ratio de la fenêtre des cartes),
 // sans personnage ni débordement. Sur le plateau, elle est recadrée au centre en fond de la moitié de zone de son joueur.
@@ -43,9 +44,6 @@ export function sceneHTML(id) {
   const a = ART[id]; if (!a?.decor) return '';
   return `<img src="${a.decor}" alt="" decoding="async" ${pos}>${a.perso ? `<img src="${a.perso}" alt="" decoding="async" ${pos}>` : ''}`;
 }
-// Un art alternatif a-t-il déjà ses images ?
-export const altReady = artId => !!ALT[artId]?.decor;
-
 // Le personnage sort du cadre à partir du premier niveau de carte qui le débloque (rewards.js, « pop »),
 // seulement dans la vue en grand (style.css, .zoomart.pop) : en vignette, il reste dans le cadre.
 // Les sorts ne débordent jamais : leur illustration reste dans le cadre, sans calque personnage.
@@ -90,7 +88,7 @@ const EMBLEMS = {
   Cyborg: '<path fill-rule="evenodd" d="M44 6h12l2 10 8 3 8-6 8 8-6 8 3 8 10 2v12l-10 2-3 8 6 8-8 8-8-6-8 3-2 10H44l-2-10-8-3-8 6-8-8 6-8-3-8-10-2V44l10-2 3-8-6-8 8-8 8 6 8-3Zm6 24a20 20 0 1 0 0 40 20 20 0 0 0 0-40Zm0 12a8 8 0 1 1 0 16 8 8 0 0 1 0-16Z"/>',
   neutre: '<path d="M50 6l9 29 30-6-21 21 21 21-30-6-9 29-9-29-30 6 21-21-21-21 30 6Z"/>',
 };
-const famOfId = id => CARDS[id]?.kw?.find(k => EMBLEMS[k]) || GENERALS[id]?.fam || TERRAINS[id]?.fam || null;
+const famOfId = id => CARDS[id]?.effigy || CARDS[id]?.kw?.find(k => EMBLEMS[k]) || GENERALS[id]?.fam || TERRAINS[id]?.fam || null;
 const emblem = fam => `<svg class="prov-emb" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">${EMBLEMS[fam] || EMBLEMS.neutre}</svg>`;
 const provHTML = (id, name, cls, fam = famOfId(id)) => `<div class="art prov ${cls}" aria-hidden="true">
   <div class="art-clip"><span class="prov-ring"></span>${emblem(fam)}<span class="prov-tag">${t('Illustration à venir')}</span></div>
@@ -114,6 +112,13 @@ export function artHTML(id, name, lvl = 1, cls = '', artId = null) {
 // pour 300 px de large et Chrome télécharge alors l'original de chaque carte de l'écran quitté (5 Mo en quittant la collection).
 const img = (c, a, layer, cls) => { const thumb = !/\b(zoomart|grand)\b/.test(cls) && a[`${layer}Thumb`];
   return `<img class="${c}" src="${a[layer]}"${thumb ? ` srcset="${thumb} 640w, ${a[layer]} 960w" sizes="(max-width: 520px) 50vw, 380px"` : ''} alt="" loading="lazy" decoding="async">`; };
+// Cartes de la galerie de la collection (style.css, .gallery.vignettes, content-visibility) : quand le navigateur se remet à
+// dessiner une carte qui approche de l'écran, ses images sont chargées tout de suite. Laissé au chargement différé seul,
+// Chrome oubliait parfois de les charger : l'illustration restait noire jusqu'à ce qu'on survole ou touche la carte
+// (les cartes holo, que holo.js surveille, s'affichaient, elles). Hors de cette galerie, le chargement différé reste tel quel.
+addEventListener('contentvisibilityautostatechange', e => {
+  if (!e.skipped) for (const i of e.target.querySelectorAll?.('img[loading="lazy"]') || []) i.loading = 'eager';
+}, true);
 // Personnage qui sort du cadre : la partie hors de la fenêtre est redessinée par-dessus le contour de la carte (style.css, .perso-out),
 // avec son propre reflet découpé à la silhouette du personnage (holo.css, .perso-foil, --perso) et l'ombre du bandeau du nom (.name-shade).
 // Seule la vue en grand (« zoomart ») fait déborder le personnage : en vignette, ses calques de débordement ne serviraient à rien

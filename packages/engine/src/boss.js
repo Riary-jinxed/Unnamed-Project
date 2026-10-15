@@ -9,8 +9,9 @@ import { today } from './collection.js';
 import { weekOf } from './pass.js';
 import { t } from './i18n.js';
 
-export const BOSS_IDS = Object.keys(GENERALS).filter(g => GENERALS[g].boss);
-export const isBoss = id => !!GENERALS[id]?.boss;
+// Les boss de clan (clan: true, clan-boss.js) n'entrent pas dans la rotation du boss mondial.
+export const BOSS_IDS = Object.keys(GENERALS).filter(g => GENERALS[g].boss && !GENERALS[g].clan);
+export const isBoss = id => !!GENERALS[id]?.boss && !GENERALS[id].clan;
 // Ce que l'appli montre d'un boss : son script tour par tour et les cartes qu'il renforce.
 export function bossInfo(id) {
   const g = GENERALS[id]; if (!g?.boss) return null;
@@ -76,7 +77,7 @@ export const DEFAULT_BOSS = {
   shop: {},
 };
 // Objets du magasin. kind : boosters, chests (coffres d'arts offerts), prisms, uniEssence, shards (ressources, n par achat),
-// ou art, title, frame, back (cosmétiques, une seule fois). price et limit par défaut, réglables dans /admin (cfg.shop[id]).
+// ou art, title, frame, back, theme (cosmétiques, une seule fois). price et limit par défaut, réglables dans /admin (cfg.shop[id]).
 const S = (id, kind, name, price, limit, extra = {}) => ({ id, kind, name, price, limit, ...extra });
 export const BOSS_SHOP = [
   S('shards', 'shards', '300 Éclats', 60, 5, { n: 300 }),
@@ -87,10 +88,15 @@ export const BOSS_SHOP = [
   S('title:boss:chasseur', 'title', 'Titre « Chasseur de boss »', 250, 0),
   S('back:boss_trophee', 'back', 'Dos du trophée', 500, 0),
   S('frame:boss_crocs', 'frame', 'Cadre des crocs', 700, 0),
+  // Cadres animés (client/src/frames-anim.css).
+  S('frame:boss_comete', 'frame', 'Cadre de la comète', 900, 0),
+  S('frame:boss_brasier', 'frame', 'Cadre du brasier', 900, 0),
   S('art:chevalier_boss', 'art', 'Chevalier, tueur de boss', 500, 0),
   S('art:vaelthar_trophee', 'art', 'Vael\'Thar, trophée du glacier', 800, 0),
   S('art:vorgoth_trophee', 'art', 'Vorgoth, trophée du cercle', 800, 0),
   S('art:ignaroth_trophee', 'art', 'Ignaroth, vaincu sous l\'éclipse', 1200, 0),
+  // Thème de l'interface (themes.js), choisi dès l'achat.
+  S('theme:eclipse', 'theme', 'Thème « Éclipse d\'Ignaroth »', 1500, 0),
 ];
 export const bossItem = id => BOSS_SHOP.find(x => x.id === id) || null;
 // Prix et limite d'un objet avec les réglages de /admin.
@@ -98,7 +104,7 @@ export const itemPrice = (x, cfg = DEFAULT_BOSS) => cfg.shop?.[x.id]?.price ?? x
 export const itemLimit = (x, cfg = DEFAULT_BOSS) => cfg.shop?.[x.id]?.limit ?? x.limit;
 // Cosmétiques du boss mondial, ajoutés aux listes de rewards.js.
 export const BOSS_TITLES = [['boss:chasseur', 'Chasseur de boss'], ['boss:top1', 'Fléau des boss'], ['boss:top3', 'Terreur des boss'], ['boss:top10', 'Chasseur d\'élite']];
-export const BOSS_FRAMES = [['boss_crocs', 'Cadre des crocs']];
+export const BOSS_FRAMES = [['boss_crocs', 'Cadre des crocs'], ['boss_comete', 'Cadre de la comète'], ['boss_brasier', 'Cadre du brasier']];
 export const BOSS_BACKS = [['boss_trophee', 'Dos du trophée']];
 
 // Paliers atteints par un score (indices dans tiers).

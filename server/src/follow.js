@@ -80,7 +80,7 @@ export function createFollow(store, accounts, { boss, events }) {
       ['Deck de départ choisi', a => !!a.starter],
       ['Première partie', a => (a.stats?.games || 0) > 0],
       ['Une leçon du tutoriel', a => (a.tuto || []).length > 0],
-      ['Tutoriel fini', a => TUTO_LESSONS.every(l => (a.tuto || []).includes(l.id))],
+      ['Tutoriel fini', a => TUTO_LESSONS.filter(l => !l.advanced).every(l => (a.tuto || []).includes(l.id))],
       ['Revenu un autre jour', a => sets.get(a.login).size >= 2],
       ['Revenu 3 jours ou plus', a => sets.get(a.login).size >= 3],
       [`Bienvenue finie (${WELCOME_STEPS} jours)`, a => (a.welcome?.days?.length || 0) >= WELCOME_STEPS],

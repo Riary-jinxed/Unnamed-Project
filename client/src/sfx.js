@@ -98,6 +98,15 @@ const SOUNDS = {
   knock: () => { tone(120, { to: 70, dur: 0.18, vol: 0.4 }); noise({ dur: 0.12, freq: 700, type: 'lowpass', vol: 0.4 }); tone(1900, { dur: 0.08, type: 'square', vol: 0.025, at: 0.01 }); },
   chestUp: () => { [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, { dur: 0.22, type: 'triangle', vol: 0.1, at: i * 0.05 })); noise({ dur: 0.35, freq: 3000, to: 8000, q: 2, vol: 0.06 }); },
   chestOpen: () => { noise({ dur: 0.5, freq: 300, to: 4000, q: 0.6, vol: 0.35 }); tone(80, { to: 50, dur: 0.35, vol: 0.4 }); [523, 659, 784, 1047].forEach(f => tone(f, { dur: 0.9, type: 'triangle', vol: 0.07, at: 0.12 })); },
+  // Faites vos jeux : dé qui roule sur le tapis (petits chocs de plus en plus espacés), puis le Jackpot (rouleaux, trois arrêts, pluie de pièces).
+  dice: () => { [0, 0.06, 0.13, 0.22, 0.34, 0.47].forEach((at, i) => noise({ dur: 0.04, freq: 2400 - i * 180, q: 3, vol: 0.2 - i * 0.02, at })); tone(220, { to: 160, dur: 0.06, type: 'triangle', vol: 0.12, at: 0.47 }); },
+  six: () => { [988, 1319, 1760].forEach((f, i) => tone(f, { dur: 0.22, type: 'triangle', vol: 0.08, at: 0.5 + i * 0.05 })); },
+  jackpot: () => {
+    for (let i = 0; i < 18; i++) noise({ dur: 0.03, freq: 1800, q: 4, vol: 0.08, at: i * 0.07 });
+    [0.9, 1.15, 1.4].forEach(at => { tone(196, { to: 130, dur: 0.08, type: 'square', vol: 0.08, at }); noise({ dur: 0.05, freq: 900, vol: 0.2, at }); });
+    [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, { dur: i === 5 ? 0.6 : 0.14, type: 'square', vol: 0.06, at: 1.5 + i * 0.1 }));
+    for (let i = 0; i < 14; i++) tone(2093 + (i % 4) * 330, { dur: 0.09, vol: 0.035, at: 1.7 + i * 0.055 });
+  },
   // Coup porté : une carte de l'adversaire perd de la puissance (choc sourd et claquement).
   hit: () => { noise({ dur: 0.1, freq: 1600, to: 500, q: 1.4, vol: 0.32 }); tone(170, { to: 70, dur: 0.16, type: 'triangle', vol: 0.3 }); noise({ dur: 0.05, freq: 5000, q: 3, vol: 0.08, at: 0.01 }); },
   // Fin de partie : fanfare et accord tenu, chute grave, ou deux notes qui s'éteignent.

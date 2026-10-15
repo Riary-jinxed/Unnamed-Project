@@ -1,10 +1,13 @@
-// Onglet Récompenses de /admin : courbe d'XP, gains des parties et des niveaux, missions quotidiennes, complétions, niveaux de carte, saisons classées, passe de saison et succès.
+// Onglet Récompenses de /admin : courbe d'XP, gains des parties et des niveaux, missions du jour et de la semaine, complétions, niveaux de carte, saisons classées, passe de saison et succès.
 // Tout est enregistré dans le document « recompenses » ; les valeurs vides reprennent les valeurs par défaut.
-import { MISSIONS, ACHIEVEMENTS, FAMILY_REWARDS, SET_REWARDS, FRAMES, CARD_LEVELS, xpToNext } from '@jeu/engine/rewards';
+import { MISSIONS, WEEKLY_MISSIONS, ACHIEVEMENTS, FAMILY_REWARDS, SET_REWARDS, FRAMES, CARD_LEVELS, xpToNext } from '@jeu/engine/rewards';
 import { CARDS } from '@jeu/engine';
+import { setById } from '@jeu/engine/collection';
 import { TIERS, PLACES, seasonShardsKey, seasonPrismsKey, placeShardsKey, placePrismsKey } from '@jeu/engine/ranked';
 import { PASS_KINDS, PASS_TIERS, SEASONS, passMissionLabel, refundTier } from '@jeu/engine/pass';
 
+// Modes demandés par certaines missions (champ need) : tirées seulement pour les joueurs qui y ont accès.
+const NEEDS = { clan: 'membres d\'un clan', boss: 'boss mondial ouvert' };
 const GROUPS = [
   ['Niveau du compte', 'XP pour passer du niveau n au suivant : le plus petit entre « plafond » et « base + pas × (n − 1) ».', [
     ['xpBase', 'XP du niveau 1 au 2'], ['xpStep', 'XP de plus à chaque niveau'], ['xpCap', 'Plafond d\'XP par niveau'],
@@ -17,9 +20,11 @@ const GROUPS = [
   ]],
   ['Missions et complétions', 'Les cartes, titres, cadres et dos de carte des complétions sont fixes ; seuls les Éclats et boosters se règlent.', [
     ['missionsPerDay', 'Missions par jour', 'Entre 0 et 6.'], ['missionRerolls', 'Missions qu\'on peut changer par jour'],
+    ['weeklyMissions', 'Missions par semaine', 'Entre 0 et 6.'], ['weeklyBonusChests', 'Coffres d\'arts : toutes les missions de la semaine accomplies'],
+    ['weeklyBonusPrisms', 'Prismes : toutes les missions de la semaine accomplies'],
     ['familyShards', 'Éclats : famille complétée dans un set'],
     ['setShards', 'Éclats : set complété'], ['setBoosters', 'Boosters offerts : set complété'],
-    ['tutoShards', 'Éclats : leçon du tutoriel finie (une fois par leçon)'], ['tutoBoosters', 'Boosters offerts : toutes les leçons finies'],
+    ['tutoShards', 'Éclats : leçon du tutoriel finie (une fois par leçon)'], ['tutoBoosters', 'Boosters offerts : toutes les leçons de base finies'],
   ]],
   ['Niveaux de carte', 'Purement cosmétiques. Chaque doublon donne de l\'essence de la carte (en plus des Éclats par doublon de l\'onglet Boutique) ; essence et Éclats font monter la carte : bronze, argent, or, puis astral avec un effet de mise en jeu. Une fois l\'essence d\'une carte au plafond (de quoi la monter au niveau 5), ses doublons donnent de l\'essence universelle.', [
     ['essencePerDuplicate', 'Essence par doublon'],
@@ -72,9 +77,10 @@ export function rewardsTab({ call, render, say, esc, notice }) {
     const r = S.data.rewards, d = S.data.defaults;
     const field = ([k, label, hint = '']) => `<div class="field"><label class="eyebrow" for="r-${k}">${label}</label>
       <input id="r-${k}" type="number" min="0" step="1" value="${r[k]}"><small class="hint">${hint} Par défaut : ${d[k]}.</small></div>`;
-    const missions = Object.entries(MISSIONS).filter(([, m]) => !m.retired).map(([id, m]) => { const v = r.missions[id], label = m.label(v.target, 'd\'une famille', 'une carte de sa collection');
-      return `<tr><td><label class="check"><input type="checkbox" id="m-${id}-on" ${v.on ? 'checked' : ''}>${esc(label)}</label></td>
+    const missionRows = defs => Object.entries(defs).filter(([, m]) => !m.retired).map(([id, m]) => { const v = r.missions[id], label = m.label(v.target, 'd\'une famille', 'une carte de sa collection');
+      return `<tr><td><label class="check"><input type="checkbox" id="m-${id}-on" ${v.on ? 'checked' : ''}>${esc(label)}</label>${m.need ? ` <small class="hint">(${NEEDS[m.need]})</small>` : ''}</td>
         ${['target', 'xp', 'shards'].map(k => `<td><input id="m-${id}-${k}" type="number" min="0" step="1" value="${v[k]}" style="width:80px" aria-label="${k}"></td>`).join('')}</tr>`; }).join('');
+    const missions = missionRows(MISSIONS), weekly = missionRows(WEEKLY_MISSIONS);
     const achievements = ACHIEVEMENTS.map(x => `<tr><td>${esc(x.label)}</td><td class="hint">${[x.title ? `titre « ${esc(x.title)} »` : '', x.frame ? esc(FRAMES[x.frame]) : ''].filter(Boolean).join(' · ')}</td>
       <td><input id="a-${x.id}" type="number" min="0" step="1" value="${r.achievements[x.id]}" style="width:90px" aria-label="Éclats"></td>
       <td><input id="ap-${x.id}" type="number" min="0" step="1" value="${r.achievementPrisms[x.id]}" style="width:80px" aria-label="Prismes"></td>
@@ -85,8 +91,8 @@ export function rewardsTab({ call, render, say, esc, notice }) {
       <p class="hint" style="margin:0">Le premium se rembourse ${refundTier(x, r) ? `au palier ${refundTier(x, r)}` : 'jamais avec ces réglages'} ; un joueur assidu peut gagner environ ${passMonthXp(x, r).toLocaleString('fr-FR')} XP de saison sur le mois, pour ${(PASS_TIERS * r.passTierXp).toLocaleString('fr-FR')} nécessaires au palier ${PASS_TIERS}.</p>
       <div class="scroll"><table class="admin"><thead><tr><th>Mission de saison</th><th>Objectif</th><th>XP</th></tr></thead><tbody>${x.missions.map(m => { const v = r.passMissions[m.id];
         return `<tr><td>${esc(passMissionLabel({ ...m, target: v.target }))}</td>${['target', 'xp'].map(k => `<td><input id="pm-${m.id}-${k}" type="number" min="0" step="1" value="${v[k]}" style="width:90px" aria-label="${k}"></td>`).join('')}</tr>`; }).join('')}</tbody></table></div>`).join('');
-    const fams = FAMILY_REWARDS.map(f => `<li>${esc(f.fam)} (${f.set === 'base' ? 'Set de base' : 'Crépuscule'}) : ${esc(CARDS[f.card]?.name || f.card)}, titre « ${esc(f.title)} »</li>`).join('');
-    const sets = Object.entries(SET_REWARDS).map(([set, s]) => `<li>${set === 'base' ? 'Set de base' : 'Crépuscule'} : ${esc(CARDS[s.card]?.name || s.card)}, titre « ${esc(s.title)} », ${esc(FRAMES[s.frame])}</li>`).join('');
+    const fams = FAMILY_REWARDS.map(f => `<li>${esc(f.fam)} (${esc(setById(f.set)?.name || f.set)}) : ${esc(CARDS[f.card]?.name || f.card)}, titre « ${esc(f.title)} »</li>`).join('');
+    const sets = Object.entries(SET_REWARDS).map(([set, s]) => `<li>${esc(setById(set)?.name || set)} : ${esc(CARDS[s.card]?.name || s.card)}, titre « ${esc(s.title)} », ${esc(FRAMES[s.frame])}</li>`).join('');
     return `${notice()}
     <form class="card-box" id="rewards">
       ${GROUPS.map(([title, hint, fields]) => `<h2 style="font-size:20px">${title}</h2><p class="hint" style="margin:0">${hint}</p><div class="grid2">${fields.map(field).join('')}</div>`).join('')}
@@ -94,6 +100,9 @@ export function rewardsTab({ call, render, say, esc, notice }) {
       <h2 style="font-size:20px">Missions quotidiennes</h2>
       <p class="hint" style="margin:0">Décochez une mission pour ne plus la tirer. Elles sont tirées au hasard chaque jour parmi celles cochées.</p>
       <div class="scroll"><table class="admin"><thead><tr><th>Mission</th><th>Objectif</th><th>XP</th><th>Éclats</th></tr></thead><tbody>${missions}</tbody></table></div>
+      <h2 style="font-size:20px">Missions de la semaine</h2>
+      <p class="hint" style="margin:0">Hors passe : tirées chaque lundi parmi celles cochées, avec le bonus réglé plus haut quand elles sont toutes accomplies. Une mission d'un mode (clan, boss mondial) n'est tirée que pour les joueurs qui y ont accès, ici comme pour les missions du jour et du passe.</p>
+      <div class="scroll"><table class="admin"><thead><tr><th>Mission</th><th>Objectif</th><th>XP</th><th>Éclats</th></tr></thead><tbody>${weekly}</tbody></table></div>
       <h2 style="font-size:20px">Missions du passe de saison</h2>
       <p class="hint" style="margin:0">Objectif de chaque sorte de mission quand elle est tirée pour le jour ou pour la semaine (0 : jamais tirée). Les missions de saison ont leur propre objectif et leur XP, par saison.</p>
       <div class="scroll"><table class="admin"><thead><tr><th>Mission</th><th>Objectif du jour</th><th>Objectif de la semaine</th></tr></thead><tbody>${pool}</tbody></table></div>
@@ -116,7 +125,7 @@ export function rewardsTab({ call, render, say, esc, notice }) {
     if (id !== 'rewards') return false;
     const v = k => document.getElementById(k);
     const body = Object.fromEntries(GROUPS.flatMap(g => g[2]).map(([k]) => [k, Number(v(`r-${k}`).value)]));
-    body.missions = Object.fromEntries(Object.keys(MISSIONS).filter(mid => !MISSIONS[mid].retired).map(mid => [mid, { on: v(`m-${mid}-on`).checked,
+    body.missions = Object.fromEntries([...Object.entries(MISSIONS), ...Object.entries(WEEKLY_MISSIONS)].filter(([, m]) => !m.retired).map(([mid]) => mid).map(mid => [mid, { on: v(`m-${mid}-on`).checked,
       ...Object.fromEntries(['target', 'xp', 'shards'].map(k => [k, Number(v(`m-${mid}-${k}`).value)])) }]));
     body.passPool = Object.fromEntries(Object.keys(PASS_KINDS).map(k => [k, { daily: Number(v(`pp-${k}-daily`).value), weekly: Number(v(`pp-${k}-weekly`).value) }]));
     body.passMissions = Object.fromEntries(SEASONS.flatMap(x => x.missions).map(m => [m.id, { target: Number(v(`pm-${m.id}-target`).value), xp: Number(v(`pm-${m.id}-xp`).value) }]));

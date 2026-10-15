@@ -4,9 +4,10 @@
 // « classement-clans » ({ [saison]: { closed, top } }). Compte : clan (identifiant), clanCoins (Écus), clanReq (demandes en attente),
 // clanDon (dons du jour : { date, shards, prisms, uniEssence }). Clan : leader (le Maître), roles ({ login: 'adjoint' | 'souschef' }),
 // bank (trésor : ressources données), boosts ({ projet: date de fin }), chest (semaine du dernier coffre du clan).
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
+import { avatarKey } from './avatar.js';
 import { CARDS, shuffle } from '@jeu/engine';
-import { ARTS, artExists } from '@jeu/engine/arts';
+import { artExists } from '@jeu/engine/arts';
 import { TITLES, FRAMES, BACKS } from '@jeu/engine/rewards';
 import { rankOf, seasonId, seasonName } from '@jeu/engine/ranked';
 import { CLAN_PRICE, CLAN_NAME_MAX, CLAN_TAG_RE, CLAN_DESC_MAX, MAX_REQUESTS, MAX_CLAN_REQUESTS, CLAN_LEVELS, clanLevelOf, clanLevelView, maxMembers,
@@ -19,7 +20,6 @@ import { seasonMsg } from './progress.js';
 
 const LOG_MAX = 30;
 const now = () => new Date().toISOString();
-const avatarKey = a => (a.avatar ? createHash('sha1').update(a.avatar).digest('hex').slice(0, 12) : null);
 const coinsMsg = n => msg(n > 1 ? '{n} Écus' : '{n} Écu', { n });
 
 // push : les notifications push (push.js), pour les demandes d'entrée et leur réponse.
@@ -76,6 +76,8 @@ export function createClans(store, accounts, push = null) {
     return r === 'adjoint' || (r === 'souschef' && !c.members.some(l => roleOf(c, l) === 'adjoint'));
   };
   const boostOn = (c, id) => !!c.boosts?.[id] && c.boosts[id] > now();
+  // Résumé du boss de clan dans la vue du clan (clan-boss.js, setRaidView).
+  let raidView = null;
 
   // ---- Missions de clan ----
   // Tirées au premier passage du jour (ou de la semaine). L'objectif d'une mission pas encore accomplie suit la taille du clan.
@@ -99,9 +101,9 @@ export function createClans(store, accounts, push = null) {
   const shareOf = (c, m) => clanShare(m.target, c.members.length);
   // Une mission accomplie : XP du clan (et peut-être un niveau), Écus pour chaque membre qui y a contribué.
   function complete(c, m, scope, current) {
-    const R = CLAN_MISSION_REWARDS[scope], before = level(c);
+    const R = CLAN_MISSION_REWARDS[scope];
     const r = { xp: Math.round(R.xp * (boostOn(c, 'etendard') ? CLAN_PROJECTS.etendard.xp : 1)), coins: Math.round(R.coins * (boostOn(c, 'festin') ? CLAN_PROJECTS.festin.coins : 1)) };
-    m.done = true; c.xp = (c.xp || 0) + r.xp;
+    m.done = true;
     const what = { label: clanMissionLabel(m), xp: r.xp };
     log(c, scope === 'daily' ? msg('Mission du jour accomplie : {label} (+{xp} XP de clan)', what) : msg('Mission de la semaine accomplie : {label} (+{xp} XP de clan)', what));
     const label = `Mission de clan accomplie : ${clanMissionLabel(m)}`;
@@ -112,6 +114,12 @@ export function createClans(store, accounts, push = null) {
       progress.count(b, 'clanMissions');
       if (b !== current) put(b);
     }
+    addXp(c, r.xp, current);
+  }
+  // XP de clan (missions, boss de clan) : peut-être un niveau de plus, annoncé à chaque membre. current : enregistré par l'appelant.
+  function addXp(c, xp, current = null) {
+    const before = level(c);
+    c.xp = (c.xp || 0) + xp;
     const after = level(c);
     if (after > before) {
       log(c, msg('Le clan passe au niveau {n} !', { n: after }));
@@ -201,7 +209,7 @@ export function createClans(store, accounts, push = null) {
       treasury: treasuryView(c),
       requests: canDo(roleOf(c, a.login), 'requests') ? c.requests.map(l => { const b = store.get(l); return { login: l, name: b.name, level: b.level || 1, avatar: avatarKey(b) }; }) : [],
       missions: { day: ms(c.day.list), week: ms(c.week.list), rewards: CLAN_MISSION_REWARDS },
-      banners: c.banners || [], log: c.log || [], score: scoreOf(c), pos: pos ? pos.pos : null };
+      banners: c.banners || [], log: c.log || [], score: scoreOf(c), pos: pos ? pos.pos : null, raid: raidView ? raidView(a, c) : null };
   }
   // Trésor : ressources données au clan, et projets qu'il peut financer.
   function treasuryView(c) {
@@ -450,6 +458,7 @@ export function createClans(store, accounts, push = null) {
     log(c, msg('{name} donne {n} {res} ({coins}).', { name: a.name, n: give, res: [give > 1 ? d.name : d.name.replace(/s$/, '')], coins: coinsMsg(coins) }));
     advance(c, a, { dons: coins });
     progress.count(a, 'clanDonated', coins);
+    progress.act(a, 'clanDon');
     await Promise.all([save(), store.put(a)]);
     return done(a, msg('Merci ! +{coins}.', { coins: coinsMsg(coins) }));
   }
@@ -484,8 +493,11 @@ export function createClans(store, accounts, push = null) {
   // Au démarrage : le niveau du clan de chaque membre compte pour le succès « clan de niveau maximum » (membres d'avant ce succès).
   for (const c of Object.values(clans)) for (const login of c.members) { const b = store.get(login); if (b && progress.best(b, 'bestClanLevel', level(c))) put(b); }
 
+  // Pour le boss de clan (clan-boss.js) : les clans, leur enregistrement, leur journal, les rôles et l'XP de clan.
+  const internals = { byId: id => (clans[id] ? prune(clans[id]) : null), all: () => Object.values(clans).map(prune).filter(Boolean), save, log, roleOf, level, pushTo, addXp };
+
   return {
-    onGame, closeSeason, badge, clanOf,
+    onGame, closeSeason, badge, clanOf, internals, setRaidView: f => { raidView = f; },
     routes: {
       'GET /api/clan': a => view(a),
       'GET /api/clan/avatars': a => avatars(a),

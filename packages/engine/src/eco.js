@@ -3,9 +3,8 @@
 // Les réglages simulés sont ceux par défaut (rewards.js, collection.js) ; un fichier JSON de réglages peut les remplacer :
 // node packages/engine/src/eco.js 300 reglages.json  (mêmes clés que la boutique et les récompenses de /admin).
 import { readFileSync } from 'node:fs';
-import { DEFAULT_SETS, SHOP, SHARDS_PER_DUPLICATE, BOOSTER_SIZE, setBoosterPrice } from './collection.js';
+import { DEFAULT_SETS, SHOP, SHARDS_PER_DUPLICATE, BOOSTER_SIZE, setBoosterPrice, STARTERS, starterKit } from './collection.js';
 import { DEFAULT_REWARDS, MISSIONS, ACHIEVEMENTS, MAX_CARD_LEVEL, xpToNext, familyOf, levelCost } from './rewards.js';
-import { STARTERS, starterKit } from './collection.js';
 
 const RUNS = +process.argv[2] || 200;
 const over = process.argv[3] ? JSON.parse(readFileSync(process.argv[3], 'utf8')) : {};

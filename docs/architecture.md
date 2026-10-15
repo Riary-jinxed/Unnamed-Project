@@ -22,6 +22,7 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `@jeu/engine/events` | `events.js` | Événements temporaires : bonus (XP, points de classé, Éclats, XP de saison), périodes (week-end, dernier week-end, dernière semaine du mois, dates), multiplicateur du jour. |
 | `@jeu/engine/emotes` | `emotes.js` | Émotes en partie : catalogue (offertes, boutique, succès), taille du sélecteur, limites d'envoi, réponses de l'IA. |
 | `@jeu/engine/pass` | `pass.js` | Passe de saison : saisons (cartes, cosmétiques, missions, arts Promo), paliers gratuits et premium, missions du jour et de la semaine. |
+| `@jeu/engine/themes` | `themes.js` | Thèmes de l'interface : ceux des saisons et ceux à l'effigie d'un général (prix, ou succès qui le donne). |
 
 ## Carte des fichiers
 
@@ -99,5 +100,5 @@ L'appli appelle `/api/...` en JSON avec l'en-tête `Authorization: Bearer <sessi
 Ce qui a été mesuré et réglé :
 
 - **IA** : chaque essai de plan copie l'état de la partie pour le simuler. La copie ne prend plus le journal et n'utilise plus `structuredClone`, et le calcul de puissance ne crée plus de tableaux intermédiaires : l'IA est environ 2,4 fois plus rapide (même résultat au coup près, vérifié avec `npm run empreinte`). C'est sensible sur téléphone, où l'IA tourne dans la page.
-- **Fichiers de l'appli** : lus et compressés (gzip) une seule fois par le serveur ; les fichiers de `/assets/` (nom avec empreinte) sont gardés un an par le navigateur et servis depuis le cache du service worker.
+- **Fichiers de l'appli** : les textes (HTML, JS, CSS) sont lus et compressés (brotli et gzip) une seule fois par le serveur et gardés en mémoire ; les images et musiques sont lues sur le disque à chaque demande. Les fichiers de `/assets/` (nom avec empreinte) sont gardés un an par le navigateur ; le code et les styles sont aussi servis depuis le cache du service worker.
 - **API** : les réponses de plus de 2 Ko sont compressées ; la vérification des mots de passe (scrypt) ne bloque plus les parties en cours.

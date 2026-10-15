@@ -1,9 +1,10 @@
 // Page d'administration : comptes des joueurs (création, profil, Éclats, collection, deck, accès), statistiques des parties,
-// éditeur de cartes et de sets (brouillon puis publication), réglages de la boutique, courrier aux joueurs et codes cadeaux.
+// éditeur de cartes et de sets (brouillon puis publication), réglages de la boutique, courrier aux joueurs et codes cadeaux, signalements de bugs, annonces des Nouveautés.
 // Protégée par la clé ADMIN_KEY du serveur, gardée dans ce navigateur seulement.
 import './style.css';
 import { DECKS, CARDS, GENERALS, TERRAINS, FAMILIES } from '@jeu/engine';
-import { STARTERS, OWNABLE } from '@jeu/engine/collection';
+import { STARTERS, OWNABLE, SETS, today } from '@jeu/engine/collection';
+import { addDays } from '@jeu/engine/events';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { statsTab } from './admin-stats.js';
 import { followTab } from './admin-follow.js';
@@ -11,11 +12,13 @@ import { esc, famStyle } from './common.js';
 import { cardsTab } from './admin-cards.js';
 import { rewardsTab } from './admin-rewards.js';
 import { mailTab } from './admin-mail.js';
+import { bugsTab } from './admin-bugs.js';
+import { newsTab } from './admin-news.js';
 import { eventsTab } from './admin-events.js';
 import { bossTab } from './admin-boss.js';
 import { storyTab } from './admin-story.js';
 import { ARTS, ART_RARITIES, RARITY_IDS, rarityName } from '@jeu/engine/arts';
-import { SEASON_THEMES } from '@jeu/engine/pass';
+import { THEMES } from '@jeu/engine/themes';
 
 const app = document.getElementById('app');
 const KEY = 'jeu-admin-key';
@@ -33,9 +36,16 @@ async function adminCall(method, path, body) {
   return data;
 }
 const say = (msg, err = '') => { st.msg = msg; st.err = err; };
-const TABS = { accounts: 'Comptes', stats: 'Stats', follow: 'Suivi', cards: 'Cartes', sets: 'Sets', shop: 'Boutique', rewards: 'Récompenses', events: 'Événements', boss: 'Boss', story: 'Quêtes', mail: 'Courrier' };
+const TABS = { accounts: 'Comptes', stats: 'Stats', follow: 'Suivi', cards: 'Cartes', sets: 'Sets', shop: 'Boutique', rewards: 'Récompenses', events: 'Événements', boss: 'Boss', story: 'Quêtes', mail: 'Courrier', bugs: 'Signalements', news: 'Nouveautés' };
 const tabCtx = { call: adminCall, render: () => render(), say, esc: s => esc(s), notice: () => notice() };
-const stats = statsTab(tabCtx), rewards = rewardsTab(tabCtx), mail = mailTab(tabCtx), events = eventsTab(tabCtx), boss = bossTab(tabCtx), story = storyTab(tabCtx), follow = followTab(tabCtx);
+const stats = statsTab(tabCtx), rewards = rewardsTab(tabCtx), mail = mailTab(tabCtx), news = newsTab(tabCtx), events = eventsTab(tabCtx), boss = bossTab(tabCtx), story = storyTab(tabCtx), follow = followTab(tabCtx);
+// Signalements : « Répondre par courrier » ouvre l'onglet Courrier avec le joueur en destinataire.
+const bugs = bugsTab({ ...tabCtx, onReply: async login => {
+  st.tab = 'mail'; say(''); render(); await mail.load();
+  const to = document.getElementById('ms-to'), title = document.getElementById('ms-title');
+  if (to) to.value = login; if (title && !title.value) title.value = 'Votre signalement';
+  window.scrollTo(0, 0);
+} });
 // Après une publication, la liste des comptes et les collections tiennent compte des nouvelles cartes.
 const cards = cardsTab({ ...tabCtx, onPublished: () => refresh() });
 async function refresh() {
@@ -68,11 +78,25 @@ async function act(path, body, okMsg) {
 const notice = () => `${st.msg ? `<p class="ok" style="margin:0">${st.msg}</p>` : ''}${st.err ? `<p class="err" style="margin:0">${esc(st.err)}</p>` : ''}`;
 const dis = () => (st.busy ? 'disabled' : '');
 
+// Zone de test : jour d'aperçu du compte (server/src/preview.js). Raccourcis : demain, dans une semaine, et la sortie de chaque set à venir.
+function previewBlock(a) {
+  const day = today(), soon = [{ d: addDays(day, 1), label: 'Demain' }, { d: addDays(day, 7), label: 'Dans 7 jours' },
+    ...SETS.filter(s => s.reveal && s.reveal > day).sort((x, y) => x.reveal.localeCompare(y.reveal)).map(s => ({ d: s.reveal, label: `Sortie de ${s.name}` }))];
+  return `<form class="card-box" id="preview">
+    <h3>Zone de test</h3>
+    <p class="hint" style="margin:0">Un jour d'aperçu fait vivre ce compte à cette date sur le jeu en ligne : les sets, decks préconstruits, terrains, événements, saisons du passe, quêtes et annonces de ce jour-là y sont visibles et jouables (boutique, collection, decks, IA). Rien ne change pour les autres joueurs. Le classé et les Boss sont fermés à ce compte pendant ce temps. L'appli du testeur prend le changement à sa prochaine action (ou en la rechargeant).</p>
+    <div class="row"><input id="p-preview" type="date" value="${esc(a.preview || '')}" min="${day}" aria-label="Jour d'aperçu" style="max-width:200px">
+      <button class="btn primary" type="submit" ${dis()}>${a.preview ? 'Changer le jour' : 'En faire un compte de test'}</button>
+      ${a.preview ? `<button class="btn" type="button" data-act="preview-off" ${dis()}>Revenir au jour réel</button>` : ''}</div>
+    <div class="row"><span class="hint">Raccourcis :</span>${soon.map(x => `<button class="btn sm" type="button" data-preview-day="${x.d}" title="${x.d}">${esc(x.label)}</button>`).join('')}</div>
+  </form>`;
+}
+
 function renderList() {
   const q = st.q.trim().toLowerCase();
   const list = st.accounts.slice().sort((a, b) => a.login.localeCompare(b.login)).filter(a => !q || a.login.includes(q) || a.name.toLowerCase().includes(q));
   const rows = list.map(a => `<tr data-open="${esc(a.login)}" tabindex="0">
-    <td><b>${esc(a.login)}</b>${a.disabled ? ' <span class="chip off">désactivé</span>' : ''}</td><td>${esc(a.name)}</td><td>${a.starter ? esc(DECKS[a.starter].name) : '—'}</td>
+    <td><b>${esc(a.login)}</b>${a.disabled ? ' <span class="chip off">désactivé</span>' : ''}${a.preview ? ` <span class="chip">test · ${esc(a.preview)}</span>` : ''}</td><td>${esc(a.name)}</td><td>${a.starter ? esc(DECKS[a.starter].name) : '—'}</td>
     <td class="num">${a.level}</td><td class="num">${a.cards}</td><td class="num">${a.shards}</td><td>${a.lastBooster || '—'}</td><td class="num">${a.sessions}</td></tr>`).join('');
   return `${notice()}
   <div class="card-box" style="overflow-x:auto">
@@ -111,7 +135,7 @@ function renderDetail() {
     ${a.deckError ? `<p class="err" style="margin:0">Deck injouable : ${esc(a.deckError)}</p>` : ''}` : '<p class="hint" style="margin:0">Pas encore de deck : le joueur choisira son deck de départ à sa prochaine connexion.</p>';
   return `<div class="row"><button class="btn" data-act="back">← Tous les comptes</button></div>
   <div class="card-box">
-    <div class="row"><h2 style="font-size:24px;margin-right:auto">${esc(a.login)}</h2>${a.disabled ? '<span class="chip off">Désactivé</span>' : '<span class="chip">Actif</span>'}</div>
+    <div class="row"><h2 style="font-size:24px;margin-right:auto">${esc(a.login)}</h2>${a.preview ? `<span class="chip">Compte de test · ${esc(a.preview)}</span>` : ''}${a.disabled ? '<span class="chip off">Désactivé</span>' : '<span class="chip">Actif</span>'}</div>
     <p class="hint" style="margin:0">Créé le ${a.created ? new Date(a.created).toLocaleDateString('fr-FR') : '—'} · ${a.sessions} session${a.sessions > 1 ? 's' : ''} ouverte${a.sessions > 1 ? 's' : ''} · ${a.cards} cartes</p>
     ${notice()}
   </div>
@@ -131,6 +155,7 @@ function renderDetail() {
     <div class="row"><button class="btn primary" type="submit" ${dis()}>Enregistrer</button>
       <span class="hint">Ajouter :</span>${[100, 300, 1000].map(n => `<button class="btn sm" type="button" data-add-shards="${n}">+${n}</button>`).join('')}</div>
   </form>
+  ${previewBlock(a)}
   <div class="card-box">
     <h3>Deck et boosters</h3>
     ${deck}
@@ -193,12 +218,12 @@ function artsBlock(a) {
 }
 // Thèmes de saison du joueur : en donner un pour tester avant sa saison, ou le retirer.
 function themesBlock(a) {
-  const mine = (a.themes || []).filter(id => SEASON_THEMES[id]), other = Object.keys(SEASON_THEMES).filter(id => !mine.includes(id));
+  const mine = (a.themes || []).filter(id => THEMES[id]), other = Object.keys(THEMES).filter(id => !mine.includes(id));
   return `<div class="card-box">
-    <div class="row"><h3 style="margin-right:auto">Thèmes de saison</h3><small class="hint">${mine.length}/${Object.keys(SEASON_THEMES).length}</small></div>
-    ${mine.length ? `<div class="chips">${mine.map(id => `<span class="pick on">${esc(SEASON_THEMES[id])}
+    <div class="row"><h3 style="margin-right:auto">Thèmes de l'interface</h3><small class="hint">${mine.length}/${Object.keys(THEMES).length}</small></div>
+    ${mine.length ? `<div class="chips">${mine.map(id => `<span class="pick on">${esc(THEMES[id])}
       <button class="btn sm" type="button" data-theme-take="${id}" ${dis()}>Retirer</button></span>`).join('')}</div>` : '<p class="hint" style="margin:0">Aucun thème pour l\'instant.</p>'}
-    ${other.length ? `<div class="row"><select id="give-theme" aria-label="Thème à donner">${other.map(id => `<option value="${id}">${esc(SEASON_THEMES[id])}</option>`).join('')}</select>
+    ${other.length ? `<div class="row"><select id="give-theme" aria-label="Thème à donner">${other.map(id => `<option value="${id}">${esc(THEMES[id])}</option>`).join('')}</select>
       <button class="btn" data-act="give-theme" ${dis()}>Donner ce thème</button></div>` : ''}
     <p class="hint" style="margin:0">Le joueur le choisit ensuite dans Personnalisation, même avant le début de sa saison.</p>
   </div>`;
@@ -208,7 +233,7 @@ function artsCatalog() {
   if (!st.arts) return '<p class="wait">Chargement des arts…</p>';
   const rows = st.arts.map(x => `<tr><td><b>${esc(x.name)}</b>${x.exists ? '' : ' <span class="chip off">carte absente</span>'}<br><small class="hint">${esc(x.id)}</small></td><td>${esc(CARDS[x.card]?.name || GENERALS[x.card]?.name || x.card)}</td>
     <td>${esc(x.rarityName)}${x.edition === 'promo' && x.how ? `<br><small class="hint">${esc(x.how)}</small>` : ''}</td>
-    <td class="num">${x.price === null ? '—' : x.edition === 'essence' ? `${x.price} essence` : x.edition === 'clan' ? `${x.price} Écus` : x.price}</td><td class="num">${x.owners}</td></tr>`).join('');
+    <td class="num">${x.price === null ? '—' : x.edition === 'essence' ? `${x.price} essence` : x.edition === 'clan' ? `${x.price} Écus` : x.edition === 'casino' ? `${x.price} Jetons` : x.price}</td><td class="num">${x.owners}</td></tr>`).join('');
   return `<div class="card-box" style="overflow-x:auto"><h2 style="font-size:20px">Catalogue des arts</h2>
     <p class="hint" style="margin:0">Les arts se déclarent dans <code>packages/engine/src/arts.js</code> et leurs images dans <code>client/src/art/alt/&lt;id&gt;/</code> ; sans image, l'appli montre un art provisoire.</p>
     <table class="admin"><thead><tr><th>Art</th><th>Carte</th><th>Rareté</th><th>Prix (Prismes, ou essence universelle pour l'édition Essence)</th><th>Joueurs</th></tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -244,6 +269,7 @@ function renderShopSettings() {
       ${field('dupOffers', 'Doublons du jour', 'Entre 0 et 10. 0 les retire de la boutique.')}
       ${field('dupPrice', 'Prix d\'un doublon du jour', 'En Éclats.')}
       ${RARITY_IDS.map(r => field(`essArtPrice_${r}`, `Art ${ART_RARITIES[r].name.toLowerCase()} de l'édition Essence`, 'En essence universelle.')).join('')}
+      ${field('essFramePrice', 'Cadre de la nébuleuse (animé)', 'En essence universelle.')}
     </div>
     <div class="row"><button class="btn primary" type="submit">Enregistrer</button><button class="btn" type="button" data-act="dup-defaults">Revenir aux valeurs par défaut</button></div>
   </form>
@@ -269,7 +295,7 @@ function render() {
       <div class="field"><label class="eyebrow" for="key">Clé d'administration (ADMIN_KEY)</label><input id="key" type="password" value="${esc(st.key)}" required></div>
       ${st.err ? `<p class="err" style="margin:0">${esc(st.err)}</p>` : ''}
       <div class="row"><button class="btn primary" type="submit">Ouvrir</button></div></form>`
-    : st.tab === 'shop' ? renderShopSettings() : st.tab === 'rewards' ? rewards.render() : st.tab === 'events' ? events.render() : st.tab === 'boss' ? boss.render() : st.tab === 'story' ? story.render() : st.tab === 'mail' ? mail.render() : st.tab === 'stats' ? stats.render() : st.tab === 'follow' ? follow.render() : st.tab === 'cards' ? cards.renderCards()
+    : st.tab === 'shop' ? renderShopSettings() : st.tab === 'rewards' ? rewards.render() : st.tab === 'events' ? events.render() : st.tab === 'boss' ? boss.render() : st.tab === 'story' ? story.render() : st.tab === 'mail' ? mail.render() : st.tab === 'bugs' ? bugs.render() : st.tab === 'news' ? news.render() : st.tab === 'stats' ? stats.render() : st.tab === 'follow' ? follow.render() : st.tab === 'cards' ? cards.renderCards()
     : st.tab === 'sets' ? cards.renderSets() : st.sel && st.detail ? renderDetail() : renderList();
   app.innerHTML = `<div class="top"><span class="title">Administration</span>${tabs}</div>${body}`;
 }
@@ -279,7 +305,7 @@ app.addEventListener('submit', async e => {
   const v = id => document.getElementById(id).value;
   const id = e.target.id;
   if (id === 'unlock') { st.key = v('key'); refresh(); return; }
-  if (cards.onSubmit(id) || rewards.onSubmit(id) || mail.onSubmit(id)) return;
+  if (cards.onSubmit(id) || rewards.onSubmit(id) || mail.onSubmit(id) || news.onSubmit(id)) return;
   if (id === 'create') {
     const password = v('password');
     try {
@@ -288,6 +314,10 @@ app.addEventListener('submit', async e => {
       await refresh();
     } catch (err) { say('', err.message); render(); }
     return;
+  }
+  if (id === 'preview') {
+    const day = v('p-preview');
+    act('/api/admin/account/update', { preview: day }, day ? `Compte de test : il voit le jeu au ${esc(day)}.` : 'Ce compte revient au jour réel.'); return;
   }
   if (id === 'profile') { act('/api/admin/account/update', { name: v('p-name'), shards: Number(v('p-shards')), prisms: Number(v('p-prisms')), uniEssence: Number(v('p-uni')), level: Number(v('p-level')), freeBoosters: Number(v('p-free')), familyBoosters: Number(v('p-family')), freeChests: Number(v('p-chests')) }, 'Profil enregistré.'); return; }
   if (id === 'pass') {
@@ -305,7 +335,7 @@ app.addEventListener('submit', async e => {
   }
 });
 const ART_KEYS = ['artOffers', 'chestPrice', ...RARITY_IDS.map(r => `artPrice_${r}`), 'prismShards'];
-const DUP_KEYS = ['dupOffers', 'dupPrice', ...RARITY_IDS.map(r => `essArtPrice_${r}`)];
+const DUP_KEYS = ['dupOffers', 'dupPrice', ...RARITY_IDS.map(r => `essArtPrice_${r}`), 'essFramePrice'];
 async function loadArts() {
   try { st.arts = (await adminCall('GET', '/api/admin/arts')).arts; } catch (e) { say('', e.message); }
   render();
@@ -322,12 +352,13 @@ app.addEventListener('click', e => {
   if (t.dataset.open) { openAccount(t.dataset.open); return; }
   if (t.dataset.tab) {
     st.tab = t.dataset.tab; st.sel = null; st.detail = null; say('');
-    if (st.tab === 'stats') stats.load(); else if (st.tab === 'follow') follow.load(); else if (st.tab === 'shop') loadArts(); else if (st.tab === 'rewards') rewards.load(); else if (st.tab === 'mail') mail.load(); else if (st.tab === 'events') events.load(); else if (st.tab === 'boss') boss.load(); else if (st.tab === 'story') story.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
+    if (st.tab === 'stats') stats.load(); else if (st.tab === 'follow') follow.load(); else if (st.tab === 'shop') loadArts(); else if (st.tab === 'rewards') rewards.load(); else if (st.tab === 'mail') mail.load(); else if (st.tab === 'bugs') bugs.load(); else if (st.tab === 'news') news.load(); else if (st.tab === 'events') events.load(); else if (st.tab === 'boss') boss.load(); else if (st.tab === 'story') story.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
     render(); return;
   }
-  if (stats.onClick(t) || follow.onClick(t) || cards.onClick(t) || rewards.onClick(t) || mail.onClick(t) || events.onClick(t) || boss.onClick(t) || story.onClick(t)) return;
+  if (stats.onClick(t) || follow.onClick(t) || cards.onClick(t) || rewards.onClick(t) || mail.onClick(t) || bugs.onClick(t) || news.onClick(t) || events.onClick(t) || boss.onClick(t) || story.onClick(t)) return;
   if (t.dataset.themeTake) { act('/api/admin/account/theme', { theme: t.dataset.themeTake, give: false }, 'Thème retiré.'); return; }
   if (t.dataset.artTake) { act('/api/admin/account/art', { art: t.dataset.artTake, give: false }, 'Art retiré.'); return; }
+  if (t.dataset.previewDay) { document.getElementById('p-preview').value = t.dataset.previewDay; return; }
   if (t.dataset.addShards) { const i = document.getElementById('p-shards'); i.value = (Number(i.value) || 0) + Number(t.dataset.addShards); return; }
   const fam = t.dataset.famAll || t.dataset.famNone;
   if (fam) {
@@ -357,6 +388,7 @@ app.addEventListener('click', e => {
     case 'cards': act('/api/admin/account/cards', { cards: [...st.cards] }, 'Collection enregistrée.'); break;
     case 'cards-undo': st.cards = new Set(a.owned); render(); break;
     case 'logout': act('/api/admin/account/logout', {}, 'Sessions fermées : le joueur devra se reconnecter.'); break;
+    case 'preview-off': act('/api/admin/account/update', { preview: '' }, 'Ce compte revient au jour réel.'); break;
     case 'disable': act('/api/admin/account/update', { disabled: !a.disabled }, a.disabled ? 'Compte réactivé.' : 'Compte désactivé : le joueur ne peut plus se connecter.'); break;
     case 'reset':
       if (confirm(`Remettre ${a.login} à zéro ? Sa collection, ses Éclats et son deck seront effacés.`)) act('/api/admin/account/reset', {}, 'Compte remis à zéro.');
@@ -373,7 +405,7 @@ app.addEventListener('click', e => {
       saveSettings({ cardPrice, boosterPrice, boosterSize, shardsPerDuplicate, familyBoosterEvery }, 'Prix remis par défaut.'); break;
     }
     case 'give-art': { const id = document.getElementById('give-art')?.value; if (id) act('/api/admin/account/art', { art: id, give: true }, `Art « ${esc(ARTS[id].name)} » donné.`); break; }
-    case 'give-theme': { const id = document.getElementById('give-theme')?.value; if (id) act('/api/admin/account/theme', { theme: id, give: true }, `Thème « ${esc(SEASON_THEMES[id])} » donné.`); break; }
+    case 'give-theme': { const id = document.getElementById('give-theme')?.value; if (id) act('/api/admin/account/theme', { theme: id, give: true }, `Thème « ${esc(THEMES[id])} » donné.`); break; }
     case 'dup-defaults': saveSettings(Object.fromEntries(DUP_KEYS.map(k => [k, st.defaults[k]])), 'Doublons du jour et arts de l\'essence remis par défaut.'); break;
     case 'art-defaults': saveSettings(Object.fromEntries(ART_KEYS.map(k => [k, st.defaults[k]])), 'Prix des arts remis par défaut.'); break;
     case 'renew':

@@ -7,6 +7,7 @@ import { ARTS, ART_THEMES, MAX_FAV_ARTS } from './arts.js';
 import { CLAN_TITLES, CLAN_FRAMES, CLAN_BACKS, CLAN_LEVELS } from './clans.js';
 import { DEFAULT_SETS, setOf } from './collection.js';
 import { BOSS_TITLES, BOSS_FRAMES, BOSS_BACKS } from './boss.js';
+import { CLAN_BOSS_TITLES } from './clan-boss.js';
 import { STORY_TITLES } from './story.js';
 import { t, tp } from './i18n.js';
 
@@ -24,6 +25,9 @@ export const DEFAULT_REWARDS = {
   xpNewCard: 15,
   // Missions quotidiennes : nombre par jour, et missions qu'on peut remplacer par jour.
   missionsPerDay: 3, missionRerolls: 1,
+  // Missions de la semaine (hors passe, WEEKLY_MISSIONS) : nombre par semaine, et bonus quand elles sont toutes accomplies
+  // (coffres d'arts et Prismes). Leurs objectifs, XP et Éclats se règlent avec ceux des missions quotidiennes.
+  weeklyMissions: 3, weeklyBonusChests: 1, weeklyBonusPrisms: 3,
   // Complétion : famille d'un set (avec carte unique, titre et dos), set entier.
   familyShards: 200, setShards: 1000, setBoosters: 3,
   // Niveaux de carte : essence de la carte gagnée par doublon, puis essence et Éclats pour passer au niveau n (2 à 5).
@@ -61,7 +65,7 @@ export const REWARD_LIMITS = {
   xpBase: [10, 100000], xpStep: [0, 100000], xpCap: [10, 1000000], levelShards: [0, 100000], boosterEvery: [0, 100],
   xpPvpWin: [0, 10000], xpPvpLoss: [0, 10000], xpPveWin: [0, 10000], xpPveLoss: [0, 10000],
   shardsPvpWin: [0, 10000], shardsPveWin: [0, 10000], shardsLoss: [0, 10000], gamesPerDay: [0, 100],
-  xpNewCard: [0, 10000], missionsPerDay: [0, 6], missionRerolls: [0, 10],
+  xpNewCard: [0, 10000], missionsPerDay: [0, 6], missionRerolls: [0, 10], weeklyMissions: [0, 6], weeklyBonusChests: [0, 10], weeklyBonusPrisms: [0, 10000],
   familyShards: [0, 100000], setShards: [0, 1000000], setBoosters: [0, 20],
   essencePerDuplicate: [0, 1000], uniPerDuplicate: [0, 1000], uniPerEssence: [1, 1000],
   lvl2Essence: [0, 10000], lvl2Shards: [0, 100000], lvl3Essence: [0, 10000], lvl3Shards: [0, 100000],
@@ -80,9 +84,16 @@ export const REWARD_LIMITS = {
 };
 
 // Leçons du tutoriel (client/src/tutorial.js, mêmes identifiants), dans l'ordre d'« Apprendre ». Chacune récompensée une fois.
+// advanced : tutoriel avancé (une mécanique de famille par leçon), qui ne compte pas pour les boosters offerts.
+// set : leçon d'un set, cachée et refusée avant sa sortie.
+// Une nouvelle mécanique de famille mérite sa leçon : voir docs/recettes.md.
 export const TUTO_LESSONS = [
   { id: 'initiation', name: 'Initiation' }, { id: 'effets', name: 'Effets et sorts' }, { id: 'terrains', name: 'Terrains et déplacements' },
   { id: 'generaux', name: 'Généraux' }, { id: 'complet', name: 'Partie complète' },
+  { id: 'sceaux', name: 'Sceaux et Trésor', advanced: true }, { id: 'sacrifice', name: 'Sacrifice et Destruction', advanced: true },
+  { id: 'releve', name: 'Défausse et Relève', advanced: true }, { id: 'drain', name: 'Drain et Échange', advanced: true },
+  { id: 'sorts', name: 'Sortilège et Inspiration', advanced: true },
+  { id: 'pari', name: 'Dés, triche et Jackpot', advanced: true, set: 'tapis' },
 ];
 
 // XP pour passer du niveau `level` au suivant.
@@ -94,6 +105,10 @@ export const xpToNext = (level, r = DEFAULT_REWARDS) => Math.min(r.xpCap, r.xpBa
 // pick(compte) : ce que la mission demande (famille, carte), tiré parmi les cartes que le joueur possède,
 // ou null s'il n'en a pas assez pour la faire : la mission n'est alors pas tirée.
 // group : deux missions du même groupe ne sont pas tirées le même jour. retired : n'est plus tirée (gardée pour les missions déjà tirées).
+// stat : ce qui la fait avancer en fin de partie, parmi play, win, win_pvp, win_pve, ranked, sweep, zones (son id par défaut).
+// on : ce qui la fait avancer hors partie (progress.act) : booster, boss (tentative du boss mondial menée au bout),
+// clanDon (don au clan), missions (mission du jour accomplie).
+// need : mode auquel le joueur doit avoir accès pour qu'elle soit tirée (progress.js, needs) : clan, boss.
 // Objectifs des missions de cartes : environ trois parties (une partie pose 8 à 10 cartes, dont 6 à 8 de la famille du deck).
 const plays = test => (m, played) => played.filter(id => CARDS[id] && test(CARDS[id], id, m)).length;
 // Cartes possédées (hors généraux et jetons) qui vérifient test.
@@ -129,15 +144,38 @@ export const MISSIONS = {
   // Zones remportées en fin de partie, gagnée ou non : remplace « gagner en remportant les 3 zones », trop rare (une partie sur vingt).
   zones:   { label: n => tp(n, 'Remporter {n} zone', 'Remporter {n} zones'), target: 4, xp: 120, shards: 30 },
   sweep:   { label: () => t('Gagner une partie en remportant les 3 zones'), target: 1, xp: 150, shards: 35, retired: true },
-  booster: { label: () => t('Ouvrir le booster du jour'), target: 1, xp: 50, shards: 10 },
+  booster: { label: () => t('Ouvrir le booster du jour'), target: 1, xp: 50, shards: 10, on: 'booster' },
+  // Modes arrivés depuis : classé, boss mondial, clan.
+  ranked:  { label: n => tp(n, 'Jouer {n} partie classée', 'Jouer {n} parties classées'), target: 2, xp: 120, shards: 30 },
+  boss:    { label: n => tp(n, 'Affronter le boss mondial', 'Affronter le boss mondial {n} fois'), target: 1, xp: 100, shards: 25, need: 'boss', on: 'boss' },
+  clan_don: { label: () => t('Faire un don à votre clan'), target: 1, xp: 60, shards: 15, need: 'clan', on: 'clanDon' },
 };
-export const missionLabel = m => MISSIONS[m.id]?.label(m.target, m.fam, CARDS[m.card]?.name || m.card) || m.id;
+
+// ---- Missions de la semaine ----
+// Hors passe : tirées chaque lundi (semaine du jeu, weekOf dans pass.js), plus longues et mieux payées que celles du jour,
+// avec un bonus quand elles sont toutes accomplies (weeklyBonusChests, weeklyBonusPrisms). Mêmes champs que MISSIONS ;
+// leurs réglages sont rangés avec ceux des missions quotidiennes (identifiants en « w_ »).
+export const WEEKLY_MISSIONS = {
+  w_play:   { label: MISSIONS.play.label, stat: 'play', target: 15, xp: 400, shards: 100 },
+  w_win:    { label: MISSIONS.win.label, stat: 'win', target: 8, xp: 500, shards: 120, group: 'win' },
+  w_win_pvp: { label: MISSIONS.win_pvp.label, stat: 'win_pvp', target: 3, xp: 500, shards: 120, group: 'win' },
+  w_ranked: { label: MISSIONS.ranked.label, stat: 'ranked', target: 8, xp: 500, shards: 120 },
+  w_zones:  { label: MISSIONS.zones.label, stat: 'zones', target: 12, xp: 450, shards: 110 },
+  w_sweep:  { label: n => tp(n, 'Gagner une partie en remportant les 3 zones', 'Gagner {n} parties en remportant les 3 zones'), stat: 'sweep', target: 1, xp: 500, shards: 120 },
+  w_fam:    { label: MISSIONS.fam.label, target: 60, xp: 450, shards: 110, group: 'cards', pick: a => ownedFam(a, 5), count: plays(sameFam) },
+  w_spells: { label: MISSIONS.spells.label, target: 20, xp: 400, shards: 100, group: 'cards', pick: enough(2, isS), count: plays(isS) },
+  w_boss:   { label: MISSIONS.boss.label, target: 5, xp: 450, shards: 110, need: 'boss', on: 'boss' },
+  w_missions: { label: n => tp(n, 'Accomplir {n} mission du jour', 'Accomplir {n} missions du jour'), target: 10, xp: 500, shards: 120, on: 'missions' },
+};
+// Toutes les missions (du jour et de la semaine), par identifiant.
+export const ALL_MISSIONS = { ...MISSIONS, ...WEEKLY_MISSIONS };
+export const missionLabel = m => ALL_MISSIONS[m.id]?.label(m.target, m.fam, CARDS[m.card]?.name || m.card) || m.id;
 
 // ---- Cosmétiques ----
 export const FRAMES = {
   bronze: 'Cadre de bronze', argent: 'Cadre d\'argent', or: 'Cadre d\'or', legende: 'Cadre légendaire',
   flamme: 'Cadre de flammes', duel: 'Cadre du duelliste', tresor: 'Cadre du trésor', etoile: 'Cadre étoilé',
-  base: 'Couronne du Set de base', set2: 'Couronne du Crépuscule', set3: 'Couronne de la Cité Néon',
+  base: 'Couronne du Set de base', set2: 'Couronne du Crépuscule', set3: 'Couronne de la Cité Néon', tapis: 'Cadre du casino',
   platine: 'Cadre de platine', diamant: 'Cadre de diamant', maitre: 'Cadre du grand maître',
   // Bienvenue des nouveaux comptes : 7e jour (welcomeReward).
   bienvenue: 'Cadre de bienvenue',
@@ -148,7 +186,15 @@ export const FRAMES = {
   // Cadres des paliers des familles d'arts : ajoutés plus bas (ART_THEME_FRAMES).
   // Cadres du magasin du boss mondial (boss.js).
   ...Object.fromEntries(BOSS_FRAMES),
+  // Cadre de la boutique du casino, en Jetons (casino.js, CASINO_FRAME).
+  jackpot: 'Cadre du Jackpot',
+  // Cadre du rayon Essence (ESSENCE_FRAME).
+  essence_nebuleuse: 'Cadre de la nébuleuse',
 };
+// Cadre vendu au rayon Essence de la boutique, en essence universelle (prix réglable dans /admin : essFramePrice).
+export const ESSENCE_FRAME = { id: 'essence_nebuleuse', price: 500 };
+// Cadres animés : un calque en mouvement s'ajoute à l'anneau (client/src/frames-anim.css).
+export const ANIMATED_FRAMES = new Set(['boss_comete', 'boss_brasier', 'essence_nebuleuse', 'set2', 'halloween_p', 'cyber_p', 'maitre', 'legende']);
 const FAM_KEY = { 'Ange': 'ange', 'Démon': 'demon', 'Gobelin': 'gobelin', 'Elfe': 'elfe', 'Dragon': 'dragon', 'Mort-vivant': 'mortvivant', 'Vampire': 'vampire', 'Hacker': 'hacker', 'Cyborg': 'cyborg' };
 export const famKey = fam => FAM_KEY[fam] || 'neutre';
 // Dos de carte : celui par défaut, puis un par famille complétée dans chaque set. Il se voit sur vos cartes cachées, côté adversaire.
@@ -215,6 +261,8 @@ export const SET_REWARDS = {
   base: { card: 'dieu_base', title: 'Gardien du Set de base', frame: 'base' },
   set2: { card: 'dieu_set2', title: 'Gardien du Crépuscule', frame: 'set2' },
   set3: { card: 'dieu_set3', title: 'Gardien de la Cité Néon', frame: 'set3' },
+  // Mini-set : une carte de casino au lieu d'un Dieu.
+  tapis: { card: 'as_pique', title: 'Flambeur', frame: 'tapis' },
 };
 // Cartes qu'on ne trouve dans aucun booster : elles ne s'obtiennent qu'en récompense.
 export const REWARD_CARDS = [...FAMILY_REWARDS.map(f => f.card), ...Object.values(SET_REWARDS).map(s => s.card)];
@@ -250,7 +298,7 @@ Object.assign(FRAMES, Object.fromEntries(ART_THEME_FRAMES));
 export const familyOf = id => (GENERALS[id] ? GENERALS[id].fam : CARDS[id]?.kw.find(k => FAMILIES.includes(k))) || null;
 
 // ---- Succès ----
-// stat : compteur du compte comparé à goal. Éclats et Prismes se règlent dans /admin ; titres, cadres et émotes (emotes.js) sont fixes.
+// stat : compteur du compte comparé à goal. Éclats et Prismes se règlent dans /admin ; titres, cadres, émotes (emotes.js) et thèmes (themes.js) sont fixes.
 // prisms : Prismes (monnaie des arts alternatifs), surtout pour les succès difficiles ; un peu pour les faciles.
 // chests : coffres d'arts offerts, réservés aux succès les plus rares.
 const A = (id, group, label, stat, goal, shards, extra = {}) => ({ id, group, label, stat, goal, shards, prisms: 0, chests: 0, ...extra });
@@ -317,7 +365,7 @@ export const ACHIEVEMENTS = [
   // Quêtes d'histoire (story.js) : chapitres gagnés pour la première fois, campagnes finies, quêtes à durée limitée finies.
   A('story1', 'Histoire', 'Gagner un premier chapitre d\'histoire', 'storyChapters', 1, 50, { prisms: 2 }),
   A('storyCamp1', 'Histoire', 'Finir une campagne d\'histoire', 'storyCampaigns', 1, 200, { prisms: 5, title: 'Conteur' }),
-  A('storyCamp3', 'Histoire', 'Finir les trois campagnes des Terres d\'Aube', 'storyCampaigns', 3, 500, { prisms: 15, chests: 1, title: 'Chroniqueur de l\'Aube' }),
+  A('storyCamp3', 'Histoire', 'Finir les trois campagnes des Terres d\'Aube', 'storyCampaigns', 3, 500, { prisms: 15, chests: 1, title: 'Chroniqueur de l\'Aube', theme: 'aube' }),
   A('storyLimited', 'Histoire', 'Finir une quête à durée limitée', 'storyLimited', 1, 200, { prisms: 5 }),
   A('login7', 'Connexion', 'Se connecter 7 jours', 'loginDays', 7, 100, { prisms: 2 }),
   A('login30', 'Connexion', 'Se connecter 30 jours', 'loginDays', 30, 300, { prisms: 10, title: 'Habitué' }),
@@ -358,7 +406,10 @@ export const TITLES = Object.fromEntries([
   ...SEASON_TITLES,
   ...CLAN_TITLES,
   ...BOSS_TITLES,
+  ...CLAN_BOSS_TITLES,
   ...STORY_TITLES,
+  // Boutique du casino, en Jetons (casino.js, CASINO_TITLE).
+  ['roi_tapis', 'Roi du tapis'],
   [WELCOME_TITLE, 'Recrue prometteuse'],
 ]);
 

@@ -1,15 +1,16 @@
 // Comptes joueurs : pas d'inscription, l'administrateur crée les identifiants et les communique.
 // API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, boutique, administration.
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
-import { gzipSync } from 'node:zlib';
-import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, setRevealed, dailyOffers, dupOffers, exchangeOffers, setBoosterPrice, shopOrder, FAMILY_BOOSTER_EVERY, familyPool, familyChoices, familyBooster } from '@jeu/engine/collection';
-import { pick, CARDS, GENERALS } from '@jeu/engine';
+import { gzip } from 'node:zlib';
+import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, setRevealed, dailyOffers, dupOffers, exchangeOffers, setBoosterPrice, setBooster, shopOrder, FAMILY_BOOSTER_EVERY, familyPool, familyChoices, familyBooster } from '@jeu/engine/collection';
+import { CARDS, GENERALS } from '@jeu/engine';
 import { ART_RARITIES, RARITY_IDS, ESSENCE_ART_PRICES, RETIRED_ARTS } from '@jeu/engine/arts';
-import { SEASON_THEMES } from '@jeu/engine/pass';
-import { TUTO_LESSONS, levelCost, MAX_CARD_LEVEL } from '@jeu/engine/rewards';
+import { THEMES } from '@jeu/engine/themes';
+import { TUTO_LESSONS, levelCost, MAX_CARD_LEVEL, ESSENCE_FRAME } from '@jeu/engine/rewards';
 import { createProgress } from './progress.js';
 import { createArts } from './arts.js';
 import { createActivity } from './activity.js';
+import { usePreview, previewOf, atPreview, DAY_RE } from './preview.js';
 import { t, msg, tr, trMsg, pickLang } from '@jeu/engine/i18n';
 import { langOf, validLang, withLang, inLang } from './i18n.js';
 
@@ -24,16 +25,16 @@ const LOGIN_RE = /^[a-z0-9._-]{2,24}$/;
 // Réglages de la boutique modifiables depuis /admin. « rotation » change à chaque renouvellement forcé des offres du jour.
 // Arts alternatifs : nombre d'offres du jour, prix du coffre et prix de chaque rareté (artPrice_<rareté>), en Prismes.
 // Doublons du jour : nombre d'offres (dupOffers, 0 les retire) et prix d'un doublon en Éclats (dupPrice).
-// Rayon Essence : prix des arts de l'édition Essence selon leur rareté (essArtPrice_<rareté>), en essence universelle.
+// Rayon Essence : prix des arts de l'édition Essence selon leur rareté (essArtPrice_<rareté>), et du cadre de la nébuleuse (essFramePrice), en essence universelle.
 // Booster de famille : un de gagné tous les familyBoosterEvery boosters ouverts (0 : plus de booster de famille).
 export const DEFAULT_SETTINGS = { cardPrice: SHOP.cardPrice, boosterPrice: SHOP.boosterPrice, dailyCards: SHOP.dailyCards, boosterSize: SHOP.boosterSize, shardsPerDuplicate: SHARDS_PER_DUPLICATE,
   dupOffers: 3, dupPrice: 100, familyBoosterEvery: FAMILY_BOOSTER_EVERY,
   artOffers: 3, chestPrice: 60, ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, ART_RARITIES[r].price])), prismShards: 10,
-  ...Object.fromEntries(RARITY_IDS.map(r => [`essArtPrice_${r}`, ESSENCE_ART_PRICES[r]])), rotation: 0 };
+  ...Object.fromEntries(RARITY_IDS.map(r => [`essArtPrice_${r}`, ESSENCE_ART_PRICES[r]])), essFramePrice: ESSENCE_FRAME.price, rotation: 0 };
 const SETTING_LIMITS = { cardPrice: [0, 100000], boosterPrice: [0, 100000], dailyCards: [1, 10], boosterSize: [1, 10], shardsPerDuplicate: [0, 10000],
   dupOffers: [0, 10], dupPrice: [0, 100000], familyBoosterEvery: [0, 100],
   artOffers: [0, 12], chestPrice: [0, 10000], ...Object.fromEntries(RARITY_IDS.map(r => [`artPrice_${r}`, [0, 100000]])), prismShards: [0, 10000],
-  ...Object.fromEntries(RARITY_IDS.map(r => [`essArtPrice_${r}`, [0, 1000000]])) };
+  ...Object.fromEntries(RARITY_IDS.map(r => [`essArtPrice_${r}`, [0, 1000000]])), essFramePrice: [0, 1000000] };
 
 // Decks du joueur : jusqu'à MAX_DECKS, chacun avec un identifiant ; « active » désigne celui qui est joué.
 const newDeckId = () => randomBytes(4).toString('hex');
@@ -51,7 +52,7 @@ function migrateDecks(a) {
 const AVATAR_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, AVATAR_MAX = 60_000;
 
 // Ce que le joueur voit de son compte (jamais le mot de passe ni les sessions).
-export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, name: a.name, avatar: a.avatar || null, starter: a.starter, cards: a.cards, shards: a.shards || 0,
+export const publicAccount = (a, cfg = DEFAULT_SETTINGS) => ({ login: a.login, name: a.name, avatar: a.avatar || null, starter: a.starter, cards: a.cards, shards: a.shards || 0, preview: previewOf(a),
   deck: activeDeck(a), decks: (a.decks || []).map(cleanDeck), active: activeDeck(a)?.id || null, maxDecks: MAX_DECKS,
   boosterReady: a.starter !== null && a.lastBooster !== today(), shardRate: cfg.shardsPerDuplicate,
   // Éclats pour 1 Prisme au change (offres fixes, exchangeOffers du moteur ; 0 : change fermé).
@@ -104,15 +105,18 @@ export function createAccounts(store) {
   for (const a of store.all()) for (const t of a.tokens || []) sessions.set(t, a.login);
   // Un compte désactivé n'a plus de session valable.
   const byToken = token => { const login = sessions.get(String(token || '')); const a = login && store.get(login); return a && !a.disabled ? a : null; };
-  const cfg = () => ({ ...DEFAULT_SETTINGS, ...store.doc('jeu') });
+  // Réglages, recalculés seulement quand /admin enregistre un nouveau document (à lire seulement).
+  let cfgOf, cfgMemo;
+  const cfg = () => { const doc = store.doc('jeu'); if (!cfgMemo || doc !== cfgOf) { cfgOf = doc; cfgMemo = { ...DEFAULT_SETTINGS, ...doc }; } return cfgMemo; };
   const progress = createProgress(store), arts = createArts(store, cfg), activity = createActivity(store);
   // Version du catalogue de cartes publié : l'appli recharge les cartes quand elle change.
   let catalogVersion = 0;
   // Courrier (mail.js) : messages non lus ou récompenses à récupérer, pour la pastille de l'accueil.
-  let mailCount = () => 0, bossTile = () => null, storyTile = () => null;
-  // boss : résumé du boss mondial de la semaine pour l'accueil (boss.js, branché par setBossTile) ; storyTile : la quête d'histoire à suivre (story.js).
+  let mailCount = () => 0, bossTile = () => null, storyTile = () => null, newsTile = () => null, casinoTile = () => null;
+  // boss : résumé du boss mondial de la semaine pour l'accueil (boss.js, branché par setBossTile) ; storyTile : la quête d'histoire à suivre (story.js) ;
+  // news : annonces pas encore vues et la plus récente (news.js).
   // Textes composés par le moteur (missions, rangs…) : dans la langue du joueur (a.lang).
-  const me = a => inLang(a, () => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), boss: bossTile(a), storyTile: storyTile(a), tutoShards: progress.cfg().tutoShards }));
+  const me = a => inLang(a, () => ({ ...publicAccount(a, cfg()), catalog: catalogVersion, progress: progress.view(a), mail: mailCount(a), boss: bossTile(a), storyTile: storyTile(a), casino: casinoTile(a), news: newsTile(a), tutoShards: progress.cfg().tutoShards }));
   // Langue de l'appli du joueur (en-tête X-Lang) : rangée sur son compte pour ses notifications et ses textes ; enregistrée seulement quand elle change.
   function setLang(a, lang) { if (!lang || langOf(a) === lang) return; a.lang = lang; store.put(a).catch(e => console.error('Langue non enregistrée :', e)); }
   // Les nouvelles cartes rapportent de l'XP et peuvent compléter une famille ou un set.
@@ -204,8 +208,9 @@ export function createAccounts(store) {
     return { shards: a.shards || 0, freeBoosters: a.freeBoosters || 0, prices: { dailyCards: c.dailyCards, cardPrice: c.cardPrice, boosterPrice: c.boosterPrice, boosterSize: c.boosterSize, shardsPerDuplicate: c.shardsPerDuplicate, dupPrice: c.dupPrice },
       family: a.starter ? familyView(a) : null,
       dups: a.starter ? dupDay(a).offers.map(id => ({ id, bought: dupDay(a).bought.includes(id), capped: !canLevel(a)(id) })) : [],
-      // Rayon Essence : essence universelle du joueur et arts de l'édition Essence.
-      essence: a.starter ? { universal: a.uniEssence || 0, arts: arts.essenceView(a) } : null,
+      // Rayon Essence : essence universelle du joueur, arts de l'édition Essence et cadre de la nébuleuse.
+      essence: a.starter ? { universal: a.uniEssence || 0, arts: arts.essenceView(a),
+        frame: { id: ESSENCE_FRAME.id, price: c.essFramePrice ?? ESSENCE_FRAME.price, owned: !!a.cosmetics?.frames?.includes(ESSENCE_FRAME.id) } } : null,
       arts: a.starter ? arts.view(a) : null, sets: shopOrder(SETS.filter(s => setRevealed(s))).map(set => ({ id: set.id, name: set.name, open: set.open, teaser: set.teaser || '', size: set.cards.length, boosterPrice: setBoosterPrice(set, c.boosterPrice),
       offers: set.open ? shopDay(a, set).offers.map(id => ({ id, bought: shopDay(a, set).bought.includes(id), owned: !!a.cards[id] })) : [] })) };
   }
@@ -265,6 +270,15 @@ export function createAccounts(store) {
     await store.put(a);
     return { art: art.id, shop: shopView(a), account: me(a) };
   }
+  async function buyEssenceFrame(a) {
+    if (!a.starter) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
+    if (!a.level) progress.init(a);
+    if (a.cosmetics.frames.includes(ESSENCE_FRAME.id)) throw new HttpError(409, msg('Vous avez déjà ce cadre.'));
+    payUni(a, cfg().essFramePrice ?? ESSENCE_FRAME.price);
+    progress.grant(a, { frame: ESSENCE_FRAME.id }, { silent: true });
+    await store.put(a);
+    return { frame: ESSENCE_FRAME.id, shop: shopView(a), account: me(a) };
+  }
   // free : booster offert (niveau, set complété), ouvert dans le set choisi.
   async function buyBooster(a, { set: setId, free }) {
     const set = openSet(a, setId);
@@ -273,7 +287,7 @@ export function createAccounts(store) {
       if (!(a.freeBoosters > 0)) throw new HttpError(409, msg('Aucun booster offert à ouvrir.'));
       a.freeBoosters--;
     } else pay(a, setBoosterPrice(set, c.boosterPrice));
-    const cards = Array.from({ length: c.boosterSize }, () => pick(set.cards)), got = add(a, cards);
+    const cards = setBooster(set, c.boosterSize), got = add(a, cards);
     countBooster(a);
     activity.count(free ? 'boosterFree' : 'boosterBought');
     await store.put(a);
@@ -456,15 +470,17 @@ export function createAccounts(store) {
   async function reroll(a, body) { await progress.reroll(a, body); await store.put(a); return { account: me(a) }; }
   async function seen(a) { progress.seen(a); await store.put(a); return { account: me(a) }; }
   async function equip(a, body) { await progress.equip(a, body || {}); progress.check(a); await store.put(a); return { account: me(a) }; }
+  async function buyTheme(a, body) { const theme = progress.buyTheme(a, body || {}); await store.put(a); activity.count(['themesBought', `theme:${theme}`]); return { theme, shop: shopView(a), account: me(a) }; }
   async function buyEmote(a, body) { const emote = progress.buyEmote(a, body || {}); await store.put(a); activity.count('emotesBought'); return { emote, account: me(a) }; }
-  // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes le sont. Affiché par le panneau de fin (silent).
+  // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes les leçons de base le sont (le tutoriel avancé
+  // ne rapporte que des Éclats). Affiché par le panneau de fin (silent).
   async function lessonDone(a, { lesson } = {}) {
-    const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l) throw new HttpError(400, msg('Leçon inconnue.'));
+    const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l || (l.set && !setRevealed(setById(l.set)))) throw new HttpError(400, msg('Leçon inconnue.'));
     progress.init(a);
     const done = a.tuto ||= [];
     if (done.includes(l.id)) return { reward: null, account: me(a) };
     done.push(l.id);
-    const r = progress.cfg(), all = TUTO_LESSONS.every(x => done.includes(x.id));
+    const r = progress.cfg(), all = !l.advanced && TUTO_LESSONS.filter(x => !x.advanced).every(x => done.includes(x.id));
     const reward = { kind: 'tuto', label: `Leçon finie : ${l.name}`, labelMsg: msg('Leçon finie : {name}', { name: [l.name] }), shards: r.tutoShards, boosters: all ? r.tutoBoosters : 0, all };
     progress.grant(a, reward, { silent: true });
     await store.put(a);
@@ -506,17 +522,17 @@ export function createAccounts(store) {
   }
   const adminView = a => ({ login: a.login, name: a.name, starter: a.starter, cards: Object.values(a.cards).reduce((s, n) => s + n, 0), shards: a.shards || 0, prisms: a.prisms || 0, uniEssence: a.uniEssence || 0, level: a.level || 1,
     xp: a.xp || 0, freeBoosters: a.freeBoosters || 0, familyBoosters: a.familyBoosters || 0, freeChests: a.freeChests || 0,
-    lastBooster: a.lastBooster, created: a.created, disabled: !!a.disabled, sessions: (a.tokens || []).length, deckName: activeDeck(a)?.name || null });
+    lastBooster: a.lastBooster, created: a.created, disabled: !!a.disabled, preview: previewOf(a), sessions: (a.tokens || []).length, deckName: activeDeck(a)?.name || null });
   // inDecks : cartes présentes dans au moins un deck du joueur (elles ne peuvent pas être retirées de sa collection).
   const adminDetail = a => ({ ...adminView(a), owned: Object.keys(a.cards).filter(id => a.cards[id]), deck: activeDeck(a), decks: (a.decks || []).length,
     inDecks: [...new Set((a.decks || []).flatMap(d => [...d.cards, d.general].filter(Boolean)))],
-    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? deckError(activeDeck(a), a) : null, arts: a.arts || {}, themes: a.cosmetics?.themes || [], welcome: a.welcome ? progress.welcomeView(a) : null });
+    boosterReady: a.starter !== null && a.lastBooster !== today(), deckError: activeDeck(a) ? atPreview(a, () => deckError(activeDeck(a), a)) : null, arts: a.arts || {}, themes: a.cosmetics?.themes || [], welcome: a.welcome ? progress.welcomeView(a) : null });
   const target = login => { const a = store.get(cleanLogin(login)); if (!a) throw new HttpError(404, 'Compte introuvable.'); return a; };
   const closeSessions = a => { for (const t of a.tokens || []) sessions.delete(t); a.tokens = []; };
   const done = async a => { await store.put(a); return { account: adminDetail(a) }; };
 
   // Modifie un compte : pseudo, Éclats, désactivation. Seuls les champs présents changent.
-  async function adminUpdate({ login, name, shards, prisms, uniEssence, level, freeBoosters, familyBoosters, freeChests, disabled }) {
+  async function adminUpdate({ login, name, shards, prisms, uniEssence, level, freeBoosters, familyBoosters, freeChests, disabled, preview }) {
     const a = target(login);
     if (name !== undefined) a.name = String(name).trim().slice(0, 20) || a.login;
     const int = (v, max, label) => { const n = Number(v); if (!Number.isInteger(n) || n < 0 || n > max) throw new HttpError(400, `${label} : un nombre entier positif.`); return n; };
@@ -529,6 +545,12 @@ export function createAccounts(store) {
     // Changer le niveau ne donne pas les récompenses des niveaux sautés ; les succès de niveau, si.
     if (level !== undefined && a.level) { const n = int(level, 1000, 'Niveau'); if (n !== a.level) { a.level = Math.max(1, n); a.xp = 0; progress.checkCollection(a); } }
     if (disabled !== undefined) { a.disabled = !!disabled; if (a.disabled) closeSessions(a); }
+    // Compte testeur : jour d'aperçu (vide pour revenir au jeu normal). Voir preview.js.
+    if (preview !== undefined) {
+      const d = String(preview || '').trim();
+      if (d && (!DAY_RE.test(d) || Number.isNaN(Date.parse(`${d}T12:00:00Z`)))) throw new HttpError(400, 'Jour d\'aperçu : une date AAAA-MM-JJ.');
+      if (d) a.preview = d; else delete a.preview;
+    }
     return done(a);
   }
   // Remplace la collection. Une carte du deck enregistré ne peut pas être retirée.
@@ -570,10 +592,10 @@ export function createAccounts(store) {
   async function adminShopReset({ login }) { const a = target(login); a.shop = {}; delete a.artShop; delete a.dupShop; return done(a); }
   // Donner (Promo) ou retirer un art alternatif.
   async function adminArt({ login, art, give }) { const a = target(login); arts.adminGive(a, { art, give }); progress.check(a); return done(a); }
-  // Donne ou retire un thème de saison (tests, geste commercial). Retiré, le joueur revient au thème du moment s'il l'avait choisi.
+  // Donne ou retire un thème de l'interface (tests, geste commercial). Retiré, le joueur revient au thème du moment s'il l'avait choisi.
   async function adminTheme({ login, theme, give }) {
     const a = target(login);
-    if (!SEASON_THEMES[theme]) throw new HttpError(400, 'Thème inconnu.');
+    if (!THEMES[theme]) throw new HttpError(400, 'Thème inconnu.');
     progress.init(a);
     const list = (a.cosmetics.themes ||= []);
     if (give && !list.includes(theme)) list.push(theme);
@@ -601,7 +623,7 @@ export function createAccounts(store) {
     return { settings: next, defaults: DEFAULT_SETTINGS };
   }
 
-  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, familyBoosterOpen, adminUpsert,
+  return { ready, syncAll, setLang, progress, arts, activity, giveReward, setMailCount: f => { mailCount = f; }, setBossTile: f => { bossTile = f; }, setStoryTile: f => { storyTile = f; }, setCasinoTile: f => { casinoTile = f; }, setNewsTile: f => { newsTile = f; }, setGameHook: f => { gameHook = f; }, passView, buyPass, buyArt, buyDup, convertEssence, buyEssenceArt, buyEssenceFrame, openChest, convertPrisms, claimDay, claimWelcome, selectArt, holoArt, popArt, adminArt, adminTheme, recordGame, reroll, seen, equip, buyEmote, buyTheme, upgradeCard, borderCard, lessonDone, tutoGift, byToken, me, login, logout, chooseStarter, booster, saveDeck, saveActiveDeck, renameDeck, playDeck, resetDeck, deleteDeck, saveProfile, shop, buyCard, buyBooster, familyBoosterOpen, adminUpsert,
     adminList: () => store.all().map(adminView), adminGet: login => ({ account: adminDetail(target(login)) }),
     adminUpdate, adminCards, adminStarter, adminArts: () => ({ arts: arts.adminList() }), adminReset, adminWelcome, adminBooster, adminShopReset, adminLogout, adminDelete,
     adminSettings, settings: () => ({ settings: cfg(), defaults: DEFAULT_SETTINGS }),
@@ -641,7 +663,9 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     'POST /api/shop/convert': (a, body) => accounts.convertPrisms(a, body || {}),
     'POST /api/shop/dup': (a, body) => accounts.buyDup(a, body || {}),
     'POST /api/shop/essence-art': (a, body) => accounts.buyEssenceArt(a, body),
+    'POST /api/shop/essence-frame': a => accounts.buyEssenceFrame(a),
     'POST /api/shop/emote': (a, body) => accounts.buyEmote(a, body),
+    'POST /api/shop/theme': (a, body) => accounts.buyTheme(a, body),
     'POST /api/essence/convert': (a, body) => accounts.convertEssence(a, body),
     'POST /api/calendar/claim': a => accounts.claimDay(a),
     'POST /api/welcome/claim': a => accounts.claimWelcome(a),
@@ -682,11 +706,13 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     const key = `${req.method} ${url.pathname}`;
     if (!url.pathname.startsWith('/api/')) return false;
     // Les réponses un peu lourdes (catalogue, statistiques, comptes) sont compressées si le navigateur l'accepte.
+    // Compression hors du fil principal : les autres requêtes et les parties n'attendent pas.
     const json = (status, data) => {
-      let body = Buffer.from(JSON.stringify(data));
+      const body = Buffer.from(JSON.stringify(data));
       const headers = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', vary: 'accept-encoding' };
-      if (body.length > 2048 && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) { body = gzipSync(body); headers['content-encoding'] = 'gzip'; }
-      res.writeHead(status, headers); res.end(body);
+      const send = (b, enc) => { res.writeHead(status, enc ? { ...headers, 'content-encoding': enc } : headers); res.end(b); };
+      if (body.length > 2048 && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) gzip(body, (err, gz) => (err ? send(body) : send(gz, 'gzip')));
+      else send(body);
     };
     // Langue des messages : en-tête X-Lang (français sans en-tête : /admin et anciennes versions de l'appli).
     const lang = pickLang(req.headers['x-lang']), given = validLang(req.headers['x-lang']);
@@ -702,10 +728,15 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
         acc = accounts.byToken(token); if (!acc) throw new HttpError(401, msg('Session expirée : reconnectez-vous.'));
         accounts.activity.seen(acc);
         accounts.setLang(acc, given);
+        // Compte testeur : le reste de la requête se passe à son jour d'aperçu.
+        usePreview(acc);
       }
       let body = {};
       if (req.method !== 'GET') {
-        let raw = ''; for await (const chunk of req) { raw += chunk; if (raw.length > 100_000) throw new HttpError(413, msg('Requête trop grande.')); }
+        // Morceaux assemblés avant décodage : un caractère accentué peut être coupé entre deux morceaux.
+        const chunks = []; let size = 0;
+        for await (const chunk of req) { chunks.push(chunk); size += chunk.length; if (size > 100_000) throw new HttpError(413, msg('Requête trop grande.')); }
+        const raw = Buffer.concat(chunks).toString('utf8');
         try { body = raw ? JSON.parse(raw) : {}; } catch { throw new HttpError(400, msg('JSON invalide.')); }
       }
       // Le début de la route (jusqu'à son premier await) tourne dans la langue de la requête : deckError… y sont traduits.

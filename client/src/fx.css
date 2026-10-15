@@ -92,10 +92,46 @@
 .tok { transition: background-color .25s, transform .25s; }
 .tok.spent { transform: scale(.82); }
 
-@media (prefers-reduced-motion: reduce) {
-  .fxbanner .fxb-in { animation: fxfade 2s linear forwards; }
-  .mc.dealt, .mc.sealed, .chip.pop, .end .zs > div, .hc.sel { animation: none; }
-  .tok { transition: none; } .tok.spent { transform: none; }
-  .hc:not(.cant):not(.sel):hover { transform: none; }
-}
+.calm .fxbanner .fxb-in { animation: fxfade 2s linear forwards; }
+.calm .mc.dealt, .calm .mc.sealed, .calm .chip.pop, .calm .end .zs > div, .calm .hc.sel { animation: none; }
+.calm .tok { transition: none; } .calm .tok.spent { transform: none; }
+.calm .hc:not(.cant):not(.sel):hover { transform: none; }
 @keyframes fxfade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Rien ne va plus : dé qui roule sur la carte qui parie */
+.fxdice { display: grid; place-items: center; z-index: 12; animation: fxdice 1.2s cubic-bezier(.2,.8,.2,1) both; }
+.fxdice .die { width: 100%; height: 100%; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 14%; gap: 6%; border-radius: 18%;
+  background: linear-gradient(145deg, #fffdf6, #e6dccb); box-shadow: inset 0 -3px 0 rgb(0 0 0 / .18), 0 4px 10px rgb(0 0 0 / .45), 0 0 0 2px var(--tone, var(--mine));
+  animation: fxdietumble .5s cubic-bezier(.3,.7,.4,1) both; }
+.fxdice.foe { --tone: var(--foe); } .fxdice.me { --tone: var(--mine); }
+.fxdice .die i { border-radius: 50%; } .fxdice .die i.on { background: #1d1410; }
+.fxdice.landed .die { animation: fxdieland .3s cubic-bezier(.3,1.6,.5,1); }
+.fxdice.landed.six .die { box-shadow: inset 0 -3px 0 rgb(0 0 0 / .18), 0 0 0 2px #e3b552, 0 0 18px 6px #e3b552; }
+.fxdice.landed.six .die i.on { background: #b3261e; }
+.fxdice.landed.low .die { filter: saturate(.6) brightness(.9); }
+@keyframes fxdice { 0% { opacity: 0; } 8% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px); } }
+@keyframes fxdietumble { from { transform: translate(-40px, -50px) rotate(-260deg) scale(.6); } 60% { transform: translate(4px, 3px) rotate(14deg) scale(1.05); } to { transform: none; } }
+@keyframes fxdieland { from { transform: scale(1.3); } }
+
+/* Rien ne va plus : machine à sous du Jackpot, trois rouleaux qui s'arrêtent sur 7 7 7 */
+.fxslot { z-index: 30; display: grid; place-items: center; animation: fxslot 2.6s ease both; }
+.fxslot .cab { position: relative; width: 100%; height: 100%; display: grid; grid-template-rows: 10px 1fr auto; gap: 6px; padding: 10px 12px 8px; border-radius: 16px;
+  background: linear-gradient(#7a1020, #3b0710); border: 3px solid #e3b552; box-shadow: 0 0 0 2px #3b0710, 0 0 30px 6px rgb(227 181 82 / .55), 0 10px 24px rgb(0 0 0 / .5); }
+.fxslot .lights { background: repeating-linear-gradient(90deg, #ffe58a 0 6px, transparent 6px 14px); border-radius: 4px; animation: fxlights .25s steps(2) infinite; }
+.fxslot .reels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.fxslot .reel { position: relative; height: 64px; overflow: hidden; border-radius: 8px; background: linear-gradient(#f6efe0, #fffaf0 40%, #e9dfca); box-shadow: inset 0 6px 8px rgb(0 0 0 / .3), inset 0 -6px 8px rgb(0 0 0 / .3); }
+.fxslot .strip { position: absolute; inset: 0 0 auto; display: grid; grid-auto-rows: 64px; transform: translateY(calc(-64px * 17)); }
+.fxslot .strip b { display: grid; place-items: center; font-family: var(--display); font-size: 26px; color: #3b0710; line-height: 1; }
+.fxslot .strip b.seven { font-size: 44px; color: #c41e2a; text-shadow: 0 2px 0 #e3b552, 0 0 8px rgb(227 181 82 / .7); }
+.fxslot .r0 { animation: fxreel .9s cubic-bezier(.25,.1,.2,1) both; }
+.fxslot .r1 { animation: fxreel 1.15s cubic-bezier(.25,.1,.2,1) both; }
+.fxslot .r2 { animation: fxreel 1.4s cubic-bezier(.25,.1,.2,1) both; }
+.fxslot .win { text-align: center; font-family: var(--display); font-size: 22px; letter-spacing: .08em; text-transform: uppercase; color: #ffe58a;
+  text-shadow: 0 0 10px #e3b552; opacity: 0; animation: fxwin .5s 1.45s cubic-bezier(.3,1.6,.5,1) forwards, fxblink .3s 1.95s steps(2) 4; }
+.fxslot.foe .cab { filter: hue-rotate(200deg) saturate(.8); }
+.fxslot.still .strip, .fxslot.still .lights { animation: none; } .fxslot.still .win { animation: none; opacity: 1; }
+@keyframes fxreel { from { transform: translateY(-1px); filter: blur(1.5px); } 85% { filter: blur(0); } 92% { transform: translateY(calc(-64px * 17 + 8px)); } }
+@keyframes fxslot { 0% { opacity: 0; transform: scale(.6) translateY(20px); } 10% { opacity: 1; transform: none; } 88% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(1.06); } }
+@keyframes fxlights { 50% { filter: brightness(.5); } }
+@keyframes fxwin { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: none; } }
+@keyframes fxblink { 50% { opacity: .35; } }

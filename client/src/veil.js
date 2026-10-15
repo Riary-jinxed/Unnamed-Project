@@ -8,6 +8,7 @@
 import { rich, famStyle } from './common.js';
 import { setById, setRevealed } from '@jeu/engine/collection';
 import { t } from '@jeu/engine/i18n';
+import { reduceMotion } from './motion.js';
 
 // jeu : règles et conseils de partie ; menu : collection, boutique, progression. Le texte passe par rich() (mots-clés en gras).
 const TIPS = [
@@ -29,6 +30,7 @@ const TIPS = [
   { k: 'jeu', f: 'Dragon', t: t('Dragons : les sceaux que vous ne dépensez pas remplissent votre Trésor, et vos Dragons en profitent.') },
   { k: 'jeu', f: 'Mort-vivant', t: t('Morts-vivants : une carte avec Relève défaussée de votre main entre en jeu gratuitement, avec +1.') },
   { k: 'jeu', f: 'Vampire', t: t('Vampires : le Drain peut viser une carte de la main ou du deck adverse, qui arrivera affaiblie.') },
+  { k: 'jeu', set: 'tapis', t: t('Casino : jouez un Croupier ou des Dés pipés avant vos cartes à Pari, votre prochain dé fera 6. Réunissez les 3 Sept pour le Jackpot.') },
   { k: 'jeu', f: 'Hacker', set: 'set3', t: t('Hackers : un Malware pioché vous coûte une pioche. Une créature piratée garde sa puissance mais perd ses effets.') },
   { k: 'jeu', f: 'Cyborg', set: 'set3', t: t('Cyborgs : gardez des sceaux en préparant votre tour, la Surcharge les dépense à la révélation.') },
   { k: 'menu', t: t('Le booster du jour est offert : revenez chaque jour pour l\'ouvrir.') },
@@ -42,7 +44,7 @@ const TIPS = [
   { k: 'menu', t: t('En classé, quitter une partie en cours compte comme une défaite.') },
 ];
 const TIP_MS = 5200, IN_MS = 240, OUT_MS = 460, MAX_MS = 12000;
-const reduce = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduce = reduceMotion;
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 let root = document.getElementById('veil');

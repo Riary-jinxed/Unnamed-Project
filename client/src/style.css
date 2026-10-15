@@ -96,7 +96,7 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
 .gencard.used .gport-art { animation-play-state: paused; }
 @keyframes gbreath { 50% { scale: 1.04; } }
 @keyframes gdrift { 33% { translate: -1px .5px; } 66% { translate: 1px -.5px; } }
-@media (prefers-reduced-motion: reduce) { .gencard.ready, .gencard .gport-art { animation: none; } }
+.calm .gencard.ready, .calm .gencard .gport-art { animation: none; }
 
 /* tour (barre du haut, sous le type de partie) et sceaux (en bas, à côté de Valider) */
 .tturn { margin-right: auto; min-width: 0; display: grid; gap: 1px; }
@@ -119,7 +119,7 @@ button:focus-visible, .zone:focus-visible, .hc:focus-visible { outline: 2px soli
   box-shadow: inset 0 0 0 1px color-mix(in srgb, #000 20%, var(--accent)); transition: background .2s, opacity .2s; }
 .tok.spent { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); }
 .tok.cost { animation: tokcost 1s ease-in-out infinite alternate; }
-@media (prefers-reduced-motion: reduce) { .tok.cost { animation: none; opacity: .4; } }
+.calm .tok.cost { animation: none; opacity: .4; }
 @keyframes tokcost { to { opacity: .3; } }
 
 /* plateau */
@@ -240,7 +240,7 @@ b.kw { font: inherit; font-weight: 700; color: var(--ink); }
 .dock .toast { position: absolute; left: 16px; right: 16px; bottom: calc(100% + 8px); padding: 8px 12px; border-radius: var(--r); background: var(--surface);
   border: 1px solid var(--down); color: var(--ink); font-size: 13.5px; line-height: 1.35; box-shadow: 0 6px 18px rgb(0 0 0 / .3); animation: toastin .2s ease-out; }
 @keyframes toastin { from { opacity: 0; transform: translateY(6px); } }
-@media (prefers-reduced-motion: reduce) { .dock .toast { animation: none; } }
+.calm .dock .toast { animation: none; }
 /* partie en ligne : connexion perdue (la sienne ou celle de l'adversaire), la partie reprend au retour */
 .link-lost { padding: 6px 12px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--down); color: var(--ink); font-size: 13.5px; line-height: 1.35; }
 .link-lost.foe { border-color: var(--line); color: var(--muted); }
@@ -295,7 +295,7 @@ body:has(#app.ingame) { margin: 0; }
   .score .v { font-size: 19px; }
   .top .title { font-size: 16px; }
 }
-@media (prefers-reduced-motion: reduce) { .hc.sel { transform: none; } .mc.reveal, .mc.reveal-foe, .mc.reveal::after, .mc.reveal-foe::after, .mc.dropin, .hc.drawn, .p.pup, .p.pdown, .score .v.bump, .zone.spellcast, .terrain.terrain-in, .panel.end-in, .panel.end-in h2, .zoomcard.zoom-in { animation: none; } .zone { transition: none; } }
+.calm .hc.sel { transform: none; } .calm .mc.reveal, .calm .mc.reveal-foe, .calm .mc.reveal::after, .calm .mc.reveal-foe::after, .calm .mc.dropin, .calm .hc.drawn, .calm .p.pup, .calm .p.pdown, .calm .score .v.bump, .calm .zone.spellcast, .calm .terrain.terrain-in, .calm .panel.end-in, .calm .panel.end-in h2, .calm .zoomcard.zoom-in { animation: none; } .calm .zone { transition: none; }
 
 /* accueil, salon, réseau */
 .field { display: grid; gap: 4px; }
@@ -325,7 +325,20 @@ body:has(#app.ingame) { margin: 0; }
 .card-box.booster.gifts:has(.giftbtns > :nth-child(2)) { grid-template-columns: 1fr; }
 .card-box.booster.gifts:has(.giftbtns > :nth-child(2)) .giftbtns { justify-content: stretch; }
 .card-box.booster.gifts:has(.giftbtns > :nth-child(2)) .giftbtns .btn { flex: 1 1 140px; }
-.famseg { flex-wrap: wrap; align-self: start; }
+.coltabs { align-self: start; }
+.colfilters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.colf { display: grid; gap: 2px; min-width: 0; }
+.colf select { width: 100%; min-width: 0; min-height: 36px; font: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); text-overflow: ellipsis; }
+.colf.on select { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.colf select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.colcount { justify-content: space-between; align-items: center; }
+/* Onglet Arts de la collection : nom de l'art et rareté sous la carte ; un art manquant reste en couleur, plus pâle. */
+.ccard.artc { gap: 6px; align-content: start; }
+.ccard.artc.locked .fc { filter: none; opacity: .55; }
+.ccard.artc .lock { bottom: auto; top: 8px; }
+.artcap { display: grid; gap: 1px; padding: 0 4px; border-left: 3px solid var(--rar); line-height: 1.2; }
+.artcap b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.artcap small { font-size: 11px; color: var(--muted, var(--ink)); opacity: .8; }
 .ccard { position: relative; display: grid; padding: 0; border: 0; background: none; text-align: left; }
 .ccard .fc { height: 100%; box-sizing: border-box; }
 /* Galerie de la collection (plus de 200 cartes) : le navigateur ne met en page et ne dessine que les cartes proches de l'écran,
@@ -351,7 +364,7 @@ body:has(#app.ingame) { margin: 0; }
 .pickrow small { color: var(--muted); font-size: 12.5px; }
 .pickrow .p { font-family: var(--display); font-size: 22px; }
 .pickrow .p.sm { font-family: var(--body); font-size: 12px; color: var(--muted); }
-@media (prefers-reduced-motion: reduce) { .bcard { animation: none; } }
+.calm .bcard { animation: none; }
 
 /* boutique */
 .offer { display: grid; grid-template-rows: 1fr auto; gap: 6px; }
@@ -488,6 +501,8 @@ body:has(#app.ingame) { margin: 0; }
 .frame-base { background: linear-gradient(135deg, var(--f-ange), var(--f-demon), var(--f-gobelin), var(--f-elfe), var(--f-dragon)); }
 .frame-set2 { background: linear-gradient(135deg, #2b1d3a, var(--f-vampire) 45%, var(--f-mortvivant)); box-shadow: 0 0 8px rgb(140 35 80 / .5); }
 .frame-set3 { background: linear-gradient(135deg, #0b1530, var(--f-hacker) 45%, var(--f-cyborg)); box-shadow: 0 0 9px rgb(58 215 255 / .55); }
+.frame-jackpot { background: radial-gradient(circle, #8a1420 0 55%, transparent 56%), repeating-conic-gradient(#e3b552 0 6%, #c8141f 0 12.5%); box-shadow: 0 0 10px rgb(227 181 82 / .7); }
+.frame-tapis { background: radial-gradient(circle, #1a7a4a 0 55%, transparent 56%), conic-gradient(#e3b552 0 12.5%, #b8202a 0 25%, #e3b552 0 37.5%, #1d1d1d 0 50%, #e3b552 0 62.5%, #b8202a 0 75%, #e3b552 0 87.5%, #1d1d1d 0); box-shadow: 0 0 8px rgb(227 181 82 / .5); }
 .frame-platine { background: linear-gradient(135deg, #e9f6f4, #7fb7b0 50%, #d4ece8); box-shadow: 0 0 8px rgb(127 183 176 / .6); }
 .frame-diamant { background: conic-gradient(#bfe9ff, #5aa8e6, #e4f6ff, #3a7fd0, #bfe9ff); box-shadow: 0 0 10px rgb(90 168 230 / .7); }
 .frame-maitre { background: conic-gradient(from 90deg, #6a2bd0, #e04aa0, #ffcf4a, #6a2bd0); box-shadow: 0 0 12px rgb(160 70 210 / .7); }
@@ -562,7 +577,7 @@ body:has(#app.ingame) { margin: 0; }
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px;
   background: var(--surface); border: 1px solid var(--accent); border-radius: 10px; box-shadow: 0 6px 24px rgb(0 0 0 / .25); animation: fbin .25s ease-out; }
 @keyframes fbin { from { transform: translateY(20px); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .fbanner { animation: none; } }
+.calm .fbanner { animation: none; }
 /* le bandeau ne cache pas le bas de la page */
 #app:has(.fbanner) { padding-bottom: 120px; }
 
@@ -595,7 +610,7 @@ body:has(#app.ingame) { margin: 0; }
 .coach-hl { outline: 3px solid var(--accent); outline-offset: 2px; animation: coachhl 1s ease-in-out infinite alternate; }
 @keyframes coachhl { to { outline-color: transparent; } }
 body.coached .coach-hl { outline-color: transparent; animation: none; }
-@media (prefers-reduced-motion: reduce) { .coach-hl, .coach.new, .coach.new .coach-face { animation: none; } }
+.calm .coach-hl, .calm .coach.new, .calm .coach.new .coach-face { animation: none; }
 /* Initiation : pas de terrain, la case reste vide. */
 .terrain.none { visibility: hidden; }
 /* Apprendre : les leçons, numérotées. */
@@ -617,7 +632,7 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .panel.gift p strong { color: var(--accent); }
 .gift-card { width: 150px; margin: 4px auto; animation: giftin .6s cubic-bezier(.2, .8, .2, 1); }
 @keyframes giftin { from { opacity: 0; transform: translateY(16px) rotate(-4deg) scale(.9); } }
-@media (prefers-reduced-motion: reduce) { .gift-card { animation: none; } }
+.calm .gift-card { animation: none; }
 
 /* Codex des mots-clés */
 .cxs { display: grid; gap: 8px; }
@@ -681,7 +696,7 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 @keyframes astralring { from { transform: scale(.3); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
 @keyframes astralrays { from { transform: rotate(0) scale(.4); opacity: 0; } 30% { opacity: 1; } to { transform: rotate(40deg) scale(1.1); opacity: 0; } }
 @keyframes astralspark { from { transform: rotate(var(--r)) translateY(0) scale(1); opacity: 1; } to { transform: rotate(var(--r)) translateY(calc(var(--s) * -.85)) scale(.3); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .lv-astral, .mc.astral-in, .zoomcard.lv-up { animation: none; } }
+.calm .lv-astral, .calm .mc.astral-in, .calm .zoomcard.lv-up { animation: none; }
 
 /* Illustration de carte (art.js) : décor coupé à la fenêtre de la carte, personnage détouré par-dessus.
    Gabarit 960x1424, fenêtre 832x1168 à (64, 192) : le personnage déborde de la fenêtre au niveau qui le débloque (.pop). */
@@ -731,7 +746,7 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .btn.big { padding-block: 12px; font-size: 17px; }
 .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .top .chip[data-act] { font-size: 13px; padding: 4px 10px; font-weight: 600; }
-.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 760px; margin-inline: auto;
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr)); max-width: 760px; margin-inline: auto;
   background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
 .tabbar button { position: relative; border: 0; background: none; padding: 8px 2px 7px; display: grid; justify-items: center; gap: 2px; font-size: 12px; font-weight: 600; color: var(--ink); }
 .tabbar button + button { border-left: 1px solid var(--line); }
@@ -802,7 +817,7 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .artsw { flex: none; width: 22px; height: 28px; border-radius: 4px; background: linear-gradient(160deg, var(--rar, var(--line)), var(--rar2, var(--sunk))); border: 1px solid var(--line); }
 .gotart .gotcard { width: min(240px, 70%); justify-self: center; }
 .zoomart.art-swap { animation: zoomin .3s cubic-bezier(.2,.9,.3,1.2); }
-@media (prefers-reduced-motion: reduce) { .art.rar::after { animation: none; } .zoomart.art-swap { animation: none; } }
+.calm .art.rar::after { animation: none; } .calm .zoomart.art-swap { animation: none; }
 .artthumb .art { width: 100%; border-radius: var(--r); }
 
 /* Boutique : onglets Sets et Arts */
@@ -951,6 +966,11 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .mdot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
 .chip.gift { border-color: var(--accent); color: var(--accent); font-weight: 700; }
 .mailbody { margin: 0; line-height: 1.5; }
+/* Signaler un bug (bugs.js) : encart en bas du courrier et feuille du formulaire. */
+.bugbox { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.bugbox > div { flex: 1 1 220px; display: grid; gap: 4px; }
+.bugform textarea { box-sizing: border-box; width: 100%; resize: vertical; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 9px 11px; line-height: 1.4; }
+.bugshot { max-width: min(220px, 60%); max-height: 160px; border-radius: var(--r); border: 1px solid var(--line); object-fit: contain; }
 
 /* Familles d'arts en boutique : nom, cartes de la famille et progression. */
 .artthemes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -1015,6 +1035,80 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .lobby .card-box.booster { padding: 8px 10px 8px 14px; gap: 8px; }
 .lobby .card-box.booster h2 { font-size: 17px; }
 
+/* Accueil refait : le jeu (vitrine, Jouer), le quotidien (rangée d'icônes), les modes de jeu (tuiles illustrées), la progression (lignes).
+   Téléphone : une seule colonne, .home-play et .home-side s'effacent (display: contents) et le cadeau du jour remonte tout en haut. */
+.home { gap: 12px; }
+.home-play, .home-side { display: contents; }
+.home .card-box.booster, .home .nw-banner { order: -1; }
+.home .showcase { height: clamp(210px, 36dvh, 400px); }
+.home-sec { display: grid; gap: 8px; }
+.home-h { margin: 4px 2px 0; font-family: var(--display); font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 10px; }
+.home-h::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--rim, var(--line)), transparent); }
+/* Passe de saison : bandeau en vue, aux couleurs de la saison (--sa, --sb), un art Promo de la saison à droite. */
+.passband { position: relative; overflow: hidden; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px;
+  padding: 14px 14px 12px; border-radius: 10px; text-align: left; color: inherit; font: inherit; border: 2px solid color-mix(in srgb, var(--sa) 70%, #000);
+  background: linear-gradient(115deg, color-mix(in srgb, var(--sb) 55%, #000) 0%, color-mix(in srgb, var(--sb) 30%, #000) 45%, color-mix(in srgb, var(--sa) 35%, #000));
+  box-shadow: 0 0 0 1px #000, 0 6px 18px rgb(0 0 0 / .5), 0 0 22px -6px var(--sa), inset 0 0 0 1px rgb(255 255 255 / .08); transition: transform .08s; }
+.passband:active { transform: translateY(2px); }
+.pb-art { position: absolute; inset: 0 0 0 38%; z-index: -1; opacity: .7; -webkit-mask-image: linear-gradient(90deg, transparent, #000 55%); mask-image: linear-gradient(90deg, transparent, #000 55%); }
+.pb-art .gport-art { position: absolute; inset: 0; overflow: hidden; }
+.pb-art .gport-art img { position: absolute; left: 50%; top: 50%; width: 180%; transform: translate(calc(var(--fx) * -1%), calc(var(--fy) * -1%)); height: auto; max-width: none; }
+.passband::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(90deg, rgb(0 0 0 / .45), transparent 70%); }
+.pb-txt { display: grid; gap: 2px; min-width: 0; }
+.pb-txt .eyebrow { color: color-mix(in srgb, var(--sa) 75%, #fff); }
+.pb-txt b { font-family: var(--display); font-size: clamp(20px, 5.6vw, 28px); line-height: 1.1; color: #fff; text-shadow: 0 2px 6px #000; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; text-wrap: balance; }
+.pb-txt small { font-size: 13px; color: rgb(255 255 255 / .85); text-shadow: 0 1px 3px #000; }
+.pb-tier { display: grid; place-items: center; align-content: center; width: 64px; height: 64px; border-radius: 50%; line-height: 1;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--sa) 60%, #fff), var(--sa) 55%, color-mix(in srgb, var(--sa) 50%, #000));
+  border: 2px solid #000; box-shadow: 0 0 0 2px color-mix(in srgb, var(--sa) 50%, #fff), 0 0 18px -2px var(--sa); color: #1a0d02; }
+.pb-tier b { font-family: var(--display); font-size: 26px; }
+.pb-tier small { font-size: 11px; font-weight: 700; opacity: .8; }
+.passband .bar { grid-column: 1 / -1; height: 8px; background: rgb(0 0 0 / .55); }
+.passband .bar span { background: linear-gradient(90deg, var(--sb), var(--sa)); }
+.pb-foot { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: rgb(255 255 255 / .8); text-shadow: 0 1px 3px #000; }
+.pb-go { font-weight: 700; color: color-mix(in srgb, var(--sa) 70%, #fff); }
+/* Quotidien : une icône ronde par chose à faire chaque jour, une pastille quand une récompense attend. */
+.quick { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 88px); justify-content: start; gap: 6px; }
+.qk { display: grid; justify-items: center; gap: 2px; min-width: 0; padding: 4px 2px; border: 0; background: none; color: inherit; font: inherit; text-align: center; }
+.qk-ico { position: relative; display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%; color: var(--gold-hi, var(--ink));
+  border: 2px solid var(--rim, var(--line)); background: radial-gradient(circle at 50% 30%, var(--leather, var(--surface)), var(--leather-lo, var(--bg)));
+  box-shadow: 0 0 0 1px #000, 0 4px 10px rgb(0 0 0 / .45), inset 0 0 0 2px rgb(255 255 255 / .05); transition: transform .08s; }
+.qk:active .qk-ico { transform: translateY(2px); }
+.qk.todo .qk-ico { border-color: var(--accent); box-shadow: 0 0 0 1px #000, 0 0 14px -2px var(--accent); }
+.qk-dot { position: absolute; top: -3px; right: -3px; min-width: 12px; height: 12px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #e0402a; border: 2px solid var(--bg);
+  font-size: 11px; font-weight: 700; line-height: 1; color: #fff; display: grid; place-items: center; }
+.qk-dot.num { min-width: 20px; height: 20px; top: -6px; right: -8px; }
+.qk b { font-size: 12.5px; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qk small { font-size: 11px; line-height: 1.2; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qk.todo small { color: var(--accent); font-weight: 700; }
+/* Modes de jeu : tuiles plus hautes, l'illustration (quête, boss) y prend plus de place. Une tuile seule sur sa ligne s'étale. */
+.tiles.modes .tile { min-height: 118px; }
+.tiles.modes > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+.tiles.modes > :last-child:nth-child(odd) :is(.btile-art, .stile-art) { inset-inline-start: 55%; }
+.rtile .tile-foot .rank { font-family: var(--display); font-size: 14px; }
+.rtile .tile-foot .rstars { color: var(--gold, var(--accent)); }
+/* Progression : passe et niveau en lignes (titre à gauche, palier à droite, jauge dessous). */
+.hrows { display: grid; gap: 8px; }
+.tile.hrow { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px 10px; padding: 10px 12px; }
+.hrow-txt { display: grid; gap: 2px; min-width: 0; }
+.hrow b { font-size: 18px; -webkit-line-clamp: 1; line-clamp: 1; }
+.hrow-end { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.hrow .bar { grid-column: 1 / -1; }
+/* Ordinateur : le jeu à gauche (il reste en place au défilement), le quotidien, les modes et la progression à droite. */
+@media (min-width: 960px) {
+  #app:has(> .home) { max-width: 1180px; }
+  .home { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; gap: 20px; }
+  .home-play, .home-side { display: grid; gap: 12px; align-content: start; }
+  .home-play { position: sticky; top: 12px; }
+  .home .showcase { height: clamp(320px, calc(100dvh - 330px), 620px); }
+  .home .playbtn { padding: 16px; }
+  .home .playbtn span { font-size: 36px; }
+  .tiles.modes .tile { min-height: 132px; }
+  .pb-txt b { font-size: 30px; }
+  .pb-tier { width: 76px; height: 76px; } .pb-tier b { font-size: 30px; }
+}
+
 /* Classement : un joueur s'ouvre en pop-up (profil public) ; le top 10 montre son image et son cadre. */
 .ladder .lwho { display: flex; align-items: center; gap: 10px; min-width: 0; border: 0; background: none; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .ladder .lwho:hover b, .ladder .lwho:focus-visible b { text-decoration: underline; }
@@ -1071,7 +1165,7 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
   color: #2a1606; background: radial-gradient(circle at 35% 30%, #fff0b8, #f0b04a 55%, #a5631c); box-shadow: 0 0 0 2px #000, 0 0 16px -2px #f0b04a; animation: evpulse 2.4s ease-in-out infinite; }
 .ev-ranked .evmult { background: radial-gradient(circle at 35% 30%, #e8f4ff, #7fb6f0 55%, #2f5f9a); box-shadow: 0 0 0 2px #000, 0 0 16px -2px #7fb6f0; }
 @keyframes evpulse { 50% { transform: scale(1.06); } }
-@media (prefers-reduced-motion: reduce) { .evmult, .medal { animation: none; } }
+.calm .evmult, .calm .medal { animation: none; }
 .evtag { display: inline-block; padding: 0 6px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #2a1606; background: #f0b04a; }
 
 /* Réglages des notifications (notifs.js) : une case par sorte, avec son explication dessous. */
@@ -1100,12 +1194,12 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .pslot > .ebubble.foe::after { top: -6px; box-shadow: -1px -1px 0 #4a3214; }
 .pslot > .ebubble.me::after { bottom: -6px; }
 @keyframes ebub { 0% { opacity: 0; transform: scale(.4); } 8% { opacity: 1; transform: scale(1.06); } 13% { transform: scale(1); } 88% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(.94); } }
-@media (prefers-reduced-motion: reduce) { .pslot > .ebubble { animation-name: ebubfade; animation-timing-function: linear; } }
+.calm .pslot > .ebubble { animation-name: ebubfade; animation-timing-function: linear; }
 @keyframes ebubfade { 0% { opacity: 0; } 6%, 90% { opacity: 1; } 100% { opacity: 0; } }
 .emotepick { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 40; display: grid; gap: 8px; padding: 10px; border-radius: var(--r);
   background: var(--surface); border: 1px solid var(--rim, var(--line)); box-shadow: 0 10px 30px rgb(0 0 0 / .6); animation: emopop .16s ease-out both; }
 @keyframes emopop { from { opacity: 0; transform: translateY(8px); } }
-@media (prefers-reduced-motion: reduce) { .emotepick { animation: none; } }
+.calm .emotepick { animation: none; }
 .emogrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .emo { position: relative; display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 6px 10px 6px 8px; text-align: left; border-radius: 12px;
   border: 1px solid var(--line); background: color-mix(in srgb, #fbf3dc 7%, var(--surface)); color: var(--ink); font-size: 13px; line-height: 1.2; cursor: pointer; }
@@ -1133,9 +1227,21 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .emolist.free .ebubble.static { font-size: 13px; padding: 5px 10px 5px 7px; box-shadow: 0 0 0 1px #4a3214; }
 .emolist.free .ebubble.static .ei { font-size: 17px; }
 .emoitem .btn { flex: none; display: inline-flex; align-items: center; gap: 4px; }
-/* Booster de famille : compteur, puis choix de la famille (un bouton à sa couleur par famille). */
+
+/* Compte testeur : rappel discret du jour d'aperçu (réglé dans /admin), par-dessus tous les écrans. */
+.preview-tag { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 4px); left: 50%; transform: translateX(-50%); z-index: 9999; pointer-events: none;
+  padding: 2px 10px; border-radius: 999px; background: #b4235a; color: #fff; font-size: 12px; font-weight: 600; letter-spacing: .02em;
+  box-shadow: 0 2px 8px rgb(0 0 0 / .35); white-space: nowrap; opacity: .92; }
+/* Booster de famille : compteur, puis liste des familles (une ligne à sa couleur par famille, cartes possédées sur le total). */
 .famboost.ready { border-color: var(--accent); }
-.famchoice { display: flex; flex-wrap: wrap; gap: 8px; }
-.famchoice .btn { display: inline-flex; gap: 8px; align-items: center; }
-.famchoice .btn::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--fam); box-shadow: 0 0 6px var(--fam); }
-.famchoice .btn small { opacity: .7; }
+.famlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 360px; overflow-y: auto; }
+.famlist button { width: 100%; display: grid; grid-template-columns: auto 1fr minmax(90px, 40%) auto; align-items: center; gap: 10px; padding: 10px 12px;
+  background: var(--sunk); border: 1px solid var(--line); border-left: 4px solid var(--fam); border-radius: var(--r); color: var(--ink); text-align: left; }
+.famlist button:not(:disabled):hover { background: color-mix(in srgb, var(--fam) 14%, var(--sunk)); }
+.famlist .famdot { width: 10px; height: 10px; border-radius: 50%; background: var(--fam); box-shadow: 0 0 6px var(--fam); }
+.famlist .famname { font-weight: 600; font-family: var(--famfont); }
+.famlist .famown { display: flex; align-items: center; gap: 8px; }
+.famlist .famown .bar { flex: 1; height: 6px; }
+.famlist .famown .bar span { background: var(--fam); }
+.famlist .famown small { opacity: .75; min-width: 36px; text-align: right; }
+.famlist .famgo { font-size: 13px; font-weight: 600; color: var(--accent); }

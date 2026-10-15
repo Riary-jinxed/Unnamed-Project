@@ -196,13 +196,213 @@ const FULL = {
   end: t('Tutoriel terminé : vous connaissez les bases. Le codex, dans « Apprendre » sur l\'accueil, explique tous les autres mots-clés.'),
 };
 
+// ---- Tutoriel avancé : une mécanique de famille par leçon ----
+// Même principe que les leçons de base : 4 tours, decks et pioches fixés, un adversaire qui joue toujours pareil.
+
+// Sceaux : tout dépenser (Grâce) ou garder (Trésor, Magot), et Coût X. Le Trésor arrive à 5 au tour 4 :
+// 1 sceau gardé au tour 2, puis Thésauriser (+2) et 2 sceaux gardés au tour 3. Le Dragon des cavernes coûte alors 3.
+const SEALS_LESSON = {
+  title: t('Sceaux et Trésor'), turns: 4, noGeneral: true, noTerrain: true,
+  me: { general: 'erudit', hand: 3, order: ['cherubin', 'gardien_magot', 'mercenaire', 'thesauriser', 'cavernes', 'priere', 'golem', 'barde', 'chevalier'], terrains: [] },
+  foe: { general: 'cartographe', hand: 3, order: ['eclaireuse', 'mercenaire', 'chevalier', 'barde', 'golem', 'potion', 'cerf'], terrains: [],
+    plays: { 1: [['eclaireuse', 0]], 2: [['mercenaire', 2]], 3: [['chevalier', 2]], 4: [['barde', 1]] } },
+  steps: [
+    { hl: () => [card('cherubin'), zone(1)], drag: () => [card('cherubin'), zone(1)], done: t => t.pend('cherubin'),
+      text: t('Tout se joue avec vos **sceaux**. Le Chérubin a **Grâce** : si vous dépensez tous vos sceaux ce tour, il gagne +1 en fin de tour. Posez-le au Centre.') },
+    { go: true, text: t('Votre unique sceau est dépensé. Validez le tour.') },
+
+    { info: true, turn: 2, hl: '.mc[data-id="cherubin"]', text: t('La Grâce s\'est déclenchée : le Chérubin est passé à 2. Mais garder ses sceaux a aussi du bon…') },
+    { hl: () => [card('gardien_magot'), zone(0)], drag: () => [card('gardien_magot'), zone(0)], done: t => t.pend('gardien_magot') && t.sealsLeft() >= 1,
+      text: u => (u.pend('gardien_magot') ? t('Gardez votre dernier sceau : touchez l\'autre carte posée pour la reprendre en main.')
+        : t('Posez le Gardien du magot à Gauche, et **gardez votre autre sceau**. Il crée un **Magot** : en fin de tour, le Magot gagne autant de puissance que vos sceaux non dépensés.')) },
+    { go: true, text: t('Validez en gardant 1 sceau : il ira aussi dans votre **Trésor**.') },
+
+    { info: true, turn: 3, hl: '.pbar.me .pstats', text: t('Le sceau gardé est dans votre **Trésor** (dans votre bandeau), et le Magot a gagné +1. Le Trésor ne se dépense pas : il renforce les Dragons.') },
+    { hl: t => [card('thesauriser'), zone(t.zoneOf('magot'))], drag: t => [card('thesauriser'), zone(t.zoneOf('magot'))], done: t => t.pend('thesauriser') && t.sealsLeft() >= 2,
+      text: u => (u.pend('thesauriser') ? t('Gardez 2 sceaux : touchez l\'autre carte posée pour la reprendre en main.')
+        : t('Posez Thésauriser : votre Trésor gagne +2. **Gardez vos 2 autres sceaux** : ils iront au Trésor, et au Magot.')) },
+    { go: true, text: t('Validez le tour.') },
+
+    { info: true, turn: 4, hl: card('cavernes'), text: t('Votre Trésor est à 5. Le Dragon des cavernes coûte 1 de moins par tranche de 3 de Trésor : il ne coûte plus que 3 au lieu de 4.') },
+    { hl: t => [card('cavernes'), zone(t.weakest())], drag: t => [card('cavernes'), zone(t.weakest())], done: t => t.pend('cavernes'),
+      text: t('Posez le Dragon des cavernes où vous voulez.') },
+    { hl: t => [card('priere'), zone(t.zoneOf('cherubin'))], drag: t => [card('priere'), zone(t.zoneOf('cherubin'))], done: t => t.pend('priere'),
+      text: t('La Prière a **Coût X** : elle prend tous vos sceaux restants, et X est ce nombre. Posez-la **en dernier**, avec le Chérubin : il gagnera +X+1, et sa Grâce se déclenchera.') },
+    { go: true, text: t('Tous vos sceaux sont dépensés. Validez le dernier tour.') },
+  ],
+  end: t('Leçon finie : tout dépenser déclenche la Grâce, garder ses sceaux nourrit le Trésor et le Magot. À vous de choisir à chaque tour !'),
+};
+
+// Démons : la Chèvre sacrifiée rend un sceau au tour 3 ; le Marché des âmes détruit le Diablotin (sa zone +2, le Bourreau +2).
+const SACRIFICE_LESSON = {
+  title: t('Sacrifice et Destruction'), turns: 4, noGeneral: true, noTerrain: true,
+  me: { general: 'erudit', hand: 3, order: ['cultiste', 'molosse', 'diablotin', 'bourreau', 'pacte', 'bete', 'golem', 'mercenaire', 'chevalier'], terrains: [] },
+  foe: { general: 'cartographe', hand: 3, order: ['eclaireuse', 'mercenaire', 'chevalier', 'barde', 'golem', 'potion', 'cerf'], terrains: [],
+    plays: { 1: [['eclaireuse', 0]], 2: [['mercenaire', 1]], 3: [['chevalier', 2]], 4: [['barde', 2]] } },
+  steps: [
+    { hl: () => [card('cultiste'), zone(0)], drag: () => [card('cultiste'), zone(0)], done: t => t.pend('cultiste'),
+      text: t('Les Démons jouent avec la destruction. Posez le Cultiste à Gauche : à sa révélation, il crée une **Chèvre**, un jeton de puissance -1.') },
+    { go: true, text: t('Validez le tour.') },
+
+    { info: true, turn: 2, hl: '.mc[data-id="chevre"]', text: t('Une Chèvre de puissance -1 affaiblit votre zone… mais elle est faite pour être **sacrifiée**.') },
+    { hl: t => [card('molosse'), zone(t.zoneOf('chevre'))], drag: t => [card('molosse'), zone(t.zoneOf('chevre'))], done: t => t.together('molosse', 'chevre'),
+      text: u => (u.pend('molosse') ? t('Seul dans sa zone, le Molosse se détruirait lui-même : reprenez-le et posez-le avec la Chèvre.')
+        : t('Le Molosse infernal a **Sacrifice** : à sa révélation, il détruit votre créature la plus faible de sa zone. Posez-le avec la Chèvre.')) },
+    { go: true, text: t('Validez le tour.') },
+
+    { info: true, turn: 3, hl: '.dock .tseals', text: t('La Chèvre sacrifiée vous donne **+1 sceau** ce tour : vous en avez 4 au lieu de 3.') },
+    { hl: () => [card('diablotin'), zone(1)], drag: () => [card('diablotin'), zone(1)], done: t => t.pend('diablotin'),
+      text: t('Posez le Diablotin au Centre. **Destruction** : quand il est détruit, sa zone gagne +2.') },
+    { hl: t => [card('bourreau'), zone(t.zoneOf('diablotin'))], drag: t => [card('bourreau'), zone(t.zoneOf('diablotin'))], done: t => t.together('bourreau', 'diablotin'),
+      text: t('Ajoutez le Bourreau dans la même zone : il gagne +2 quand une autre de vos créatures y est détruite.') },
+    { hl: t => [card('pacte'), zone(t.zoneOf('diablotin'))], drag: t => [card('pacte'), zone(t.zoneOf('diablotin'))], done: t => t.together('pacte', 'diablotin'),
+      text: t('Le Marché des âmes détruit votre créature la plus faible de sa zone, puis vous fait piocher. Posez-le avec eux.') },
+    { go: true, text: t('Vos cartes se révèlent dans l\'ordre où vous les avez posées : le Diablotin, le Bourreau, puis le sort. Validez le tour.') },
+
+    { info: true, turn: 4, hl: '.mc[data-id="bourreau"]', text: t('Le Diablotin détruit a donné +2 à sa zone, et le Bourreau a gagné +2.') },
+    { free: true, text: t('Dernier tour. La Bête des abysses a **Sacrifice 2** : elle détruit vos 2 créatures les plus faibles de sa zone. S\'il n\'y en a pas assez, c\'est elle qui est détruite ! Choisissez bien, puis validez.') },
+  ],
+  end: t('Leçon finie : sacrifier ses créatures faibles rend les Démons plus forts, et Destruction tire profit de chaque perte.'),
+};
+
+// Morts-vivants : la Goule défausse le Zombie, la Danse macabre le Chevalier de la mort, qui défausse le Squelette en se relevant,
+// et le Fossoyeur le Spectre hurlant. Mordrek donne +1 à la zone la plus faible à chaque carte défaussée.
+const RISE_LESSON = {
+  title: t('Défausse et Relève'), turns: 4, noTerrain: true,
+  me: { general: 'mordrek', hand: 3, order: ['goule', 'zombie', 'danse_macabre', 'squelette', 'chevalier_mort', 'fossoyeur', 'spectre', 'golem', 'mercenaire', 'chevalier', 'barde'], terrains: [] },
+  foe: { general: 'cartographe', hand: 3, order: ['eclaireuse', 'mercenaire', 'chevalier', 'barde', 'golem', 'potion', 'cerf'], terrains: [],
+    plays: { 1: [['eclaireuse', 2]], 2: [['mercenaire', 0]], 3: [['chevalier', 2]], 4: [['golem', 1]] } },
+  steps: [
+    { info: true, hl: '.pbar.me .gencard', text: t('Votre général, Mordrek, mène les Morts-vivants : chaque carte **défaussée** de votre main donne +1 à votre zone la plus faible.') },
+    { hl: () => [card('goule'), zone(1)], drag: () => [card('goule'), zone(1)], done: t => t.pend('goule'),
+      text: t('Posez la Goule affamée au Centre. **Révélation : Défausse 1** : elle défausse une carte avec **Relève** de votre main, la plus chère d\'abord.') },
+    { go: true, text: t('Validez le tour, et regardez votre main à la révélation.') },
+
+    { info: true, turn: 2, hl: '.mc[data-id="zombie"]', text: t('Le Zombie a **Relève** : défaussé, il est entré en jeu gratuitement avec +1, dans la zone où vous étiez le plus en retard.') },
+    { hl: card('danse_macabre'), drag: () => [card('danse_macabre'), zone(1)], done: t => t.pend('danse_macabre'),
+      text: t('La Danse macabre défausse jusqu\'à 2 cartes avec Relève, puis vous fait piocher 2 cartes. Posez-la où vous voulez.') },
+    { go: true, text: t('Validez le tour.') },
+
+    { info: true, turn: 3, hl: '.mc[data-id="chevalier_mort"]', text: t('Le Chevalier de la mort, qui coûte 4, s\'est relevé gratuitement, et sa Révélation a défaussé le Squelette, qui s\'est relevé à son tour !') },
+    { hl: card('fossoyeur'), drag: t => [card('fossoyeur'), zone(t.weakest())], done: t => t.pend('fossoyeur'),
+      text: t('Le Fossoyeur défausse 1 carte avec Relève, puis vous fait piocher. Posez-le : le Spectre hurlant de votre main se relèvera.') },
+    { go: true, text: t('Validez le tour.') },
+
+    { free: true, turn: 4, text: t('Dernier tour : jouez vos cartes comme vous voulez. Une carte avec Relève peut aussi se poser normalement.') },
+  ],
+  end: t('Leçon finie : défausser des cartes avec Relève les met en jeu gratuitement. Le Codex explique aussi l\'Exhumation, qui ramène une créature de la défausse.'),
+};
+
+// Vampires et Démons du Crépuscule : Drain sur la main puis sur le plateau, et Échange de l'Âme damnée contre le Mercenaire adverse.
+const DRAIN_LESSON = {
+  title: t('Drain et Échange'), turns: 4, noGeneral: true, noTerrain: true,
+  me: { general: 'erudit', hand: 3, order: ['chauve_souris', 'novice', 'ame_damnee', 'corrupteur', 'mercenaire', 'golem', 'chevalier', 'barde', 'potion'], terrains: [] },
+  foe: { general: 'cartographe', hand: 3, order: ['eclaireuse', 'mercenaire', 'chevalier', 'barde', 'golem', 'potion', 'cerf'], terrains: [],
+    plays: { 1: [['eclaireuse', 0]], 2: [['mercenaire', 1]], 3: [['chevalier', 2]], 4: [['barde', 2]] } },
+  steps: [
+    { hl: () => [card('chauve_souris'), zone(2)], drag: () => [card('chauve_souris'), zone(2)], done: t => t.pend('chauve_souris'),
+      text: t('Les Vampires volent la puissance : c\'est le **Drain**. La Chauve-souris draine 1 sur une créature de la main adverse : elle aura -1 quand elle sera jouée, et la Chauve-souris +1. Posez-la à Droite.') },
+    { go: true, text: t('Validez le tour.') },
+
+    { turn: 2, hl: () => [card('novice'), zone(0)], drag: () => [card('novice'), zone(0)], done: t => t.pend('novice') && t.zoneOf('novice') === 0,
+      text: t('Le Vampire novice draine la créature adverse la plus faible de sa zone. Posez-le à Gauche, face à l\'Éclaireuse.') },
+    { hl: () => [card('ame_damnee'), zone(1)], drag: () => [card('ame_damnee'), zone(1)], done: t => t.pend('ame_damnee') && t.zoneOf('ame_damnee') === 1,
+      text: t('Posez l\'Âme damnée au Centre. Une puissance de -2 ? C\'est voulu : avec l\'**Échange**, vos créatures négatives passent chez l\'adversaire.') },
+    { go: true, text: t('Validez le tour.') },
+
+    { turn: 3, hl: t => [card('corrupteur'), zone(t.zoneOf('ame_damnee'))], drag: t => [card('corrupteur'), zone(t.zoneOf('ame_damnee'))], done: t => t.together('corrupteur', 'ame_damnee'),
+      text: t('Le Corrupteur fait un **Échange** : votre créature négative la plus faible de sa zone passe chez l\'adversaire, et vous prenez sa créature la plus puissante (4 ou moins). Posez-le avec l\'Âme damnée.') },
+    { go: true, text: t('Validez le tour.') },
+
+    { info: true, turn: 4, hl: '.board > .zone[data-z="1"]', text: t('Échange fait : le Mercenaire adverse se bat pour vous, et l\'Âme damnée affaiblit maintenant son camp.') },
+    { free: true, text: t('Dernier tour : jouez vos cartes comme vous voulez, puis validez.') },
+  ],
+  end: t('Leçon finie : le Drain affaiblit l\'adversaire jusque dans sa main, et l\'Échange lui refile vos créatures négatives.'),
+};
+
+// Sorts : l'Apprentie gagne +1 par sort révélé (Sortilège), le Scribe +1 par carte piochée hors du début de tour (Inspiration).
+const SPELLS_LESSON = {
+  title: t('Sortilège et Inspiration'), turns: 4, noGeneral: true, noTerrain: true,
+  me: { general: 'erudit', hand: 3, order: ['apprentie', 'lueur', 'potion', 'scribe', 'ecritures', 'benediction', 'eclaireuse', 'golem', 'mercenaire', 'barde', 'chevalier', 'archere'], terrains: [] },
+  foe: { general: 'cartographe', hand: 3, order: ['eclaireuse', 'mercenaire', 'chevalier', 'barde', 'golem', 'potion', 'cerf'], terrains: [],
+    plays: { 1: [['eclaireuse', 1]], 2: [['mercenaire', 2]], 3: [['chevalier', 0]], 4: [['barde', 2]] } },
+  steps: [
+    { hl: () => [card('apprentie'), zone(1)], drag: () => [card('apprentie'), zone(1)], done: t => t.pend('apprentie'),
+      text: t('L\'Apprentie arcaniste a **Sortilège** : elle gagne +1 chaque fois que vous révélez un sort, dans n\'importe quelle zone. Posez-la au Centre.') },
+    { go: true, text: t('Validez le tour.') },
+
+    { turn: 2, hl: () => [card('lueur'), zone(0)], drag: () => [card('lueur'), zone(0)], done: t => t.pend('lueur'),
+      text: t('Posez la Lueur des sylves à Gauche : votre zone y gagne +3. C\'est un sort : l\'Apprentie gagnera +1, même d\'une autre zone.') },
+    { hl: t => [card('potion'), zone(t.zoneOf('apprentie'))], drag: t => [card('potion'), zone(t.zoneOf('apprentie'))], done: t => t.together('potion', 'apprentie'),
+      text: t('Posez la Potion de force avec l\'Apprentie : deuxième sort, deuxième Sortilège, et +2 pour votre créature la plus forte de la zone.') },
+    { go: true, text: t('Validez le tour.') },
+
+    { info: true, turn: 3, hl: '.mc[data-id="apprentie"]', text: t('Deux sorts révélés : l\'Apprentie a gagné +1 deux fois, et +2 avec la Potion.') },
+    { hl: () => [card('scribe'), zone(2)], drag: () => [card('scribe'), zone(2)], done: t => t.pend('scribe'),
+      text: t('Le Scribe céleste a **Inspiration** : il gagne +1 chaque fois que vous piochez une carte en dehors de la pioche du début de tour. Posez-le à Droite.') },
+    { hl: t => [card('benediction'), zone(t.zoneOf('scribe'))], drag: t => [card('benediction'), zone(t.zoneOf('scribe'))], done: t => t.together('benediction', 'scribe'),
+      text: t('Il vous reste 1 sceau : posez la Bénédiction avec le Scribe. Vos créatures de sa zone gagnent +1, et c\'est encore un sort pour l\'Apprentie.') },
+    { go: true, text: t('Validez le tour.') },
+
+    { turn: 4, hl: card('ecritures'), drag: t => [card('ecritures'), zone(t.weakest())], done: t => t.pend('ecritures'),
+      text: t('Les Écritures saintes font piocher 2 cartes : 2 Inspirations pour le Scribe, et un Sortilège de plus pour l\'Apprentie. Posez-les où vous voulez.') },
+    { free: true, text: t('Il vous reste 1 sceau : posez une autre carte si vous voulez, puis validez.') },
+  ],
+  end: t('Leçon finie : les sorts et la pioche renforcent vos créatures avec Sortilège et Inspiration.'),
+};
+
+// Faites vos jeux : le dé tombe toujours pareil (dice : 4 pour la Joueuse). Le Croupier pipe le dé de Quitte ou double (6),
+// les Cartes biseautées font piocher le Sept de carreau, et les 3 Sept en jeu au tour 5 déclenchent le Jackpot.
+const BETS_LESSON = {
+  title: t('Dés, triche et Jackpot'), turns: 5, noGeneral: true, noTerrain: true, dice: [4],
+  me: { general: 'erudit', hand: 3, order: ['joueuse_des', 'croupier', 'sept_pique', 'quitte_double', 'sept_trefle', 'cartes_biseautees', 'chevalier', 'golem', 'sept_carreau'], terrains: [] },
+  foe: { general: 'cartographe', hand: 3, order: ['eclaireuse', 'mercenaire', 'chevalier', 'barde', 'golem', 'potion', 'cerf'], terrains: [],
+    plays: { 1: [['eclaireuse', 2]], 2: [['mercenaire', 0]], 3: [['chevalier', 1]], 4: [['barde', 2]], 5: [['golem', 0]] } },
+  steps: [
+    { hl: () => [card('joueuse_des'), zone(1)], drag: () => [card('joueuse_des'), zone(1)], done: t => t.pend('joueuse_des'),
+      text: t('Au casino, on parie. La Joueuse de dés a **Pari** : à sa révélation, on lance un dé à 6 faces. 1-2 : rien, 3-5 : +2, 6 : +4. Posez-la au Centre.') },
+    { go: true, text: t('Validez le tour, et regardez le dé rouler.') },
+
+    { info: true, turn: 2, hl: '.mc[data-id="joueuse_des"]', text: t('4 : entre 3 et 5, la Joueuse gagne +2. Mais un dé, ça se pipe…') },
+    { hl: () => [card('croupier'), zone(0)], drag: () => [card('croupier'), zone(0)], done: t => t.pend('croupier'),
+      text: t('Le Croupier triche : à sa révélation, votre **prochain dé** fera 6, sans être lancé. Posez-le à Gauche.') },
+    { go: true, text: t('Validez le tour.') },
+
+    { turn: 3, hl: () => [card('sept_pique'), zone(2)], drag: () => [card('sept_pique'), zone(2)], done: t => t.pend('sept_pique'),
+      text: t('Voici un **Sept**. Il y en a trois : pique, trèfle et carreau. Quand les 3 sont en jeu en même temps, c\'est le **Jackpot**, et chaque Sept a son effet Jackpot. Posez le Sept de pique à Droite.') },
+    { hl: t => [card('quitte_double'), zone(t.zoneOf('joueuse_des'))], drag: t => [card('quitte_double'), zone(t.zoneOf('joueuse_des'))], done: t => t.together('quitte_double', 'joueuse_des'),
+      text: t('Quitte ou double parie sur votre créature la plus puissante de sa zone. Grâce au Croupier, son dé fera 6 : la Joueuse doublera sa puissance. Posez-le avec la Joueuse.') },
+    { go: true, text: t('Validez le tour.') },
+
+    { info: true, turn: 4, hl: '.mc[data-id="joueuse_des"]', text: t('6 : la Joueuse est passée de 3 à 6. Le dé pipé ne rate jamais.') },
+    { hl: () => [card('sept_trefle'), zone(0)], drag: () => [card('sept_trefle'), zone(0)], done: t => t.pend('sept_trefle'),
+      text: t('Deuxième Sept : posez le Sept de trèfle à Gauche.') },
+    { hl: () => [card('cartes_biseautees'), zone(0)], drag: () => [card('cartes_biseautees'), zone(0)], done: t => t.pend('cartes_biseautees'),
+      text: t('On peut aussi tricher sur le deck : les Cartes biseautées vous font piocher un Sept, celui qui vous manque. Posez-les à Gauche.') },
+    { go: true, text: t('Validez le tour : le Sept de carreau arrivera dans votre main.') },
+
+    { turn: 5, hl: t => [card('sept_carreau'), zone(t.weakest())], drag: t => [card('sept_carreau'), zone(t.weakest())], done: t => t.pend('sept_carreau'),
+      text: t('Le dernier Sept ! Posez le Sept de carreau où vous voulez : à sa révélation, vos 3 Sept seront en jeu et leurs effets Jackpot se déclencheront.') },
+    { free: true, text: t('Il vous reste 1 sceau : posez une autre carte si vous voulez, puis validez et regardez la machine à sous.') },
+  ],
+  end: t('Leçon finie : un Pari, c\'est un dé à 6 faces. Les cartes qui trichent pipent le dé ou le deck, et vos 3 Sept en jeu déclenchent le Jackpot : vos créatures gagnent +2.'),
+};
+
 // Leçons proposées dans « Apprendre », dans l'ordre. L'initiation est lancée seule au premier lancement.
+// advanced : leçon du tutoriel avancé, rangée à part dans « Apprendre ».
 export const LESSONS = {
   initiation: { ...INITIATION, blurb: t('4 tours · poser ses cartes et gagner 2 zones') },
   effets: { ...EFFECTS, blurb: t('4 tours · Révélation, jetons et sorts') },
   terrains: { ...TERRAINS_LESSON, blurb: t('4 tours · terrains et créatures Déplaçables') },
   generaux: { ...GENERALS_LESSON, blurb: t('4 tours · lire et activer son général') },
   complet: { ...FULL, title: t('Partie complète'), blurb: t('7 tours · toutes les règles dans une vraie partie') },
+  sceaux: { ...SEALS_LESSON, advanced: true, blurb: t('4 tours · Grâce, Trésor, Magot et Coût X') },
+  sacrifice: { ...SACRIFICE_LESSON, advanced: true, blurb: t('4 tours · Chèvre, Sacrifice et Destruction') },
+  releve: { ...RISE_LESSON, advanced: true, blurb: t('4 tours · défausser ses Morts-vivants pour les relever') },
+  drain: { ...DRAIN_LESSON, advanced: true, blurb: t('4 tours · voler la puissance et échanger ses créatures') },
+  sorts: { ...SPELLS_LESSON, advanced: true, blurb: t('4 tours · tirer profit des sorts et de la pioche') },
+  // set : leçon cachée avant la sortie de son set.
+  pari: { ...BETS_LESSON, advanced: true, set: 'tapis', blurb: t('5 tours · lancer les dés, tricher et décrocher le Jackpot') },
 };
 for (const l of Object.values(LESSONS)) l.steps.forEach((s, i) => { s.turn = s.turn || (i ? l.steps[i - 1].turn : 1); });
 
@@ -217,6 +417,8 @@ function arrange(P, s) {
 export function tutorialGame(names, lesson = LESSONS.complet) {
   const st = newGame(deckOf(lesson.me, t('Tutoriel')), deckOf(lesson.foe, t('Entraînement')), names, { generals: [lesson.me.general, lesson.foe.general], turns: lesson.turns });
   arrange(st.p[0], lesson.me); arrange(st.p[1], lesson.foe);
+  // Dé truqué pour la leçon : les Paris tombent toujours pareil.
+  if (lesson.dice) st.dice = lesson.dice.slice();
   startTurn(st); st.phase = 'plan';
   return st;
 }

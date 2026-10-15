@@ -1,0 +1,17 @@
+# Tests des mécaniques du moteur (npm test) à chaque pull request et à chaque push sur main.
+# Le moteur n'a aucune dépendance : pas d'installation, le tout prend quelques secondes. Le déploiement Render n'est pas concerné.
+name: Tests
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  moteur:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test

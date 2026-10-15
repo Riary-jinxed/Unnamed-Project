@@ -16,14 +16,29 @@ const KEYWORDS = ['Révélation', 'Persistant', 'Grâce', 'Destruction', 'Dépla
   'Relève', 'Exhumation', 'Échange', 'Jeton', 'Activable', 'Trésor', 'Magot', 'Coût X',
   'Fin de tour', 'Début de tour', 'Début du tour \\d+', 'Début de partie', 'Fin de partie',
   'Sacrifice(?: \\d+)?', 'Hordes?(?: (?:\\d+|X))?', 'Drain(?: \\d+)?', 'Festins?(?: \\d+)?', 'Défausse(?: \\d+)?',
-  'Malwares?(?: \\d+)?', 'Piratage', 'Implants?(?: \\d+)?', 'Surcharges?(?: \\d+)?', 'Pare-feu'];
+  'Malwares?(?: \\d+)?', 'Piratage', 'Implants?(?: \\d+)?', 'Surcharges?(?: \\d+)?', 'Pare-feu',
+  'Pari', 'Sept', 'Jackpot'];
 // Les mêmes en anglais (lexique de docs/traduction.md), ajoutés quand l'appli est en anglais.
 const KEYWORDS_EN = ['Reveal', 'Ongoing', 'Grace', 'Death', 'Move', 'Movable', 'Spellcast', 'Inspire', 'Hatch', 'Eggs?',
   'Rise', 'Exhume', 'Swap', 'Token', 'Activate', 'Treasure', 'Hoard', 'X cost',
   'End of turn', 'Start of turn \\d+', 'Start of turn', 'Start of game', 'End of game',
   'Sacrifice(?: \\d+)?', 'Hordes?(?: (?:\\d+|X))?', 'Drain(?: \\d+)?', 'Feasts?(?: \\d+)?', 'Discard(?: \\d+)?',
-  'Malwares?(?: \\d+)?', 'Hack', 'Implants?(?: \\d+)?', 'Overloads?(?: \\d+)?', 'Firewall'];
-const kwRe = list => new RegExp(`(?<!\\p{L})(?:${list.join('|')})(?!\\p{L})`, 'gu');
+  'Malwares?(?: \\d+)?', 'Hack', 'Implants?(?: \\d+)?', 'Overloads?(?: \\d+)?', 'Firewall',
+  'Bet', 'Seven', 'Jackpot'];
+// Filtre « Mot-clé » de la collection : nom affiché (traduit avec t) et ce qui le repère dans le texte d'une carte, en français
+// ou en anglais (un texte retouché depuis /admin reste en français). Même découpage que KEYWORDS, les variantes regroupées.
+export const KW_FILTERS = [
+  ['Révélation', 'Révélation|Reveal'], ['Persistant', 'Persistant|Ongoing'], ['Début de tour', 'Début d(?:e|u) tour|Start of turn'],
+  ['Fin de tour', 'Fin de tour|End of turn'], ['Début de partie', 'Début de partie|Start of game'], ['Fin de partie', 'Fin de partie|End of game'],
+  ['Destruction', 'Destruction|Death'], ['Activable', 'Activable|Activate'], ['Grâce', 'Grâce|Grace'], ['Sacrifice', 'Sacrifice'],
+  ['Horde', 'Hordes?'], ['Déplaçable', 'Déplaçables?|Movable'], ['Déplacement', 'Déplacement|Move'], ['Trésor', 'Trésor|Treasure'],
+  ['Magot', 'Magot|Hoard'], ['Sortilège', 'Sortilège|Spellcast'], ['Inspiration', 'Inspiration|Inspire'], ['Éclosion', 'Éclosion|Hatch'],
+  ['Œuf', 'Œufs?|Eggs?'], ['Relève', 'Relève|Rise'], ['Exhumation', 'Exhumation|Exhume'], ['Échange', 'Échange|Swap'],
+  ['Drain', 'Drain'], ['Festin', 'Festins?|Feasts?'], ['Défausse', 'Défausse|Discard'], ['Jeton', 'Jetons?|Tokens?'],
+  ['Malware', 'Malwares?'], ['Piratage', 'Piratage|Hack'], ['Implant', 'Implants?'], ['Surcharge', 'Surcharges?|Overloads?'],
+  ['Pare-feu', 'Pare-feu|Firewall'], ['Pari', 'Pari|Bet'], ['Sept', 'Sept|Seven'], ['Jackpot', 'Jackpot'],
+].map(([name, re]) => ({ name, re: new RegExp(`(?<!\\p{L})(?:${re})(?!\\p{L})`, 'u') }));
+const kwRe = list =>new RegExp(`(?<!\\p{L})(?:${list.join('|')})(?!\\p{L})`, 'gu');
 const KW_RE = { fr: kwRe(KEYWORDS), en: kwRe([...KEYWORDS_EN, ...KEYWORDS]) };
 // Texte d'effet échappé, mots-clés en gras.
 export const rich = s => esc(s).replace(KW_RE[getLang()] || KW_RE.fr, '<b class="kw">$&</b>');

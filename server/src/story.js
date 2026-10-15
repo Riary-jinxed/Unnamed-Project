@@ -6,7 +6,7 @@
 // Statistiques des succès : storyChapters, storyCampaigns, storyLimited.
 // Une quête d'événement canon finie passe dans l'histoire principale (état « archive », sans art Promo) et sa carte rejoint le
 // booster du Set de base : releasedCards, joint au catalogue par cards.js ; onChange le prévient quand /admin change les dates.
-import { today } from '@jeu/engine/collection';
+import { today, realToday } from '@jeu/engine/collection';
 import { QUESTS, questById, isLimited, questCfg, questState, questDaysLeft, chapterReward, releasedStoryCards, DEFAULT_STORY, REWARD_KEYS, STORY_LIMITS } from '@jeu/engine/story';
 import { HttpError } from './accounts.js';
 import { msg } from '@jeu/engine/i18n';
@@ -15,7 +15,8 @@ import { msg } from '@jeu/engine/i18n';
 const TEASE_DAYS = 7;
 const daysTo = (from, day) => Math.round((Date.parse(`${from}T12:00:00Z`) - Date.parse(`${day}T12:00:00Z`)) / 86400000);
 
-export function createStory(store, accounts, { onChange = () => {} } = {}) {
+// onChapter(compte, quête, chapitre) : ce qu'un autre module ajoute à la récompense d'un chapitre (Jetons du casino), déjà donné.
+export function createStory(store, accounts, { onChange = () => {}, onChapter = () => ({}) } = {}) {
   const progress = accounts.progress;
   const doc = () => store.doc('quetes') || {};
   const cfg = id => questCfg(id, doc());
@@ -64,6 +65,7 @@ export function createStory(store, accounts, { onChange = () => {} } = {}) {
     const done = n + 1 === q.chapters.length;
     const reward = { kind: 'story', label: `${q.name} : ${q.chapters[i].name}`, labelMsg: msg('{quest} : {chapter}', { quest: [q.name], chapter: [q.chapters[i].name] }), ...chapterReward(q, i, c, state === 'archive') };
     progress.grant(a, reward, { silent: true });
+    if (state === 'open') Object.assign(reward, onChapter(a, q, i));
     progress.count(a, 'storyChapters');
     accounts.activity.count('storyChapters');
     // Une quête d'événement rejouée dans l'histoire principale ne compte plus pour les succès de quête.
@@ -103,7 +105,8 @@ export function createStory(store, accounts, { onChange = () => {} } = {}) {
 
   return {
     tile,
-    releasedCards: () => releasedStoryCards(doc(), today()),
+    // Partagé par tous (catalogue servi) : au vrai jour, même appelé pendant la requête d'un compte testeur.
+    releasedCards: () => releasedStoryCards(doc(), realToday()),
     routes: {
       'GET /api/story': a => view(a),
       'POST /api/story/win': (a, body) => win(a, body || {}),

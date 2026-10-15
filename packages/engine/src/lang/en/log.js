@@ -83,4 +83,12 @@ export default {
   "⟦{p}⟧ : {card} en main -1 sceau, +1 puissance.": "⟦{p}⟧: {card} in hand -1 seal, +1 power.",
   "Partie interrompue : {reason}.": "Game interrupted: {reason}.",
   "interrompue par une mise à jour du jeu": "interrupted by a game update",
+  // Set 2.5 : Pari et Jackpot
+  "{card} : dé {v}, relancé.": "{card}: rolled {v}, rerolled.",
+  "⟦{p}⟧ : dé {v}, relancé.": "⟦{p}⟧: rolled {v}, rerolled.",
+  "{card} : dé {v}.": "{card}: rolled {v}.",
+  "⟦{p}⟧ : dé {v}.": "⟦{p}⟧: rolled {v}.",
+  "⟦{p}⟧ : ⟦{p}|ses|vos⟧ {n} prochains dés feront 6.": "⟦{p}⟧: ⟦{p}|their|your⟧ next {n} dice will roll a 6.",
+  "⟦{p}⟧ : ⟦{p}|son|votre⟧ prochain dé fera 6.": "⟦{p}⟧: ⟦{p}|their|your⟧ next die will roll a 6.",
+  "⟦{p}⟧ : 7 7 7, Jackpot !": "⟦{p}⟧: 7 7 7, Jackpot!",
 };

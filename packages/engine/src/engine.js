@@ -326,7 +326,7 @@ export const CARDS = {
   // ANGE : anges synthétiques (Implant)
   ange_synthetique:{ set: 'set3', name: 'Ange synthétique', type: 'C', cost: 2, power: 2, kw: ['Ange'], text: 'Grâce : Implant 1 sur une autre de vos créatures ici.',
                  grace: (c, st) => implant(st, weakest(st, creaturesAt(st, c.owner, c.zone).filter(x => x !== c)), 1) },
-  aureole:     { set: 'set3', name: 'Auréole chromée', type: 'S', cost: 1, power: 0, kw: ['Ange'], text: 'Implant 1 sur chacun de vos Anges ici.',
+  aureole_chromee:{ set: 'set3', name: 'Auréole chromée', type: 'S', cost: 1, power: 0, kw: ['Ange'], text: 'Implant 1 sur chacun de vos Anges ici.',
                  onReveal: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Ange')).forEach(x => implant(st, x, 1)) },
   seraphin_donnees:{ set: 'set3', name: 'Séraphin de données', type: 'C', cost: 4, power: 3, kw: ['Ange'], text: 'Révélation : Implant 1 sur vos autres Anges en jeu.',
                  onReveal: (c, st) => mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Ange')).forEach(x => implant(st, x, 1)) },
@@ -406,6 +406,65 @@ export const CARDS = {
   garde_securite:{ set: 'set3', name: 'Garde de sécurité', type: 'C', cost: 3, power: 4, kw: [], firewall: true, text: 'Pare-feu : vos créatures ici ne peuvent pas être piratées.' },
   unite_securite:{ set: 'set3', name: 'Unité de sécurité', type: 'C', cost: 5, power: 7, kw: [], text: '' },
 
+  // ---- Set 2.5 : Faites vos jeux (mini-set casino) ----
+  // Pari : on lance un dé à 6 faces (roll), l'effet dépend du résultat : 1-2, 3-5 ou 6. Pipé : le prochain dé fait 6 (load).
+  // Sept : quand les 3 Sept d'un joueur sont en jeu, son Jackpot se déclenche une fois (jackpot). Triche : piocher la carte voulue.
+  // NEUTRES : le deck du casino
+  joueuse_des: { set: 'tapis', name: 'Joueuse de dés', type: 'C', cost: 1, power: 1, kw: [], text: 'Pari. 1-2 : rien. 3-5 : +2. 6 : +4.',
+                 onReveal: (c, st) => pari(st, c, () => {}, () => buff(st, c, 2), () => buff(st, c, 4)) },
+  croupier:    { set: 'tapis', name: 'Croupier', type: 'C', cost: 2, power: 3, kw: [], text: 'Révélation : votre prochain dé fait 6.',
+                 onReveal: (c, st) => load(st, c.owner, 1) },
+  des_pipes:   { set: 'tapis', name: 'Dés pipés', type: 'S', cost: 1, power: 0, kw: [], text: 'Vos 2 prochains dés font 6.',
+                 onReveal: (c, st) => load(st, c.owner, 2) },
+  cartes_biseautees:{ set: 'tapis', name: 'Cartes biseautées', type: 'S', cost: 1, power: 0, kw: [], text: 'Piochez un Sept de votre deck. S\'il n\'y en a plus, piochez 1 carte.',
+                 onReveal: (c, st) => { if (!tutor(st, c.owner, x => CARDS[x.id].seven)) draw(st, c.owner, 1, true); } },
+  as_manche:   { set: 'tapis', name: 'As dans la manche', type: 'S', cost: 1, power: 0, kw: [], text: 'Piochez la carte la plus chère de votre deck.',
+                 onReveal: (c, st) => { const P = st.p[c.owner]; const m = Math.max(...P.deck.map(x => CARDS[x.id].cost)); tutor(st, c.owner, x => CARDS[x.id].cost === m); } },
+  quitte_double:{ set: 'tapis', name: 'Quitte ou double', type: 'S', cost: 1, power: 0, kw: [], text: 'Pari sur votre créature la plus puissante ici. 1-2 : elle perd 2. 3-5 : +3. 6 : elle double sa puissance (au plus +8).',
+                 onReveal: (c, st) => { const s = strongest(st, creaturesAt(st, c.owner, c.zone)); if (!s) return;
+                   pari(st, c, () => buff(st, s, -2), () => buff(st, s, 3), () => { const v = power(st, s); if (v > 0) buff(st, s, Math.min(8, v)); }); } },
+  roulette:    { set: 'tapis', name: 'Roulette', type: 'S', cost: 2, power: 0, kw: [], text: 'Pari. 1-2 : votre créature la plus faible ici gagne +2. 3-5 : vos créatures ici gagnent +1. 6 : vos créatures en jeu gagnent +2.',
+                 onReveal: (c, st) => pari(st, c, () => { const w = weakest(st, creaturesAt(st, c.owner, c.zone)); if (w) buff(st, w, 2); },
+                   () => creaturesAt(st, c.owner, c.zone).forEach(x => buff(st, x, 1)), () => mine(st, c.owner).forEach(x => buff(st, x, 2))) },
+  machine_sous:{ set: 'tapis', name: 'Machine à sous', type: 'C', cost: 3, power: 2, kw: [], text: 'Fin de tour : Pari. 1-2 : rien. 3-5 : +1. 6 : +3. Jackpot : +3 de plus.',
+                 onEndTurn: (c, st) => { let v = 0; pari(st, c, () => {}, () => { v = 1; }, () => { v = 3; }); if (v) buff(st, c, v); else return false; },
+                 onJackpot: (c, st) => buff(st, c, 3) },
+  videur:      { set: 'tapis', name: 'Videur du casino', type: 'C', cost: 3, power: 4, kw: [], text: 'Persistant : +1 par 6 obtenu à vos dés cette partie (au plus +4).',
+                 self: (c, st) => Math.min(4, st.p[c.owner].sixes) },
+  flambeur:    { set: 'tapis', name: 'Flambeur', type: 'C', cost: 4, power: 4, kw: [], text: 'Pari. 1-2 : piochez 1 carte. 3-5 : +3. 6 : +6.',
+                 onReveal: (c, st) => pari(st, c, () => draw(st, c.owner, 1, true), () => buff(st, c, 3), () => buff(st, c, 6)) },
+  gros_lot:    { set: 'tapis', name: 'Gros lot', type: 'C', cost: 5, power: 6, kw: [], text: 'Persistant : +3 si votre Jackpot a eu lieu.',
+                 self: (c, st) => (st.p[c.owner].jackpot ? 3 : 0) },
+  directeur:   { set: 'tapis', name: 'Directeur du casino', type: 'C', cost: 6, power: 6, kw: [], text: 'Pari. 1-2 : +1. 3-5 : +3. 6 : +6.',
+                 onReveal: (c, st) => pari(st, c, () => buff(st, c, 1), () => buff(st, c, 3), () => buff(st, c, 6)) },
+  // Les trois Sept : neutres, chacun à l'effigie d'une famille de départ (effigy : visuel et couleur, sans effet de jeu).
+  // Pique : un Gobelin, carreau : un Démon, trèfle : un Elfe. Les 3 en jeu : Jackpot.
+  sept_pique:  { set: 'tapis', name: 'Sept de pique', type: 'C', cost: 2, power: 2, kw: [], effigy: 'Gobelin', seven: true, text: 'Sept. Jackpot : piochez 2 cartes.',
+                 onJackpot: (c, st) => draw(st, c.owner, 2, true) },
+  sept_trefle: { set: 'tapis', name: 'Sept de trèfle', type: 'C', cost: 3, power: 3, kw: [], effigy: 'Elfe', seven: true, text: 'Sept. Jackpot : vos créatures ici gagnent +2.',
+                 onJackpot: (c, st) => creaturesAt(st, c.owner, c.zone).forEach(x => buff(st, x, 2)) },
+  sept_carreau:{ set: 'tapis', name: 'Sept de carreau', type: 'C', cost: 4, power: 3, kw: [], effigy: 'Démon', seven: true, text: 'Sept. Jackpot : +5.',
+                 onJackpot: (c, st) => buff(st, c, 5) },
+  // Support : les Anges conjurent la malchance, les Gobelins trichent en bande, les Démons profitent des 1 et des 2.
+  ange_chance: { set: 'tapis', name: 'Ange de la chance', type: 'C', cost: 2, power: 3, kw: ['Ange'], text: 'Grâce : votre prochain dé fait 6, et celle-ci gagne +1.',
+                 grace: (c, st) => { load(st, c.owner, 1); buff(st, c, 1); } },
+  aureole:     { set: 'tapis', name: 'Auréole d\'or', type: 'S', cost: 1, power: 0, kw: ['Ange'], text: 'Vos Anges ici gagnent +2, et +1 de plus par 6 obtenu à vos dés cette partie (au plus +3 de plus).',
+                 onReveal: (c, st) => { const n = 2 + Math.min(3, st.p[c.owner].sixes); creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Ange')).forEach(x => buff(st, x, n)); } },
+  archange_hasard:{ set: 'tapis', name: 'Archange du hasard', type: 'C', cost: 5, power: 6, kw: ['Ange'], floor3: true, text: 'Persistant : vos dés font au moins 3.' },
+  gobelin_tricheur:{ set: 'tapis', name: 'Gobelin tricheur', type: 'C', cost: 1, power: 1, kw: ['Gobelin'], text: 'Pari. 1-2 : rien. 3-5 : Horde 1. 6 : Horde 3.',
+                 onReveal: (c, st) => pari(st, c, null, () => horde(st, c.owner, c.zone, 1), () => horde(st, c.owner, c.zone, 3)) },
+  roulette_gobeline:{ set: 'tapis', name: 'Roulette gobeline', type: 'S', cost: 2, power: 0, kw: ['Gobelin'], text: 'Un Pari dans chacune de vos zones. 1-2 : rien. 3-5 : Horde 1 dans cette zone. 6 : Horde 2 dans cette zone.',
+                 onReveal: (c, st) => [0, 1, 2].forEach(z => { const v = roll(st, c.owner, z, c, c.id); if (v >= 6) horde(st, c.owner, z, 2); else if (v >= 3) horde(st, c.owner, z, 1); }) },
+  bookmaker:   { set: 'tapis', name: 'Bookmaker gobelin', type: 'C', cost: 3, power: 3, kw: ['Gobelin'], text: 'Fin de tour : Pari. 1-2 : rien. 3-5 : votre Horde ici gagne +1. 6 : Horde 2 ici.',
+                 onEndTurn: (c, st) => { let r = false; pari(st, c, null, () => { const h = hordeAt(st, c.owner, c.zone); if (h) { buff(st, h, 1); r = true; } }, () => { horde(st, c.owner, c.zone, 2); r = true; }); if (!r) return false; } },
+  diable_joueur:{ set: 'tapis', name: 'Diable joueur', type: 'C', cost: 2, power: 5, kw: ['Démon'], text: 'Pari. 1-2 : il est sacrifié. 3-5 : +2. 6 : +4.',
+                 onReveal: (c, st) => pari(st, c, () => destroy(st, c, c.owner), () => buff(st, c, 2), () => buff(st, c, 4)) },
+  mise_ames:   { set: 'tapis', name: 'Mise des âmes', type: 'S', cost: 2, power: 0, kw: ['Démon'], text: 'Détruisez votre créature la plus faible ici, puis Pari. 1-2 : vos créatures ici gagnent +1. 3-5 : +2. 6 : +4.',
+                 onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, c.owner, c.zone)); if (w) destroy(st, w, c.owner);
+                   const all = n => () => creaturesAt(st, c.owner, c.zone).forEach(x => buff(st, x, n)); pari(st, c, all(1), all(2), all(4)); } },
+  usurier:     { set: 'tapis', name: 'Usurier des Fosses', type: 'C', cost: 3, power: 3, kw: ['Démon'], text: 'Persistant : +1 par 1 ou 2 obtenu à vos dés cette partie (au plus +4).',
+                 self: (c, st) => Math.min(4, st.p[c.owner].lows) },
+
   // ---- Récompenses : jamais dans les boosters (voir rewards.js) ----
   // Une carte par famille complétée dans son set d'origine, et une carte Dieu par set complété.
   voix_aube:   { set: 'recompense', name: 'Voix de l\'Aube', type: 'C', cost: 4, power: 4, kw: ['Ange'], text: 'Révélation : +1 sceau au tour suivant. Grâce : vos autres créatures ici gagnent +1.',
@@ -469,11 +528,17 @@ export const CARDS = {
   dieu_set3:   { set: 'recompense', name: 'Nexus, Dieu du Réseau', type: 'C', cost: 6, power: 7, kw: ['Hacker'], text: 'Révélation : Piratage du général adverse jusqu\'à la fin du tour suivant, puis Malware 2. Persistant : +1 par Malware exécuté chez l\'adversaire cette partie.',
                  onReveal: (c, st) => { hackGeneral(st, 1 - c.owner); malware(st, c.owner, 2); },
                  self: (c, st) => st.p[1 - c.owner].malwareRun || 0 },
+  // Faites vos jeux complété : une carte de casino, pas de Dieu pour un mini-set.
+  as_pique:    { set: 'recompense', name: 'As de pique', type: 'C', cost: 3, power: 4, kw: [], text: 'Révélation : votre prochain dé fait 6. Persistant : +3 si votre Jackpot a eu lieu.',
+                 onReveal: (c, st) => load(st, c.owner, 1),
+                 self: (c, st) => (st.p[c.owner].jackpot ? 3 : 0) },
   // Quêtes d'histoire à durée limitée (story.js) : une carte neutre par quête, gagnée pendant la quête seulement.
   epouvantail: { set: 'recompense', name: 'Épouvantail hanté', type: 'C', cost: 3, power: 3, kw: [], text: 'Persistant : +3 tant que l\'adversaire a plus de créatures que vous ici.',
                  self: (c, st) => (creaturesAt(st, 1 - c.owner, c.zone).length > creaturesAt(st, c.owner, c.zone).length ? 3 : 0) },
   pretre_eclipse:{ set: 'recompense', name: 'Prêtre de l\'éclipse', type: 'C', cost: 4, power: 5, kw: [], text: 'Révélation : les autres créatures ici, les vôtres comme celles de l\'adversaire, perdent 1.',
                  onReveal: (c, st) => [0, 1].forEach(p => creaturesAt(st, p, c.zone).filter(x => x !== c).forEach(x => buff(st, x, -1))) },
+  de_pipe:     { set: 'recompense', name: 'Dé d\'or', type: 'C', cost: 2, power: 2, kw: [], text: 'Pari. 1-2 : relancez le dé. 3-5 : +2. 6 : +4.',
+                 onReveal: (c, st) => { const r = () => pari(st, c, null, () => buff(st, c, 2), () => buff(st, c, 4)); pari(st, c, r, () => buff(st, c, 2), () => buff(st, c, 4)); } },
   coursier_neon:{ set: 'recompense', name: 'Coursier néon', type: 'C', cost: 2, power: 2, kw: [], mobile: true, text: 'Déplaçable. Déplacement : piochez 1 carte.',
                  onMove: (c, st) => draw(st, c.owner, 1, true) },
 
@@ -640,6 +705,13 @@ export const GENERALS = {
                onStart: (p, st) => { const c = st.p[p].hand.filter(x => (costOf(st, x) ?? 0) > 0).sort((a, b) => costOf(st, b) - costOf(st, a))[0];
                  if (c) { c.discount = (c.discount || 0) - 1; log(st, '⟦{p}⟧ : {card} coûte 1 de moins.', 'up', { p, card: nm(c.id) }); } } },
 
+  // ---- Set 2.5 : Faites vos jeux ----
+  velours:   { set: 'tapis', name: 'Velours, Croupière des Fosses', fam: 'Démon', kind: 'Persistant',
+               text: 'Chaque fois que vous faites 1 ou 2 à un dé, votre zone la plus faible gagne +2.',
+               onRoll: (p, st, z, v) => { if (v <= 2) addZone(st, p, weakestZone(st, p), 2); } },
+  fortuna:   { set: 'tapis', name: 'Fortuna, la Roue', fam: null, kind: 'Persistant',
+               text: 'Quand vous faites 1 ou 2 à un dé, il est relancé une fois.', reroll: true },
+
   // ---- Boss mondiaux (boss.js) ----
   // Jamais en collection (boss: true, voir GENERAL_IDS). Le boss est le joueur 1, sans deck ni terrain, avec un Sbire dans chaque zone : à chaque tour, il joue
   // l'étape de son script (script[tour - 1], au début ou à la fin du tour) contre le joueur 0. boost : bonus de puissance de vos
@@ -684,6 +756,48 @@ export const GENERALS = {
                ],
                aura: bossAura, onStart: bossMinions, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') },
 };
+// ---- Boss de clan (clan-boss.js) ----
+// Jamais en collection ni dans la rotation du boss mondial (boss: true, clan: true). Comme un boss mondial, il est le joueur 1, sans
+// deck ni terrain, et joue son script ; mais il n'a pas de Sbire : il tient à lui seul les trois zones d'en face, et ce sont ses
+// PV que les points de vos zones font baisser. Chacun reprend une carte du jeu (card) et l'un de ses arts alternatifs (arts.js).
+const clanBoss = (id, def) => ({ boss: true, clan: true, kind: 'Boss', ...def,
+  aura: bossAura, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') });
+GENERALS.clan_wyrm = clanBoss('clan_wyrm', { name: 'Wyrm du trésor, seigneur de la montagne d\'or', fam: 'Dragon', card: 'wyrm_tresor', art: 'wyrm_or',
+  text: 'Boss de clan. Ses griffes broient vos créatures les plus faibles, et son or s\'éboule sur les zones qui ne sont pas pleines.',
+  boost: { fams: { Elfe: 2, Gobelin: 1 }, cards: { archere: 2, eclaireur: 2, matriarche: 2 } },
+  script: [
+    { when: 'end', name: 'Griffes avides', text: 'votre créature la plus faible à Gauche perd 2', act: (st, p) => grip(st, p, 0, 2) },
+    { when: 'end', name: 'Éboulis d\'or', text: 'chacune de vos zones qui n\'est pas pleine perd 1', act: (st, p) => flood(st, p, 1) },
+    { when: 'end', name: 'Griffes avides', text: 'votre créature la plus faible au Centre perd 2', act: (st, p) => grip(st, p, 1, 2) },
+    { when: 'start', name: 'Tribut du dragon', text: 'la carte la plus chère de votre main coûte 1 de plus', act: (st, p) => tempt(st, p, 1) },
+    { when: 'end', name: 'Griffes avides', text: 'votre créature la plus faible à Droite perd 2', act: (st, p) => grip(st, p, 2, 2) },
+    { when: 'end', name: 'Éboulis d\'or', text: 'chacune de vos zones qui n\'est pas pleine perd 2', act: (st, p) => flood(st, p, 2) },
+    { when: 'end', name: 'Souffle doré', text: 'votre zone la plus puissante perd 4', act: (st, p) => quake(st, p, 4) },
+  ] });
+GENERALS.clan_chevalier = clanBoss('clan_chevalier', { name: 'Chevalier de la mort, héraut du soleil noir', fam: 'Mort-vivant', card: 'chevalier_mort', art: 'chevalier_mort_eclipse',
+  text: 'Boss de clan. Sa lame fauche vos créatures les plus faibles, et le soleil noir gâte votre main et votre deck.',
+  boost: { fams: { Ange: 2, Dragon: 1 }, cards: { juge: 2, seraphin: 2, dragonnet: 2 } },
+  script: [
+    { when: 'end', name: 'Lame funeste', text: 'votre créature la plus faible en jeu est détruite', act: (st, p) => reap(st, p) },
+    { when: 'start', name: 'Soleil noir', text: 'les créatures de votre main perdent 1', act: (st, p) => whisper(st, p) },
+    { when: 'end', name: 'Serment brisé', text: 'vous défaussez une carte de votre main au hasard', act: (st, p) => pact(st, p) },
+    { when: 'end', name: 'Lame funeste', text: 'votre créature la plus faible en jeu est détruite', act: (st, p) => reap(st, p) },
+    { when: 'end', name: 'Ombre d\'éclipse', text: 'les 2 prochaines créatures de votre deck perdent 2', act: (st, p) => numb(st, p) },
+    { when: 'end', name: 'Lame funeste', text: 'votre créature la plus faible en jeu est détruite', act: (st, p) => reap(st, p) },
+    { when: 'end', name: 'Charge funèbre', text: 'chacune de vos zones de moins de 2 créatures perd 3', act: (st, p) => [0, 1, 2].forEach(z => { if (creaturesAt(st, p, z).length < 2) addZone(st, p, z, -3); }) },
+  ] });
+GENERALS.clan_reine = clanBoss('clan_reine', { name: 'Reine sylvestre, dame des mille fleurs', fam: 'Elfe', card: 'reine', art: 'reine_couronne_fleurs',
+  text: 'Boss de clan. Ses ronces renchérissent vos cartes, ses épines rongent vos meilleures créatures, sa forêt dévore les zones vides.',
+  boost: { fams: { 'Démon': 2, Gobelin: 1 }, cards: { pyromane: 2, molosse: 2, rouge: 2 } },
+  script: [
+    { when: 'end', name: 'Épines', text: 'votre créature la plus puissante de chaque zone perd 1', act: (st, p) => [0, 1, 2].forEach(z => scorch(st, p, z, 1)) },
+    { when: 'start', name: 'Ronces', text: 'les 2 cartes les plus chères de votre main coûtent 1 de plus', act: (st, p) => tempt(st, p, 2) },
+    { when: 'end', name: 'Racines', text: 'les 2 prochaines créatures de votre deck perdent 2', act: (st, p) => numb(st, p) },
+    { when: 'end', name: 'Épines', text: 'votre créature la plus puissante de chaque zone perd 1', act: (st, p) => [0, 1, 2].forEach(z => scorch(st, p, z, 1)) },
+    { when: 'start', name: 'Ronces', text: 'les 2 cartes les plus chères de votre main coûtent 1 de plus', act: (st, p) => tempt(st, p, 2) },
+    { when: 'end', name: 'Lierre étrangleur', text: 'votre zone la plus puissante perd 3', act: (st, p) => quake(st, p, 3) },
+    { when: 'end', name: 'Forêt dévorante', text: 'chacune de vos zones qui n\'est pas pleine perd 3', act: (st, p) => flood(st, p, 3) },
+  ] });
 
 // ---- Boss mondiaux : actions de leur script ----
 // p : le joueur visé (celui qui affronte le boss). Le boss écrit d'abord le nom de son action au journal (genHook : il a agi).
@@ -706,6 +820,14 @@ function ashes(st, p, z) {
   st.p[p].board[z].push({ uid: st.nextUid++, id: 'cendres', owner: p, zone: z, buff: 0, revealed: true, order: st.order++ });
   log(st, "Des Cendres d'éclipse tombent chez ⟦{p}⟧ ({z}).", 'down', { p, z: zn(z) });
 }
+// Boss de clan. Étreinte : la créature la plus faible de la zone perd n ; zone vide, la zone perd n.
+function grip(st, p, z, n) { const w = weakest(st, creaturesAt(st, p, z)); if (w) buff(st, w, -n); else addZone(st, p, z, -n); }
+// Ressac, Forêt dévorante : chaque zone qui n'est pas pleine perd n.
+function flood(st, p, n) { [0, 1, 2].forEach(z => { if (creaturesAt(st, p, z).length < SLOTS) addZone(st, p, z, -n); }); }
+// Raz-de-marée : la zone la plus puissante perd n (à égalité, la plus à gauche).
+function quake(st, p, n) { const zs = [0, 1, 2].map(z => zonePower(st, p, z)); addZone(st, p, zs.indexOf(Math.max(...zs)), -n); }
+// Moisson : la créature la plus faible en jeu est détruite.
+function reap(st, p) { const w = weakest(st, mine(st, p)); if (w) destroy(st, w, 1 - p); }
 // Souffle : la créature la plus puissante de la zone perd n ; zone vide, la zone perd n.
 function scorch(st, p, z, n) { const s = strongest(st, creaturesAt(st, p, z)); if (s) buff(st, s, -n); else addZone(st, p, z, -n); }
 function tempt(st, p, n) {
@@ -804,6 +926,11 @@ export const TERRAINS = {
   marche_noir:{ set: 'set3', name: 'Marché noir', fam: null, text: 'Fin de tour : si vous gardez au moins 1 sceau, une carte au hasard de votre main coûte 1 de moins.',
                onEndTurn: (p, st) => { if (st.p[p].seals <= 0) return; const h = st.p[p].hand.filter(x => (costOf(st, x) ?? 0) > 0);
                  if (h.length) { const x = pick(h); x.discount = (x.discount || 0) - 1; log(st, '⟦{p}⟧ : une carte de la main coûte 1 de moins.', 'up', { p }); } } },
+  // ---- Set 2.5 ----
+  casino_fosses:{ set: 'tapis', name: 'Casino des Fosses', fam: null, text: 'Vos dés lancés ici font +1 (au plus 6).' },
+  salle_coffres:{ set: 'tapis', name: 'Salle des coffres', fam: null, text: 'Fin de tour : vous lancez un dé ; sur 5 ou 6, votre créature la plus faible ici gagne +2.',
+               onEndTurn: (p, st, z) => { if (roll(st, p, z, null, null) >= 5) { const w = weakest(st, creaturesAt(st, p, z)); if (w) buff(st, w, 2); } } },
+  allee_machines:{ set: 'tapis', name: 'Allée des machines', fam: null, text: 'Vos Sept ici ont +2.', aura: (p, t) => t.owner === p && CARDS[t.id].seven ? 2 : 0 },
 };
 
 // ---- Decks préconstruits : la construction est libre, ces listes servent à tester ----
@@ -852,7 +979,7 @@ export const DECKS = {
              cards: ['gamin_augmente', 'charcudoc', 'samourai', 'bras_canon', 'implant_combat', 'surtension', 'chrome', 'cyberpsycho', 'pilote_meca', 'colosse_augmente', 'androide', 'legende_chrome', 'mercenaire_augmente', 'chevalier', 'golem'],
              terrains: ['clinique', 'centrale', 'sanctuaire', 'champ', 'forteresse'] },
   grille:  { set: 'set3', name: 'Grille céleste', fam: 'Ange', general: 'machina',
-             cards: ['ange_synthetique', 'aureole', 'seraphin_donnees', 'archange_cyber', 'cherubin', 'benediction', 'gardien', 'messagere', 'annonciatrice', 'heraut', 'juge', 'dominion', 'seraphin', 'mercenaire_augmente', 'golem'],
+             cards: ['ange_synthetique', 'aureole_chromee', 'seraphin_donnees', 'archange_cyber', 'cherubin', 'benediction', 'gardien', 'messagere', 'annonciatrice', 'heraut', 'juge', 'dominion', 'seraphin', 'mercenaire_augmente', 'golem'],
              terrains: ['nuage', 'prairie', 'sanctuaire', 'champ', 'forteresse'] },
   daemons: { set: 'set3', name: 'Daemons du réseau', fam: 'Démon', general: 'mammon',
              cards: ['daemon_parasite', 'possession', 'daemon_corrupteur', 'archidaemon', 'diablotin', 'cultiste', 'pacte', 'bourreau', 'molosse', 'rituel', 'demon_majeur', 'moissonneur', 'bete', 'seigneur', 'archidemon'],
@@ -872,6 +999,10 @@ export const DECKS = {
   donnees: { set: 'set3', name: 'Soif de données', fam: 'Vampire', general: 'selene',
              cards: ['siphonneuse', 'vampire_donnees', 'morsure_virale', 'comte_reseau', 'chauve_souris', 'novice', 'servante', 'rodeur_nuit', 'buveuse', 'comtesse', 'seigneur_vampire', 'prince_nuit', 'saignee', 'glitcheuse', 'golem'],
              terrains: ['club', 'chateau', 'bassin', 'ruines', 'sanctuaire'] },
+  // Set 2.5 : le casino des neutres, le seul deck préconstruit du mini-set.
+  tapis:   { set: 'tapis', name: 'Maison de jeu', fam: null, general: 'fortuna',
+             cards: ['joueuse_des', 'croupier', 'des_pipes', 'cartes_biseautees', 'as_manche', 'quitte_double', 'roulette', 'sept_pique', 'sept_trefle', 'sept_carreau', 'machine_sous', 'videur', 'flambeur', 'gros_lot', 'directeur'],
+             terrains: ['casino_fosses', 'salle_coffres', 'allee_machines', 'ruines', 'champ'] },
 };
 
 // ---- Utilitaires ----
@@ -910,7 +1041,7 @@ export function newGame(deck0, deck1, names = ['Joueur 1', 'Joueur 2'], opts = {
       hand: [], discard: [], terrainPlan: pool.slice(0, 3).map((t, i) => ({ t, z: zones[i], turn: i + 1 })),
       terrains: [null, null, null], board: [[], [], []], zoneBonus: [0, 0, 0],
       seals: 0, bonusSeals: 0, treasure: 0, lastUnspent: 0, perfectTurns: 0, lost: 0, moves: [], played: [],
-      stolen: 0, feasts: 0, spells: 0, malwareRun: 0, overloads: 0,
+      stolen: 0, feasts: 0, spells: 0, malwareRun: 0, overloads: 0, loaded: 0, sixes: 0, lows: 0, rolls: [], rollCount: 0, jackpot: 0,
     };
   };
   const st = { turn: 0, p: [mk(0, deck0), mk(1, deck1)], log: [], nextUid: 1000, order: 0, leader: 0, over: false, sim: false };
@@ -943,37 +1074,50 @@ export function costOf(st, c) {
   const d = CARDS[c.id]; if (d.x) return null;
   let v = d.cost + (c.costMod || 0) + (d.costFn ? d.costFn(st, c.owner) : 0);
   if (d.cost >= 1) v = Math.max(1, v);
-  const druid = d.type === 'S' && c.owner >= 0 && mine(st, c.owner).some(x => x.id === 'grand_druide' && !x.hacked) ? -1 : 0;
+  const druid = d.type === 'S' && c.owner >= 0 && hasLive(st, c.owner, 'grand_druide') ? -1 : 0;
   return Math.max(0, v + (c.discount || 0) + druid);
 }
 export function isMobile(st, c) {
   if (!c.revealed || !isCreature(c) || CARDS[c.id].token) return false;
   if ((CARDS[c.id].mobile || c.mobile) && !c.hacked) return true;
   if (st.p[c.owner].terrains[c.zone] === 'bois') return true;
-  return mine(st, c.owner).some(x => x.id === 'reine' && !x.hacked);
+  return hasLive(st, c.owner, 'reine');
+}
+// Le joueur p a-t-il en jeu une créature révélée et non piratée de cet id ?
+function hasLive(st, p, id) {
+  for (const zone of st.p[p].board) for (const x of zone) if (x.id === id && x.revealed && !x.hacked && isCreature(x)) return true;
+  return false;
 }
 
-export function power(st, c) {
+// Créatures révélées des deux joueurs qui donnent une aura. zonePower les cherche une fois pour toute sa zone.
+function auraSources(st) {
+  const out = [];
+  for (const P of st.p) for (const zone of P.board) for (const s of zone) {
+    if (!s.revealed || s.hacked) continue;
+    const sd = CARDS[s.id]; if (sd.aura && sd.type === 'C') out.push(s);
+  }
+  return out;
+}
+export function power(st, c, auras = auraSources(st)) {
   const d = CARDS[c.id];
   let v = d.power + c.buff;
   if (d.self && !c.hacked) v += d.self(c, st);
-  // Auras des créatures révélées des deux joueurs (boucles simples : power() est appelée des milliers de fois par l'IA).
-  for (const P of st.p) for (const zone of P.board) for (const s of zone) {
-    if (!s.revealed || s.hacked) continue;
-    const sd = CARDS[s.id]; if (sd.aura && sd.type === 'C') v += sd.aura(s, c, st);
-  }
+  for (const s of auras) v += CARDS[s.id].aura(s, c, st);
   for (let p = 0; p < 2; p++) {
     const g = GENERALS[st.p[p].general]; if (g.aura && !genHacked(st, p)) v += g.aura(p, c, st);
     const t = st.p[p].terrains[c.zone]; if (t && TERRAINS[t].aura) v += TERRAINS[t].aura(p, c, st);
   }
   return v;
 }
+// Boucles simples, sans tableau intermédiaire : zonePower est appelée des milliers de fois par l'IA.
+const liveCreatures = zone => { let n = 0; for (const c of zone) if (c.revealed && isCreature(c)) n++; return n; };
 export function zonePower(st, p, z) {
   const P = st.p[p];
   let v = P.zoneBonus[z];
   const t = P.terrains[z]; if (t && TERRAINS[t].flat) v += TERRAINS[t].flat;
-  P.terrains.forEach((tt, tz) => { if (tt === 'forteresse' && tz !== z && creaturesAt(st, p, tz).length >= SLOTS) v += 1; });
-  for (const c of creaturesAt(st, p, z)) v += power(st, c);
+  for (let tz = 0; tz < 3; tz++) if (tz !== z && P.terrains[tz] === 'forteresse' && liveCreatures(P.board[tz]) >= SLOTS) v += 1;
+  let auras = null;
+  for (const c of P.board[z]) if (c.revealed && isCreature(c)) v += power(st, c, auras ??= auraSources(st));
   return v;
 }
 function zoneWinner(st, z) { const a = zonePower(st, 0, z), b = zonePower(st, 1, z); return a > b ? 0 : b > a ? 1 : -1; }
@@ -1010,8 +1154,9 @@ function draw(st, p, n, extra = false) {
   }
   return got;
 }
-function buff(st, c, n) { c.buff += n; log(st, '{card} {n}.', n >= 0 ? 'up' : 'down', { card: nm(c.id), n: `${n >= 0 ? '+' : ''}${n}` }); }
-function addZone(st, p, z, n) { st.p[p].zoneBonus[z] += n; log(st, '⟦{p}⟧ : zone {z} {n}.', n >= 0 ? 'up' : 'down', { p, z: zn(z), n: `${n >= 0 ? '+' : ''}${n}` }); }
+// En simulation (IA), le journal n'est pas tenu : ses textes ne sont même pas composés.
+function buff(st, c, n) { c.buff += n; if (!st.sim) log(st, '{card} {n}.', n >= 0 ? 'up' : 'down', { card: nm(c.id), n: `${n >= 0 ? '+' : ''}${n}` }); }
+function addZone(st, p, z, n) { st.p[p].zoneBonus[z] += n; if (!st.sim) log(st, '⟦{p}⟧ : zone {z} {n}.', n >= 0 ? 'up' : 'down', { p, z: zn(z), n: `${n >= 0 ? '+' : ''}${n}` }); }
 // Carte qui revient en main ou en jeu depuis la défausse : elle repart de zéro.
 function fresh(c) {
   for (const k of ['pending', 'movedTurn', 'playerMoved', 'turnStartZone', 'mobile', 'xPaid', 'hatched', 'enteredTurn', 'discount', 'costMod', 'hacked', 'implants']) delete c[k];
@@ -1168,6 +1313,60 @@ function overload(st, c, n) {
   return true;
 }
 
+// ---- Set 2.5 : Pari, dés pipés, Sept et Jackpot ----
+// Dé à 6 faces : st.dice (suite de résultats fixée, pour le tutoriel) sinon au hasard.
+const d6 = st => (st.dice?.length ? st.dice.shift() : 1 + Math.floor(Math.random() * 6));
+// Dé du joueur p dans la zone z, lancé par la carte c (null : un terrain), id pour le journal. Renvoie le résultat.
+// Pipé (loaded) : 6 sans lancer. Fortuna : un 1 ou un 2 est relancé une fois. Casino des Fosses : +1 ici, au plus 6.
+// Chaque dé est noté dans P.rolls (n, valeur, carte, zone) : l'appli y lit les dés à animer.
+function roll(st, p, z, c, id) {
+  const P = st.p[p];
+  let v;
+  if (P.loaded > 0) { P.loaded--; v = 6; }
+  else {
+    v = d6(st);
+    if (v <= 2 && GENERALS[P.general].reroll && !genHacked(st, p)) {
+      if (id) log(st, '{card} : dé {v}, relancé.', 'down', { card: nm(id), v }); else log(st, '⟦{p}⟧ : dé {v}, relancé.', 'down', { p, v });
+      P.genFired = (P.genFired || 0) + 1; v = d6(st);
+    }
+    if (P.terrains[z] === 'casino_fosses') v = Math.min(6, v + 1);
+    if (v < 3 && mine(st, p).some(x => fx(x).floor3)) v = 3;
+  }
+  if (v === 6) P.sixes++;
+  if (v <= 2) P.lows++;
+  P.rolls.push({ n: ++P.rollCount, v, uid: c ? c.uid : null, z });
+  if (P.rolls.length > 8) P.rolls.shift();
+  st.pause = (st.pause || 0) + 450;
+  if (id) log(st, '{card} : dé {v}.', v >= 6 ? 'up' : v <= 2 ? 'down' : '', { card: nm(id), v });
+  else log(st, '⟦{p}⟧ : dé {v}.', v >= 6 ? 'up' : v <= 2 ? 'down' : '', { p, v });
+  genHook(st, p, 'onRoll', z, v);
+  return v;
+}
+// Pari de la carte c : un dé, puis l'effet de sa tranche (1-2, 3-5 ou 6).
+function pari(st, c, low, mid, high) {
+  const v = roll(st, c.owner, c.zone, c, c.id);
+  const f = v <= 2 ? low : v <= 5 ? mid : high; if (f) f(); return v;
+}
+// Dés pipés : les n prochains dés du joueur font 6.
+function load(st, p, n) { st.p[p].loaded += n; log(st, n > 1 ? '⟦{p}⟧ : ⟦{p}|ses|vos⟧ {n} prochains dés feront 6.' : '⟦{p}⟧ : ⟦{p}|son|votre⟧ prochain dé fera 6.', 'up', { p, n }); }
+// Triche : met sur le dessus du deck la première carte qui convient, puis la pioche. Renvoie false s'il n'y en a pas.
+function tutor(st, p, ok) {
+  const P = st.p[p], i = P.deck.findIndex(ok); if (i < 0) return false;
+  const [x] = P.deck.splice(i, 1); P.deck.unshift(x); draw(st, p, 1, true); return true;
+}
+// Jackpot : la première fois que les 3 Sept du joueur sont en jeu en même temps, ses créatures gagnent +2,
+// puis les effets « Jackpot » de ses cartes en jeu se déclenchent. Une fois par partie.
+const SEVENS = Object.keys(CARDS).filter(id => CARDS[id].seven);
+function checkJackpot(st, p) {
+  const P = st.p[p]; if (P.jackpot) return;
+  const here = new Set(mine(st, p).map(x => x.id)); if (!SEVENS.every(id => here.has(id))) return;
+  P.jackpot = st.turn; st.pause = (st.pause || 0) + 2200;
+  log(st, '⟦{p}⟧ : 7 7 7, Jackpot !', 'up', { p });
+  for (const x of mine(st, p)) buff(st, x, 2);
+  for (const x of mine(st, p)) { const d = fx(x); if (d.onJackpot) d.onJackpot(x, st); }
+  genHook(st, p, 'onJackpot');
+}
+
 function summon(st, p, z, id) {
   if (free(st, p, z) <= 0) return null;
   const c = { uid: st.nextUid++, id, owner: p, zone: z, buff: 0, revealed: true, order: st.order++ };
@@ -1187,6 +1386,7 @@ function enter(st, c, z) {
   c.zone = z; c.revealed = true; c.pending = false; c.order = st.order++; c.enteredTurn = st.turn; P.board[z].push(c);
   log(st, '⟦{p}⟧ ⟦{p}|invoque|invoquez⟧ {card} ({z}).', 'reveal', { p: c.owner, card: nm(c.id), z: zn(z) });
   const d = CARDS[c.id]; if (d.onReveal) d.onReveal(c, st);
+  if (d.seven) checkJackpot(st, c.owner);
 }
 function callFromDeck(st, p, z) {
   const P = st.p[p]; if (free(st, p, z) <= 0) return;
@@ -1293,6 +1493,7 @@ export function doStep(st, s) {
   }
   if (d.type === 'S') P.spells++;
   if (d.onReveal) d.onReveal(c, st);
+  if (d.seven) checkJackpot(st, c.owner);
   if (stillThere(st, c)) { const t = P.terrains[c.zone]; if (t && TERRAINS[t].onCardReveal) TERRAINS[t].onCardReveal(s.p, st, c, c.zone); }
   if (stillThere(st, c) && isCreature(c)) { const t = st.p[1 - s.p].terrains[c.zone]; if (t && TERRAINS[t].onFoeReveal) TERRAINS[t].onFoeReveal(1 - s.p, st, c, c.zone); }
   if (d.type === 'S') {
@@ -1382,16 +1583,15 @@ export function gameDetail(st) {
 }
 
 // ---- IA ----
-// Copie profonde d'objets et de tableaux simples, en gardant les références partagées (une carte n'est copiée qu'une fois).
-function copy(v, seen) {
+// Copie profonde d'objets et de tableaux simples. L'état d'une partie n'a ni cycle ni objet partagé (chaque carte
+// n'est rangée qu'à un endroit) : pas besoin de suivre les objets déjà copiés, ce qui rend la copie deux fois plus rapide.
+function copy(v) {
   if (v === null || typeof v !== 'object') return v;
-  let c = seen.get(v); if (c) return c;
-  if (Array.isArray(v)) { c = new Array(v.length); seen.set(v, c); for (let i = 0; i < v.length; i++) c[i] = copy(v[i], seen); }
-  else { c = {}; seen.set(v, c); for (const k in v) c[k] = copy(v[k], seen); }
-  return c;
+  if (Array.isArray(v)) { const c = new Array(v.length); for (let i = 0; i < v.length; i++) c[i] = copy(v[i]); return c; }
+  const c = {}; for (const k in v) c[k] = copy(v[k]); return c;
 }
 // État simulé par l'IA : sans le journal (inutile et coûteux à copier), plusieurs fois plus rapide que structuredClone.
-function clone(st) { const { log: _, trace: __, ...rest } = st; const c = copy(rest, new Map()); c.sim = true; c.log = []; return c; }
+function clone(st) { const { log: _, trace: __, ...rest } = st; const c = copy(rest); c.sim = true; c.log = []; return c; }
 const deckHas = (P, fam) => [...P.hand, ...P.deck].some(c => hasKw(c, fam));
 function evalFor(st, p) {
   let s = 0;
@@ -1404,6 +1604,9 @@ function evalFor(st, p) {
     // Malwares en attente dans le deck adverse : chacun coûtera une pioche et un peu de puissance.
     const mw = st.p[1 - p].deck.reduce((n, c) => n + (CARDS[c.id].malware ? 1 : 0), 0);
     if (mw) s += mw * 1.2 * (turnsOf(st) - st.turn) / turnsOf(st);
+    // Dés pipés en réserve : autant de 6 à venir. Sept en jeu : le Jackpot approche.
+    if (P.loaded) s += P.loaded * 0.8 * (turnsOf(st) - st.turn) / turnsOf(st);
+    if (!P.jackpot) { const n = new Set(mine(st, p).filter(x => CARDS[x.id].seven).map(x => x.id)).size; if (n) s += [0, 0.5, 2][n] || 0; }
   }
   return s;
 }
@@ -1478,12 +1681,12 @@ export async function runTurn(st, plans, emit, wait) {
   // Le bandeau « Révélation » (1,5 s côté appli) disparaît avant que la première carte soit révélée.
   emit(null); await wait(1600);
   // Partie arrêtée pendant la révélation (forfait, serveur interrompu) : le tour s'arrête là, sans écraser son résultat.
-  for (const s of steps) { if (st.over) return; const c = guard(() => doStep(st, s), s); emit(c ? c.uid : null); await wait(850); }
+  for (const s of steps) { if (st.over) return; st.pause = 0; const c = guard(() => doStep(st, s), s); emit(c ? c.uid : null); await wait(850 + (st.pause || 0)); }
   if (st.over) return;
-  guard(() => endTurn(st), 'endTurn');
+  st.pause = 0; guard(() => endTurn(st), 'endTurn');
   if (!st.over && st.turn >= turnsOf(st)) guard(() => finish(st), 'finish');
   if (st.over) { st.phase = 'over'; emit(null); return; }
-  emit(null); await wait(350);
+  emit(null); await wait(350 + (st.pause || 0));
   if (st.over) return;
   guard(() => startTurn(st), 'startTurn'); st.phase = 'plan'; emit(null);
 }
@@ -1500,7 +1703,7 @@ export function viewFor(st, seat, extra = {}) {
       name: P.name, deckKey: P.deckKey, deckName: P.deckName, general: P.general, generalUsed: P.generalUsed, genFired: P.genFired || 0,
       hand: isMe ? P.hand.map(c => ({ uid: c.uid, id: c.id, cost: costOf(st, c), power: CARDS[c.id].power + c.buff })) : undefined,
       handCount: P.hand.length, deckCount: P.deck.length, seals: P.seals,
-      treasure: P.treasure, perfectTurns: P.perfectTurns,
+      treasure: P.treasure, perfectTurns: P.perfectTurns, loaded: P.loaded || 0, sixes: P.sixes || 0, rolls: P.rolls ? P.rolls.slice() : [], jackpot: P.jackpot || 0,
       terrains: P.terrains.slice(), zoneBonus: P.zoneBonus.slice(),
       terrainPlan: isMe && g.preview ? P.terrainPlan.filter(x => x.turn > st.turn) : undefined,
       board: P.board.map(z => z.slice().sort((a, b) => a.order - b.order).map(c =>

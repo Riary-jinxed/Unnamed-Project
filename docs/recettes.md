@@ -30,6 +30,12 @@ Les données locales sont dans `server/data/` : supprimez ce dossier pour repart
 Une carte qui reprend simplement l'effet d'une carte existante avec d'autres chiffres peut aussi se créer depuis `/admin` (onglet Cartes), sans toucher au code.
 
 Une nouvelle mécanique se décrit aussi dans le codex (`client/src/codex.js`) et dans `KEYWORDS` (`client/src/common.js`).
+Une nouvelle mécanique de famille mérite aussi sa leçon dans le tutoriel avancé : une entrée `advanced: true` dans `LESSONS`
+(`client/src/tutorial.js`, sur le modèle des leçons existantes : 4 tours, decks et pioches fixés, adversaire qui joue toujours pareil)
+et la même dans `TUTO_LESSONS` (`packages/engine/src/rewards.js`), puis ses textes anglais (`npm run i18n`). Rejouez la leçon en
+suivant le guide pour vérifier que chaque consigne correspond à ce qui se passe. La leçon d'un set porte `set: '<id du set>'`
+(dans `LESSONS` et `TUTO_LESSONS`) : elle reste cachée, et sa récompense refusée, jusqu'à la sortie du set. Une mécanique au hasard
+se fixe pour la leçon avec `dice` (résultats des prochains dés).
 
 Une carte ne doit jamais être retirée du code tant que des joueurs la possèdent : leurs collections et leurs decks la référencent par son identifiant.
 
@@ -43,6 +49,7 @@ Une carte ne doit jamais être retirée du code tant que des joueurs la possède
 1. Cartes et généraux avec `set: 'set3'` dans `engine.js`.
 2. Une entrée à la fin de `DEFAULT_SETS` (`packages/engine/src/collection.js`) : nom, `open: false` tant qu'il n'est pas en vente, `daily`, présentation (`teaser`), `boosterExtra` (Éclats ajoutés au prix d'un booster pour ce set : 50 pour Crépuscule), et `reveal: 'AAAA-MM-JJ'` pour le dévoiler à une date (heure de Paris) : avant, ses cartes, généraux, terrains, decks d'IA, récompenses et entrées du codex restent cachés et le set n'est pas en vente, même ouvert. La date se règle aussi dans l'onglet Sets de `/admin` (« Sortie le »). En boutique, les sets ouverts vont du plus récent (le dernier de la liste) au plus ancien, et le plus récent porte « Nouveau ». Une fois un catalogue publié, l'ouverture du set et son supplément se règlent dans l'onglet Sets de `/admin`.
    Ses cartes montrent un visuel provisoire tant que leurs illustrations manquent (voir `client/src/art/LISEZMOI.md`).
+   Un mini-set (une poignée de cartes entre deux sets, comme « Faites vos jeux ») prend `mini: true` : seul le set complet est récompensé, pas chaque famille.
 3. Récompenses de complétion (`packages/engine/src/rewards.js`) : une ligne par famille du set dans `FAMILY_REWARDS` (carte unique avec `set: 'recompense'`, titre, dos de carte), une entrée dans `SET_REWARDS` (carte Dieu, titre, cadre), et les nouveaux noms dans `BACKS` et `FRAMES`. Les dos et cadres ont leur style dans `client/src/style.css` (`.mc.back.back-<id>`, `.frame-<id>`).
 
 ## Ajouter un art alternatif
@@ -63,10 +70,11 @@ Une saison sans entrée dans `SEASONS` n'a pas de passe : l'accueil ne le montre
 
 ## Ajouter une mission ou un succès
 
-- **Mission** : entrée dans `MISSIONS` (`rewards.js`) avec son libellé, son objectif, son XP et ses Éclats. Une mission qui compte des cartes jouées a `count(mission, jouées)` ; une mission qui demande une famille ou une carte a `pick(compte)`, qui la tire parmi les cartes du joueur et renvoie null s'il n'en a pas assez (la mission n'est alors pas proposée) ; `group` évite deux missions semblables le même jour ; `retired` retire une mission des tirages sans casser celles déjà tirées. Les autres avancent dans `progress.js` : la table passée à `advance` dans `onGame` (fin de partie) ou un appel à `advance` ailleurs (comme `onBooster`).
+- **Mission** : entrée dans `MISSIONS` (`rewards.js`) avec son libellé, son objectif, son XP et ses Éclats. Une mission qui compte des cartes jouées a `count(mission, jouées)` ; une mission qui demande une famille ou une carte a `pick(compte)`, qui la tire parmi les cartes du joueur et renvoie null s'il n'en a pas assez (la mission n'est alors pas proposée) ; `group` évite deux missions semblables le même jour ; `retired` retire une mission des tirages sans casser celles déjà tirées. Les autres avancent avec `stat` (une ligne de la table de fin de partie de `onGame` : `play`, `win`, `ranked`, `zones`…) ou `on` (un événement hors partie, signalé par `progress.act(compte, 'clé')` : `boss`, `clanDon`, `booster`, `missions`). `need` réserve la mission aux joueurs qui ont accès à un mode (`clan`, ou `boss`, donné par `progress.setNeed` dans `boss.js`). Une mission de la semaine va dans `WEEKLY_MISSIONS` (identifiant en `w_`), avec les mêmes champs ; une sorte de mission du passe dans `PASS_KINDS` (`pass.js`), qui avance avec la même clé que `on`.
 - **Succès** : une ligne `A(...)` dans `ACHIEVEMENTS` avec la statistique suivie (`level`, `wins`, `cards`, `famWins.Elfe`…, voir `statsOf` dans `progress.js`), l'objectif, les Éclats, et éventuellement un titre ou un cadre. Les comptes qui remplissent déjà la condition le reçoivent au prochain démarrage du serveur.
 - **Compteur tenu hors de `progress.js`** (clans…) : `progress.count(compte, 'stat', n)` ajoute n, `progress.best(compte, 'stat', valeur)` garde la plus grande ; les succès suivent aussitôt.
 - **Famille d'arts qui grandit** : rien à faire. Quand un set apporte des arts à une famille (arts sur des cartes de ce set), `themeTiers` (`rewards.js`) ajoute tout seul un palier qui débloque un cadre `art_<famille>_<set>`. Les paliers comptent les arts de la famille d'où qu'ils viennent : le premier en demande autant qu'en avait la famille à sa création, le dernier toute la famille. Son nom vient de `ART_FRAME_NAMES` ; son dessin de `ART_FRAME_DRAW` (`cosmetics-art.js`), sinon un rendu provisoire aux couleurs de `ART_FRAME_TINTS`. Un succès déjà gagné reste acquis.
+- **Cadre animé** : l'anneau se dessine comme les autres (`FRAMES` de `cosmetics-art.js`). Ajoutez l'identifiant à `ANIMATED_FRAMES` (`rewards.js`) : le portrait reçoit alors un calque `.ffx` dont `::before` et `::after` portent le mouvement, dans `client/src/frames-anim.css`. N'y animez que `transform` et `opacity` (léger sur téléphone) ; `z-index: 1` pose le calque sur l'anneau, `-1` derrière (lueurs). Augmentez `VERSION` dans `cosmetics.js` quand vous ajoutez un dessin.
 
 Les nombres (XP, Éclats, objectifs) se règlent ensuite depuis l'onglet Récompenses de `/admin`, sans redéploiement.
 
