@@ -6,11 +6,11 @@
 // lecteurs d'écran ne changent pas ; PixiJS lit leur place à l'écran (getBoundingClientRect) pour s'y caler.
 // Sans WebGL ou avec « réduire les animations », rien n'est chargé et fx.js garde ses effets en CSS.
 import { Application, Color, Container, Graphics, Sprite, Text, Texture, UPDATE_PRIORITY } from 'pixi.js';
-import { palette, tableLook, season } from './season.js';
+import { palette, tableLook, season, chipCanvases } from './season.js';
 import { t } from '@jeu/engine/i18n';
 
 let table = null, over = null, root = null, ready = null, embers = null, pools = [], parts = [], glowTex = null, sparkTex = null, shardTex = null, gameBg = null;
-let mode = null;
+let mode = null, chipTex = null;
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a);
 const cssColor = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#e3b552';
 let COL = {}, anims = [], fog = [], cine = null;
@@ -71,6 +71,13 @@ async function init() {
   embers = new Container(); table.stage.addChild(embers);
   // Éclipse d'Ignaroth : couronne de feu du soleil noir, qui respire lentement.
   const corona = new Sprite(glowTex); corona.anchor.set(0.5); corona.blendMode = 'add'; corona.visible = false; gameBg.addChild(corona);
+  // Roue de Fortuna : couleurs de cartes en filigrane sur le tapis (une seule transparence pour tout le calque : les formes se chevauchent).
+  const suits = new Graphics(); suits.alpha = 0.1; gameBg.addChild(suits);
+  // Roue de Fortuna, dans les menus : deux projecteurs d'enseigne qui balaient le ciel depuis les coins du bas, et se croisent.
+  const beamTex = Texture.from((() => { const c = document.createElement('canvas'); c.width = 64; c.height = 512; const g = c.getContext('2d');
+    const l = g.createLinearGradient(0, 512, 0, 0); l.addColorStop(0, 'rgba(255,255,255,.9)'); l.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = l; g.beginPath(); g.moveTo(30, 512); g.lineTo(34, 512); g.lineTo(64, 0); g.lineTo(0, 0); g.closePath(); g.fill(); return c; })());
+  const beams = [0, 1].map(i => { const b = new Sprite(beamTex); b.anchor.set(0.5, 1); b.blendMode = 'add'; b.alpha = 0.16; b.tint = i ? 0xffe0a0 : 0xff8a9a; b.visible = false; table.stage.addChild(b); return b; });
   // Table du thème affiché (tableLook de season.js) : planches de bois, ou grille néon pour Néon 2099. Redessinée quand le thème change.
   let drawnLook = null;
   const drawTable = () => {
@@ -87,7 +94,7 @@ async function init() {
     }
     lamp.tint = L.lamp; lamp.position.set(w / 2, h * 0.42); lamp.width = w * 1.6; lamp.height = h * 1.1;
     low.visible = !!L.low; if (L.low) { low.tint = L.low; low.position.set(w / 2, h * 1.02); low.width = w * 1.8; low.height = h * 0.7; }
-    corona.visible = !!L.sun;
+    corona.visible = !!L.sun; suits.clear();
     if (L.sun) {
       // soleil noir en haut à droite, cerclé de feu, et des failles de lave qui luisent entre les planches du bas
       const sx = w * 0.84, sy = h * 0.09, sr = Math.min(w, h) * 0.065;
@@ -141,6 +148,32 @@ async function init() {
       wood.circle(cx, cy, Math.min(w, h) * 0.22).fill({ color: 0xffd890, alpha: 0.25 }).circle(cx, cy, Math.min(w, h) * 0.14).fill({ color: 0xfff4d0, alpha: 0.5 });
       for (let i = 0; i < 12; i++) wood.circle(w * (i / 11), h * (0.97 + 0.03 * Math.sin(i * 1.7)), w * 0.1).fill({ color: 0xffe8f0, alpha: 0.35 });
     }
+    if (L.felt) {
+      // Roue de Fortuna : tapis de jeu, bordé d'un boudin de cuir rouge sombre à filet d'or ; ligne de mise dorée en ovale,
+      // couleurs de cartes en filigrane dans les coins et piles de jetons sur le bord
+      const m = 6, rail = Math.max(12, Math.min(w, h) * 0.025);
+      wood.ellipse(w / 2, h * 0.45, w * 0.6, h * 0.55).fill({ color: 0x12583a, alpha: 0.35 });
+      wood.roundRect(m + rail / 2, m + rail / 2, w - 2 * m - rail, h - 2 * m - rail, 40).stroke({ width: rail, color: 0x2a0a0e })
+        .roundRect(m + 2, m + 2, w - 2 * m - 4, h - 2 * m - 4, 44).stroke({ width: 1.5, color: 0x5a2028, alpha: 0.8 })
+        .roundRect(m + rail + 2, m + rail + 2, w - 2 * (m + rail + 2), h - 2 * (m + rail + 2), 34).stroke({ width: 1.5, color: 0xf2c14e, alpha: 0.6 });
+      wood.ellipse(w / 2, h / 2, w * 0.4, h * 0.36).stroke({ width: 1.5, color: 0xf2c14e, alpha: 0.16 });
+      const s = Math.min(w, h) * 0.09, e = m + rail + s * 0.9;
+      const heart = (x, y) => suits.circle(x - s * 0.25, y - s * 0.12, s * 0.27).circle(x + s * 0.25, y - s * 0.12, s * 0.27).poly([x - s * 0.5, y - s * 0.04, x + s * 0.5, y - s * 0.04, x, y + s * 0.55]);
+      const spade = (x, y) => suits.circle(x - s * 0.25, y + s * 0.1, s * 0.27).circle(x + s * 0.25, y + s * 0.1, s * 0.27).poly([x - s * 0.5, y + s * 0.02, x + s * 0.5, y + s * 0.02, x, y - s * 0.55])
+        .poly([x, y + s * 0.1, x + s * 0.2, y + s * 0.6, x - s * 0.2, y + s * 0.6]);
+      const club = (x, y) => suits.circle(x, y - s * 0.26, s * 0.24).circle(x - s * 0.27, y + s * 0.08, s * 0.24).circle(x + s * 0.27, y + s * 0.08, s * 0.24)
+        .poly([x, y, x + s * 0.18, y + s * 0.6, x - s * 0.18, y + s * 0.6]);
+      const diamond = (x, y) => suits.poly([x, y - s * 0.6, x + s * 0.42, y, x, y + s * 0.6, x - s * 0.42, y]);
+      spade(e, e); suits.fill({ color: 0x000000 }); heart(w - e, e); suits.fill({ color: 0xd8102a });
+      diamond(e, h - e); suits.fill({ color: 0xd8102a }); club(w - e, h - e); suits.fill({ color: 0x000000 });
+      // piles de jetons, vues de trois quarts : tranches empilées, encoches claires
+      for (const [x0, y0, n, col] of [[0.06, 0.55, 5, 0xb8101e], [0.1, 0.58, 3, 0x151515], [0.93, 0.42, 4, 0x1a4ab8], [0.89, 0.45, 6, 0xf2c14e]]) {
+        const cx = w * x0, r = Math.min(w, h) * 0.028;
+        for (let i = 0; i < n; i++) { const y = h * y0 - i * r * 0.32;
+          wood.ellipse(cx, y + r * 0.12, r, r * 0.45).fill({ color: 0x000000, alpha: 0.5 }).ellipse(cx, y, r, r * 0.45).fill({ color: col })
+            .ellipse(cx, y, r * 0.62, r * 0.27).stroke({ width: 1, color: col === 0xf2c14e ? 0x7a1010 : 0xffffff, alpha: 0.7 }); }
+      }
+    }
     if (L.moon) {
       // pleine lune pâle en haut à droite, avec son halo, et quelques pierres tombales penchées sur les bords du bas
       const mx = w * 0.82, my = h * 0.1, mr = Math.min(w, h) * 0.07;
@@ -159,6 +192,10 @@ async function init() {
   table.ticker.add(t => {
     const dt = t.deltaTime;
     if (drawnLook !== tableLook()) drawTable();
+    const sweep = !!drawnLook.felt && mode === 'menu';
+    beams.forEach((b, i) => { b.visible = sweep; if (!sweep) return; const d = i ? -1 : 1;
+      b.position.set(i ? innerWidth : 0, innerHeight + 20); b.height = innerHeight * 1.4; b.width = innerWidth * 0.5;
+      b.rotation = d * (0.45 + Math.sin(performance.now() / (i ? 3100 : 2600) + i * 2) * 0.32); });
     if (corona.visible) corona.alpha = 0.32 + Math.sin(performance.now() / 900) * 0.1;
     // Éclipse : quelques cendres tombent aussi sur la partie, rares pour ne pas gêner la lecture des cartes.
     if (mode === 'game' && drawnLook.sun && Math.random() < 0.015 * dt) { const vy = rnd(0.5, 0.9), hot = Math.random() < 0.3;
@@ -359,7 +396,7 @@ export function flash(color = 0xffffff, alpha = 0.25) {
 export function ending(result) {
   if (!active()) return;
   cine?.destroy({ children: true });
-  const look = season(), tint = result === 'win' ? (look === 'cyber' ? 0x19e6ff : look === 'halloween' ? 0xff8a2a : look === 'eclipse' ? 0xff6a2a : look === 'astral' ? 0x8aa8ff : look === 'estampe' ? 0xd8301c : look === 'sylve' ? 0xb8f070 : look === 'aube' ? 0xfff0c0 : 0xffd070) : result === 'lose' ? (look === 'cyber' ? 0xff003c : 0xb03a2a) : 0xa0a8b8, x = innerWidth / 2, y = Math.min(innerHeight * 0.2, 170);
+  const look = season(), tint = result === 'win' ? (look === 'cyber' ? 0x19e6ff : look === 'halloween' ? 0xff8a2a : look === 'eclipse' ? 0xff6a2a : look === 'astral' ? 0x8aa8ff : look === 'estampe' ? 0xd8301c : look === 'sylve' ? 0xb8f070 : look === 'aube' ? 0xfff0c0 : look === 'casino' ? 0xffd860 : 0xffd070) : result === 'lose' ? (look === 'cyber' ? 0xff003c : 0xb03a2a) : 0xa0a8b8, x = innerWidth / 2, y = Math.min(innerHeight * 0.2, 170);
   const c = cine = new Container(); over.stage.addChild(c);
   const rays = new Container(); rays.position.set(x, y);
   for (let i = 0; i < 14; i++) { const a = (i / 14) * TAU, len = Math.max(innerWidth, innerHeight);
@@ -394,6 +431,10 @@ export function ending(result) {
     if (result === 'win' && Math.random() < 0.25 * tk.deltaTime) spawn(sparkTex, x + rnd(-150, 150), y + rnd(-10, 30), { tint: Math.random() < 0.3 ? 0xffffff : tint, vx: rnd(-0.2, 0.2), vy: rnd(-1.1, -0.4), drag: 1, scale: rnd(0.15, 0.35), ttl: rnd(50, 90) });
     if (result === 'lose' && Math.random() < 0.18 * tk.deltaTime) spawn(shardTex, rnd(0, innerWidth), -10, { tint: Math.random() < 0.5 ? 0x5a4a3c : 0x8a3020, blend: 'normal', vx: rnd(-0.4, 0.4), vy: rnd(0.5, 1.2), drag: 1, spin: rnd(-0.05, 0.05), rot: rnd(0, TAU), scale: rnd(0.3, 0.6), ttl: rnd(200, 320), alpha: 0.7 });
   });
+  // Roue de Fortuna : une victoire paie comme un jackpot, une pluie de jetons qui jaillit du titre et retombe.
+  if (result === 'win' && look === 'casino') { const chips = chipTex ||= chipCanvases().map(cv => Texture.from(cv));
+    for (let i = 0; i < 46; i++) { const a = -Math.PI / 2 + rnd(-1.1, 1.1), v = rnd(5, 11);
+      spawn(chips[i % 3 ? 3 : Math.floor(rnd(0, 3))], x + rnd(-40, 40), y + 20, { blend: 'normal', vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0.22, drag: 0.99, spin: rnd(-0.2, 0.2), rot: rnd(0, TAU), scale: rnd(0.35, 0.6), ttl: rnd(90, 130) }); } }
   if (result !== 'lose') for (let i = 0; i < 40; i++) { const a = rnd(0, TAU), v = rnd(1, 4); spawn(sparkTex, x, y, { tint, vx: Math.cos(a) * v, vy: Math.sin(a) * v, scale: rnd(0.3, 0.6), ttl: rnd(50, 90) }); }
 }
 // Nouvelle partie (revanche) : la fin de partie s'efface.

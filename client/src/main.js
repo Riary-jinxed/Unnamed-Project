@@ -26,7 +26,7 @@ import { createBoss } from './boss.js';
 import { createStory } from './story.js';
 import { createHistory } from './history.js';
 import { themeShopHTML, themeEssenceHTML, themeLock, setThemeArt } from './themes.js';
-import { THEMES, EXTRA_THEMES } from '@jeu/engine/themes';
+import { THEMES, EXTRA_THEMES, themeOut } from '@jeu/engine/themes';
 import { questOfCard } from '@jeu/engine/story';
 import { applyCatalog } from '@jeu/engine/catalog';
 import { esc, famStyle, rich } from './common.js';
@@ -1304,10 +1304,10 @@ function renderHome() {
       t('Calendrier'), cal.ready ? t('À récupérer') : `${cal.got}/${cal.days.length}`, !!cal.ready) : '',
     wel?.ready ? quick('welcome', 'M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 7h18v4H3zM12 7v14M12 7c-1.5-3-5-3-5-1s3 1 5 1c2 0 5 1 5-1s-3.5-2-5 1',
       t('Bienvenue'), wel.ready ? t('À récupérer') : `${wel.got}/${wel.steps}`, !!wel.ready) : '',
-    // Nouveautés (écran de news.js, PR des annonces) : l'icône n'apparaît que quand le serveur envoie le journal (account.news),
+    // Nouveautés (écran de news.js : annonces et onglet À venir) : toujours là, même sans annonce parue (account.news vaut alors null),
     // avec une pastille tant qu'une annonce n'est pas vue. Le bandeau « À la une » reste en tête de l'accueil.
-    a.news?.last ? quick('news', 'M4 5h13a1 1 0 0 1 1 1v13a2 2 0 0 0 2-2V9h-2M4 5v13a2 2 0 0 0 2 2h14M8 9h6M8 13h6M8 17h3',
-      t('Nouveautés'), a.news.unread ? tp(a.news.unread, '{n} à lire', '{n} à lire') : t('Annonces'), a.news.unread || false) : '',
+    quick('news', 'M4 5h13a1 1 0 0 1 1 1v13a2 2 0 0 0 2-2V9h-2M4 5v13a2 2 0 0 0 2 2h14M8 9h6M8 13h6M8 17h3',
+      t('Nouveautés'), a.news?.unread ? tp(a.news.unread, '{n} à lire', '{n} à lire') : t('À venir'), a.news?.unread || false),
     quick('learn', 'M4 5a1 1 0 0 1 1-1h5a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 5a1 1 0 0 0-1-1h-5a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', t('Apprendre'), t('Tuto, codex')),
   ].join('');
   const modes = [
@@ -1755,7 +1755,7 @@ function themePicks(p) {
   const own = id => p.cosmetics.themes?.some(t => t.id === id), cur = currentSeason(today());
   const pick = (val, label, swatch, on, ok = true, hint = '') => `<button class="pickc ${on ? 'on' : ''} ${ok ? '' : 'locked'}" ${ok ? `data-theme="${val}"` : 'disabled'} title="${esc(hint)}">
     <span class="theme-swatch theme-${swatch}"></span><small>${esc(t(label))}</small></button>`;
-  const themes = Object.entries(THEMES).filter(([id]) => own(id) || !futureSeasons().some(x => x.theme === id));
+  const themes = Object.entries(THEMES).filter(([id]) => own(id) || (!futureSeasons().some(x => x.theme === id) && themeOut(id)));
   return `<div class="gal-h">${t('Thème de l\'interface')}</div>
     <p class="hint" style="margin:0">${t('Chaque passe de saison débloque son thème au palier 12 de la piste gratuite ; d\'autres thèmes s\'achètent en boutique ou se gagnent avec les succès. Changez-en quand vous voulez.')}</p>
     <div class="picks">${pick('', cur ? t('Saison en cours ({name})', { name: t(cur.name) }) : t('Saison en cours'), cur?.theme || 'base', !p.theme)}${pick('base', t('Classique'), 'base', p.theme === 'base')}
