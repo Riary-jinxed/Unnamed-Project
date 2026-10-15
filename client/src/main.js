@@ -2150,15 +2150,17 @@ function uiTheme() {
   return currentSeason(today())?.theme || '';
 }
 // Musique de l'écran : la partie ou les menus, dans la version du thème affiché si elle existe (music.js).
-// Contre un boss, sa musique passe avant le thème : le boss final d'une quête (dernier chapitre), puis le boss mondial
-// et le boss de clan, qui reprennent celle du boss final tant qu'ils n'ont pas la leur.
+// Contre un boss, sa musique passe avant le thème. Boss mondial : « boss-mondial ». Boss de clan : le sien, sinon celui du
+// boss mondial. Boss d'une quête (son dernier chapitre) : celui de la quête d'événement (« boss-halloween »…), sinon celui
+// des quêtes d'histoire, sinon celui du boss mondial.
 function musicFor() {
   const scene = ui.screen === 'game' ? 'partie' : 'menu', theme = document.body.dataset.season;
   const list = theme ? [`${scene}-${theme}`, scene] : [scene];
   if (scene !== 'partie') return list;
-  if (ui.mode === 'story' && story.finale()) return ['boss-final', ...list];
-  if (ui.view?.boss?.clan) return ['boss-clan', 'boss-final', ...list];
-  if (ui.bossRun || ui.view?.boss) return ['boss-mondial', 'boss-final', ...list];
+  const q = ui.mode === 'story' && story.finale();
+  if (q) return [...(q.kind === 'campagne' ? [] : [`boss-${q.id}`]), 'boss-histoire', 'boss-mondial', ...list];
+  if (ui.view?.boss?.clan) return ['boss-clan', 'boss-mondial', ...list];
+  if (ui.bossRun || ui.view?.boss) return ['boss-mondial', ...list];
   return list;
 }
 

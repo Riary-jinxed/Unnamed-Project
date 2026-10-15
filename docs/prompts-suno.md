@@ -58,22 +58,54 @@ Partie :
 instrumental cyberpunk tactical battle ambience for a card game match, pulsing dark synth bass ostinato, glitchy percussion, tense string synth pads, digital blips and data sounds, focused hacking mood, 110 bpm, restrained dynamics, no drop, seamless loop, background game music, no vocals
 ```
 
-## 6. Boss final (`boss-final`)
+## 6. Boss mondial (`boss-mondial`)
 
-Le dernier chapitre de chaque quête : Vael'Thar dans les Monts d'Or, Morgrath au fond des Fosses, Séraphine devant le Septième Sceau, puis les boss des quêtes d'événement. Ici, et seulement ici, la musique a le droit de monter : c'est l'affrontement qu'on attendait depuis le début de la quête. Elle doit rester épique sans couvrir les bruitages, et tourner en boucle pendant toute la partie. Titre : « Le Septième Sceau ».
+Le boss de la semaine : une créature immense qui frappe à chaque tour, affrontée par tous les joueurs. C'est le morceau de boss principal, joué aussi par les autres boss tant qu'ils n'ont pas le leur. Ici, la musique a le droit de monter, sans couvrir les bruitages, et elle tourne en boucle toute la partie. Titre : « Le Colosse ».
 
 ```
-instrumental epic dark fantasy final boss battle theme for a card game, apocalyptic and heroic, full orchestra, driving low strings ostinato, massive taiko and war drums, pounding timpani, brass fanfare motif in minor key, wordless epic choir pads (aah, ooh, no lyrics), pipe organ swells, tolling bells, celestial harp glints against demonic low brass, rising tension, relentless, 140 bpm, constant intensity without a final ending, seamless loop, background game music, no vocals
+instrumental epic dark fantasy boss battle theme for a card game, colossal monster raid, full orchestra, driving low strings ostinato, massive taiko and war drums, pounding timpani, heavy brass stabs and minor key horn fanfare, wordless epic choir pads (aah, ooh, no lyrics), anvil hits, rising tension, relentless and heroic, 135 bpm, constant intensity without a final ending, seamless loop, background game music, no vocals
 ```
 
 Si Suno chante malgré tout : retirer `wordless epic choir pads` et ajouter `choir` à Exclure.
 
-## 7. Boss mondial (`boss-mondial`, facultatif)
+## 7. Boss d'histoire (`boss-histoire`)
 
-Le boss de la semaine. Sans ce morceau, le boss mondial joue le boss final : ne le faire que pour les distinguer. Plus menaçant que dramatique : une créature immense qui frappe à chaque tour. Titre : « Le Colosse de la semaine ».
+Le dernier chapitre des campagnes : Vael'Thar dans les Monts d'Or, Morgrath au fond des Fosses, Séraphine devant le Septième Sceau. Plus narratif que le boss mondial : l'affrontement qu'on attend depuis le début du livre, entre la lumière des Anges et l'abîme des Démons. Titre : « Le Septième Sceau ».
 
 ```
-instrumental ominous colossal monster battle theme for a card game, heavy and menacing, deep brass stabs, low cello and contrabass riffs, booming taiko and anvil hits, dissonant horn calls, dark synth sub drones, tribal war drums, relentless pulse, 128 bpm, steady intensity without climax or drop, seamless loop, background game music, no vocals
+instrumental epic fantasy final boss battle theme for a card game, climax of a legend, sweeping orchestra, heroic main theme on french horns, urgent string runs, celestial harp and bells against demonic low brass, pipe organ swells, wordless epic choir pads (aah, ooh, no lyrics), big taiko and timpani, dramatic but melodic, 130 bpm, constant intensity without a final ending, seamless loop, background game music, no vocals
+```
+
+## 8. Boss d'Halloween (`boss-halloween`)
+
+Le Roi Citrouille, à la fin de la quête d'Halloween. Le sabbat dégénère : plus fou et plus menaçant que la partie d'Halloween, mais toujours un peu espiègle. Titre : « Le Roi Citrouille ».
+
+```
+instrumental halloween boss battle theme for a card game, the pumpkin king's mad sabbath, frantic pipe organ, wild pizzicato and col legno strings, galloping timpani, cackling bassoon and tuba, harpsichord runs, theremin glides, tolling bells, wordless spooky choir pads (ooh, no lyrics), danse macabre energy, sinister and playful, 150 bpm, constant intensity without a final ending, seamless loop, background game music, no vocals
+```
+
+## 9. Boss de l'Éclipse (`boss-eclipse`)
+
+Ignaroth sous l'éclipse : dark fantasy, un soleil noir qui dévore la lumière. Lourd, solennel, presque désespéré. Titre : « Soleil noir ».
+
+```
+instrumental dark fantasy boss battle theme for a card game, black sun eclipse, doom and dread, deep low brass and contrabassoon, slow heavy war drums, distorted cello ostinato, dissonant string clusters, dark ritual chanting pads (wordless, no lyrics), deep gong swells, ominous bells, grim and majestic, 120 bpm, constant intensity without a final ending, seamless loop, background game music, no vocals
+```
+
+## 10. Boss de Néon 2099 (`boss-neon`)
+
+Spectre, l'IA défunte, à la fin de la quête de novembre. Électronique et agressif, le système qui se défend. Titre : « Spectre ».
+
+```
+instrumental cyberpunk boss battle theme for a card game, rogue AI ghost in the machine, aggressive darksynth, distorted analog bass ostinato, hard driving electronic drums, glitch stutters and corrupted data sounds, alarm-like synth leads, cinematic string synth hits, menacing and fast, 145 bpm, constant intensity without a drop or ending, seamless loop, background game music, no vocals
+```
+
+## 11. Boss de clan (`boss-clan`, facultatif)
+
+Le boss affronté à plusieurs par un clan. Sans ce morceau, il joue le boss mondial : ne le faire que pour les distinguer. Plus fédérateur, comme une bataille menée ensemble. Titre : « Bannière du clan ».
+
+```
+instrumental epic fantasy war band battle theme for a card game, allies fighting a giant together, rousing celtic and nordic war drums, bagpipe-like brass melody, galloping strings, battle horns call and response, wordless warrior choir pads (no lyrics), heroic and united, 135 bpm, constant intensity without a final ending, seamless loop, background game music, no vocals
 ```
 
 ## Si un morceau ne plaît pas
