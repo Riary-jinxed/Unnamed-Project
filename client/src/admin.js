@@ -1,5 +1,5 @@
 // Page d'administration : comptes des joueurs (création, profil, Éclats, collection, deck, accès), statistiques des parties,
-// éditeur de cartes et de sets (brouillon puis publication), réglages de la boutique, courrier aux joueurs et codes cadeaux, annonces des Nouveautés.
+// éditeur de cartes et de sets (brouillon puis publication), réglages de la boutique, courrier aux joueurs et codes cadeaux, signalements de bugs, annonces des Nouveautés.
 // Protégée par la clé ADMIN_KEY du serveur, gardée dans ce navigateur seulement.
 import './style.css';
 import { DECKS, CARDS, GENERALS, TERRAINS, FAMILIES } from '@jeu/engine';
@@ -11,6 +11,7 @@ import { esc, famStyle } from './common.js';
 import { cardsTab } from './admin-cards.js';
 import { rewardsTab } from './admin-rewards.js';
 import { mailTab } from './admin-mail.js';
+import { bugsTab } from './admin-bugs.js';
 import { newsTab } from './admin-news.js';
 import { eventsTab } from './admin-events.js';
 import { bossTab } from './admin-boss.js';
@@ -34,9 +35,16 @@ async function adminCall(method, path, body) {
   return data;
 }
 const say = (msg, err = '') => { st.msg = msg; st.err = err; };
-const TABS = { accounts: 'Comptes', stats: 'Stats', follow: 'Suivi', cards: 'Cartes', sets: 'Sets', shop: 'Boutique', rewards: 'Récompenses', events: 'Événements', boss: 'Boss', story: 'Quêtes', mail: 'Courrier', news: 'Nouveautés' };
+const TABS = { accounts: 'Comptes', stats: 'Stats', follow: 'Suivi', cards: 'Cartes', sets: 'Sets', shop: 'Boutique', rewards: 'Récompenses', events: 'Événements', boss: 'Boss', story: 'Quêtes', mail: 'Courrier', bugs: 'Signalements', news: 'Nouveautés' };
 const tabCtx = { call: adminCall, render: () => render(), say, esc: s => esc(s), notice: () => notice() };
 const stats = statsTab(tabCtx), rewards = rewardsTab(tabCtx), mail = mailTab(tabCtx), news = newsTab(tabCtx), events = eventsTab(tabCtx), boss = bossTab(tabCtx), story = storyTab(tabCtx), follow = followTab(tabCtx);
+// Signalements : « Répondre par courrier » ouvre l'onglet Courrier avec le joueur en destinataire.
+const bugs = bugsTab({ ...tabCtx, onReply: async login => {
+  st.tab = 'mail'; say(''); render(); await mail.load();
+  const to = document.getElementById('ms-to'), title = document.getElementById('ms-title');
+  if (to) to.value = login; if (title && !title.value) title.value = 'Votre signalement';
+  window.scrollTo(0, 0);
+} });
 // Après une publication, la liste des comptes et les collections tiennent compte des nouvelles cartes.
 const cards = cardsTab({ ...tabCtx, onPublished: () => refresh() });
 async function refresh() {
@@ -269,7 +277,7 @@ function render() {
       <div class="field"><label class="eyebrow" for="key">Clé d'administration (ADMIN_KEY)</label><input id="key" type="password" value="${esc(st.key)}" required></div>
       ${st.err ? `<p class="err" style="margin:0">${esc(st.err)}</p>` : ''}
       <div class="row"><button class="btn primary" type="submit">Ouvrir</button></div></form>`
-    : st.tab === 'shop' ? renderShopSettings() : st.tab === 'rewards' ? rewards.render() : st.tab === 'events' ? events.render() : st.tab === 'boss' ? boss.render() : st.tab === 'story' ? story.render() : st.tab === 'mail' ? mail.render() : st.tab === 'news' ? news.render() : st.tab === 'stats' ? stats.render() : st.tab === 'follow' ? follow.render() : st.tab === 'cards' ? cards.renderCards()
+    : st.tab === 'shop' ? renderShopSettings() : st.tab === 'rewards' ? rewards.render() : st.tab === 'events' ? events.render() : st.tab === 'boss' ? boss.render() : st.tab === 'story' ? story.render() : st.tab === 'mail' ? mail.render() : st.tab === 'bugs' ? bugs.render() : st.tab === 'news' ? news.render() : st.tab === 'stats' ? stats.render() : st.tab === 'follow' ? follow.render() : st.tab === 'cards' ? cards.renderCards()
     : st.tab === 'sets' ? cards.renderSets() : st.sel && st.detail ? renderDetail() : renderList();
   app.innerHTML = `<div class="top"><span class="title">Administration</span>${tabs}</div>${body}`;
 }
@@ -322,10 +330,10 @@ app.addEventListener('click', e => {
   if (t.dataset.open) { openAccount(t.dataset.open); return; }
   if (t.dataset.tab) {
     st.tab = t.dataset.tab; st.sel = null; st.detail = null; say('');
-    if (st.tab === 'stats') stats.load(); else if (st.tab === 'follow') follow.load(); else if (st.tab === 'shop') loadArts(); else if (st.tab === 'rewards') rewards.load(); else if (st.tab === 'mail') mail.load(); else if (st.tab === 'news') news.load(); else if (st.tab === 'events') events.load(); else if (st.tab === 'boss') boss.load(); else if (st.tab === 'story') story.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
+    if (st.tab === 'stats') stats.load(); else if (st.tab === 'follow') follow.load(); else if (st.tab === 'shop') loadArts(); else if (st.tab === 'rewards') rewards.load(); else if (st.tab === 'mail') mail.load(); else if (st.tab === 'bugs') bugs.load(); else if (st.tab === 'news') news.load(); else if (st.tab === 'events') events.load(); else if (st.tab === 'boss') boss.load(); else if (st.tab === 'story') story.load(); else if ((st.tab === 'cards' || st.tab === 'sets') && !cards.loaded()) cards.load();
     render(); return;
   }
-  if (stats.onClick(t) || follow.onClick(t) || cards.onClick(t) || rewards.onClick(t) || mail.onClick(t) || news.onClick(t) || events.onClick(t) || boss.onClick(t) || story.onClick(t)) return;
+  if (stats.onClick(t) || follow.onClick(t) || cards.onClick(t) || rewards.onClick(t) || mail.onClick(t) || bugs.onClick(t) || news.onClick(t) || events.onClick(t) || boss.onClick(t) || story.onClick(t)) return;
   if (t.dataset.themeTake) { act('/api/admin/account/theme', { theme: t.dataset.themeTake, give: false }, 'Thème retiré.'); return; }
   if (t.dataset.artTake) { act('/api/admin/account/art', { art: t.dataset.artTake, give: false }, 'Art retiré.'); return; }
   if (t.dataset.addShards) { const i = document.getElementById('p-shards'); i.value = (Number(i.value) || 0) + Number(t.dataset.addShards); return; }

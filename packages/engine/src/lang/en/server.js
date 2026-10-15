@@ -355,4 +355,7 @@ export default {
   "Pas de table en cours.": "No table in progress.",
   "Rien à encaisser pour le moment.": "Nothing to cash in right now.",
   "Cet art se vend à la boutique du casino, contre des Jetons, pendant l'événement.": "This art is sold at the casino shop, for Chips, during the event.",
+  "Vous avez déjà envoyé plusieurs signalements : réessayez dans une heure.": "You've already sent several reports: try again in an hour.",
+  "Décrivez le problème en quelques mots.": "Describe the problem in a few words.",
+  "Capture d'écran invalide ou trop lourde.": "Invalid or too large screenshot.",
 };

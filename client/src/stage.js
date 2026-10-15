@@ -8,6 +8,7 @@
 import { Application, Color, Container, Graphics, Sprite, Text, Texture, UPDATE_PRIORITY } from 'pixi.js';
 import { palette, tableLook, season, chipCanvases } from './season.js';
 import { t } from '@jeu/engine/i18n';
+import { guardGL } from './gl-guard.js';
 
 let table = null, over = null, root = null, ready = null, embers = null, pools = [], parts = [], glowTex = null, sparkTex = null, shardTex = null, gameBg = null;
 let mode = null, chipTex = null;
@@ -31,7 +32,7 @@ async function makeApp(z, sharp = true) {
   const a = new Application();
   await a.init({ backgroundAlpha: 0, resizeTo: window, antialias: sharp, autoDensity: true, resolution: sharp ? Math.min(devicePixelRatio || 1, 2) : 1, preference: 'webgl' });
   Object.assign(a.canvas.style, { position: 'fixed', inset: '0', width: '100vw', height: '100vh', zIndex: z, pointerEvents: 'none' });
-  a.canvas.setAttribute('aria-hidden', 'true'); a.canvas.className = 'stage';
+  a.canvas.setAttribute('aria-hidden', 'true'); a.canvas.className = 'stage'; guardGL(a.canvas);
   document.body.append(a.canvas);
   return a;
 }

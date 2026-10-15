@@ -17,6 +17,7 @@
 // le plus gros du temps d'un changement de rayon sur téléphone.
 import { Application, Color, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { season, palette, shopColors } from './season.js';
+import { guardGL } from './gl-guard.js';
 
 const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a);
 const toNum = c => { try { return new Color(c).toNumber(); } catch { return 0xf0c454; } };
@@ -135,6 +136,8 @@ function makeScene(kind) {
   sc.ready = sc.app.init({ backgroundAlpha: 0, width: 300, height: 200, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 1.5), preference: 'webgl' }).then(() => {
     const { app } = sc; textures();
     app.canvas.setAttribute('aria-hidden', 'true'); app.ticker.maxFPS = 45;
+    // Contexte perdu : le décor en CSS reprend sa place (classe .px retirée) jusqu'au retour de la toile.
+    guardGL(app.canvas, lost => { sc.lost = lost; if (sc.host) { sc.host.classList.toggle('px', !lost); if (!lost) { fit(sc); app.render(); } } });
     sc.bg = new Sprite(Texture.EMPTY);
     sc.warm = new Sprite(tex.glow); sc.warm.anchor.set(0.5); sc.warm.blendMode = 'add';
     sc.lights = new Container(); sc.dust = new Container(); sc.fx = new Container();
@@ -294,7 +297,7 @@ function attach(sc, el) {
     sc.ro.disconnect(); sc.io.disconnect(); sc.host = el; sc.seen = true; sc.objs.forEach(o => { o.el = null; });
     el.prepend(sc.app.canvas); sc.ro.observe(el); sc.io.observe(el);
   }
-  el.classList.add('px');
+  el.classList.toggle('px', !sc.lost);
   fit(sc); sc.app.render(); run(sc);
 }
 function detach(sc) {
@@ -306,6 +309,7 @@ function detach(sc) {
 // els : les décors du rendu courant (étal, vitrines), dans l'ordre de la page ; une toile par décor, gardées par type :
 // d'abord celle qui portait déjà ce décor (même clé), sinon une libre du même type, sinon une nouvelle.
 export function show(els) {
+  if (!els.length) { release(); return; }
   const used = new Set(), kindOf = el => (el.classList.contains('stall') ? 'stall' : 'vitrine'), keyOf = el => el.dataset.scene || '';
   const mine = new Map(els.map(el => [el, scenes.find(s => s.kind === kindOf(el) && s.key && s.key === keyOf(el))]));
   for (const sc of mine.values()) if (sc) used.add(sc);
@@ -313,7 +317,15 @@ export function show(els) {
     const kind = kindOf(el);
     const sc = mine.get(el) || scenes.find(s => s.kind === kind && !used.has(s)) || makeScene(kind);
     used.add(sc); sc.key = keyOf(el);
-    sc.ready.then(() => { if (el.isConnected) attach(sc, el); }).catch(err => console.warn('Décor de la boutique indisponible', err));
+    sc.ready.then(() => { if (el.isConnected && !sc.dead) attach(sc, el); }).catch(err => console.warn('Décor de la boutique indisponible', err));
   }
   for (const sc of scenes) if (!used.has(sc)) sc.ready.then(() => detach(sc)).catch(() => {});
+}
+// Hors de la boutique, ses toiles sont rendues au navigateur : il limite le nombre de contextes WebGL ouverts (plus bas sur
+// téléphone) et retirait sinon le leur aux toiles plus anciennes, celles du fond des menus. Elles sont recréées au retour.
+function release() {
+  for (const sc of scenes.splice(0)) {
+    sc.dead = true;
+    sc.ready.then(() => { detach(sc); for (const t of sc.bgs.values()) t.destroy(true); sc.bgs.clear(); sc.app.destroy(true, { children: true }); }).catch(() => {});
+  }
 }

@@ -953,6 +953,11 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .mdot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
 .chip.gift { border-color: var(--accent); color: var(--accent); font-weight: 700; }
 .mailbody { margin: 0; line-height: 1.5; }
+/* Signaler un bug (bugs.js) : encart en bas du courrier et feuille du formulaire. */
+.bugbox { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.bugbox > div { flex: 1 1 220px; display: grid; gap: 4px; }
+.bugform textarea { box-sizing: border-box; width: 100%; resize: vertical; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 9px 11px; line-height: 1.4; }
+.bugshot { max-width: min(220px, 60%); max-height: 160px; border-radius: var(--r); border: 1px solid var(--line); object-fit: contain; }
 
 /* Familles d'arts en boutique : nom, cartes de la famille et progression. */
 .artthemes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }

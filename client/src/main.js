@@ -19,6 +19,7 @@ import { startTutorial, LESSONS } from './tutorial.js';
 import { codexHTML } from './codex.js';
 import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
+import { createBugs } from './bugs.js';
 import { createNews } from './news.js';
 import { createNotifs } from './notifs.js';
 import { createClan, crestHTML } from './clan.js';
@@ -76,7 +77,8 @@ const app = document.getElementById('app');
 const friends = createFriends({ ui, render: () => render(), call: (...x) => call(...x), avatarHTML: (...x) => avatarHTML(...x), errLine: () => errLine(),
   deckError, play: (...x) => play(...x), generalName: id => GENERALS[id]?.name || t('Sans général'), startFriendMatch: (...x) => startFriendMatch(...x), onMail: () => mail.pushed(), onNews: () => news.pushed() });
 // Courrier et codes cadeaux (mail.js).
-const mail = createMail({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), rewardItem: r => rewardItem(r), play: (...x) => play(...x) });
+const bugs = createBugs({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine() });
+const mail = createMail({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), rewardItem: r => rewardItem(r), play: (...x) => play(...x), bugBox: () => bugs.box() });
 // Nouveautés (news.js) : annonces des mises à jour majeures et des sets, à la une sur l'accueil.
 const news = createNews({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine() });
 // Clans (clan.js) : création, adhésion, missions de clan, dons, magasin et classement des clans.
@@ -2027,6 +2029,7 @@ function closeSheet() {
   if (ui.sheet === 'need') { leaveNeed(); ui.error = ''; render(); return; }
   if (ui.sheet === 'inbox') closeInbox();
   if (ui.sheet === 'mail-got') mail.closeGot();
+  if (ui.sheet === 'bug') { bugs.closed(); ui.error = ''; }
   ui.sheet = ui.sheet === 'zoom' && ui.zoomBack ? ui.zoomBack : null; ui.zoom = null; ui.zoomBack = null; ui.renaming = null; ui.gotArt = null; ui.calGot = null; ui.welGot = null; ui.msg = '';
   if (ui.sheet !== 'player') ui.player = null;
   render();
@@ -2129,6 +2132,7 @@ function sheetHTML() {
   if (ui.sheet === 'welcome' && prog().welcome) return welcomeHTML(prog().welcome);
   if (ui.sheet === 'event') { const ev = prog().events?.live.find(x => x.id === ui.evSel); if (ev) return eventSheet(ev); }
   if (ui.sheet === 'mail-got') return mail.gotSheet();
+  if (ui.sheet === 'bug') return bugs.sheet();
   if (ui.sheet === 'art' && ui.gotArt) {
     const art = ARTS[ui.gotArt.id], on = mySel(art.card) === art.id;
     return `<div class="sheet" data-act="close"><div class="panel gotart" data-stop="1"><div class="ph"><h2>${ui.gotArt.chest ? t('Coffre d\'arts') : t('Nouvel art')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
@@ -2544,7 +2548,7 @@ function leaveTable() {
   if (ui.auth) api('GET', '/api/me', undefined, ui.auth).then(r => { setAccount(r.account); render(); }).catch(() => {});
 }
 app.addEventListener('input', e => {
-  if (friends.input(e) || mail.input(e) || clan.input(e)) return;
+  if (friends.input(e) || mail.input(e) || bugs.input(e) || clan.input(e)) return;
   if (e.target.id === 'login-id') ui.loginId = e.target.value;
   if (e.target.id === 'login-pass') ui.loginPass = e.target.value;
   if (e.target.id === 'deck-name' && ui.edit) ui.edit.name = e.target.value;
@@ -2559,7 +2563,7 @@ app.addEventListener('input', e => {
 });
 app.addEventListener('change', e => {
   // Réglages du son : on fait entendre (ou sentir) le résultat tout de suite.
-  if (notifs.change(e)) return;
+  if (notifs.change(e) || bugs.change(e)) return;
   if (e.target.id === 'sfx-volume') play('place');
   if (e.target.id === 'sound-on') { setMuted(!e.target.checked); play('validate'); render(); }
   if (e.target.id === 'vibrations-on') { setVibrations(e.target.checked); buzz(40); }
@@ -2569,7 +2573,7 @@ app.addEventListener('change', e => {
 });
 app.addEventListener('submit', e => {
   e.preventDefault(); if (ui.busy) return;
-  if (friends.submit(e.target) || mail.submit(e.target) || clan.submit(e.target)) return;
+  if (friends.submit(e.target) || mail.submit(e.target) || bugs.submit(e.target) || clan.submit(e.target)) return;
   if (e.target.id === 'login-form') doLogin();
   else if (e.target.id === 'name-form') saveName();
   else if (e.target.id === 'rename-form') renameDeck();
@@ -2586,7 +2590,7 @@ app.addEventListener('click', e => {
   if (ds.act) {
     const a = ds.act;
     if (a === 'friends' && ui.sheet === 'play-friend') { ui.sheet = null; ui.error = ''; }
-    if (friends.click(a, ds) || mail.click(a, ds) || news.click(a, ds) || clan.click(a, ds) || boss.click(a, ds) || story.click(a, ds) || casino.click(a, ds) || gameHistory.click(a, ds) || notifs.click(a)) return;
+    if (friends.click(a, ds) || mail.click(a, ds) || bugs.click(a) || news.click(a, ds) || clan.click(a, ds) || boss.click(a, ds) || story.click(a, ds) || casino.click(a, ds) || gameHistory.click(a, ds) || notifs.click(a)) return;
     if (a === 'close') closeSheet();
     else if (a === 'zplay' || a === 'zmove') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null;
       if (a === 'zplay') { ui.sel = uid; ui.moveSel = null; } else { ui.moveSel = uid; ui.sel = null; }

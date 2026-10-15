@@ -9,6 +9,7 @@
 // redessiner la page (render de main.js) ne fait que recaler la même scène au même instant.
 import { Application, Color, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import { play, buzz } from './sfx.js';
+import { guardGL } from './gl-guard.js';
 import { multLabel } from '@jeu/engine/events';
 import { t, tp } from '@jeu/engine/i18n';
 
@@ -38,7 +39,7 @@ async function boot() {
   app = new Application();
   await app.init({ backgroundAlpha: 0, width: 300, height: 200, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 2), preference: 'webgl' });
   Object.assign(app.canvas.style, { display: 'block', width: '100%', height: '100%', cursor: 'pointer', touchAction: 'manipulation' });
-  app.canvas.setAttribute('aria-hidden', 'true'); app.canvas.className = 'endreel-cv';
+  app.canvas.setAttribute('aria-hidden', 'true'); app.canvas.className = 'endreel-cv'; guardGL(app.canvas);
   app.canvas.addEventListener('pointerdown', skip);
   glowTex = radial(128, [[0, 'rgba(255,255,255,1)'], [0.35, 'rgba(255,255,255,.35)'], [1, 'rgba(255,255,255,0)']]);
   sparkTex = radial(32, [[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(255,255,255,.8)'], [1, 'rgba(255,255,255,0)']]);
