@@ -23,6 +23,7 @@ import { createCatalog } from './cards.js';
 import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
 import { createNews } from './news.js';
+import { NEWS_SEED } from './news-seed.js';
 import { planning } from './planning.js';
 import { createClans } from './clans.js';
 import { createBoss } from './boss.js';
@@ -55,6 +56,7 @@ const mail = createMail(store, accounts, { notify: logins => logins.forEach(l =>
 await mail.publishNotes(NOTES_MAJ);
 // Nouveautés : annonces des mises à jour majeures et des sets ; la pastille de l'accueil se met à jour dès qu'une annonce paraît.
 const news = createNews(store, accounts, { notify: logins => logins.forEach(l => friends.notify(l, { t: 'news' })) });
+await news.publishSeed(NEWS_SEED);
 // Notifications push : rien n'est envoyé à un joueur qui a l'appli ouverte (sa connexion de présence le prévient déjà).
 const push = createPush(store, accounts, { isOnline: friends.online, events: accounts.progress.events });
 friends.setPush(push);
