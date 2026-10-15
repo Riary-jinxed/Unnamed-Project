@@ -424,4 +424,5 @@ export default {
   "{n} montée par jour, après la quête.": "{n} climb per day, after the quest.",
   "{n} montées par jour, après la quête.": "{n} climbs per day, after the quest.",
   "Les Jetons ne servent qu'à la boutique du casino et disparaissent quand elle ferme, le {until}.": "Chips are only for the casino shop and vanish when it closes, on {until}.",
+  "Alignez trois 7 pour le Jackpot : {n} Jetons !": "Line up three 7s for the Jackpot: {n} Chips!",
 };

@@ -47,7 +47,7 @@ export function themeShopHTML(app) {
     const tryBtn = own ? '' : tryThemeHTML(ui, id);
     return `<li class="themeitem ${cur ? 'on' : ''}">${themeCover(id)}<b>${esc(name)}</b><div class="row">${tryBtn}${act}</div></li>`;
   };
-  const elsewhere = Object.keys(EXTRA_THEMES).filter(id => WHERE[themeShop(id)]);
+  const elsewhere = Object.keys(EXTRA_THEMES).filter(id => WHERE[themeShop(id)] && themeOut(id));
   return `<section class="card-box shopset themeshop">
     <div><span class="eyebrow">${t('Cosmétique')}</span><h2 style="font-size:22px">${t('Thèmes de l\'interface')}</h2></div>
     <p class="hint" style="margin:0">${t('Habillez toute l\'appli aux couleurs d\'un général : menus, boutons, table de partie, et son portrait en fond. Un thème acheté est aussitôt choisi ; changez-en quand vous voulez dans votre profil, rubrique Personnalisation.')}</p>

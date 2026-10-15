@@ -46,14 +46,14 @@ export function createCasino(app) {
   function reelsHTML() {
     const S = C.spin, D = C.data, last = S?.reels || D.lastSpin || ['7', '7', '7'];
     const elapsed = S ? Date.now() - S.at : 0;
-    return `<div class="slot ${S && !S.done ? 'spinning' : ''} ${S?.done && S.pay !== 'none' ? 'won' : ''} ${S?.done && S.pay === 'jackpot' ? 'jackpot' : ''}" style="--sym:${SYM}px">
+    return `<div class="slotm ${S && !S.done ? 'spinning' : ''} ${S?.done && S.pay !== 'none' ? 'won' : ''} ${S?.done && S.pay === 'jackpot' ? 'jackpot' : ''}" style="--sym:${SYM}px">
       <div class="slot-lights" aria-hidden="true"></div>
       <div class="slot-reels" role="img" aria-label="${esc(last.join(' '))}">${last.map((s, i) => {
         if (!S || S.done) return `<div class="slot-reel"><div class="slot-strip">${symHTML(s)}</div></div>`;
         const strip = S.strips[i].concat(s);
         return `<div class="slot-reel"><div class="slot-strip go" style="--n:${strip.length - 1};animation-duration:${SPIN_MS[i]}ms;animation-delay:-${Math.min(elapsed, SPIN_MS[i])}ms">${strip.map(symHTML).join('')}</div></div>`;
-      }).join('')}</div>
-      <div class="slot-win" role="status">${S?.done ? (S.pay === 'none' ? t('{name} : +{n} Jetons', { name: esc(t(S.name)), n: S.chips }) : t('<b>{name}</b> : +{n} Jetons !', { name: esc(t(S.name)), n: S.chips })) : S ? t('Les rouleaux tournent…') : '&nbsp;'}</div></div>`;
+      }).join('')}</div></div>
+      <div class="slot-win ${S?.done && S.pay !== 'none' ? 'won' : ''}" role="status">${S?.done ? (S.pay === 'none' ? t('{name} : +{n} Jetons', { name: esc(t(S.name)), n: S.chips }) : t('<b>{name}</b> : +{n} Jetons !', { name: esc(t(S.name)), n: S.chips })) : S ? t('Les rouleaux tournent…') : `<span class="hint">${t('Alignez trois 7 pour le Jackpot : {n} Jetons !', { n: SLOT_PAYS[0].chips })}</span>`}</div>`;
   }
   function slotHTML() {
     const D = C.data, live = D.phase === 'open', left = D.spins;

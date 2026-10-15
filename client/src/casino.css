@@ -39,11 +39,11 @@
 .cres.locked { opacity: .55; }
 
 /* Machine à sous */
-.slot { --gold: #e3b552; position: relative; display: grid; gap: 10px; justify-items: center; padding: 16px 14px 12px; border-radius: 18px;
+.slotm { --gold: #e3b552; position: relative; display: grid; place-items: center; padding: 16px; border-radius: 18px;
   background: linear-gradient(180deg, #7a121c, #3a070c); border: 3px solid var(--gold); box-shadow: inset 0 0 18px rgb(0 0 0 / .55), 0 6px 18px rgb(0 0 0 / .35); }
 .slot-lights { position: absolute; inset: 5px; border-radius: 14px; pointer-events: none;
   background: radial-gradient(circle, #ffe9a8 0 2.2px, transparent 3px) 0 0 / 16px 16px; opacity: .35; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; padding: 6px; }
-.slot.spinning .slot-lights, .slot.won .slot-lights { animation: slotBlink .5s steps(2) infinite; opacity: .9; }
+.slotm.spinning .slot-lights, .slotm.won .slot-lights { animation: slotBlink .5s steps(2) infinite; opacity: .9; }
 @keyframes slotBlink { 50% { background-position: 8px 8px; } }
 .slot-reels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(100%, 300px); }
 .slot-reel { height: var(--sym); overflow: hidden; border-radius: 10px; background: linear-gradient(180deg, #d9cfb8, #fffaf0 30% 70%, #d9cfb8); border: 2px solid #2a0508;
@@ -55,15 +55,15 @@
 .sym.red { color: #b8202a; }
 .sym.bar { font-family: var(--display); font-size: calc(var(--sym) * .32); letter-spacing: .04em; }
 .sym.seven { color: #c8141f; font-weight: 700; text-shadow: 0 2px 0 #e3b552; }
-.slot-win { min-height: 1.4em; color: #fff3cf; font-size: 14px; text-align: center; }
-.slot.won .slot-win b { color: var(--gold); }
-.slot.jackpot { animation: slotJack .9s ease-out 2; }
+.slot-win { min-height: 1.4em; margin-top: -4px; font-size: 14px; text-align: center; }
+.slot-win.won b { color: var(--gold, #e3b552); font-size: 15px; }
+.slotm.jackpot { animation: slotJack .9s ease-out 2; }
 @keyframes slotJack { 30% { transform: scale(1.03); box-shadow: 0 0 34px #e3b552; } }
 .slotbtn { width: 100%; }
 .slot-pays summary { cursor: pointer; font-size: 13px; color: var(--muted); }
 .slot-pays ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 3px; font-size: 13px; }
 .slot-pays li { display: flex; justify-content: space-between; gap: 10px; }
-@media (prefers-reduced-motion: reduce) { .slot-strip.go { animation-duration: 1ms !important; } .slot.spinning .slot-lights, .slot.won .slot-lights, .slot.jackpot { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .slot-strip.go { animation-duration: 1ms !important; } .slotm.spinning .slot-lights, .slotm.won .slot-lights, .slotm.jackpot { animation: none; } }
 
 /* Quitte ou double */
 .qod-ladder { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
@@ -89,3 +89,8 @@
 .tabbar .tab-event svg { color: #e3b552; filter: drop-shadow(0 0 4px rgb(200 20 31 / .7)); }
 .tabbar .tab-event:not(.on) span:not(.badge) { color: #e8c877; }
 .tabbar[style*="--cols:6"] button { font-size: 11px; letter-spacing: 0; }
+
+/* Le bandeau garde ses couleurs sous tous les thèmes (themes.css recolore les .eyebrow), et les gros boutons tiennent sur une ligne */
+body .chero .eyebrow, body[data-season] .chero .eyebrow { color: #e3b552; text-shadow: 0 1px 2px #000; }
+body[data-season] .chero .eyebrow::before { color: inherit; }
+:is(.cslot, .cqod) .playbtn > span { font-size: clamp(19px, 6.2vw, 26px); }
