@@ -368,4 +368,5 @@ export default {
   "Cadre animé, vendu seulement ici.": "Animated frame, only sold here.",
   "Déjà à vous": "Already yours",
   "{name} : à vous ! Portez-le depuis la Personnalisation.": "{name}: it's yours! Wear it from Customization.",
+  "Aperçu au {day}": "Preview as of {day}",
 };

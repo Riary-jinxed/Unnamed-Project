@@ -1227,3 +1227,8 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .emolist.free .ebubble.static { font-size: 13px; padding: 5px 10px 5px 7px; box-shadow: 0 0 0 1px #4a3214; }
 .emolist.free .ebubble.static .ei { font-size: 17px; }
 .emoitem .btn { flex: none; display: inline-flex; align-items: center; gap: 4px; }
+
+/* Compte testeur : rappel discret du jour d'aperçu (réglé dans /admin), par-dessus tous les écrans. */
+.preview-tag { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 4px); left: 50%; transform: translateX(-50%); z-index: 9999; pointer-events: none;
+  padding: 2px 10px; border-radius: 999px; background: #b4235a; color: #fff; font-size: 12px; font-weight: 600; letter-spacing: .02em;
+  box-shadow: 0 2px 8px rgb(0 0 0 / .35); white-space: nowrap; opacity: .92; }

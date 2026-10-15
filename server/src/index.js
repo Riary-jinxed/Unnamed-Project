@@ -36,6 +36,7 @@ import { createCasino } from './casino.js';
 import { createPush } from './push.js';
 import { createFollow } from './follow.js';
 import { NOTES_MAJ } from './notes-maj.js';
+import { atPreview, inRequest, previewOf } from './preview.js';
 
 // Traductions anglaises (moteur et serveur) : messages d'erreur, notifications et textes envoyés aux joueurs dans leur langue.
 addStrings('en', engineEn);
@@ -127,7 +128,7 @@ function streamFile(res, file, start = 0, end = file.size - 1) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/health') { res.end('ok'); return; }
-  if (await api(req, res, url)) return;
+  if (await inRequest(() => api(req, res, url))) return;
   if (url.pathname === '/admin') url.pathname = '/admin.html';
   let path;
   try { path = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, ''); } catch { path = '..'; }
@@ -191,7 +192,7 @@ function lobby(room) {
 function startMatch(room) {
   if (room.ranked === 'ai') { const acc = accounts.byToken(room.seats[0].auth); if (acc) room.seats[1] = aiSeat(acc); }
   const decks = room.seats.map(s => { if (s.boss) return null; if (s.ai) return pick(aiDeckKeys());
-    const acc = accounts.byToken(s.auth), d = acc && ((room.boss && boss.deckFor(acc, room.boss)) || deckOf(acc, s.deckId)); return d && !deckError(d, acc) ? d : s.deck; });
+    const acc = accounts.byToken(s.auth), d = acc && ((room.boss && boss.deckFor(acc, room.boss)) || deckOf(acc, s.deckId)); return d && !atPreview(acc, () => deckError(d, acc)) ? d : s.deck; });
   room.decks = decks.map(d => (!d ? [] : typeof d === 'string' ? DECKS[d].cards : d.cards));
   room.st = room.boss ? newBossGame(decks[0], room.boss, room.seats[0].name)
     : newGame(decks[0], decks[1], room.seats.map(s => s.name), { generals: decks.map(d => (typeof d === 'string' ? null : d.general)) });
@@ -346,6 +347,8 @@ function handle(ws, msg) {
   if (msg.t === 'ping') return send(ws, { t: 'pong' });
   if (msg.lang && validLang(msg.lang)) ws.lang = validLang(msg.lang);
   if (friends.handle(ws, msg)) return;
+  // Compte testeur (jour d'aperçu) : pas de classé ni de Boss, dont les classements sont partagés avec les autres joueurs.
+  if (['ranked', 'boss', 'clanboss'].includes(msg.t) && previewOf(accounts.byToken(msg.auth))) return send(ws, { t: 'error', msg: tr(wsLang(ws), 'Compte de test : le classé et les Boss sont fermés tant qu\'un jour d\'aperçu est réglé.') });
   if (msg.t === 'create') {
     const seat = seatFor(ws, msg); if (!seat) return;
     const room = { code: newCode(), seats: [null, null], plans: [null, null], st: null, busy: false, lastActive: Date.now() };
@@ -462,7 +465,7 @@ wss.on('connection', ws => {
   ws.alive = true;
   ws.on('error', e => console.error('Connexion WebSocket :', e.message));
   ws.on('pong', () => { ws.alive = true; });
-  ws.on('message', data => { ws.alive = true; try { handle(ws, JSON.parse(data)); } catch (e) { console.error(e); } });
+  ws.on('message', data => { ws.alive = true; try { const m = JSON.parse(data); atPreview(m && accounts.byToken(m.auth), () => handle(ws, m)); } catch (e) { console.error(e); } });
   ws.on('close', () => {
     friends.gone(ws);
     const room = ws.room; if (!room) return;

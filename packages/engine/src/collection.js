@@ -55,7 +55,13 @@ export function openBooster(owned = {}, rand = pick) {
 // Jour courant à Paris (AAAA-MM-JJ) : le booster quotidien revient à minuit, heure française.
 // Le format est créé une fois : en créer un à chaque appel coûtait cher (unrevealed() le demande pour chaque carte affichée).
 const PARIS_DAY = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' });
-export const today = (d = new Date()) => PARIS_DAY.format(d);
+// Jour d'aperçu (compte testeur, réglé dans /admin) : today() sans argument rend ce jour-là, pour voir sets, événements, saisons
+// et quêtes avant leur sortie. Le serveur le donne requête par requête (preview.js), l'appli d'après le compte connecté.
+// today(new Date()) reste le vrai jour : classé, Boss mondial, clans et compteurs partagés s'en servent.
+let previewDay = () => null;
+export const setPreviewDay = fn => { previewDay = fn || (() => null); };
+export const today = d => (d === undefined && previewDay()) || PARIS_DAY.format(d || new Date());
+export const realToday = () => PARIS_DAY.format(new Date());
 
 // Renvoie un message d'erreur, ou null si le deck est jouable avec cette collection.
 export function deckError(deck, account) {

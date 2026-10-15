@@ -358,4 +358,6 @@ export default {
   "Vous avez déjà envoyé plusieurs signalements : réessayez dans une heure.": "You've already sent several reports: try again in an hour.",
   "Décrivez le problème en quelques mots.": "Describe the problem in a few words.",
   "Capture d'écran invalide ou trop lourde.": "Invalid or too large screenshot.",
+  "Compte de test : le classé et les Boss sont fermés tant qu'un jour d'aperçu est réglé.": "Test account: ranked and Bosses are closed while a preview day is set.",
+  "Pas de défi classé avec un compte de test.": "No ranked challenge with a test account.",
 };

@@ -6,7 +6,7 @@
 // Statistiques des succès : storyChapters, storyCampaigns, storyLimited.
 // Une quête d'événement canon finie passe dans l'histoire principale (état « archive », sans art Promo) et sa carte rejoint le
 // booster du Set de base : releasedCards, joint au catalogue par cards.js ; onChange le prévient quand /admin change les dates.
-import { today } from '@jeu/engine/collection';
+import { today, realToday } from '@jeu/engine/collection';
 import { QUESTS, questById, isLimited, questCfg, questState, questDaysLeft, chapterReward, releasedStoryCards, DEFAULT_STORY, REWARD_KEYS, STORY_LIMITS } from '@jeu/engine/story';
 import { HttpError } from './accounts.js';
 import { msg } from '@jeu/engine/i18n';
@@ -105,7 +105,8 @@ export function createStory(store, accounts, { onChange = () => {}, onChapter = 
 
   return {
     tile,
-    releasedCards: () => releasedStoryCards(doc(), today()),
+    // Partagé par tous (catalogue servi) : au vrai jour, même appelé pendant la requête d'un compte testeur.
+    releasedCards: () => releasedStoryCards(doc(), realToday()),
     routes: {
       'GET /api/story': a => view(a),
       'POST /api/story/win': (a, body) => win(a, body || {}),
