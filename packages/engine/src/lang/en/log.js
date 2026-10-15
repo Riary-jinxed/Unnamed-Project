@@ -91,4 +91,7 @@ export default {
   "⟦{p}⟧ : ⟦{p}|ses|vos⟧ {n} prochains dés feront 6.": "⟦{p}⟧: ⟦{p}|their|your⟧ next {n} dice will roll a 6.",
   "⟦{p}⟧ : ⟦{p}|son|votre⟧ prochain dé fera 6.": "⟦{p}⟧: ⟦{p}|their|your⟧ next die will roll a 6.",
   "⟦{p}⟧ : 7 7 7, Jackpot !": "⟦{p}⟧: 7 7 7, Jackpot!",
+  "⟦{p}⟧ : Trésor +3.": "⟦{p}⟧: Treasure +3.",
+  "⟦{p}⟧ : Drop !": "⟦{p}⟧: Drop!",
+  "⟦{p}⟧ : aucune carte jouée, le Tempo est coupé.": "⟦{p}⟧: no card played, Tempo is cut.",
 };

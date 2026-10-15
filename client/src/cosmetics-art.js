@@ -533,6 +533,11 @@ const FRAMES = {
     const k = new Graphics(); k.roundRect(-18, -26, 36, 50, 5).fill(0xfff8e8).stroke(ink(3));
     k.circle(-5, 2, 7).circle(5, 2, 7).fill(0x1d1d1d); k.poly([-11, 0, 0, -15, 11, 0]).fill(0x1d1d1d); k.poly([-3, 4, 3, 4, 5, 14, -5, 14]).fill(0x1d1d1d);
     k.position.set(C, C - RB - 14); g.addChild(k); },
+  // 128 BPM : un vinyle noir aux sillons fins, liserés cyan et rose néon, et l'étiquette rose du disque en haut.
+  bpm: g => { ring(g, { base: 0x17171d, hi: 0x3a3a46, lo: 0x060608 });
+    for (let r = RH + 4; r < RB - 2; r += 4) g.circle(C, C, r).stroke({ width: 1, color: 0x30303c });
+    g.circle(C, C, RB + 3).stroke({ width: 3, color: 0x3ad7ff }).circle(C, C, RH - 3).stroke({ width: 3, color: 0xff4fbf });
+    const [x, y] = pt(C, C, (RH + RB) / 2, -Math.PI / 2); g.circle(x, y, 13).fill(0xff4fbf).stroke(ink(2)).circle(x, y, 3).fill(0x17171d); },
   // Boutique du casino : anneau rouge laqué cerclé d'or, ampoules d'enseigne tout autour, et trois 7 en haut.
   jackpot: g => { ring(g, { base: 0x9a1420, hi: 0xe0505a, lo: 0x4a070c });
     g.circle(C, C, RB + 3).stroke({ width: 4, color: 0xe3b552 }).circle(C, C, RH - 3).stroke({ width: 4, color: 0xe3b552 });

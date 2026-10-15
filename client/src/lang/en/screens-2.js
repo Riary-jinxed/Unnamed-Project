@@ -456,4 +456,11 @@ export default {
   "Conte": "Tale",
   "L'univers": "The world",
   "L'histoire des Terres d'Aube, à relire quand vous voulez : l'univers, puis les dialogues de chaque chapitre gagné, même après la fin d'un événement.": "The story of the Dawnlands, to reread whenever you like: the world, then the dialogue of every chapter you've won, even after an event ends.",
+  // 128 BPM
+  "Mots-clés de 128 BPM": "128 BPM keywords",
+  "Drop": "Drop",
+  "Drop : au début du tour 5, le « drop », les effets Drop de toutes les cartes en jeu se déclenchent, chez les deux joueurs, une seule fois. Une carte posée au tour 5 ou après ne le déclenche pas : il faut la poser avant. Une carte piratée ne le déclenche pas non plus. Un compte à rebours ♪ sur la carte dit dans combien de tours arrive le drop.": "Drop: at the start of turn 5, the \"drop\", the Drop effects of every card in play trigger, for both players, only once. A card played on turn 5 or later doesn't trigger it: you have to play it before. A hacked card doesn't trigger it either. A ♪ countdown on the card tells how many turns until the drop.",
+  "Tempo": "Tempo",
+  "Tempo N : la créature a +N tant que vous avez joué au moins une carte à chacun de vos tours. Un tour passé sans jouer coupe le Tempo pour le reste de la partie.": "Tempo N: the creature has +N as long as you have played at least one card on each of your turns. A turn without playing cuts Tempo for the rest of the match.",
+  "128 BPM : posez vos cartes Drop avant le tour 5, elles explosent toutes au drop. Le Tempo tient tant que vous jouez une carte à chaque tour.": "128 BPM: play your Drop cards before turn 5, they all explode at the drop. Tempo holds as long as you play a card every turn.",
 };

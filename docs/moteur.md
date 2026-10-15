@@ -104,6 +104,8 @@ Les effets s'écrivent avec les petites fonctions du moteur : `buff(st, carte, n
 
 Le Jackpot se déclenche la première fois que les 3 Sept d'un joueur sont en jeu en même temps, qu'ils soient révélés ou entrés par un effet : `P.jackpot` note le tour, ses créatures gagnent +2, puis les `onJackpot` de ses cartes en jeu et de son général se déclenchent, et `st.pause` s'allonge de 2,2 s pour l'animation. Une fois par partie.
 
+Drop et Tempo (128 BPM) : `onDrop(c, st)` se déclenche une fois au début du tour du drop (`DROP_TURN`, 5 ; `dropTurn(st, p)` le donne par joueur : 6 avec un général `lateDrop`, DJ Ohm, sauf s'il est piraté) pour les cartes en jeu non piratées, dans l'ordre de résolution (`doDrop`, appelé par `startTurn` ; `P.dropped` : tour du drop). Une carte posée au tour du drop ou après ne le déclenche donc pas. `tempo: N` donne +N (dans `power`) tant que le joueur a révélé au moins une carte à chacun de ses tours (`P.lastPlay`) ; un tour sans carte le coupe pour la partie (`P.tempoCut`, posé par `endTurn`). Un général `tempoOverload` (Pulsar) baisse de 1 le coût des Surcharges tant que le Tempo tient. La vue envoie `dropTurn`, `dropped` et `tempo` à l'appli (compte à rebours ♪ sur les cartes Drop).
+
 ## État d'une partie
 
 `newGame(deck0, deck1, noms, { generals, turns })` renvoie un objet simple (sérialisable en JSON). Un deck est la clé d'un deck préconstruit ou un objet `{ name, cards, terrains, general }`.

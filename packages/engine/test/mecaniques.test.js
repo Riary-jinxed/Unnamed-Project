@@ -516,3 +516,88 @@ describe('Autres mécaniques', () => {
     assert.deepEqual(st.result.zones, [0, 0, 1]);
   });
 });
+
+describe('Drop et Tempo', () => {
+  // Amène la partie au début du tour n (pioche vide, sans effet).
+  const auTour = (st, n) => { while (st.turn < n) startTurn(st); };
+
+  test('Drop : les cartes posées avant le tour 5 se déclenchent, pour les deux joueurs', () => {
+    const st = partie({ turn: 3 });
+    const a = jouer(st, 0, 'platiniste', 0), b = jouer(st, 1, 'headliner', 1);
+    auTour(st, 4);
+    assert.equal(pw(st, a), 2, 'pas encore de drop au tour 4');
+    auTour(st, 5);
+    assert.equal(pw(st, a), 7); assert.equal(pw(st, b), 11);
+    assert.equal(st.p[0].dropped, 5); assert.equal(st.p[1].dropped, 5);
+    auTour(st, 6);
+    assert.equal(pw(st, a), 7, 'une seule fois');
+  });
+
+  test('Drop : une carte posée au tour 5 ou après ne le déclenche pas', () => {
+    const st = partie({ turn: 4 });
+    auTour(st, 5);
+    const a = jouer(st, 0, 'platiniste', 0);
+    auTour(st, 7);
+    assert.equal(pw(st, a), 2);
+  });
+
+  test('DJ Ohm : le drop arrive au tour 6 pour vous seulement, avec +2 pour vos créatures Drop', () => {
+    const st = partie({ turn: 4, generals: ['dj_ohm', 'cartographe'] });
+    const a = jouer(st, 0, 'platiniste', 0), b = jouer(st, 1, 'platiniste', 0);
+    auTour(st, 5);
+    assert.equal(pw(st, a), 2); assert.equal(pw(st, b), 7);
+    auTour(st, 6);
+    assert.equal(pw(st, a), 9); assert.equal(pw(st, b), 7);
+  });
+
+  test('Larsen : un Drop piraté ne se déclenche pas', () => {
+    const st = partie({ turn: 3 });
+    const a = jouer(st, 1, 'headliner', 0);
+    jouer(st, 0, 'larsen', 0);
+    assert.equal(a.hacked, true);
+    st.p[1].deck = []; // le Malware n'est pas l'objet du test
+    auTour(st, 5);
+    assert.equal(pw(st, a), 4);
+  });
+
+  test('Caisson de basses et Daemon des basses renforcent la zone au drop', () => {
+    const st = partie({ turn: 3 });
+    const m = enJeu(st, 0, 'mercenaire', 0);
+    const d = jouer(st, 0, 'daemon_basses', 0);
+    jouer(st, 0, 'caisson', 0);
+    auTour(st, 5);
+    assert.ok(!st.p[0].board[0].includes(d), 'le Daemon est sacrifié');
+    assert.equal(pw(st, m), 3 + 2 + 3);
+  });
+
+  test('Tempo : tient tant que vous jouez à chaque tour, puis coupé pour la partie', () => {
+    const st = partie({ turn: 1 });
+    const r = jouer(st, 0, 'raveuse', 0);
+    assert.equal(pw(st, r), 3);
+    endTurn(st); startTurn(st);
+    assert.equal(pw(st, r), 3, 'carte jouée au tour 1');
+    endTurn(st);
+    assert.equal(st.p[0].tempoCut, 2);
+    assert.equal(pw(st, r), 1);
+    startTurn(st); jouer(st, 0, 'mercenaire', 1); endTurn(st);
+    assert.equal(pw(st, r), 1, 'reste coupé');
+  });
+
+  test('Pulsar : les Surcharges coûtent 1 sceau de moins tant que le Tempo tient', () => {
+    const st = partie({ seals: 1, generals: ['pulsar', 'cartographe'] });
+    const g = jouer(st, 0, 'gamin_augmente', 0);
+    assert.equal(pw(st, g), 4, 'Surcharge 1 gratuite');
+    const st2 = partie({ seals: 1, generals: ['pulsar', 'cartographe'] }); st2.p[0].tempoCut = 1;
+    assert.equal(pw(st2, jouer(st2, 0, 'gamin_augmente', 0)), 2);
+  });
+
+  test('Dancefloor et Scène principale', () => {
+    const st = partie({ turn: 4 });
+    st.p[0].terrains = ['dancefloor', 'scene', null];
+    const m = enJeu(st, 0, 'mercenaire', 0), s = enJeu(st, 0, 'golem', 1);
+    assert.equal(pw(st, m), 4);
+    const avant = pw(st, s);
+    auTour(st, 5);
+    assert.equal(pw(st, s), avant + 3);
+  });
+});

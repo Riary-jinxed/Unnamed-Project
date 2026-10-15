@@ -465,6 +465,48 @@ export const CARDS = {
   usurier:     { set: 'tapis', name: 'Usurier des Fosses', type: 'C', cost: 3, power: 3, kw: ['Démon'], text: 'Persistant : +1 par 1 ou 2 obtenu à vos dés cette partie (au plus +4).',
                  self: (c, st) => Math.min(4, st.p[c.owner].lows) },
 
+  // ---- Set 3.5 : 128 BPM (mini-set électro house) ----
+  // Drop : au début du tour 5 (le « drop », tour 6 avec DJ Ohm), les effets Drop des cartes en jeu se déclenchent, une fois (onDrop).
+  // Une carte posée au tour du drop ou après ne le déclenche pas. Tempo N : +N tant que vous avez joué une carte à chacun de vos tours (tempo).
+  // NEUTRES : le club
+  raveuse:     { set: 'bpm', name: 'Raveuse', type: 'C', cost: 1, power: 1, kw: [], tempo: 2, text: 'Tempo 2.' },
+  platiniste:  { set: 'bpm', name: 'Platiniste', type: 'C', cost: 2, power: 2, kw: [], text: 'Drop : +5.',
+                 onDrop: (c, st) => buff(st, c, 5) },
+  montee:      { set: 'bpm', name: 'Montée', type: 'S', cost: 1, power: 0, kw: [], text: 'Vos créatures avec Drop en jeu gagnent +2.',
+                 onReveal: (c, st) => mine(st, c.owner).filter(x => CARDS[x.id].onDrop).forEach(x => buff(st, x, 2)) },
+  stroboscope: { set: 'bpm', name: 'Stroboscope', type: 'S', cost: 2, power: 0, kw: [], text: 'Les créatures adverses ici perdent 1, et 2 de plus si c\'est le tour 5.',
+                 onReveal: (c, st) => creaturesAt(st, 1 - c.owner, c.zone).forEach(x => buff(st, x, st.turn === DROP_TURN ? -3 : -1)) },
+  caisson:     { set: 'bpm', name: 'Caisson de basses', type: 'C', cost: 3, power: 3, kw: [], text: 'Drop : vos autres créatures ici gagnent +3.',
+                 onDrop: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => x !== c).forEach(x => buff(st, x, 3)) },
+  danseur:     { set: 'bpm', name: 'Danseur infatigable', type: 'C', cost: 3, power: 3, kw: [], tempo: 3, text: 'Tempo 3.' },
+  mc_club:     { set: 'bpm', name: 'MC du club', type: 'C', cost: 2, power: 2, kw: [], text: 'Révélation : piochez une carte avec Drop de votre deck.',
+                 onReveal: (c, st) => tutor(st, c.owner, x => CARDS[x.id].onDrop) },
+  headliner:   { set: 'bpm', name: 'Headliner', type: 'C', cost: 4, power: 4, kw: [], text: 'Drop : +7.',
+                 onDrop: (c, st) => buff(st, c, 7) },
+  // Support : d'abord les familles du set 3 qui en ont besoin (Cyborg, Hacker, Vampire), une carte pour chacune des autres.
+  dj_augmente: { set: 'bpm', name: 'DJ augmenté', type: 'C', cost: 2, power: 2, kw: ['Cyborg'], text: 'Drop : Implant 4 sur lui-même.',
+                 onDrop: (c, st) => implant(st, c, 4) },
+  sono_chromee:{ set: 'bpm', name: 'Sono chromée', type: 'C', cost: 3, power: 3, kw: ['Cyborg'], text: 'Persistant : vos créatures avec Implant ici ont Tempo 1.',
+                 aura: (s, t, st) => t.owner === s.owner && t.zone === s.zone && t.implants && !st.p[s.owner].tempoCut ? 1 : 0 },
+  pirate_ondes:{ set: 'bpm', name: 'Pirate des ondes', type: 'C', cost: 2, power: 2, kw: ['Hacker'], tempo: 1, text: 'Tempo 1. Révélation : Malware 1.',
+                 onReveal: (c, st) => malware(st, c.owner, 1) },
+  larsen:      { set: 'bpm', name: 'Larsen', type: 'S', cost: 2, power: 0, kw: ['Hacker'], text: 'Piratage sur chaque créature adverse ici qui a Drop, puis Malware 1.',
+                 onReveal: (c, st) => { creaturesAt(st, 1 - c.owner, c.zone).filter(x => CARDS[x.id].onDrop).forEach(x => hack(st, x)); malware(st, c.owner, 1); } },
+  videuse:     { set: 'bpm', name: 'Videuse du club', type: 'C', cost: 2, power: 3, kw: ['Vampire'], tempo: 1, text: 'Tempo 1. Révélation : Drain 1 sur la créature adverse la plus faible ici.',
+                 onReveal: (c, st) => drain(st, c, weakest(st, creaturesAt(st, 1 - c.owner, c.zone)), 1) },
+  reine_nuit:  { set: 'bpm', name: 'Reine de la nuit blanche', type: 'C', cost: 4, power: 4, kw: ['Vampire'], text: 'Drop : Drain 2 sur chaque créature adverse ici.',
+                 onDrop: (c, st) => creaturesAt(st, 1 - c.owner, c.zone).forEach(x => drain(st, c, x, 2)) },
+  choeur_electro:{ set: 'bpm', name: 'Chœur électro', type: 'C', cost: 3, power: 3, kw: ['Ange'], text: 'Drop : vos autres Anges en jeu gagnent +1.',
+                 onDrop: (c, st) => mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)) },
+  daemon_basses:{ set: 'bpm', name: 'Daemon des basses', type: 'C', cost: 2, power: 2, kw: ['Démon'], text: 'Drop : il est sacrifié, et vos autres créatures ici gagnent +2.',
+                 onDrop: (c, st) => { const o = creaturesAt(st, c.owner, c.zone).filter(x => x !== c); destroy(st, c, c.owner); o.forEach(x => { if (stillThere(st, x)) buff(st, x, 2); }); } },
+  teufeur:     { set: 'bpm', name: 'Gobelin teufeur', type: 'C', cost: 1, power: 1, kw: ['Gobelin'], tempo: 1, text: 'Tempo 1.' },
+  barde_synthe:{ set: 'bpm', name: 'Barde synthé', type: 'C', cost: 3, power: 3, kw: ['Elfe'], text: 'Drop : piochez 1 carte, elle coûte 1 de moins.',
+                 onDrop: (c, st) => { const [x] = draw(st, c.owner, 1, true); if (x) x.discount = (x.discount || 0) - 1; } },
+  dragon_platines:{ set: 'bpm', name: 'Dragon des platines', type: 'C', cost: 3, power: 3, kw: ['Dragon'], text: 'Drop : votre Trésor gagne +3.',
+                 onDrop: (c, st) => { st.p[c.owner].treasure += 3; log(st, '⟦{p}⟧ : Trésor +3.', 'up', { p: c.owner }); } },
+  zombie_rave: { set: 'bpm', name: 'Zombie de la rave', type: 'C', cost: 2, power: 1, kw: ['Mort-vivant'], raise: true, tempo: 1, text: 'Relève. Tempo 1.' },
+
   // ---- Récompenses : jamais dans les boosters (voir rewards.js) ----
   // Une carte par famille complétée dans son set d'origine, et une carte Dieu par set complété.
   voix_aube:   { set: 'recompense', name: 'Voix de l\'Aube', type: 'C', cost: 4, power: 4, kw: ['Ange'], text: 'Révélation : +1 sceau au tour suivant. Grâce : vos autres créatures ici gagnent +1.',
@@ -532,6 +574,9 @@ export const CARDS = {
   as_pique:    { set: 'recompense', name: 'As de pique', type: 'C', cost: 3, power: 4, kw: [], text: 'Révélation : votre prochain dé fait 6. Persistant : +3 si votre Jackpot a eu lieu.',
                  onReveal: (c, st) => load(st, c.owner, 1),
                  self: (c, st) => (st.p[c.owner].jackpot ? 3 : 0) },
+  // 128 BPM complété : le dernier morceau de la nuit.
+  dernier_morceau:{ set: 'recompense', name: 'Dernier morceau', type: 'C', cost: 3, power: 3, kw: [], text: 'Drop : +4, et vos autres créatures avec Drop gagnent +1.',
+                 onDrop: (c, st) => { buff(st, c, 4); mine(st, c.owner).filter(x => x !== c && CARDS[x.id].onDrop).forEach(x => buff(st, x, 1)); } },
   // Quêtes d'histoire à durée limitée (story.js) : une carte neutre par quête, gagnée pendant la quête seulement.
   epouvantail: { set: 'recompense', name: 'Épouvantail hanté', type: 'C', cost: 3, power: 3, kw: [], text: 'Persistant : +3 tant que l\'adversaire a plus de créatures que vous ici.',
                  self: (c, st) => (creaturesAt(st, 1 - c.owner, c.zone).length > creaturesAt(st, c.owner, c.zone).length ? 3 : 0) },
@@ -711,6 +756,12 @@ export const GENERALS = {
                onRoll: (p, st, z, v) => { if (v <= 2) addZone(st, p, weakestZone(st, p), 2); } },
   fortuna:   { set: 'tapis', name: 'Fortuna, la Roue', fam: null, kind: 'Persistant',
                text: 'Quand vous faites 1 ou 2 à un dé, il est relancé une fois.', reroll: true },
+
+  // ---- Set 3.5 : 128 BPM ----
+  dj_ohm:    { set: 'bpm', name: 'DJ Ohm, la Fréquence', fam: null, kind: 'Persistant',
+               text: 'Pour vous, le drop arrive au tour 6 au lieu du tour 5, et vos créatures avec Drop y gagnent +2.', lateDrop: true },
+  pulsar:    { set: 'bpm', name: 'Pulsar, MC augmenté', fam: 'Cyborg', kind: 'Persistant',
+               text: 'Tant que votre Tempo tient (une carte jouée à chaque tour), vos Surcharges coûtent 1 sceau de moins.', tempoOverload: true },
 
   // ---- Boss mondiaux (boss.js) ----
   // Jamais en collection (boss: true, voir GENERAL_IDS). Le boss est le joueur 1, sans deck ni terrain, avec un Sbire dans chaque zone : à chaque tour, il joue
@@ -931,6 +982,10 @@ export const TERRAINS = {
   salle_coffres:{ set: 'tapis', name: 'Salle des coffres', fam: null, text: 'Fin de tour : vous lancez un dé ; sur 5 ou 6, votre créature la plus faible ici gagne +2.',
                onEndTurn: (p, st, z) => { if (roll(st, p, z, null, null) >= 5) { const w = weakest(st, creaturesAt(st, p, z)); if (w) buff(st, w, 2); } } },
   allee_machines:{ set: 'tapis', name: 'Allée des machines', fam: null, text: 'Vos Sept ici ont +2.', aura: (p, t) => t.owner === p && CARDS[t.id].seven ? 2 : 0 },
+  // ---- Set 3.5 ----
+  dancefloor:{ set: 'bpm', name: 'Dancefloor', fam: null, text: 'Vos créatures ici ont Tempo 1.', aura: (p, t, st) => t.owner === p && !st.p[p].tempoCut ? 1 : 0 },
+  scene:     { set: 'bpm', name: 'Scène principale', fam: null, text: 'Début du tour 5 : votre créature la plus puissante ici gagne +3.',
+               onStartTurn: (p, st, z) => { if (st.turn !== DROP_TURN) return; const s = strongest(st, creaturesAt(st, p, z)); if (s) buff(st, s, 3); } },
 };
 
 // ---- Decks préconstruits : la construction est libre, ces listes servent à tester ----
@@ -1003,6 +1058,13 @@ export const DECKS = {
   tapis:   { set: 'tapis', name: 'Maison de jeu', fam: null, general: 'fortuna',
              cards: ['joueuse_des', 'croupier', 'des_pipes', 'cartes_biseautees', 'as_manche', 'quitte_double', 'roulette', 'sept_pique', 'sept_trefle', 'sept_carreau', 'machine_sous', 'videur', 'flambeur', 'gros_lot', 'directeur'],
              terrains: ['casino_fosses', 'salle_coffres', 'allee_machines', 'ruines', 'champ'] },
+  // Set 3.5 : le club (Drop) et les Cyborgs qui jouent à chaque tour (Tempo).
+  bpm:     { set: 'bpm', name: 'Bass Drop', fam: null, general: 'dj_ohm',
+             cards: ['platiniste', 'montee', 'caisson', 'mc_club', 'headliner', 'stroboscope', 'dj_augmente', 'daemon_basses', 'reine_nuit', 'mercenaire', 'chevalier', 'titan', 'mercenaire_augmente', 'golem', 'unite_securite'],
+             terrains: ['scene', 'dancefloor', 'ruines', 'sanctuaire', 'marche_noir'] },
+  rythme:  { set: 'bpm', name: 'Rythme chromé', fam: 'Cyborg', general: 'pulsar',
+             cards: ['raveuse', 'danseur', 'sono_chromee', 'dj_augmente', 'gamin_augmente', 'samourai', 'bras_canon', 'surtension', 'chrome', 'pilote_meca', 'androide', 'colosse_augmente', 'pirate_ondes', 'videuse', 'legende_chrome'],
+             terrains: ['dancefloor', 'centrale', 'clinique', 'scene', 'parefeu'] },
 };
 
 // ---- Utilitaires ----
@@ -1042,7 +1104,7 @@ export function newGame(deck0, deck1, names = ['Joueur 1', 'Joueur 2'], opts = {
       hand: [], discard: [], terrainPlan: pool.slice(0, 3).map((t, i) => ({ t, z: zones[i], turn: i + 1 })),
       terrains: [null, null, null], board: [[], [], []], zoneBonus: [0, 0, 0],
       seals: 0, bonusSeals: 0, treasure: 0, lastUnspent: 0, perfectTurns: 0, lost: 0, moves: [], played: [],
-      stolen: 0, feasts: 0, spells: 0, malwareRun: 0, overloads: 0, loaded: 0, sixes: 0, lows: 0, rolls: [], rollCount: 0, jackpot: 0,
+      stolen: 0, feasts: 0, spells: 0, malwareRun: 0, overloads: 0, loaded: 0, sixes: 0, lows: 0, rolls: [], rollCount: 0, jackpot: 0, dropped: 0, tempoCut: 0, lastPlay: 0,
     };
   };
   const st = { turn: 0, p: [mk(0, deck0), mk(1, deck1)], log: [], nextUid: 1000, order: 0, leader: 0, over: false, sim: false };
@@ -1103,6 +1165,7 @@ export function power(st, c, auras = auraSources(st)) {
   const d = CARDS[c.id];
   let v = d.power + c.buff;
   if (d.self && !c.hacked) v += d.self(c, st);
+  if (d.tempo && !c.hacked && !st.p[c.owner].tempoCut) v += d.tempo;
   for (const s of auras) v += CARDS[s.id].aura(s, c, st);
   for (let p = 0; p < 2; p++) {
     const g = GENERALS[st.p[p].general]; if (g.aura && !genHacked(st, p)) v += g.aura(p, c, st);
@@ -1311,6 +1374,7 @@ function overload(st, c, n) {
   const P = st.p[c.owner];
   let cost = n;
   if (P.terrains[c.zone] === 'centrale') cost = Math.max(0, cost - 1);
+  if (cost && GENERALS[P.general].tempoOverload && !P.tempoCut && !genHacked(st, c.owner)) { cost--; P.genFired = (P.genFired || 0) + 1; }
   if (P.seals < cost) return false;
   P.seals -= cost; P.overloads++;
   if (cost) log(st, cost > 1 ? '{card} : Surcharge ({n} sceaux).' : '{card} : Surcharge ({n} sceau).', 'reveal', { card: nm(c.id), n: cost });
@@ -1373,6 +1437,26 @@ function checkJackpot(st, p) {
   for (const x of mine(st, p)) { const d = fx(x); if (d.onJackpot) d.onJackpot(x, st); }
   genHook(st, p, 'onJackpot');
 }
+
+// ---- Set 3.5 : Drop et Tempo ----
+// Drop : au début du tour DROP_TURN (un tour plus tard avec DJ Ohm, sauf s'il est piraté), une fois par joueur, les effets Drop
+// de ses cartes en jeu se déclenchent (dans l'ordre de résolution ; une carte piratée ne le déclenche pas). P.dropped : tour du drop.
+export const DROP_TURN = 5;
+export const dropTurn = (st, p) => (GENERALS[st.p[p].general].lateDrop && !genHacked(st, p) ? DROP_TURN + 1 : DROP_TURN);
+function doDrop(st, p) {
+  const P = st.p[p]; P.dropped = st.turn;
+  const list = ordered(st).filter(c => c.owner === p && fx(c).onDrop);
+  if (!list.length) return;
+  if (st.turn !== DROP_TURN) P.genFired = (P.genFired || 0) + 1;
+  log(st, '⟦{p}⟧ : Drop !', 'up', { p });
+  st.pause = (st.pause || 0) + 900;
+  for (const c of list) if (stillThere(st, c) && !c.hacked) CARDS[c.id].onDrop(c, st);
+  if (GENERALS[P.general].lateDrop && !genHacked(st, p)) for (const c of list) if (stillThere(st, c) && !c.hacked && isCreature(c)) buff(st, c, 2);
+}
+// Tempo : tient tant que le joueur a révélé au moins une carte à chacun de ses tours (P.lastPlay) ; un tour sans carte le coupe
+// pour le reste de la partie (P.tempoCut : tour où il a été coupé).
+const usesTempo = (st, p) => { const P = st.p[p]; return GENERALS[P.general].tempoOverload || P.terrains.includes('dancefloor')
+  || [...P.hand, ...P.deck, ...P.board.flat()].some(c => CARDS[c.id].tempo || c.id === 'sono_chromee'); };
 
 function summon(st, p, z, id) {
   if (free(st, p, z) <= 0) return null;
@@ -1445,6 +1529,7 @@ export function startTurn(st) {
     if (TERRAINS[plan.t].onReveal) TERRAINS[plan.t].onReveal(p, st, plan.z);
   }
   st.leader = computeLeader(st);
+  for (const p of [st.leader, 1 - st.leader]) if (!st.p[p].dropped && st.turn >= dropTurn(st, p)) doDrop(st, p);
   for (const c of ordered(st)) { const d = fx(c); if (d.onStartTurn && stillThere(st, c)) d.onStartTurn(c, st); }
   for (const p of [st.leader, 1 - st.leader]) {
     st.p[p].terrains.forEach((t, z) => { if (t && TERRAINS[t].onStartTurn) TERRAINS[t].onStartTurn(p, st, z); });
@@ -1490,7 +1575,7 @@ export function doStep(st, s) {
     c.playerMoved = st.turn; move(st, c, s.zone, SLOTS - P.board[s.zone].length + leaving); return c;
   }
   const c = [0, 1, 2].flatMap(z => P.board[z]).find(x => x.uid === s.uid); if (!c) return null;
-  c.pending = false; c.revealed = true; c.enteredTurn = st.turn; P.played.push(c.id);
+  c.pending = false; c.revealed = true; c.enteredTurn = st.turn; P.played.push(c.id); P.lastPlay = st.turn;
   const d = CARDS[c.id];
   log(st, '⟦{p}⟧ ⟦{p}|révèle|révélez⟧ {card} ({z}).', 'reveal', { p: s.p, card: nm(c.id), z: zn(c.zone) });
   if (d.sacrifice) {
@@ -1537,6 +1622,7 @@ export function endTurn(st) {
     const P = st.p[p];
     P.treasure += P.seals; P.lastUnspent = P.seals;
     if (P.seals === 0) P.perfectTurns++;
+    if (!P.tempoCut && P.lastPlay !== st.turn) { P.tempoCut = st.turn; if (!st.sim && usesTempo(st, p)) log(st, '⟦{p}⟧ : aucune carte jouée, le Tempo est coupé.', 'down', { p }); }
   }
   // Historique des joueurs : puissance de chaque zone et nombre de cartes révélées à la fin du tour (pas dans les simulations de l'IA).
   if (!st.sim) (st.trace ||= []).push({ pow: [0, 1].map(p => [0, 1, 2].map(z => zonePower(st, p, z))), n: [0, 1].map(p => st.p[p].played.length) });
@@ -1614,6 +1700,9 @@ function evalFor(st, p) {
     // Dés pipés en réserve : autant de 6 à venir. Sept en jeu : le Jackpot approche.
     if (P.loaded) s += P.loaded * 0.8 * (turnsOf(st) - st.turn) / turnsOf(st);
     if (!P.jackpot) { const n = new Set(mine(st, p).filter(x => CARDS[x.id].seven).map(x => x.id)).size; if (n) s += [0, 0.5, 2][n] || 0; }
+    // Cartes Drop en jeu avant le drop : leur effet viendra. Tempo qui tient : il rapportera encore.
+    if (!P.dropped) for (const c of mine(st, p)) if (CARDS[c.id].onDrop && !c.hacked) s += 2.5;
+    if (!P.tempoCut) for (const c of mine(st, p)) if (CARDS[c.id].tempo && !c.hacked) s += 0.3 * CARDS[c.id].tempo;
   }
   return s;
 }
@@ -1711,6 +1800,7 @@ export function viewFor(st, seat, extra = {}) {
       hand: isMe ? P.hand.map(c => ({ uid: c.uid, id: c.id, cost: costOf(st, c), power: CARDS[c.id].power + c.buff })) : undefined,
       handCount: P.hand.length, deckCount: P.deck.length, seals: P.seals,
       treasure: P.treasure, perfectTurns: P.perfectTurns, loaded: P.loaded || 0, sixes: P.sixes || 0, rolls: P.rolls ? P.rolls.slice() : [], jackpot: P.jackpot || 0,
+      dropTurn: dropTurn(st, p), dropped: P.dropped || 0, tempo: !P.tempoCut,
       terrains: P.terrains.slice(), zoneBonus: P.zoneBonus.slice(),
       terrainPlan: isMe && g.preview ? P.terrainPlan.filter(x => x.turn > st.turn) : undefined,
       board: P.board.map(z => z.slice().sort((a, b) => a.order - b.order).map(c =>

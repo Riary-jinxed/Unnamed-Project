@@ -1026,10 +1026,13 @@ function miniCard(c, opts = {}) {
   const mv = opts.mine && ui.view.phase === 'plan' && moveOf(c.uid);
   const mobile = opts.mine && c.mobile && canPlay();
   const seat = opts.mine || opts.pending ? ui.view.seat : 1 - ui.view.seat, lv = lvCls(borderIn(seat, c.id));
+  // 128 BPM : compte à rebours du drop sur les cartes Drop, tant que le drop de leur camp n'est pas passé.
+  const sd = opts.mine || opts.pending ? ui.view.me : ui.view.foe, left = d.onDrop && !sd.dropped && sd.dropTurn ? sd.dropTurn - ui.view.turn : 0;
+  const drop = left > 0 ? `<span class="drp" title="${tp(left, 'Drop dans {n} tour', 'Drop dans {n} tours')}">♪${left}</span>` : '';
   return `<div class="mc${lv} ${opts.pending || !c.revealed ? 'pending' : ''} ${mobile ? 'mobile' : ''} ${ui.moveSel === c.uid ? 'msel' : ''} ${mv ? 'moving' : ''} ${ui.drag === c.uid ? 'dragging' : ''}" style="${famVar(effigyKw(d))}"
     data-card="${c.uid}" data-id="${c.id}" ${opts.pending ? 'data-pending="1"' : ''} ${mobile ? 'data-mobile="1"' : ''} title="${esc(d.name)}">
     ${artBg(c.id, artIn(seat, c.id))}${mv ? `<span class="mv" title="${t('Déplacée depuis {zone}', { zone: t(ZONE_NAMES[boardZone(c.uid)]) })}" aria-label="${t('Déplacée depuis {zone}', { zone: t(ZONE_NAMES[boardZone(c.uid)]) })}">⇄</span>` : mobile ? `<span class="mv" aria-label="${t('Déplaçable')}">⇄</span>` : ''}
-    <span class="n">${esc(d.name)}</span>${d.type === 'C' ? `<span class="p num ${cls}">${pw}</span>` : `<span class="p" style="font-size:12px">${t('Sort')}</span>`}</div>`;
+    ${drop}<span class="n">${esc(d.name)}</span>${d.type === 'C' ? `<span class="p num ${cls}">${pw}</span>` : `<span class="p" style="font-size:12px">${t('Sort')}</span>`}</div>`;
 }
 function slots(side, z, isMe) {
   // De son côté, pendant la préparation, les cartes déplacées s'affichent déjà dans leur nouvelle zone.
@@ -1092,6 +1095,11 @@ function pbar(side, isMe, connected, canGen = false) {
     side.sixes ? `<span class="num" title="${t('6 obtenus aux dés cette partie')}">${t('6 × {n}', { n: side.sixes })}</span>` : '',
     side.loaded ? `<span class="num" title="${t('Prochains dés pipés : ils feront 6')}">${t('Pipés {n}', { n: side.loaded })}</span>` : '',
     side.jackpot ? `<span class="num" title="${t('Les 3 Sept ont été en jeu : Jackpot')}">${t('Jackpot')}</span>` : '',
+    // 128 BPM : le drop à venir (s'il a des cartes Drop en jeu) et le Tempo (s'il a des cartes à Tempo en jeu).
+    !side.dropped && side.board.flat().some(c => c.revealed && CARDS[c.id]?.onDrop) && side.dropTurn > ui.view.turn
+      ? `<span class="num" title="${t('Les effets Drop se déclenchent au début de ce tour')}">${t('Drop au tour {n}', { n: side.dropTurn })}</span>` : '',
+    side.board.flat().some(c => c.revealed && (CARDS[c.id]?.tempo || c.id === 'sono_chromee')) || side.terrains.includes('dancefloor')
+      ? `<span class="num" title="${t('Le Tempo tient tant qu\'une carte est jouée à chaque tour')}">${side.tempo ? t('Tempo') : t('Tempo coupé')}</span>` : '',
   ].filter(Boolean).join('');
   const ready = !isMe && ui.view.phase === 'plan' && ui.view.ready.foe;
   const av = `${avatarHTML(who, 'pa')}${!isMe && ui.mode === 'online' ? `<span class="dot ${connected ? '' : 'off'}" title="${connected ? t('Connecté') : t('Déconnecté')}"></span>` : ''}`;
@@ -2434,6 +2442,9 @@ function viewEffects(prev, view) {
       setTimeout(() => { play('dice'); if (r.v === 6) play('six'); }, i * 260); }));
     if (view[side].jackpot && !prev[side].jackpot) after.push(() => { slotMachine(at('.board'), side, t('Jackpot !')); play('jackpot'); feel('win'); });
   }
+  // 128 BPM : le drop d'un joueur qui avait des cartes Drop en jeu, juste après le bandeau du tour.
+  const dropped = ['me', 'foe'].filter(side => view[side].dropped && !prev[side].dropped && prev[side].board.flat().some(c => c.revealed && CARDS[c.id]?.onDrop));
+  if (dropped.length) after.push(() => setTimeout(() => { banner(at('.board'), t('Drop !'), t('Les effets Drop se déclenchent'), 'reveal'); play('swing'); feel('win'); }, 1300));
   // Le général agit (activé, ou son pouvoir se déclenche) : son effet, un peu après ceux des cartes pour ne pas s'y superposer.
   for (const side of ['me', 'foe']) if ((!prev[side].generalUsed && view[side].generalUsed) || (view[side].genFired || 0) > (prev[side].genFired || 0)) {
     sounds.push('general'); after.push(() => setTimeout(() => generalFire(at(`.pbar.${side} [data-general]`)), 300));

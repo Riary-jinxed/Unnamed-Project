@@ -32,6 +32,7 @@ const TIPS = [
   { k: 'jeu', f: 'Vampire', t: t('Vampires : le Drain peut viser une carte de la main ou du deck adverse, qui arrivera affaiblie.') },
   { k: 'jeu', set: 'tapis', t: t('Casino : jouez un Croupier ou des Dés pipés avant vos cartes à Pari, votre prochain dé fera 6. Réunissez les 3 Sept pour le Jackpot.') },
   { k: 'jeu', f: 'Hacker', set: 'set3', t: t('Hackers : un Malware pioché vous coûte une pioche. Une créature piratée garde sa puissance mais perd ses effets.') },
+  { k: 'jeu', set: 'bpm', t: t('128 BPM : posez vos cartes Drop avant le tour 5, elles explosent toutes au drop. Le Tempo tient tant que vous jouez une carte à chaque tour.') },
   { k: 'jeu', f: 'Cyborg', set: 'set3', t: t('Cyborgs : gardez des sceaux en préparant votre tour, la Surcharge les dépense à la révélation.') },
   { k: 'menu', t: t('Le booster du jour est offert : revenez chaque jour pour l\'ouvrir.') },
   { k: 'menu', t: t('Chaque doublon tiré d\'un booster rapporte des Éclats et de l\'essence pour faire monter vos cartes de niveau.') },
