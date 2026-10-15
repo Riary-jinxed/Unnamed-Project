@@ -10,7 +10,7 @@ import { ARTS, rarityName } from '@jeu/engine/arts';
 import { TITLES } from '@jeu/engine/rewards';
 import { REEL, SLOT_PAYS, TABLES, QUEST_CHIPS, CONSOLATION, tableGame } from '@jeu/engine/casino';
 import { t, tp, tField, locale } from '@jeu/engine/i18n';
-import { themeCover, tryThemeHTML } from './themes.js';
+import { themeCover } from './themes.js';
 import './casino.css';
 
 const frDate = d => new Date(`${d}T12:00:00Z`).toLocaleDateString(locale(), { day: 'numeric', month: 'long', timeZone: 'UTC' });
@@ -129,9 +129,8 @@ export function createCasino(app) {
       const art = x.kind === 'art' ? ARTS[x.id.slice(4)] : null, cosmetic = !x.limit, soldOut = !cosmetic && x.bought >= x.limit;
       const state = x.owned ? `<span class="ok">${t('✓ Possédé')}</span>` : soldOut ? `<span class="hint">${t('Épuisé')}</span>`
         : `<button class="btn sm ${D.chips >= x.price ? 'primary' : ''}" data-act="casino-buy" data-item="${esc(x.id)}" ${ui.busy || D.chips < x.price ? 'disabled' : ''}>${app.ico('jeton')}${x.price}</button>`;
-      const tryIt = x.kind === 'theme' && !x.owned ? tryThemeHTML(ui, x.id.slice(6)) : '';
       return `<div class="citem ${x.owned ? 'owned' : ''} ${soldOut ? 'locked' : ''} k-${x.kind}">${itemVisual(x)}<b>${esc(t(x.name))}</b>
-        <small class="hint">${art ? `${esc(rarityName(art))} · ${esc((CARDS[art.card] || GENERALS[art.card]).name)}` : KIND[x.kind]}${cosmetic ? '' : ` · ${t('{n}/{max} pendant l\'événement', { n: x.bought, max: x.limit })}`}</small>${tryIt}${state}</div>`;
+        <small class="hint">${art ? `${esc(rarityName(art))} · ${esc((CARDS[art.card] || GENERALS[art.card]).name)}` : KIND[x.kind]}${cosmetic ? '' : ` · ${t('{n}/{max} pendant l\'événement', { n: x.bought, max: x.limit })}`}</small>${state}</div>`;
     };
     const buyBtn = x => `<button class="btn sm ${D.chips >= x.price ? 'primary' : ''}" data-act="casino-buy" data-item="${esc(x.id)}" ${ui.busy || D.chips < x.price ? 'disabled' : ''}>${app.ico('jeton')}${x.price}</button>`;
     const res = x => {
