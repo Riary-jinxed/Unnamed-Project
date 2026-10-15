@@ -83,4 +83,13 @@ export default {
   "⟦{p}⟧ : {card} en main -1 sceau, +1 puissance.": "⟦{p}⟧: {card} in hand -1 seal, +1 power.",
   "Partie interrompue : {reason}.": "Game interrupted: {reason}.",
   "interrompue par une mise à jour du jeu": "interrupted by a game update",
+  // Set 2.5 : Pari et Jackpot
+  "{card} : Pari gagné !": "{card}: Bet won!",
+  "{card} : Pari perdu.": "{card}: Bet lost.",
+  "⟦{p}⟧ : Pari gagné !": "⟦{p}⟧: Bet won!",
+  "⟦{p}⟧ : Pari perdu.": "⟦{p}⟧: Bet lost.",
+  "{card} : Jackpot !": "{card}: Jackpot!",
+  "⟦{p}⟧ : ⟦{p}|ses|vos⟧ {n} prochains Paris sont gagnés d'office.": "⟦{p}⟧: ⟦{p}|their|your⟧ next {n} Bets are won automatically.",
+  "⟦{p}⟧ : ⟦{p}|son|votre⟧ prochain Pari est gagné d'office.": "⟦{p}⟧: ⟦{p}|their|your⟧ next Bet is won automatically.",
+  "⟦{p}⟧ : Trésor +{n}.": "⟦{p}⟧: Treasure +{n}.",
 };

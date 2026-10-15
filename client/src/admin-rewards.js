@@ -2,6 +2,7 @@
 // Tout est enregistré dans le document « recompenses » ; les valeurs vides reprennent les valeurs par défaut.
 import { MISSIONS, WEEKLY_MISSIONS, ACHIEVEMENTS, FAMILY_REWARDS, SET_REWARDS, FRAMES, CARD_LEVELS, xpToNext } from '@jeu/engine/rewards';
 import { CARDS } from '@jeu/engine';
+import { setById } from '@jeu/engine/collection';
 import { TIERS, PLACES, seasonShardsKey, seasonPrismsKey, placeShardsKey, placePrismsKey } from '@jeu/engine/ranked';
 import { PASS_KINDS, PASS_TIERS, SEASONS, passMissionLabel, refundTier } from '@jeu/engine/pass';
 
@@ -90,8 +91,8 @@ export function rewardsTab({ call, render, say, esc, notice }) {
       <p class="hint" style="margin:0">Le premium se rembourse ${refundTier(x, r) ? `au palier ${refundTier(x, r)}` : 'jamais avec ces réglages'} ; un joueur assidu peut gagner environ ${passMonthXp(x, r).toLocaleString('fr-FR')} XP de saison sur le mois, pour ${(PASS_TIERS * r.passTierXp).toLocaleString('fr-FR')} nécessaires au palier ${PASS_TIERS}.</p>
       <div class="scroll"><table class="admin"><thead><tr><th>Mission de saison</th><th>Objectif</th><th>XP</th></tr></thead><tbody>${x.missions.map(m => { const v = r.passMissions[m.id];
         return `<tr><td>${esc(passMissionLabel({ ...m, target: v.target }))}</td>${['target', 'xp'].map(k => `<td><input id="pm-${m.id}-${k}" type="number" min="0" step="1" value="${v[k]}" style="width:90px" aria-label="${k}"></td>`).join('')}</tr>`; }).join('')}</tbody></table></div>`).join('');
-    const fams = FAMILY_REWARDS.map(f => `<li>${esc(f.fam)} (${f.set === 'base' ? 'Set de base' : 'Crépuscule'}) : ${esc(CARDS[f.card]?.name || f.card)}, titre « ${esc(f.title)} »</li>`).join('');
-    const sets = Object.entries(SET_REWARDS).map(([set, s]) => `<li>${set === 'base' ? 'Set de base' : 'Crépuscule'} : ${esc(CARDS[s.card]?.name || s.card)}, titre « ${esc(s.title)} », ${esc(FRAMES[s.frame])}</li>`).join('');
+    const fams = FAMILY_REWARDS.map(f => `<li>${esc(f.fam)} (${esc(setById(f.set)?.name || f.set)}) : ${esc(CARDS[f.card]?.name || f.card)}, titre « ${esc(f.title)} »</li>`).join('');
+    const sets = Object.entries(SET_REWARDS).map(([set, s]) => `<li>${esc(setById(set)?.name || set)} : ${esc(CARDS[s.card]?.name || s.card)}, titre « ${esc(s.title)} », ${esc(FRAMES[s.frame])}</li>`).join('');
     return `${notice()}
     <form class="card-box" id="rewards">
       ${GROUPS.map(([title, hint, fields]) => `<h2 style="font-size:20px">${title}</h2><p class="hint" style="margin:0">${hint}</p><div class="grid2">${fields.map(field).join('')}</div>`).join('')}

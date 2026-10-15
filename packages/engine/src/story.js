@@ -49,7 +49,7 @@ const C = (id, name, place, at, goal, f, reward, intro, outro, extra = {}) => ({
 // Titres des quêtes (ajoutés aux titres de rewards.js).
 export const STORY_TITLES = [
   ['histoire:razzia', 'Pillard de légende'], ['histoire:racines', 'Voix des racines'], ['histoire:pacte', 'Briseur de sceaux'],
-  ['quete:halloween', 'Briseur de sabbat'], ['quete:eclipse', 'Porteur d\'aube'], ['quete:neon', 'Passe-mondes'],
+  ['quete:halloween', 'Briseur de sabbat'], ['quete:casino', 'Roi du tapis vert'], ['quete:eclipse', 'Porteur d\'aube'], ['quete:neon', 'Passe-mondes'],
 ];
 
 // book : numéro du livre (campagnes), next : la quête qui raconte la suite.
@@ -310,6 +310,44 @@ export const QUESTS = [
           ['grisk', "Toi, tu t'appelles Lanterne, et tu ne manges pas les moutons."]]),
     ] },
 
+  // Tapis vert : la quête du mini-set casino, hors de l'histoire principale (elle disparaît une fois finie).
+  { id: 'casino', kind: 'limitee', fam: 'Gobelin', hero: 'grisk', name: 'Le Casino des Fosses', map: 'casino', from: '2026-10-23', to: '2026-11-15',
+    tagline: 'Les Démons ont ouvert un casino au bord des Fosses. On y mise des âmes, et Grisk compte bien tricher.',
+    prologue: "Une aventure hors de l'histoire. Depuis que le Septième Sceau est brisé, les Fosses ne sont plus fermées, et quelques Démons en sont sortis pour faire des affaires. Au bord de l'abîme s'est ouvert un casino où l'on mise des âmes. Grisk a reçu une invitation dorée. Il n'a pas d'âme à miser, mais il a des dés.",
+    deck: tweak('gobelin', ['potion', 'mercenaire', 'barde'], ['gobelin_tricheur', 'roulette', 'croupier'], { name: 'La mise de Grisk' }),
+    chapters: [
+      C('entree', 'L\'invitation dorée', 'L\'entrée du casino', [16, 72], "Passer la grande roue de Fortuna pour entrer au casino.",
+        foe('Fortuna, la Roue', 'fortuna', 'tapis', 40), R({ shards: 100, xp: 50 }),
+        [[NARRATOR, "Au bord des Fosses, une porte d'or s'ouvre sur un tapis vert qui n'en finit pas. Une grande roue tourne au-dessus, sans que personne ne la pousse."],
+          ['grisk', "« Invitation pour Grisk, Roi des Pillards. Mise minimum : une âme. » J'ai pas d'âme. J'ai des dés."],
+          ['fortuna', "Ici, tout le monde a quelque chose à miser, petit roi. Fais tourner la roue, et on verra ce que tu vaux."],
+          ['grisk', "Je la fais tourner. Mais c'est moi qui choisis où elle s'arrête."]],
+        [['fortuna', "Tu as gagné ? Personne ne gagne contre la roue. Tu as triché, n'est-ce pas ?"],
+          ['grisk', "Moi ? Jamais. Bon, un peu."],
+          ['fortuna', "Alors tu es le bienvenu. La croupière va t'adorer."]]),
+      C('table', 'La table des âmes', 'La salle des coffres', [50, 40], "Découvrir à qui appartiennent les âmes misées.",
+        foe('Velours, Croupière des Fosses', 'velours', 'fosses_misent', 60), R({ card: 'de_pipe', xp: 60 }),
+        [[NARRATOR, "Dans la salle des coffres, des âmes brillent dans des jetons de verre, empilées par centaines. Certaines ont des oreilles pointues et de grandes dents."],
+          ['grisk', "Hé ! Celles-là, ce sont des âmes de gobelins. Je reconnais Snagg à sa façon de briller de travers."],
+          ['velours', "Des âmes perdues au jeu, mon chou. Tout est en règle : ils ont misé, ils ont perdu."],
+          ['grisk', "Snagg ne sait même pas compter jusqu'à trois."],
+          ['velours', "Justement. C'est mon meilleur client."]],
+        [['velours', "Tu triches presque aussi bien que moi. Presque."],
+          ['grisk', "Rends-moi les âmes de la horde, et je te laisse tes jetons."],
+          ['velours', "Elles sont sur ma table, au fond. Viens les chercher sur le tapis noir. Une partie, quitte ou double."]]),
+      C('tapis_noir', 'Tapis noir', 'Le tapis noir', [84, 26], "Gagner la partie quitte ou double contre Velours et libérer les âmes de la horde.",
+        foe('Velours, Croupière des Fosses', 'velours', 'fosses_misent', 150, [1, 1, 1]), R({ shards: 150, xp: 100, boosters: 1, title: 'quete:casino' }),
+        [[NARRATOR, "Au fond du casino, au bord même des Fosses, une table de feutre noir. En face, Velours bat les cartes sans les regarder."],
+          ['velours', "Si tu gagnes, la horde rentre chez elle. Si tu perds, ton âme rejoint la pile. Et ta couronne aussi."],
+          ['grisk', "Marché conclu. Mais on joue avec mes dés."],
+          ['velours', "Mes dés, mon tapis, mes règles. C'est ça, la maison."]],
+        [[NARRATOR, "Les jetons de verre éclatent l'un après l'autre et les âmes des gobelins s'envolent vers la surface en se chamaillant."],
+          ['velours', "Personne n'avait jamais battu la maison. Tu reviendras, petit roi ?"],
+          ['grisk', "Seulement si tu m'invites."],
+          [NARRATOR, "Velours lance ses dés une dernière fois. Ils tombent tous sur la même face : un soleil noir, fendu en deux."],
+          ['velours', "Tiens. Ça, ce n'est pas moi qui l'ai truqué."]]),
+    ] },
+
   // Éclipse : quelques semaines, à la suite du Livre III.
   { id: 'eclipse', kind: 'limitee', canon: true, next: 'neon', fam: 'Ange', hero: 'seraphine', name: 'L\'Éclipse noire', map: 'eclipse', from: '2026-10-19', to: '2026-11-08',
     arts: { ignaroth: 'ignaroth_eclipse', vorgoth: 'vorgoth_cercle' },
@@ -486,7 +524,7 @@ export const STORY_TEXTS = { lore: LORE, titles: STORY_TITLES.map(([, name]) => 
 // Lieu de chaque chapitre (C(…).scene) : un terrain illustré (art/terrain) ou une carte. Sans illustration, l'appli montre le ciel de la carte.
 const SCENES = {
   razzia: ['terrier', 'guet', 'table', 'bois', 'aire'], racines: ['razzia', 'clairiere', 'cercle', 'couvoir', 'charnier'],
-  pacte: ['ruines', 'foire', 'chateau', 'autel', 'sanctuaire'], halloween: ['guet', 'cimetiere', 'chateau', 'cercle'],
+  pacte: ['ruines', 'foire', 'chateau', 'autel', 'sanctuaire'], halloween: ['guet', 'cimetiere', 'chateau', 'cercle'], casino: [null, 'salle_coffres', 'casino_fosses'],
   eclipse: ['prairie', 'charnier', 'nid', 'couvoir'], neon: [null, null, null, null],
 };
 for (const q of QUESTS) q.chapters.forEach((ch, i) => { ch.scene = SCENES[q.id]?.[i] || null; });

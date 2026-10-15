@@ -442,7 +442,7 @@ export function createAccounts(store) {
   // Leçon du tutoriel finie : Éclats la première fois, boosters offerts quand toutes les leçons de base le sont (le tutoriel avancé
   // ne rapporte que des Éclats). Affiché par le panneau de fin (silent).
   async function lessonDone(a, { lesson } = {}) {
-    const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l) throw new HttpError(400, msg('Leçon inconnue.'));
+    const l = TUTO_LESSONS.find(x => x.id === lesson); if (!l || (l.set && !setRevealed(setById(l.set)))) throw new HttpError(400, msg('Leçon inconnue.'));
     progress.init(a);
     const done = a.tuto ||= [];
     if (done.includes(l.id)) return { reward: null, account: me(a) };

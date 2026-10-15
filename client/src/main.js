@@ -205,7 +205,9 @@ function goTutorial(lesson = 'initiation') {
 }
 // Les leçons s'enchaînent dans l'ordre de LESSONS : la fin d'une leçon propose la suivante, et Passer y mène directement.
 // Les leçons de base ne mènent pas au tutoriel avancé : il se lance depuis « Apprendre ».
-const nextLesson = () => { const ks = Object.keys(LESSONS), i = ks.indexOf(ui.ctrl?.lesson), k = i >= 0 ? ks[i + 1] : null;
+// Leçon d'un set (set) : cachée avant sa sortie.
+const lessonOpen = l => !l.set || setRevealed(setById(l.set));
+const nextLesson = () => { const ks = Object.keys(LESSONS).filter(k => lessonOpen(LESSONS[k])), i = ks.indexOf(ui.ctrl?.lesson), k = i >= 0 ? ks[i + 1] : null;
   return k && !!LESSONS[k].advanced === !!LESSONS[ks[i]].advanced ? k : null; };
 // Leçon finie (une fois par partie jouée) : le serveur donne sa récompense la première fois, affichée dans le panneau de fin.
 function lessonDone() {
@@ -1049,6 +1051,8 @@ function pbar(side, isMe, connected, canGen = false) {
     `<span class="num">${t('Main {n}', { n: side.handCount })}</span>`, `<span class="num">${t('Deck {n}', { n: side.deckCount })}</span>`,
     side.treasure ? `<span class="num" title="${t('Sceaux non dépensés aux tours précédents')}">${t('Trésor {n}', { n: side.treasure })}</span>` : '',
     side.perfectTurns ? `<span class="num" title="${t('Tours finis avec tous les sceaux dépensés')}">${t('Grâce {n}', { n: side.perfectTurns })}</span>` : '',
+    side.betsWon || side.betsLost ? `<span class="num" title="${t('Paris gagnés et perdus cette partie (Jackpot)')}">${t('Paris {w}/{n}', { w: side.betsWon, n: side.betsWon + side.betsLost })}</span>` : '',
+    side.rigged ? `<span class="num" title="${t('Prochains Paris gagnés d\'office')}">${t('Truqués {n}', { n: side.rigged })}</span>` : '',
   ].filter(Boolean).join('');
   const ready = !isMe && ui.view.phase === 'plan' && ui.view.ready.foe;
   const av = `${avatarHTML(who, 'pa')}${!isMe && ui.mode === 'online' ? `<span class="dot ${connected ? '' : 'off'}" title="${connected ? t('Connecté') : t('Déconnecté')}"></span>` : ''}`;
@@ -1985,7 +1989,7 @@ function sheetHTML() {
   if (ui.sheet === 'learn') {
     const done = ui.account?.tuto || [];
     // Leçons de base, puis celles du tutoriel avancé (une mécanique de famille chacune), numérotées à part.
-    const lessons = adv => Object.entries(LESSONS).filter(([, l]) => !!l.advanced === adv).map(([k, l], i) => `<button class="lesson ${done.includes(k) ? 'done' : ''}" data-act="tuto" data-lesson="${k}"><span class="lesson-n num">${done.includes(k) ? '✓' : i + 1}</span>
+    const lessons = adv => Object.entries(LESSONS).filter(([, l]) => !!l.advanced === adv && lessonOpen(l)).map(([k, l], i) => `<button class="lesson ${done.includes(k) ? 'done' : ''}" data-act="tuto" data-lesson="${k}"><span class="lesson-n num">${done.includes(k) ? '✓' : i + 1}</span>
       <span class="lesson-t"><b>${esc(t(l.title))}</b><small>${esc(t(l.blurb))}</small></span>${done.includes(k) ? '' : `${ui.account?.tutoShards ? `<span class="lesson-r num">+${ui.account.tutoShards}${ico('shard')}</span>` : ''}`}</button>`).join('');
     return `<div class="sheet" data-act="close"><div class="panel" data-stop="1"><div class="ph"><h2>${t('Apprendre')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
       <p class="hint" style="margin:0">${t('Séraphine vous guide pendant une partie contre l\'IA, avec un deck prêt à jouer. Chaque leçon finie rapporte des Éclats la première fois, et un booster vous attend quand elles le sont toutes.')}</p>

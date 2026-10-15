@@ -30,6 +30,7 @@ Champs d'une carte : `name`, `type`, `cost`, `power`, `kw` (la famille, ex. `['E
 | `firewall` | Pare-feu : vos créatures dans sa zone (elle comprise) ne peuvent pas être piratées. |
 | `malware(st, p)` | Malware (jeton) : la fonction s'exécute quand le joueur `p` pioche la carte, qui disparaît sans être remplacée. |
 | `egg` | Œuf : éclôt selon son propre effet. |
+| `jackpot` | Jackpot N : `onJackpot(c, st)` se déclenche une fois, dès que son propriétaire a gagné N Paris (à la révélation si c'est déjà fait). |
 
 ### Crochets
 
@@ -55,6 +56,8 @@ Une carte piratée (`c.hacked`, posé par `hack(st, c)`) perd tous ses effets : 
 Les généraux ont `activate` (+ `needsZone`, `activateCost`) pour un effet activable une fois par partie, `aura`, `preview` (voit ses terrains à venir) et les crochets `onStart`, `onStartTurn`, `onEndTurn`, `onEndGame`, `onDraw`, `onDiscard`, `onSpell`, `onAllyDestroyed`, `onMalware` (un de vos Malwares s'exécute chez l'adversaire), `onHack(p, st, carte)`, `onOverload(p, st, zone, carte)` (Surcharge payée), `onRaise` (une carte se relève), qui reçoivent le numéro du joueur (`p`) au lieu d'une carte. Ces crochets passent par `genHook` : s'il a écrit au journal, le général a agi, et `P.genFired` compte un déclenchement de plus (envoyé dans la vue, `genFired`, pour que l'appli joue son effet). Les terrains ont `flat` (bonus de zone), `aura`, `onReveal`, `onStartTurn`, `onEndTurn`, `onAllyDestroyed`, `onCardReveal`, `onSpellHere`, `onFoeReveal` (une créature adverse est révélée ici), avec `p` et la zone. Un général piraté (`hackGeneral`, `genHacked(st, p)`) est muet jusqu'à la fin du tour suivant : ni crochets, ni activation.
 
 Les effets s'écrivent avec les petites fonctions du moteur : `buff(st, carte, n)`, `addZone`, `draw`, `summon`, `horde`, `feast`, `move`, `destroy`, `drain`, `exhume`, `discardFromHand`, `malware(st, p, n, type)` (type `virus`, `ver`, `rancon` ou `mix`), `hack`, `hackGeneral`, `implant(st, carte, n)`, `overload(st, carte, n)` (renvoie `true` si la Surcharge a été payée), et les sélecteurs `creaturesAt(st, p, zone)`, `mine(st, p)`, `weakest`, `strongest`, `bestZone`.
+
+Pari (Tapis vert) : `bet(st, p, z, id)` lance la pièce et renvoie `true` si le Pari est gagné (`betOn(st, c)` pour la carte `c`), `rig(st, p, n)` rend les `n` prochains Paris du joueur gagnés d'office. Les compteurs `betsWon`, `betsLost` et `rigged` sont tenus par joueur, et les généraux peuvent réagir avec `onBetWon` et `onBetLost`. `st.coins` (suite de `true`/`false`) fixe les prochains lancers, pour le tutoriel.
 
 ## État d'une partie
 

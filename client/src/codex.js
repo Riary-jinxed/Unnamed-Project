@@ -51,6 +51,10 @@ export const CODEX = [
     { name: t('Sortilège'), fam: 'Elfe', text: t('Se déclenche quand vous révélez un sort, dans n\'importe quelle zone.'), ex: ['apprentie', 'mage_bois'] },
   ] },
   // set : groupe caché avant la sortie de son set.
+  { id: 'tapis', set: 'tapis', title: t('Mots-clés du Tapis vert'), items: [
+    { name: t('Pari'), text: t('Pari : à la révélation, on lance une pièce, une chance sur deux. Gagné : l\'effet après « Gagné » s\'applique ; perdu : celui après « Perdu », s\'il y en a un. Certaines cartes rendent votre prochain Pari gagné d\'office : il est gagné sans lancer la pièce.'), ex: ['joueuse_des', 'croupier', 'flambeur'] },
+    { name: t('Jackpot'), text: t('Jackpot N : l\'effet se déclenche une fois, dès que vous avez gagné N Paris dans la partie, toutes vos cartes comprises. Si c\'est déjà le cas quand la carte arrive en jeu, il se déclenche à sa révélation.'), ex: ['gros_lot'] },
+  ] },
   { id: 'set3', set: 'set3', title: t('Mots-clés de la Cité Néon'), items: [
     { name: t('Malware'), fam: 'Hacker', text: t('Malware N : N Malwares sont glissés au hasard parmi les 6 premières cartes du deck adverse. Quand l\'adversaire en pioche un, il s\'exécute et disparaît sans être remplacé : le Virus fait perdre 1 à sa créature la plus puissante (1 sceau s\'il n\'en a pas), le Worm fait de même puis glisse un Virus dans son deck, le Ransomware fait coûter 1 de plus à la carte la plus chère de sa main.'), ex: ['script_kiddie', 'ver_polymorphe', 'casseuse'] },
     { name: t('Piratage'), fam: 'Hacker', text: t('La créature piratée perd tous ses effets (Persistant, Fin de tour, Grâce, Destruction, Déplaçable…) jusqu\'à ce qu\'elle quitte le jeu ; sa puissance et ses bonus déjà reçus restent. Un général piraté n\'agit plus jusqu\'à la fin du tour suivant, et ne peut pas être activé.'), ex: ['glitcheuse', 'brise_glace', 'coupe_circuit'] },

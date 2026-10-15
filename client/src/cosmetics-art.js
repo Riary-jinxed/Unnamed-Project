@@ -526,6 +526,14 @@ const FRAMES = {
   set3: g => { add(g, glow(() => new Graphics().circle(C, C, RB).stroke({ width: 10, color: 0xffffff }), 0x3ad7ff, 10, 0.8));
     ring(g, METAL.neon); beads(g, 12, (RH + RB) / 2, 0xff4fbf, 3.5); crown(g, 0x3ad7ff, [0x3ad7ff, 0xff4fbf, 0x3ad7ff]);
     g.circle(C, C, RB - 3).stroke({ width: 2.5, color: 0x3ad7ff }).circle(C, C, RH + 3).stroke({ width: 2.5, color: 0xff4fbf }); },
+  // Tapis vert : anneau de feutre vert cerclé d'or, jetons de casino rouges et noirs, et un as de pique en haut.
+  tapis: g => { ring(g, { base: 0x1a7a4a, hi: 0x5ad28a, lo: 0x0c3a22 });
+    g.circle(C, C, RB + 3).stroke({ width: 4, color: 0xe3b552 }).circle(C, C, RH - 3).stroke({ width: 4, color: 0xe3b552 });
+    for (let i = 0; i < 8; i++) { const a = Math.PI / 2 + (i - 3.5) * 0.36, [x, y] = pt(C, C, (RH + RB) / 2, a), col = i % 2 ? 0xb8202a : 0x1d1d1d;
+      g.circle(x, y, 9).fill(col).stroke(ink(2)).circle(x, y, 5).stroke({ width: 2, color: 0xfff3cf }); }
+    const k = new Graphics(); k.roundRect(-18, -26, 36, 50, 5).fill(0xfff8e8).stroke(ink(3));
+    k.circle(-5, 2, 7).circle(5, 2, 7).fill(0x1d1d1d); k.poly([-11, 0, 0, -15, 11, 0]).fill(0x1d1d1d); k.poly([-3, 4, 3, 4, 5, 14, -5, 14]).fill(0x1d1d1d);
+    k.position.set(C, C - RB - 14); g.addChild(k); },
   halloween: g => { const r = add(g, new Graphics()), m = (RH + RB) / 2, w = RB - RH;
     for (let i = 0; i < 12; i++) arc(r, C, C, m, i * TAU / 12, (i + 1) * TAU / 12).stroke({ width: w, color: i % 2 ? 0x1d1226 : 0xe8741c });
     r.circle(C, C, RB).stroke(ink(4.5)).circle(C, C, RH).stroke(ink(4.5));

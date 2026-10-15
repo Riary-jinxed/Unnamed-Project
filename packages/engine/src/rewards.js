@@ -84,6 +84,7 @@ export const REWARD_LIMITS = {
 
 // Leçons du tutoriel (client/src/tutorial.js, mêmes identifiants), dans l'ordre d'« Apprendre ». Chacune récompensée une fois.
 // advanced : tutoriel avancé (une mécanique de famille par leçon), qui ne compte pas pour les boosters offerts.
+// set : leçon d'un set, cachée et refusée avant sa sortie.
 // Une nouvelle mécanique de famille mérite sa leçon : voir docs/recettes.md.
 export const TUTO_LESSONS = [
   { id: 'initiation', name: 'Initiation' }, { id: 'effets', name: 'Effets et sorts' }, { id: 'terrains', name: 'Terrains et déplacements' },
@@ -91,6 +92,7 @@ export const TUTO_LESSONS = [
   { id: 'sceaux', name: 'Sceaux et Trésor', advanced: true }, { id: 'sacrifice', name: 'Sacrifice et Destruction', advanced: true },
   { id: 'releve', name: 'Défausse et Relève', advanced: true }, { id: 'drain', name: 'Drain et Échange', advanced: true },
   { id: 'sorts', name: 'Sortilège et Inspiration', advanced: true },
+  { id: 'pari', name: 'Paris et tricherie', advanced: true, set: 'tapis' },
 ];
 
 // XP pour passer du niveau `level` au suivant.
@@ -172,7 +174,7 @@ export const missionLabel = m => ALL_MISSIONS[m.id]?.label(m.target, m.fam, CARD
 export const FRAMES = {
   bronze: 'Cadre de bronze', argent: 'Cadre d\'argent', or: 'Cadre d\'or', legende: 'Cadre légendaire',
   flamme: 'Cadre de flammes', duel: 'Cadre du duelliste', tresor: 'Cadre du trésor', etoile: 'Cadre étoilé',
-  base: 'Couronne du Set de base', set2: 'Couronne du Crépuscule', set3: 'Couronne de la Cité Néon',
+  base: 'Couronne du Set de base', set2: 'Couronne du Crépuscule', set3: 'Couronne de la Cité Néon', tapis: 'Cadre du tapis vert',
   platine: 'Cadre de platine', diamant: 'Cadre de diamant', maitre: 'Cadre du grand maître',
   // Bienvenue des nouveaux comptes : 7e jour (welcomeReward).
   bienvenue: 'Cadre de bienvenue',
@@ -256,6 +258,8 @@ export const SET_REWARDS = {
   base: { card: 'dieu_base', title: 'Gardien du Set de base', frame: 'base' },
   set2: { card: 'dieu_set2', title: 'Gardien du Crépuscule', frame: 'set2' },
   set3: { card: 'dieu_set3', title: 'Gardien de la Cité Néon', frame: 'set3' },
+  // Mini-set : une carte de casino au lieu d'un Dieu.
+  tapis: { card: 'as_pique', title: 'Flambeur', frame: 'tapis' },
 };
 // Cartes qu'on ne trouve dans aucun booster : elles ne s'obtiennent qu'en récompense.
 export const REWARD_CARDS = [...FAMILY_REWARDS.map(f => f.card), ...Object.values(SET_REWARDS).map(s => s.card)];

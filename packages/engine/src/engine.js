@@ -406,6 +406,57 @@ export const CARDS = {
   garde_securite:{ set: 'set3', name: 'Garde de sécurité', type: 'C', cost: 3, power: 4, kw: [], firewall: true, text: 'Pare-feu : vos créatures ici ne peuvent pas être piratées.' },
   unite_securite:{ set: 'set3', name: 'Unité de sécurité', type: 'C', cost: 5, power: 7, kw: [], text: '' },
 
+  // ---- Set 2.5 : Tapis vert (mini-set casino) ----
+  // Pari : pile ou face à la révélation (bet). Gagné d'office si un effet a truqué le prochain Pari (rig). Jackpot N : quand vous avez gagné N Paris.
+  // NEUTRES : le casino
+  joueuse_des: { set: 'tapis', name: 'Joueuse de dés', type: 'C', cost: 1, power: 2, kw: [], text: 'Pari. Gagné : +2.',
+                 onReveal: (c, st) => { if (betOn(st, c)) buff(st, c, 2); } },
+  croupier:    { set: 'tapis', name: 'Croupier', type: 'C', cost: 2, power: 3, kw: [], text: 'Révélation : votre prochain Pari est gagné d\'office.',
+                 onReveal: (c, st) => rig(st, c.owner, 1) },
+  jeton_chance:{ set: 'tapis', name: 'Jeton chanceux', type: 'S', cost: 1, power: 0, kw: [], text: 'Votre prochain Pari est gagné d\'office. Piochez 1 carte.',
+                 onReveal: (c, st) => { rig(st, c.owner, 1); draw(st, c.owner, 1, true); } },
+  quitte_double:{ set: 'tapis', name: 'Quitte ou double', type: 'S', cost: 1, power: 0, kw: [], text: 'Pari sur votre créature la plus puissante ici. Gagné : elle gagne autant que sa puissance (au plus +8). Perdu : elle perd 1.',
+                 onReveal: (c, st) => { const s = strongest(st, creaturesAt(st, c.owner, c.zone)); if (!s) return; const v = power(st, s);
+                   if (betOn(st, c)) { if (v > 0) buff(st, s, Math.min(8, v)); } else buff(st, s, -1); } },
+  machine_sous:{ set: 'tapis', name: 'Machine à sous', type: 'C', cost: 3, power: 2, kw: [], text: 'Fin de tour : Pari. Gagné : +2.',
+                 onEndTurn: (c, st) => { if (betOn(st, c)) buff(st, c, 2); else return false; } },
+  videur:      { set: 'tapis', name: 'Videur du casino', type: 'C', cost: 3, power: 4, kw: [], text: 'Persistant : +3 si vous avez gagné au moins 2 Paris cette partie.',
+                 self: (c, st) => (st.p[c.owner].betsWon >= 2 ? 3 : 0) },
+  flambeur:    { set: 'tapis', name: 'Flambeur', type: 'C', cost: 4, power: 5, kw: [], text: 'Pari. Gagné : +4. Perdu : piochez 1 carte.',
+                 onReveal: (c, st) => { if (betOn(st, c)) buff(st, c, 4); else draw(st, c.owner, 1, true); } },
+  gros_lot:    { set: 'tapis', name: 'Gros lot', type: 'C', cost: 5, power: 7, kw: [], jackpot: 3, text: 'Jackpot 3 : +4, et vos autres créatures ici gagnent +1.',
+                 onJackpot: (c, st) => { buff(st, c, 4); creaturesAt(st, c.owner, c.zone).filter(x => x !== c).forEach(x => buff(st, x, 1)); } },
+  // Support des familles des sets 1 et 2 : deux cartes chacune.
+  ange_chance: { set: 'tapis', name: 'Ange de la chance', type: 'C', cost: 2, power: 3, kw: ['Ange'], text: 'Pari. Gagné : vos autres Anges ici gagnent +1. Perdu : celle-ci gagne +2.',
+                 onReveal: (c, st) => { if (betOn(st, c)) creaturesAt(st, c.owner, c.zone).filter(x => x !== c && hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)); else buff(st, c, 2); } },
+  bonne_etoile:{ set: 'tapis', name: 'Bonne étoile', type: 'S', cost: 1, power: 0, kw: ['Ange'], text: 'Vos Anges ici gagnent +1. Votre prochain Pari est gagné d\'office.',
+                 onReveal: (c, st) => { creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)); rig(st, c.owner, 1); } },
+  diable_joueur:{ set: 'tapis', name: 'Diable joueur', type: 'C', cost: 2, power: 4, kw: ['Démon'], text: 'Pari. Gagné : +3. Perdu : il est sacrifié.',
+                 onReveal: (c, st) => { if (betOn(st, c)) buff(st, c, 3); else destroy(st, c, c.owner); } },
+  mise_ames:   { set: 'tapis', name: 'Mise des âmes', type: 'S', cost: 2, power: 0, kw: ['Démon'], text: 'Détruisez votre créature la plus faible ici, puis Pari. Gagné : vos créatures ici gagnent +3. Perdu : +1.',
+                 onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, c.owner, c.zone)); if (w) destroy(st, w, c.owner);
+                   const n = betOn(st, c) ? 3 : 1; creaturesAt(st, c.owner, c.zone).forEach(x => buff(st, x, n)); } },
+  gobelin_tricheur:{ set: 'tapis', name: 'Gobelin tricheur', type: 'C', cost: 1, power: 2, kw: ['Gobelin'], text: 'Pari. Gagné : Horde 2. Perdu : Horde 1.',
+                 onReveal: (c, st) => horde(st, c.owner, c.zone, betOn(st, c) ? 2 : 1) },
+  roulette:    { set: 'tapis', name: 'Roulette gobeline', type: 'S', cost: 2, power: 0, kw: ['Gobelin'], text: 'Un Pari dans chaque zone. Chaque Pari gagné : Horde 2 dans cette zone.',
+                 onReveal: (c, st) => [0, 1, 2].forEach(z => { if (bet(st, c.owner, z, c.id)) horde(st, c.owner, z, 2); }) },
+  cartomancienne:{ set: 'tapis', name: 'Cartomancienne', type: 'C', cost: 2, power: 3, kw: ['Elfe'], text: 'Sortilège : Pari. Gagné : +2.',
+                 onSpell: (c, st) => { if (betOn(st, c)) buff(st, c, 2); } },
+  lecture_destin:{ set: 'tapis', name: 'Lecture du destin', type: 'S', cost: 1, power: 0, kw: ['Elfe'], text: 'Votre prochain Pari est gagné d\'office. Piochez 1 carte.',
+                 onReveal: (c, st) => { rig(st, c.owner, 1); draw(st, c.owner, 1, true); } },
+  dragon_casino:{ set: 'tapis', name: 'Dragon du casino', type: 'C', cost: 4, power: 5, kw: ['Dragon'], text: 'Pari. Gagné : votre Trésor gagne +3. Perdu : +2.',
+                 onReveal: (c, st) => { if (betOn(st, c)) treasure(st, c.owner, 3); else buff(st, c, 2); } },
+  mise_or:     { set: 'tapis', name: 'Mise en or', type: 'S', cost: 1, power: 0, kw: ['Dragon'], text: 'Pari. Gagné : votre Trésor gagne +2. Perdu : votre Dragon le plus faible ici gagne +2.',
+                 onReveal: (c, st) => { if (betOn(st, c)) treasure(st, c.owner, 2); else { const w = weakest(st, creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Dragon'))); if (w) buff(st, w, 2); } } },
+  squelette_flambeur:{ set: 'tapis', name: 'Squelette flambeur', type: 'C', cost: 1, power: 2, kw: ['Mort-vivant'], raise: true, text: 'Relève. Pari. Gagné : +2.',
+                 onReveal: (c, st) => { if (betOn(st, c)) buff(st, c, 2); } },
+  derniere_mise:{ set: 'tapis', name: 'Dernière mise', type: 'C', cost: 3, power: 3, kw: ['Mort-vivant'], text: 'Persistant : +1 par Pari perdu cette partie, des deux côtés (au plus +5).',
+                 self: (c, st) => Math.min(5, st.p[0].betsLost + st.p[1].betsLost) },
+  comtesse_baccara:{ set: 'tapis', name: 'Comtesse du baccara', type: 'C', cost: 3, power: 4, kw: ['Vampire'], text: 'Pari. Gagné : Drain 2 sur la créature adverse la plus puissante ici. Perdu : Drain 1.',
+                 onReveal: (c, st) => { const n = betOn(st, c) ? 2 : 1; const s = strongestFoe(st, c); if (s) drain(st, c, s, n); } },
+  banque_sang: { set: 'tapis', name: 'Banque de sang', type: 'C', cost: 2, power: 3, kw: ['Vampire'], text: 'Persistant : +1 par Pari gagné cette partie (au plus +3).',
+                 self: (c, st) => Math.min(3, st.p[c.owner].betsWon) },
+
   // ---- Récompenses : jamais dans les boosters (voir rewards.js) ----
   // Une carte par famille complétée dans son set d'origine, et une carte Dieu par set complété.
   voix_aube:   { set: 'recompense', name: 'Voix de l\'Aube', type: 'C', cost: 4, power: 4, kw: ['Ange'], text: 'Révélation : +1 sceau au tour suivant. Grâce : vos autres créatures ici gagnent +1.',
@@ -469,11 +520,17 @@ export const CARDS = {
   dieu_set3:   { set: 'recompense', name: 'Nexus, Dieu du Réseau', type: 'C', cost: 6, power: 7, kw: ['Hacker'], text: 'Révélation : Piratage du général adverse jusqu\'à la fin du tour suivant, puis Malware 2. Persistant : +1 par Malware exécuté chez l\'adversaire cette partie.',
                  onReveal: (c, st) => { hackGeneral(st, 1 - c.owner); malware(st, c.owner, 2); },
                  self: (c, st) => st.p[1 - c.owner].malwareRun || 0 },
+  // Tapis vert complété : une carte de casino, pas de Dieu pour un mini-set.
+  as_pique:    { set: 'recompense', name: 'As de pique', type: 'C', cost: 3, power: 3, kw: [], jackpot: 2, text: 'Révélation : votre prochain Pari est gagné d\'office. Jackpot 2 : +4.',
+                 onReveal: (c, st) => rig(st, c.owner, 1),
+                 onJackpot: (c, st) => buff(st, c, 4) },
   // Quêtes d'histoire à durée limitée (story.js) : une carte neutre par quête, gagnée pendant la quête seulement.
   epouvantail: { set: 'recompense', name: 'Épouvantail hanté', type: 'C', cost: 3, power: 3, kw: [], text: 'Persistant : +3 tant que l\'adversaire a plus de créatures que vous ici.',
                  self: (c, st) => (creaturesAt(st, 1 - c.owner, c.zone).length > creaturesAt(st, c.owner, c.zone).length ? 3 : 0) },
   pretre_eclipse:{ set: 'recompense', name: 'Prêtre de l\'éclipse', type: 'C', cost: 4, power: 5, kw: [], text: 'Révélation : les autres créatures ici, les vôtres comme celles de l\'adversaire, perdent 1.',
                  onReveal: (c, st) => [0, 1].forEach(p => creaturesAt(st, p, c.zone).filter(x => x !== c).forEach(x => buff(st, x, -1))) },
+  de_pipe:     { set: 'recompense', name: 'Dé pipé', type: 'C', cost: 2, power: 2, kw: [], text: 'Révélation : vos 2 prochains Paris sont gagnés d\'office.',
+                 onReveal: (c, st) => rig(st, c.owner, 2) },
   coursier_neon:{ set: 'recompense', name: 'Coursier néon', type: 'C', cost: 2, power: 2, kw: [], mobile: true, text: 'Déplaçable. Déplacement : piochez 1 carte.',
                  onMove: (c, st) => draw(st, c.owner, 1, true) },
 
@@ -640,6 +697,14 @@ export const GENERALS = {
                onStart: (p, st) => { const c = st.p[p].hand.filter(x => (costOf(st, x) ?? 0) > 0).sort((a, b) => costOf(st, b) - costOf(st, a))[0];
                  if (c) { c.discount = (c.discount || 0) - 1; log(st, '⟦{p}⟧ : {card} coûte 1 de moins.', 'up', { p, card: nm(c.id) }); } } },
 
+  // ---- Set 2.5 : Tapis vert ----
+  velours:   { set: 'tapis', name: 'Velours, Croupière des Fosses', fam: 'Démon', kind: 'Persistant',
+               text: 'Chaque fois que vous perdez un Pari, votre zone la plus faible gagne +2.',
+               onBetLost: (p, st) => addZone(st, p, weakestZone(st, p), 2) },
+  fortuna:   { set: 'tapis', name: 'Fortuna, la Roue', fam: null, kind: 'Début de partie',
+               text: 'Début de partie : vos 2 premiers Paris sont gagnés d\'office.',
+               onStart: (p, st) => { st.p[p].rigged += 2; } },
+
   // ---- Boss mondiaux (boss.js) ----
   // Jamais en collection (boss: true, voir GENERAL_IDS). Le boss est le joueur 1, sans deck ni terrain, avec un Sbire dans chaque zone : à chaque tour, il joue
   // l'étape de son script (script[tour - 1], au début ou à la fin du tour) contre le joueur 0. boost : bonus de puissance de vos
@@ -804,6 +869,10 @@ export const TERRAINS = {
   marche_noir:{ set: 'set3', name: 'Marché noir', fam: null, text: 'Fin de tour : si vous gardez au moins 1 sceau, une carte au hasard de votre main coûte 1 de moins.',
                onEndTurn: (p, st) => { if (st.p[p].seals <= 0) return; const h = st.p[p].hand.filter(x => (costOf(st, x) ?? 0) > 0);
                  if (h.length) { const x = pick(h); x.discount = (x.discount || 0) - 1; log(st, '⟦{p}⟧ : une carte de la main coûte 1 de moins.', 'up', { p }); } } },
+  // ---- Set 2.5 ----
+  casino_fosses:{ set: 'tapis', name: 'Casino des Fosses', fam: null, text: 'Quand vous perdez un Pari ici, la pièce est relancée une fois.' },
+  salle_coffres:{ set: 'tapis', name: 'Salle des coffres', fam: null, text: 'Fin de tour : un Pari pour chaque joueur ; s\'il est gagné, sa créature la plus faible ici gagne +1.',
+               onEndTurn: (p, st, z) => { if (bet(st, p, z, null)) { const w = weakest(st, creaturesAt(st, p, z)); if (w) buff(st, w, 1); } } },
 };
 
 // ---- Decks préconstruits : la construction est libre, ces listes servent à tester ----
@@ -872,6 +941,13 @@ export const DECKS = {
   donnees: { set: 'set3', name: 'Soif de données', fam: 'Vampire', general: 'selene',
              cards: ['siphonneuse', 'vampire_donnees', 'morsure_virale', 'comte_reseau', 'chauve_souris', 'novice', 'servante', 'rodeur_nuit', 'buveuse', 'comtesse', 'seigneur_vampire', 'prince_nuit', 'saignee', 'glitcheuse', 'golem'],
              terrains: ['club', 'chateau', 'bassin', 'ruines', 'sanctuaire'] },
+  // Set 2.5 : le casino des neutres, et les Démons qui misent leurs âmes.
+  tapis:   { set: 'tapis', name: 'Tapis vert', fam: null, general: 'fortuna',
+             cards: ['joueuse_des', 'croupier', 'jeton_chance', 'quitte_double', 'machine_sous', 'videur', 'flambeur', 'gros_lot', 'gobelin_tricheur', 'roulette', 'ange_chance', 'bonne_etoile', 'banque_sang', 'comtesse_baccara', 'golem'],
+             terrains: ['casino_fosses', 'salle_coffres', 'sanctuaire', 'ruines', 'champ'] },
+  fosses_misent:{ set: 'tapis', name: 'Les Fosses misent', fam: 'Démon', general: 'velours',
+             cards: ['diable_joueur', 'mise_ames', 'joueuse_des', 'flambeur', 'machine_sous', 'roulette', 'quitte_double', 'derniere_mise', 'diablotin', 'pacte', 'bourreau', 'demon_majeur', 'moissonneur', 'seigneur', 'archidemon'],
+             terrains: ['casino_fosses', 'charnier', 'bergerie', 'ruines', 'duel'] },
 };
 
 // ---- Utilitaires ----
@@ -910,7 +986,7 @@ export function newGame(deck0, deck1, names = ['Joueur 1', 'Joueur 2'], opts = {
       hand: [], discard: [], terrainPlan: pool.slice(0, 3).map((t, i) => ({ t, z: zones[i], turn: i + 1 })),
       terrains: [null, null, null], board: [[], [], []], zoneBonus: [0, 0, 0],
       seals: 0, bonusSeals: 0, treasure: 0, lastUnspent: 0, perfectTurns: 0, lost: 0, moves: [], played: [],
-      stolen: 0, feasts: 0, spells: 0, malwareRun: 0, overloads: 0,
+      stolen: 0, feasts: 0, spells: 0, malwareRun: 0, overloads: 0, rigged: 0, betsWon: 0, betsLost: 0,
     };
   };
   const st = { turn: 0, p: [mk(0, deck0), mk(1, deck1)], log: [], nextUid: 1000, order: 0, leader: 0, over: false, sim: false };
@@ -1014,7 +1090,7 @@ function buff(st, c, n) { c.buff += n; log(st, '{card} {n}.', n >= 0 ? 'up' : 'd
 function addZone(st, p, z, n) { st.p[p].zoneBonus[z] += n; log(st, '⟦{p}⟧ : zone {z} {n}.', n >= 0 ? 'up' : 'down', { p, z: zn(z), n: `${n >= 0 ? '+' : ''}${n}` }); }
 // Carte qui revient en main ou en jeu depuis la défausse : elle repart de zéro.
 function fresh(c) {
-  for (const k of ['pending', 'movedTurn', 'playerMoved', 'turnStartZone', 'mobile', 'xPaid', 'hatched', 'enteredTurn', 'discount', 'costMod', 'hacked', 'implants']) delete c[k];
+  for (const k of ['pending', 'movedTurn', 'playerMoved', 'turnStartZone', 'mobile', 'xPaid', 'hatched', 'enteredTurn', 'discount', 'costMod', 'hacked', 'implants', 'jackpotDone']) delete c[k];
   c.buff = 0; c.revealed = false; c.zone = -1; return c;
 }
 
@@ -1168,6 +1244,33 @@ function overload(st, c, n) {
   return true;
 }
 
+// ---- Set 2.5 : Pari et Jackpot ----
+// Pile ou face : st.coins (suite d'issues fixée, pour le tutoriel) sinon une chance sur deux.
+const coin = st => (st.coins?.length ? !!st.coins.shift() : Math.random() < 0.5);
+// Pari du joueur p dans la zone z (id : la carte qui parie, pour le journal). Truqué (rigged) : gagné d'office.
+// Casino des Fosses : un Pari perdu ici est relancé une fois. Renvoie true si le Pari est gagné.
+function bet(st, p, z, id) {
+  const P = st.p[p];
+  let won;
+  if (P.rigged > 0) { P.rigged--; won = true; }
+  else won = coin(st) || (P.terrains[z] === 'casino_fosses' && coin(st));
+  if (won) P.betsWon++; else P.betsLost++;
+  if (id) log(st, won ? '{card} : Pari gagné !' : '{card} : Pari perdu.', won ? 'up' : 'down', { card: nm(id) });
+  else log(st, won ? '⟦{p}⟧ : Pari gagné !' : '⟦{p}⟧ : Pari perdu.', won ? 'up' : 'down', { p });
+  genHook(st, p, won ? 'onBetWon' : 'onBetLost', z);
+  if (won) for (const x of mine(st, p)) jackpot(st, x);
+  return won;
+}
+const betOn = (st, c) => bet(st, c.owner, c.zone, c.id);
+// Jackpot N : l'effet se déclenche une fois, dès que vous avez gagné N Paris (à la révélation si c'est déjà fait).
+function jackpot(st, c) {
+  const d = fx(c); if (!d.jackpot || c.jackpotDone || !stillThere(st, c) || st.p[c.owner].betsWon < d.jackpot) return;
+  c.jackpotDone = true; log(st, '{card} : Jackpot !', 'up', { card: nm(c.id) }); d.onJackpot(c, st);
+}
+// Truquer : les n prochains Paris du joueur sont gagnés d'office.
+function rig(st, p, n) { st.p[p].rigged += n; log(st, n > 1 ? '⟦{p}⟧ : ⟦{p}|ses|vos⟧ {n} prochains Paris sont gagnés d\'office.' : '⟦{p}⟧ : ⟦{p}|son|votre⟧ prochain Pari est gagné d\'office.', 'up', { p, n }); }
+function treasure(st, p, n) { st.p[p].treasure += n; log(st, '⟦{p}⟧ : Trésor +{n}.', 'up', { p, n }); }
+
 function summon(st, p, z, id) {
   if (free(st, p, z) <= 0) return null;
   const c = { uid: st.nextUid++, id, owner: p, zone: z, buff: 0, revealed: true, order: st.order++ };
@@ -1187,6 +1290,7 @@ function enter(st, c, z) {
   c.zone = z; c.revealed = true; c.pending = false; c.order = st.order++; c.enteredTurn = st.turn; P.board[z].push(c);
   log(st, '⟦{p}⟧ ⟦{p}|invoque|invoquez⟧ {card} ({z}).', 'reveal', { p: c.owner, card: nm(c.id), z: zn(z) });
   const d = CARDS[c.id]; if (d.onReveal) d.onReveal(c, st);
+  if (d.jackpot) jackpot(st, c);
 }
 function callFromDeck(st, p, z) {
   const P = st.p[p]; if (free(st, p, z) <= 0) return;
@@ -1293,6 +1397,7 @@ export function doStep(st, s) {
   }
   if (d.type === 'S') P.spells++;
   if (d.onReveal) d.onReveal(c, st);
+  if (d.jackpot) jackpot(st, c);
   if (stillThere(st, c)) { const t = P.terrains[c.zone]; if (t && TERRAINS[t].onCardReveal) TERRAINS[t].onCardReveal(s.p, st, c, c.zone); }
   if (stillThere(st, c) && isCreature(c)) { const t = st.p[1 - s.p].terrains[c.zone]; if (t && TERRAINS[t].onFoeReveal) TERRAINS[t].onFoeReveal(1 - s.p, st, c, c.zone); }
   if (d.type === 'S') {
@@ -1404,6 +1509,8 @@ function evalFor(st, p) {
     // Malwares en attente dans le deck adverse : chacun coûtera une pioche et un peu de puissance.
     const mw = st.p[1 - p].deck.reduce((n, c) => n + (CARDS[c.id].malware ? 1 : 0), 0);
     if (mw) s += mw * 1.2 * (turnsOf(st) - st.turn) / turnsOf(st);
+    // Paris truqués en réserve : autant de Paris gagnés à venir.
+    if (P.rigged) s += P.rigged * 0.8 * (turnsOf(st) - st.turn) / turnsOf(st);
   }
   return s;
 }
@@ -1500,7 +1607,7 @@ export function viewFor(st, seat, extra = {}) {
       name: P.name, deckKey: P.deckKey, deckName: P.deckName, general: P.general, generalUsed: P.generalUsed, genFired: P.genFired || 0,
       hand: isMe ? P.hand.map(c => ({ uid: c.uid, id: c.id, cost: costOf(st, c), power: CARDS[c.id].power + c.buff })) : undefined,
       handCount: P.hand.length, deckCount: P.deck.length, seals: P.seals,
-      treasure: P.treasure, perfectTurns: P.perfectTurns,
+      treasure: P.treasure, perfectTurns: P.perfectTurns, betsWon: P.betsWon || 0, betsLost: P.betsLost || 0, rigged: P.rigged || 0,
       terrains: P.terrains.slice(), zoneBonus: P.zoneBonus.slice(),
       terrainPlan: isMe && g.preview ? P.terrainPlan.filter(x => x.turn > st.turn) : undefined,
       board: P.board.map(z => z.slice().sort((a, b) => a.order - b.order).map(c =>

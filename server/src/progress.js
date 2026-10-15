@@ -4,7 +4,7 @@
 // Chaque récompense gagnée est aussi rangée dans la boîte « inbox » du compte, que l'appli affiche puis vide.
 import { DEFAULT_REWARDS, REWARD_LIMITS, MISSIONS, WEEKLY_MISSIONS, ALL_MISSIONS, ACHIEVEMENTS, familyReward, SET_REWARDS, TITLES, FRAMES, BACKS,
   xpToNext, familyOf, statValue, missionLabel, MAX_CARD_LEVEL, levelCost, essenceToMax, loginCalendar, loginReward, monthDays, welcomeReward, welcomeRewards, WELCOME_STEPS } from '@jeu/engine/rewards';
-import { SETS, OWNABLE, today, setRevealed, setById } from '@jeu/engine/collection';
+import { SETS, OWNABLE, today, setRevealed, setById, isMini } from '@jeu/engine/collection';
 import { CARDS, GENERALS, DECKS, shuffle } from '@jeu/engine';
 import { TIERS, PLACES, rankOf, applyResult, seasonId, seasonName, seasonDaysLeft, seasonReset, seasonShardsKey, seasonPrismsKey, seasonCosmetics,
   placeOf, placeShardsKey, placePrismsKey, placeTitles } from '@jeu/engine/ranked';
@@ -145,7 +145,8 @@ export function createProgress(store) {
     const c = cfg();
     for (const set of SETS) {
       if (!set.cards.length || !setRevealed(set)) continue;
-      for (const fam of new Set(set.cards.map(familyOf).filter(Boolean))) {
+      // Mini-set : quelques cartes par famille, seule la complétion du set entier est récompensée.
+      if (!isMini(set)) for (const fam of new Set(set.cards.map(familyOf).filter(Boolean))) {
         const key = `${set.id}:${fam}`;
         if (a.completed[key] || !set.cards.filter(id => familyOf(id) === fam).every(id => a.cards[id])) continue;
         a.completed[key] = new Date().toISOString();
@@ -687,7 +688,7 @@ export function createProgress(store) {
   }
   function collectionView(a) {
     return SETS.filter(s => s.cards.length && setRevealed(s)).map(set => ({ id: set.id, name: set.name, done: !!a.completed?.[set.id], reward: SET_REWARDS[set.id] || null,
-      families: [...new Set(set.cards.map(familyOf).filter(Boolean))].map(fam => {
+      families: isMini(set) ? [] : [...new Set(set.cards.map(familyOf).filter(Boolean))].map(fam => {
         const ids = set.cards.filter(id => familyOf(id) === fam), r = familyReward(set.id, fam);
         return { fam, owned: ids.filter(id => a.cards[id]).length, total: ids.length, done: !!a.completed?.[`${set.id}:${fam}`], card: r?.card || null, title: r?.title || null };
       }) }));

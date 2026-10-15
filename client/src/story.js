@@ -80,6 +80,11 @@ export function createStory(app) {
       for (let i = 0; i < 8; i++) { const x = 10 + r() * 140, y = 64 + r() * 30; s += `<ellipse cx="${x}" cy="${y}" rx="3" ry="2.4" fill="#e8742a"/><rect x="${x - 0.4}" y="${y - 3.2}" width="0.8" height="1.4" fill="#3a6a2a"/>`; }
       for (let i = 0; i < 6; i++) { const x = 40 + r() * 60, y = 50 + r() * 14; s += `<path d="M${x} ${y}v-4a2 2 0 0 1 4 0v4Z" fill="#4a4060"/>`; }
       return s; },
+    // Casino des Fosses : un tapis vert en perspective, des jetons, et la lueur rouge de l'abîme au fond.
+    casino: () => { const r = rng(7); let s = '<path d="M0 96 Q80 70 160 96 V100 H0Z" fill="#3a0a0a" opacity=".7"/><path d="M14 100 L50 46 H110 L146 100Z" fill="#0f5a34"/><path d="M50 46 H110" stroke="#e3b552" stroke-width="1.2"/>';
+      for (let i = 0; i < 14; i++) { const x = 40 + r() * 80, y = 54 + r() * 40; s += `<ellipse cx="${x}" cy="${y}" rx="2.6" ry="1.4" fill="${i % 2 ? '#b8202a' : '#1d1d1d'}" stroke="#fff3cf" stroke-width=".3"/>`; }
+      s += '<circle cx="80" cy="22" r="14" fill="none" stroke="#e3b552" stroke-width="1.4"/><path d="M80 8 V36 M66 22 H94 M70 12 L90 32 M90 12 L70 32" stroke="#e3b552" stroke-width=".6"/>';
+      return s; },
     eclipse: () => { const r = rng(19); let s = '<circle cx="140" cy="16" r="14" fill="#ff9a2a" opacity=".55"/><circle cx="140" cy="16" r="11" fill="#0a0410"/>';
       for (let i = 0; i < 40; i++) s += `<circle cx="${r() * 160}" cy="${r() * 50}" r="${0.3 + r() * 0.4}" fill="#ffd9a0" opacity="${0.3 + r() * 0.5}"/>`;
       s += '<path d="M0 70 L20 46 L34 60 L52 38 L70 62 L92 44 L110 64 L130 48 L160 66 V100 H0Z" fill="#1a0e22"/><path d="M0 86 Q50 74 100 86 T160 80 V100 H0Z" fill="#120818"/>';
@@ -91,7 +96,7 @@ export function createStory(app) {
         for (let k = 0; k < 4; k++) if (r() > 0.5) s += `<rect x="${x + 1 + (k % 2) * 2.5}" y="${56 - h + 3 + k * 4}" width="1.4" height="1.4" fill="${r() > 0.5 ? '#2ad4ff' : '#ff3ad0'}"/>`; }
       return s; },
   };
-  const SKY = { razzia: ['#9ac0d8', '#e8d2a0'], racines: ['#20382a', '#3a5a2a'], pacte: ['#1a0608', '#4a1414'], halloween: ['#140a26', '#3a1a4a'], eclipse: ['#05030a', '#2a1030'], neon: ['#05081a', '#1a0a3a'] };
+  const SKY = { razzia: ['#9ac0d8', '#e8d2a0'], racines: ['#20382a', '#3a5a2a'], pacte: ['#1a0608', '#4a1414'], halloween: ['#140a26', '#3a1a4a'], casino: ['#0a0406', '#2a0a12'], eclipse: ['#05030a', '#2a1030'], neon: ['#05081a', '#1a0a3a'] };
   // Chemin entre deux étapes : une courbe douce, qui ondule d'un côté puis de l'autre.
   function route(pts) {
     return pts.map(([x, y], i) => { if (!i) return `M${x} ${y}`;
