@@ -377,4 +377,12 @@ export default {
   "Déjà à vous": "Already yours",
   "{name} : à vous ! Portez-le depuis la Personnalisation.": "{name}: it's yours! Wear it from Customization.",
   "Aperçu au {day}": "Preview as of {day}",
+  "Drop dans {n} tour": "Drop in {n} turn",
+  "Drop dans {n} tours": "Drop in {n} turns",
+  "Les effets Drop se déclenchent au début de ce tour": "Drop effects trigger at the start of this turn",
+  "Drop au tour {n}": "Drop on turn {n}",
+  "Le Tempo tient tant qu'une carte est jouée à chaque tour": "Tempo holds as long as a card is played every turn",
+  "Tempo coupé": "Tempo cut",
+  "Drop !": "Drop!",
+  "Les effets Drop se déclenchent": "Drop effects trigger",
 };

@@ -52,4 +52,28 @@ Deux nouveaux généraux, trois terrains, un deck préconstruit et une quête li
 Two new generals, three terrains, a preconstructed deck and a limited quest. Just in time for the double ranked points week, October 25 to 31.`,
     },
   },
+  {
+    id: 'teaser-128-bpm',
+    from: '2026-11-09', kind: 'teaser', set: 'bpm', date: '2026-11-16',
+    title: 'Mini-set « 128 BPM » le 16 novembre',
+    summary: 'La Cité Néon passe en électro house : des cartes Drop qui explosent au tour 5 et le Tempo pour qui joue à chaque tour.',
+    body: `Un mini-set de 20 cartes arrive le lundi 16 novembre, en pleine saison Néon 2099.
+
+• Drop : au début du tour 5, les effets Drop de toutes les cartes en jeu se déclenchent. Posez-les avant, pendant la montée.
+• Tempo : un bonus qui tient tant que vous jouez une carte à chacun de vos tours.
+• Du renfort pour toutes les familles, d'abord pour les Cyborgs, les Hackers et les Vampires.
+
+Deux nouveaux généraux, DJ Ohm et Pulsar, deux terrains et deux decks préconstruits.`,
+    en: {
+      title: 'Mini-set "128 BPM" on November 16',
+      summary: 'Neon City goes electro house: Drop cards that explode on turn 5 and Tempo for those who play every turn.',
+      body: `A 20-card mini-set arrives on Monday, November 16, in the middle of the Neon 2099 season.
+
+• Drop: at the start of turn 5, the Drop effects of every card in play trigger. Play them before, during the build-up.
+• Tempo: a bonus that holds as long as you play a card on each of your turns.
+• Reinforcements for every family, first for Cyborgs, Hackers and Vampires.
+
+Two new generals, DJ Ohm and Pulsar, two terrains and two preconstructed decks.`,
+    },
+  },
 ];

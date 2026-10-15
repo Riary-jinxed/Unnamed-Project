@@ -160,6 +160,8 @@ export const DEFAULT_SETS = [
     teaser: 'Le casino du Sept d\'or ouvre ses tables : des Paris au dé, des cartes pour tricher, trois Sept aux couleurs des Gobelins, des Elfes et des Démons pour décrocher le Jackpot, et un coup de pouce pour les Anges, les Gobelins et les Démons.' },
   { id: 'set3', name: 'Cité Néon', cards: OWNABLE.filter(id => setOf(id) === 'set3'), open: true, daily: false, boosterExtra: 50, reveal: '2026-11-02',
     teaser: 'Hackers et Cyborgs envahissent la mégapole : Malwares glissés dans le deck adverse, Piratage, Implants et Surcharge, avec un soutien néon pour chaque famille.' },
+  { id: 'bpm', name: '128 BPM', cards: OWNABLE.filter(id => setOf(id) === 'bpm'), open: true, daily: false, boosterExtra: 0, reveal: '2026-11-16', mini: true,
+    teaser: 'La Cité Néon danse jusqu\'au matin : des cartes Drop qui explosent au tour 5, le Tempo pour qui joue à chaque tour, et du renfort pour les Cyborgs, les Hackers et les Vampires.' },
 ];
 export const SETS = structuredClone(DEFAULT_SETS);
 export const setById = id => SETS.find(s => s.id === id);

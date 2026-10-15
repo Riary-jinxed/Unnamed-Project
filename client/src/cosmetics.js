@@ -5,7 +5,7 @@
 // Pour ne pas ralentir le démarrage : PixiJS arrive après le premier rendu, et les images sont gardées dans le cache du
 // navigateur, si bien que les visites suivantes les posent tout de suite sans rien redessiner. Changer un dessin : augmenter VERSION.
 import { webgl } from './fx.js';
-const VERSION = 9, CACHE = 'cosmetiques', DPR = () => Math.min(2, Math.max(1, devicePixelRatio || 1));
+const VERSION = 10, CACHE = 'cosmetiques', DPR = () => Math.min(2, Math.max(1, devicePixelRatio || 1));
 const key = (kind, id) => `/__cosmetiques/v${VERSION}/x${DPR()}/${kind}/${id}.png`;
 
 // Toutes les images, en URL : { icon: { shard: … }, back: { … }, frame: { … } }.

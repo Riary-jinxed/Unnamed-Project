@@ -17,14 +17,14 @@ const KEYWORDS = ['Révélation', 'Persistant', 'Grâce', 'Destruction', 'Dépla
   'Fin de tour', 'Début de tour', 'Début du tour \\d+', 'Début de partie', 'Fin de partie',
   'Sacrifice(?: \\d+)?', 'Hordes?(?: (?:\\d+|X))?', 'Drain(?: \\d+)?', 'Festins?(?: \\d+)?', 'Défausse(?: \\d+)?',
   'Malwares?(?: \\d+)?', 'Piratage', 'Implants?(?: \\d+)?', 'Surcharges?(?: \\d+)?', 'Pare-feu',
-  'Pari', 'Sept', 'Jackpot'];
+  'Pari', 'Sept', 'Jackpot', 'Drop', 'Tempo(?: \\d+)?'];
 // Les mêmes en anglais (lexique de docs/traduction.md), ajoutés quand l'appli est en anglais.
 const KEYWORDS_EN = ['Reveal', 'Ongoing', 'Grace', 'Death', 'Move', 'Movable', 'Spellcast', 'Inspire', 'Hatch', 'Eggs?',
   'Rise', 'Exhume', 'Swap', 'Token', 'Activate', 'Treasure', 'Hoard', 'X cost',
   'End of turn', 'Start of turn \\d+', 'Start of turn', 'Start of game', 'End of game',
   'Sacrifice(?: \\d+)?', 'Hordes?(?: (?:\\d+|X))?', 'Drain(?: \\d+)?', 'Feasts?(?: \\d+)?', 'Discard(?: \\d+)?',
   'Malwares?(?: \\d+)?', 'Hack', 'Implants?(?: \\d+)?', 'Overloads?(?: \\d+)?', 'Firewall',
-  'Bet', 'Seven', 'Jackpot'];
+  'Bet', 'Seven', 'Jackpot', 'Drop', 'Tempo(?: \\d+)?'];
 // Filtre « Mot-clé » de la collection : nom affiché (traduit avec t) et ce qui le repère dans le texte d'une carte, en français
 // ou en anglais (un texte retouché depuis /admin reste en français). Même découpage que KEYWORDS, les variantes regroupées.
 export const KW_FILTERS = [
@@ -37,6 +37,7 @@ export const KW_FILTERS = [
   ['Drain', 'Drain'], ['Festin', 'Festins?|Feasts?'], ['Défausse', 'Défausse|Discard'], ['Jeton', 'Jetons?|Tokens?'],
   ['Malware', 'Malwares?'], ['Piratage', 'Piratage|Hack'], ['Implant', 'Implants?'], ['Surcharge', 'Surcharges?|Overloads?'],
   ['Pare-feu', 'Pare-feu|Firewall'], ['Pari', 'Pari|Bet'], ['Sept', 'Sept|Seven'], ['Jackpot', 'Jackpot'],
+  ['Drop', 'Drop'], ['Tempo', 'Tempo'],
 ].map(([name, re]) => ({ name, re: new RegExp(`(?<!\\p{L})(?:${re})(?!\\p{L})`, 'u') }));
 const kwRe = list =>new RegExp(`(?<!\\p{L})(?:${list.join('|')})(?!\\p{L})`, 'gu');
 const KW_RE = { fr: kwRe(KEYWORDS), en: kwRe([...KEYWORDS_EN, ...KEYWORDS]) };
