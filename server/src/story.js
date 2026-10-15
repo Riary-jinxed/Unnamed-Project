@@ -24,7 +24,8 @@ export function createStory(store, accounts, { onChange = () => {}, onChapter = 
 
   // ---- Vue du joueur ----
   // Les quêtes jouables (ouvertes ou archivées), et les quêtes limitées qui commencent bientôt (nom et date seulement).
-  // Une quête limitée non canon finie, ou une quête fermée, disparaît ; ses récompenses restent acquises.
+  // Une quête limitée non canon finie, ou une quête fermée, disparaît ; ses récompenses restent acquises (et ses dialogues se relisent
+  // dans les Chroniques, read).
   function view(a) {
     const day = today();
     const quests = QUESTS.map(q => {
@@ -35,7 +36,9 @@ export function createStory(store, accounts, { onChange = () => {}, onChapter = 
       return { id: q.id, state, from: c.from || null, to: c.to || null, daysLeft: live ? questDaysLeft(c, day) : null,
         won: won(a, q.id), total: q.chapters.length, rewards: q.chapters.map((_, i) => chapterReward(q, i, c, state === 'archive')) };
     }).filter(Boolean);
-    return { quests };
+    // Chroniques : les chapitres gagnés de chaque quête, même d'une quête finie ou fermée, pour en relire les dialogues.
+    const read = Object.fromEntries(QUESTS.filter(q => won(a, q.id) > 0).map(q => [q.id, Math.min(won(a, q.id), q.chapters.length)]));
+    return { quests, read };
   }
   // Tuile de l'accueil : la quête limitée en cours (la plus proche de sa fin) à finir, sinon la campagne commencée la plus avancée.
   function tile(a) {
