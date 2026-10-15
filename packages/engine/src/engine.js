@@ -1322,7 +1322,8 @@ function roll(st, p, z, c, id) {
   if (v <= 2) P.lows++;
   P.rolls.push({ n: ++P.rollCount, v, uid: c ? c.uid : null, z });
   if (P.rolls.length > 8) P.rolls.shift();
-  st.pause = (st.pause || 0) + 450;
+  // Le temps que le dé roule et que son résultat reste lisible (diceRoll, fx.js).
+  st.pause = (st.pause || 0) + 1000;
   if (id) log(st, '{card} : dé {v}.', v >= 6 ? 'up' : v <= 2 ? 'down' : '', { card: nm(id), v });
   else log(st, '⟦{p}⟧ : dé {v}.', v >= 6 ? 'up' : v <= 2 ? 'down' : '', { p, v });
   genHook(st, p, 'onRoll', z, v);

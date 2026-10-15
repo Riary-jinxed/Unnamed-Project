@@ -155,12 +155,13 @@ const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6,
 const face = v => Array.from({ length: 9 }, (_, i) => `<i${PIPS[v].includes(i) ? ' class="on"' : ''}></i>`).join('');
 export function diceRoll(el, v, tone = 'me', delay = 0) {
   if (!el) return;
-  const r = el.getBoundingClientRect(), s = Math.min(46, Math.max(30, r.width * 0.55));
+  const r = el.getBoundingClientRect(), s = Math.min(64, Math.max(40, r.width * 0.7));
   const d = layer({ left: r.left + r.width / 2 - s / 2, top: r.top + r.height / 2 - s / 2, width: s, height: s },
-    `fxdice ${tone} ${v === 6 ? 'six' : v <= 2 ? 'low' : ''}`, `<div class="die">${face(reduceMotion() ? v : 1 + Math.floor(Math.random() * 6))}</div>`, 1250 + delay);
+    `fxdice ${tone} ${v === 6 ? 'six' : v <= 2 ? 'low' : ''}`, `<div class="die">${face(reduceMotion() ? v : 1 + Math.floor(Math.random() * 6))}</div>`, 2000 + delay);
   d.style.animationDelay = d.firstChild.style.animationDelay = `${delay}ms`;
-  if (reduceMotion()) return;
-  // Pendant qu'il roule, le dé change de face ; il se pose sur le résultat aux deux tiers de sa course.
+  if (reduceMotion()) { d.classList.add('landed'); return; }
+  // Pendant qu'il roule, le dé change de face ; il se pose sur le résultat vers 0,5 s, qui reste affiché plus d'une seconde
+  // avant de s'effacer.
   const die = d.firstChild; let k = 0;
   setTimeout(() => { const iv = setInterval(() => {
     if (++k >= 7) { clearInterval(iv); die.innerHTML = face(v); d.classList.add('landed'); return; }
