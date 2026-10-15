@@ -313,6 +313,24 @@ export default {
   "Gagnez d'abord les chapitres précédents.": "Win the previous chapters first.",
   "{quest} : {chapter}": "{quest}: {chapter}",
 
+  // ---- Boss de clan (clan-boss.js) ----
+  "Seuls le Maître et les adjoints peuvent ouvrir un boss de clan.": "Only the Master and the deputies can open a clan boss.",
+  "Un boss de clan est déjà ouvert.": "A clan boss is already open.",
+  "Un seul boss de clan par semaine : revenez lundi.": "Only one clan boss per week: come back on Monday.",
+  "Niveau inconnu.": "Unknown level.",
+  "{name} ouvre le boss de clan {boss} (niveau {n}).": "{name} opens the clan boss {boss} (level {n}).",
+  "Boss de clan : {name}": "Clan boss: {name}",
+  "{name} a ouvert un boss de clan : {n} tentatives chacun pendant {days} jours pour faire tomber sa barre de PV.": "{name} opened a clan boss: {n} attempts each for {days} days to bring its HP bar down.",
+  "{name} est ouvert pour tout le clan !": "{name} is open for the whole clan!",
+  "Aucun boss de clan ouvert pour le moment.": "No clan boss is open right now.",
+  "Le boss de clan est déjà vaincu.": "The clan boss is already defeated.",
+  "Vous avez fait vos {n} tentatives contre ce boss.": "You have used your {n} attempts against this boss.",
+  "Boss de clan {boss} vaincu (niveau {n}) !": "Clan boss {boss} defeated (level {n})!",
+  "Boss de clan {boss} reparti : {pct} % de ses PV retirés.": "Clan boss {boss} has left: {pct}% of its HP taken.",
+  "Boss de clan {boss} : {pct} %": "Clan boss {boss}: {pct}%",
+  "Boss de clan vaincu !": "Clan boss defeated!",
+  "Boss de clan terminé": "Clan boss over",
+  "{boss} : {pct} % de ses PV retirés. Vos récompenses vous attendent.": "{boss}: {pct}% of its HP taken. Your rewards are waiting.",
   // ---- Notes de mise à jour (notes-maj.js) : titre et texte tels qu'envoyés ----
   "Mise à jour : équilibrage des généraux et des cartes": "Update: generals and cards rebalanced",
   "Après plus de 500 000 parties simulées entre IA, voici les premiers ajustements d'équilibrage.\n\nGénéraux affaiblis\n• Comte Valdric : son effet de fin de tour ne se déclenche plus que 3 fois par partie.\n• Gorbag le Ripailleur : Festin 1 seulement aux tours pairs.\n\nGénéraux renforcés\n• Séraphine : activation gratuite (au lieu de 1 sceau), et +2 au lieu de +1.\n• Aurélia : il suffit d'avoir dépensé tous vos sceaux à au moins 5 tours (au lieu de tous).\n• Ossa : si votre défausse n'a pas de créature, la première créature de votre deck est invoquée à la place.\n• Dame Carmilla : Drain 2 au lieu de Drain 1.\n• L'Intendant : +1 sceau aux tours 1 et 2 (au lieu du tour 1 seulement).\n\nCartes affaiblies\n• Dominion : coûte 5 sceaux (au lieu de 4).\n• Danse macabre : coûte 2 sceaux (au lieu de 1).\n• Dragon d'or : puissance 11 (au lieu de 12).\n\nCartes renforcées\n• Gobelin pyromane : détruit une créature de puissance 3 ou moins (au lieu de 2).\n• Souffle de feu : coûte 2 sceaux (au lieu de 3).\n• Sentier caché : coûte 1 sceau (au lieu de 2).\n• Druidesse : puissance 3 (au lieu de 2).\n• Annonciatrice : puissance 2 (au lieu de 1).\n• Séraphin : puissance 6 (au lieu de 5).\n\nLes decks préconstruits sont désormais bien plus proches les uns des autres. Dites-nous ce que vous en pensez en jeu !":

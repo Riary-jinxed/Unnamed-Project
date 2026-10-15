@@ -7,6 +7,7 @@ import { ARTS, ART_THEMES, MAX_FAV_ARTS } from './arts.js';
 import { CLAN_TITLES, CLAN_FRAMES, CLAN_BACKS, CLAN_LEVELS } from './clans.js';
 import { DEFAULT_SETS, setOf } from './collection.js';
 import { BOSS_TITLES, BOSS_FRAMES, BOSS_BACKS } from './boss.js';
+import { CLAN_BOSS_TITLES } from './clan-boss.js';
 import { STORY_TITLES } from './story.js';
 import { t, tp } from './i18n.js';
 
@@ -399,6 +400,7 @@ export const TITLES = Object.fromEntries([
   ...SEASON_TITLES,
   ...CLAN_TITLES,
   ...BOSS_TITLES,
+  ...CLAN_BOSS_TITLES,
   ...STORY_TITLES,
   [WELCOME_TITLE, 'Recrue prometteuse'],
 ]);

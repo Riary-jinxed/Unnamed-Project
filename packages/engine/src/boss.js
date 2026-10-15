@@ -9,8 +9,9 @@ import { today } from './collection.js';
 import { weekOf } from './pass.js';
 import { t } from './i18n.js';
 
-export const BOSS_IDS = Object.keys(GENERALS).filter(g => GENERALS[g].boss);
-export const isBoss = id => !!GENERALS[id]?.boss;
+// Les boss de clan (clan: true, clan-boss.js) n'entrent pas dans la rotation du boss mondial.
+export const BOSS_IDS = Object.keys(GENERALS).filter(g => GENERALS[g].boss && !GENERALS[g].clan);
+export const isBoss = id => !!GENERALS[id]?.boss && !GENERALS[id].clan;
 // Ce que l'appli montre d'un boss : son script tour par tour et les cartes qu'il renforce.
 export function bossInfo(id) {
   const g = GENERALS[id]; if (!g?.boss) return null;

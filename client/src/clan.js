@@ -10,6 +10,8 @@ import { CLAN_ICONS, CLAN_COLORS, CLAN_PRICE, CLAN_NAME_MAX, CLAN_DESC_MAX, CLAN
 import { seasonName } from '@jeu/engine/ranked';
 import { TITLES } from '@jeu/engine/rewards';
 import { t, tp, tField, locale } from '@jeu/engine/i18n';
+import { createClanBoss } from './clan-boss.js';
+import { clanBossPct } from '@jeu/engine/clan-boss';
 
 // Symboles du blason (viewBox 24 × 24), posés en clair sur l'écu de la couleur du clan.
 const SYMBOLS = {
@@ -38,19 +40,22 @@ const roleHTML = r => (r === 'membre' ? '' : `<span class="crole r-${r}">${ROLE_
 // Onglets de l'écran Social (barre du bas) : les amis et le clan.
 export const socialTabs = cur => `<div class="seg socialtabs" role="tablist" aria-label="${t('Social')}">${[['friends', t('Amis')], ['clan', t('Clan')]].map(([id, label]) =>
   `<button role="tab" data-act="${id}" class="${cur === id ? 'on' : ''}" aria-selected="${cur === id}">${label}</button>`).join('')}</div>`;
-const TABS = [['clan', t('Clan')], ['membres', t('Membres')], ['dons', t('Dons')], ['magasin', t('Magasin')], ['classement', t('Classement')]];
+const TABS = [['clan', t('Clan')], ['boss', t('Boss')], ['membres', t('Membres')], ['dons', t('Dons')], ['magasin', t('Magasin')], ['classement', t('Classement')]];
 
 // app : ce que main.js prête à l'écran (état ui, render, call, avatarHTML, errLine, ico, openPlayer, play).
 export function createClan(app) {
   const { ui } = app;
   const C = ui.clan = { data: null, tab: 'clan', list: null, query: '', ladder: null, form: null, edit: null, confirm: null, note: '', avatars: {} };
   const me = () => C.data?.clan;
+  // Boss de clan (clan-boss.js) : son onglet.
+  const raid = createClanBoss(app);
 
   async function load() {
     try { set(await api('GET', '/api/clan', undefined, ui.auth)); } catch (e) { ui.error = e.message; }
     app.render();
     if (!me()) search();
     if (C.tab === 'classement') ladder();
+    if (C.tab === 'boss' && me()) raid.load();
   }
   function set(r) {
     C.data = r;
@@ -269,14 +274,16 @@ export function createClan(app) {
     if (!C.data) return `${head(t('Clan'))}${app.errLine()}<p class="wait">${t('Chargement…')}</p>`;
     const c = me();
     if (!c) return lobby();
-    const body = { clan: () => missionsHTML(c), membres: () => membersHTML(c), dons: donsHTML, magasin: shopHTML, classement: ladderHTML }[C.tab]();
+    const body = { clan: () => missionsHTML(c), boss: () => raid.html(), membres: () => membersHTML(c), dons: donsHTML, magasin: shopHTML, classement: ladderHTML }[C.tab]();
     return `${head(t('Mon clan'))}${app.errLine()}${note()}${header(c)}${tabs()}${body}`;
   }
 
   // ---- Clics, saisies, formulaires ----
   function click(a, ds) {
     if (a === 'clan') { ui.screen = 'clan'; ui.error = ''; C.note = ''; C.confirm = null; C.edit = null; C.data ||= null; load(); app.render(); }
-    else if (a === 'clan-tab') { C.tab = ds.tab; C.confirm = null; C.note = ''; if (ds.tab === 'classement') ladder(); app.render(); }
+    else if (a === 'clan-tab') { C.tab = ds.tab; C.confirm = null; C.note = ''; if (ds.tab === 'classement') ladder(); if (ds.tab === 'boss') raid.load(); app.render(); }
+    else if (a === 'clan-boss') { app.leaveGame?.(); C.tab = 'boss'; click('clan', {}); }
+    else if (raid.click(a, ds)) return true;
     else if (a === 'clan-create-open') { C.form = { name: '', tag: '', icon: 'epee', color: 'gueules', desc: '', open: true }; app.render(); }
     else if (a === 'clan-create-cancel') { C.form = null; app.render(); }
     else if (a === 'clan-f-icon' && C.form) { C.form.icon = ds.icon; app.render(); }
@@ -337,7 +344,11 @@ export function createClan(app) {
     tile(account) {
       const c = me(), lv = c ? c.progress.level : 0;
       if (account.clan && c) {
-        const left = [...c.missions.day].filter(m => !m.done).length;
+        const left = [...c.missions.day].filter(m => !m.done).length, R = c.raid;
+        // Boss de clan ouvert : la tuile mène à son onglet et montre ses PV.
+        if (R?.open) return `<button class="tile ctile ${R.left ? 'todo' : ''}" data-act="clan-boss"><span class="eyebrow">${t('Boss de clan · niv. {n}', { n: lv })}</span>
+          <b class="ctile-name">${crestHTML(c, 'sm')}<span>${esc(t(GENERALS[R.boss]?.name || '').split(/,\s*/)[0])}</span></b><span class="tile-foot num">${t('{n} % des PV retirés', { n: clanBossPct(R.hp, R.max) })}${R.left ? ` · ${tp(R.left, '{n} tentative', '{n} tentatives')}` : ''}</span>
+          <span class="bar" aria-hidden="true"><span style="width:${pct(R.hp, R.max)}%"></span></span></button>`;
         return `<button class="tile ctile ${c.requests.length ? 'todo' : ''}" data-act="clan"><span class="eyebrow">${t('Clan · niv. {n}', { n: lv })}</span>
           <b class="ctile-name">${crestHTML(c, 'sm')}<span>${esc(c.name)}</span></b><span class="tile-foot num">${left ? tp(left, '{n} mission du jour en cours', '{n} missions du jour en cours') : t('Missions du jour finies ✓')}</span></button>`;
       }
@@ -346,7 +357,8 @@ export function createClan(app) {
     },
     // Charge le clan en arrière-plan (tuile de l'accueil).
     warm() { if (ui.auth && ui.account?.clan && !C.data) api('GET', '/api/clan', undefined, ui.auth).then(r => { set(r); app.render(); }).catch(() => {}); },
-    stop() { Object.assign(C, { data: null, list: null, ladder: null, form: null, edit: null, confirm: null, note: '', avatars: {}, tab: 'clan' }); },
+    stop() { Object.assign(C, { data: null, list: null, ladder: null, form: null, edit: null, confirm: null, note: '', avatars: {}, tab: 'clan' }); raid.stop(); },
+    bossDeck: id => raid.bossDeck(id),
     levelOf: clanLevelOf,
   };
 }
