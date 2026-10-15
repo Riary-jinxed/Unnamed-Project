@@ -98,7 +98,7 @@ const SOUNDS = {
   knock: () => { tone(120, { to: 70, dur: 0.18, vol: 0.4 }); noise({ dur: 0.12, freq: 700, type: 'lowpass', vol: 0.4 }); tone(1900, { dur: 0.08, type: 'square', vol: 0.025, at: 0.01 }); },
   chestUp: () => { [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, { dur: 0.22, type: 'triangle', vol: 0.1, at: i * 0.05 })); noise({ dur: 0.35, freq: 3000, to: 8000, q: 2, vol: 0.06 }); },
   chestOpen: () => { noise({ dur: 0.5, freq: 300, to: 4000, q: 0.6, vol: 0.35 }); tone(80, { to: 50, dur: 0.35, vol: 0.4 }); [523, 659, 784, 1047].forEach(f => tone(f, { dur: 0.9, type: 'triangle', vol: 0.07, at: 0.12 })); },
-  // Tapis vert : dé qui roule sur le tapis (petits chocs de plus en plus espacés), puis le Jackpot (rouleaux, trois arrêts, pluie de pièces).
+  // Rien ne va plus : dé qui roule sur le tapis (petits chocs de plus en plus espacés), puis le Jackpot (rouleaux, trois arrêts, pluie de pièces).
   dice: () => { [0, 0.06, 0.13, 0.22, 0.34, 0.47].forEach((at, i) => noise({ dur: 0.04, freq: 2400 - i * 180, q: 3, vol: 0.2 - i * 0.02, at })); tone(220, { to: 160, dur: 0.06, type: 'triangle', vol: 0.12, at: 0.47 }); },
   six: () => { [988, 1319, 1760].forEach((f, i) => tone(f, { dur: 0.22, type: 'triangle', vol: 0.08, at: 0.5 + i * 0.05 })); },
   jackpot: () => {

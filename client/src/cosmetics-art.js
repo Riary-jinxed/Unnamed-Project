@@ -526,7 +526,7 @@ const FRAMES = {
   set3: g => { add(g, glow(() => new Graphics().circle(C, C, RB).stroke({ width: 10, color: 0xffffff }), 0x3ad7ff, 10, 0.8));
     ring(g, METAL.neon); beads(g, 12, (RH + RB) / 2, 0xff4fbf, 3.5); crown(g, 0x3ad7ff, [0x3ad7ff, 0xff4fbf, 0x3ad7ff]);
     g.circle(C, C, RB - 3).stroke({ width: 2.5, color: 0x3ad7ff }).circle(C, C, RH + 3).stroke({ width: 2.5, color: 0xff4fbf }); },
-  // Tapis vert : anneau de feutre vert cerclé d'or, jetons de casino rouges et noirs, et un as de pique en haut.
+  // Rien ne va plus : anneau de feutre vert cerclé d'or, jetons de casino rouges et noirs, et un as de pique en haut.
   tapis: g => { ring(g, { base: 0x1a7a4a, hi: 0x5ad28a, lo: 0x0c3a22 });
     g.circle(C, C, RB + 3).stroke({ width: 4, color: 0xe3b552 }).circle(C, C, RH - 3).stroke({ width: 4, color: 0xe3b552 });
     for (let i = 0; i < 8; i++) { const a = Math.PI / 2 + (i - 3.5) * 0.36, [x, y] = pt(C, C, (RH + RB) / 2, a), col = i % 2 ? 0xb8202a : 0x1d1d1d;

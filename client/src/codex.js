@@ -51,10 +51,10 @@ export const CODEX = [
     { name: t('Sortilège'), fam: 'Elfe', text: t('Se déclenche quand vous révélez un sort, dans n\'importe quelle zone.'), ex: ['apprentie', 'mage_bois'] },
   ] },
   // set : groupe caché avant la sortie de son set.
-  { id: 'tapis', set: 'tapis', title: t('Mots-clés du Tapis vert'), items: [
+  { id: 'tapis', set: 'tapis', title: t('Mots-clés de Rien ne va plus'), items: [
     { name: t('Pari'), text: t('Pari : à la révélation, on lance un dé à 6 faces. L\'effet dépend du résultat : 1-2, 3-5 ou 6. Le dé roule sur la carte qui parie.'), ex: ['joueuse_des', 'flambeur', 'quitte_double'] },
     { name: t('Dés pipés'), text: t('Certaines cartes pipent vos prochains dés : ils font 6 sans être lancés. D\'autres trichent sur le deck et vous font piocher la carte voulue.'), ex: ['des_pipes', 'croupier', 'cartes_biseautees'] },
-    { name: t('Sept et Jackpot'), text: t('Il y a trois Sept : de cœur, de trèfle et de carreau. La première fois que vos 3 Sept sont en jeu en même temps, c\'est le Jackpot : vos créatures gagnent +2, et les effets « Jackpot » de vos cartes se déclenchent. Une fois par partie.'), ex: ['sept_coeur', 'sept_trefle', 'sept_carreau'] },
+    { name: t('Sept et Jackpot'), text: t('Il y a trois Sept, un par famille de départ : le Sept des Pillards (Gobelin), le Sept des Sylves (Elfe) et le Sept des Fosses (Démon). Tous les decks peuvent les jouer. La première fois que vos 3 Sept sont en jeu en même temps, c\'est le Jackpot : vos créatures gagnent +2, et les effets « Jackpot » de vos cartes se déclenchent. Une fois par partie.'), ex: ['sept_pillards', 'sept_sylves', 'sept_fosses'] },
   ] },
   { id: 'set3', set: 'set3', title: t('Mots-clés de la Cité Néon'), items: [
     { name: t('Malware'), fam: 'Hacker', text: t('Malware N : N Malwares sont glissés au hasard parmi les 6 premières cartes du deck adverse. Quand l\'adversaire en pioche un, il s\'exécute et disparaît sans être remplacé : le Virus fait perdre 1 à sa créature la plus puissante (1 sceau s\'il n\'en a pas), le Worm fait de même puis glisse un Virus dans son deck, le Ransomware fait coûter 1 de plus à la carte la plus chère de sa main.'), ex: ['script_kiddie', 'ver_polymorphe', 'casseuse'] },

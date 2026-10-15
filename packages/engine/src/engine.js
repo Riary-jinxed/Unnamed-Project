@@ -406,7 +406,7 @@ export const CARDS = {
   garde_securite:{ set: 'set3', name: 'Garde de sécurité', type: 'C', cost: 3, power: 4, kw: [], firewall: true, text: 'Pare-feu : vos créatures ici ne peuvent pas être piratées.' },
   unite_securite:{ set: 'set3', name: 'Unité de sécurité', type: 'C', cost: 5, power: 7, kw: [], text: '' },
 
-  // ---- Set 2.5 : Tapis vert (mini-set casino) ----
+  // ---- Set 2.5 : Rien ne va plus (mini-set casino) ----
   // Pari : on lance un dé à 6 faces (roll), l'effet dépend du résultat : 1-2, 3-5 ou 6. Pipé : le prochain dé fait 6 (load).
   // Sept : quand les 3 Sept d'un joueur sont en jeu, son Jackpot se déclenche une fois (jackpot). Triche : piocher la carte voulue.
   // NEUTRES : le deck du casino
@@ -426,30 +426,36 @@ export const CARDS = {
   roulette:    { set: 'tapis', name: 'Roulette', type: 'S', cost: 2, power: 0, kw: [], text: 'Pari. 1-2 : votre créature la plus faible ici gagne +2. 3-5 : vos créatures ici gagnent +1. 6 : vos créatures en jeu gagnent +2.',
                  onReveal: (c, st) => pari(st, c, () => { const w = weakest(st, creaturesAt(st, c.owner, c.zone)); if (w) buff(st, w, 2); },
                    () => creaturesAt(st, c.owner, c.zone).forEach(x => buff(st, x, 1)), () => mine(st, c.owner).forEach(x => buff(st, x, 2))) },
-  sept_coeur:  { set: 'tapis', name: 'Sept de cœur', type: 'C', cost: 2, power: 3, kw: [], seven: true, text: 'Sept. Jackpot (vos 3 Sept en jeu) : vos créatures gagnent +2.' },
-  sept_trefle: { set: 'tapis', name: 'Sept de trèfle', type: 'C', cost: 3, power: 3, kw: [], seven: true, text: 'Sept. Révélation : piochez un autre Sept de votre deck. Jackpot (vos 3 Sept en jeu) : vos créatures gagnent +2.',
-                 onReveal: (c, st) => tutor(st, c.owner, x => CARDS[x.id].seven) },
-  sept_carreau:{ set: 'tapis', name: 'Sept de carreau', type: 'C', cost: 4, power: 4, kw: [], seven: true, text: 'Sept. Jackpot (vos 3 Sept en jeu) : vos créatures gagnent +2.' },
-  machine_sous:{ set: 'tapis', name: 'Machine à sous', type: 'C', cost: 3, power: 2, kw: [], text: 'Fin de tour : Pari. 1-2 : rien. 3-5 : +1. 6 : +3. Jackpot : +4 de plus.',
+  machine_sous:{ set: 'tapis', name: 'Machine à sous', type: 'C', cost: 3, power: 2, kw: [], text: 'Fin de tour : Pari. 1-2 : rien. 3-5 : +1. 6 : +3. Jackpot : +3 de plus.',
                  onEndTurn: (c, st) => { let v = 0; pari(st, c, () => {}, () => { v = 1; }, () => { v = 3; }); if (v) buff(st, c, v); else return false; },
-                 onJackpot: (c, st) => buff(st, c, 4) },
+                 onJackpot: (c, st) => buff(st, c, 3) },
   videur:      { set: 'tapis', name: 'Videur du casino', type: 'C', cost: 3, power: 4, kw: [], text: 'Persistant : +1 par 6 obtenu à vos dés cette partie (au plus +4).',
                  self: (c, st) => Math.min(4, st.p[c.owner].sixes) },
   flambeur:    { set: 'tapis', name: 'Flambeur', type: 'C', cost: 4, power: 4, kw: [], text: 'Pari. 1-2 : piochez 1 carte. 3-5 : +3. 6 : +6.',
                  onReveal: (c, st) => pari(st, c, () => draw(st, c.owner, 1, true), () => buff(st, c, 3), () => buff(st, c, 6)) },
-  gros_lot:    { set: 'tapis', name: 'Gros lot', type: 'C', cost: 5, power: 6, kw: [], text: 'Persistant : +4 si votre Jackpot a eu lieu.',
-                 self: (c, st) => (st.p[c.owner].jackpot ? 4 : 0) },
+  gros_lot:    { set: 'tapis', name: 'Gros lot', type: 'C', cost: 5, power: 6, kw: [], text: 'Persistant : +3 si votre Jackpot a eu lieu.',
+                 self: (c, st) => (st.p[c.owner].jackpot ? 3 : 0) },
   directeur:   { set: 'tapis', name: 'Directeur du casino', type: 'C', cost: 6, power: 6, kw: [], text: 'Pari. 1-2 : +1. 3-5 : +3. 6 : +6.',
                  onReveal: (c, st) => pari(st, c, () => buff(st, c, 1), () => buff(st, c, 3), () => buff(st, c, 6)) },
-  // Support : les Anges aiment les 6, les Démons les 1 et 2.
-  ange_chance: { set: 'tapis', name: 'Ange de la chance', type: 'C', cost: 2, power: 2, kw: ['Ange'], text: 'Pari. 1-2 : +2. 3-5 : vos autres Anges ici gagnent +1. 6 : vos Anges en jeu gagnent +2.',
-                 onReveal: (c, st) => pari(st, c, () => buff(st, c, 2), () => creaturesAt(st, c.owner, c.zone).filter(x => x !== c && hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)),
-                   () => mine(st, c.owner).filter(x => hasKw(x, 'Ange')).forEach(x => buff(st, x, 2))) },
-  bonne_etoile:{ set: 'tapis', name: 'Bonne étoile', type: 'S', cost: 1, power: 0, kw: ['Ange'], text: 'Vos Anges ici gagnent +1. Votre prochain dé fait 6.',
-                 onReveal: (c, st) => { creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Ange')).forEach(x => buff(st, x, 1)); load(st, c.owner, 1); } },
-  ange_septieme:{ set: 'tapis', name: 'Ange du septième ciel', type: 'C', cost: 3, power: 2, kw: ['Ange'], text: 'Révélation : piochez un Sept de votre deck. Persistant : +2 si votre Jackpot a eu lieu.',
-                 onReveal: (c, st) => tutor(st, c.owner, x => CARDS[x.id].seven),
-                 self: (c, st) => (st.p[c.owner].jackpot ? 2 : 0) },
+  // Les trois Sept, un par famille de départ (Gobelin, Elfe, Démon). Les 3 en jeu : Jackpot.
+  sept_pillards:{ set: 'tapis', name: 'Sept des Pillards', type: 'C', cost: 2, power: 2, kw: ['Gobelin'], seven: true, text: 'Sept. Révélation : Horde 1.',
+                 onReveal: (c, st) => horde(st, c.owner, c.zone, 1) },
+  sept_sylves: { set: 'tapis', name: 'Sept des Sylves', type: 'C', cost: 3, power: 2, kw: ['Elfe'], seven: true, mobile: true, text: 'Sept. Déplaçable. Révélation : piochez 1 carte.',
+                 onReveal: (c, st) => draw(st, c.owner, 1, true) },
+  sept_fosses: { set: 'tapis', name: 'Sept des Fosses', type: 'C', cost: 4, power: 3, kw: ['Démon'], seven: true, text: 'Sept. Destruction : votre zone ici gagne +3.',
+                 onDestroyed: (c, st, z) => addZone(st, c.owner, z, 3) },
+  // Support : les Anges conjurent la malchance, les Gobelins trichent en bande, les Démons profitent des 1 et des 2.
+  ange_chance: { set: 'tapis', name: 'Ange de la chance', type: 'C', cost: 2, power: 3, kw: ['Ange'], text: 'Grâce : votre prochain dé fait 6, et celle-ci gagne +1.',
+                 grace: (c, st) => { load(st, c.owner, 1); buff(st, c, 1); } },
+  aureole:     { set: 'tapis', name: 'Auréole d\'or', type: 'S', cost: 1, power: 0, kw: ['Ange'], text: 'Vos Anges ici gagnent +2, et +1 de plus par 6 obtenu à vos dés cette partie (au plus +3 de plus).',
+                 onReveal: (c, st) => { const n = 2 + Math.min(3, st.p[c.owner].sixes); creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Ange')).forEach(x => buff(st, x, n)); } },
+  archange_hasard:{ set: 'tapis', name: 'Archange du hasard', type: 'C', cost: 5, power: 6, kw: ['Ange'], floor3: true, text: 'Persistant : vos dés font au moins 3.' },
+  gobelin_tricheur:{ set: 'tapis', name: 'Gobelin tricheur', type: 'C', cost: 1, power: 1, kw: ['Gobelin'], text: 'Pari. 1-2 : rien. 3-5 : Horde 1. 6 : Horde 3.',
+                 onReveal: (c, st) => pari(st, c, null, () => horde(st, c.owner, c.zone, 1), () => horde(st, c.owner, c.zone, 3)) },
+  roulette_gobeline:{ set: 'tapis', name: 'Roulette gobeline', type: 'S', cost: 2, power: 0, kw: ['Gobelin'], text: 'Un Pari dans chacune de vos zones. 1-2 : rien. 3-5 : Horde 1 dans cette zone. 6 : Horde 2 dans cette zone.',
+                 onReveal: (c, st) => [0, 1, 2].forEach(z => { const v = roll(st, c.owner, z, c, c.id); if (v >= 6) horde(st, c.owner, z, 2); else if (v >= 3) horde(st, c.owner, z, 1); }) },
+  bookmaker:   { set: 'tapis', name: 'Bookmaker gobelin', type: 'C', cost: 3, power: 3, kw: ['Gobelin'], text: 'Fin de tour : Pari. 1-2 : rien. 3-5 : votre Horde ici gagne +1. 6 : Horde 2 ici.',
+                 onEndTurn: (c, st) => { let r = false; pari(st, c, null, () => { const h = hordeAt(st, c.owner, c.zone); if (h) { buff(st, h, 1); r = true; } }, () => { horde(st, c.owner, c.zone, 2); r = true; }); if (!r) return false; } },
   diable_joueur:{ set: 'tapis', name: 'Diable joueur', type: 'C', cost: 2, power: 5, kw: ['Démon'], text: 'Pari. 1-2 : il est sacrifié. 3-5 : +2. 6 : +4.',
                  onReveal: (c, st) => pari(st, c, () => destroy(st, c, c.owner), () => buff(st, c, 2), () => buff(st, c, 4)) },
   mise_ames:   { set: 'tapis', name: 'Mise des âmes', type: 'S', cost: 2, power: 0, kw: ['Démon'], text: 'Détruisez votre créature la plus faible ici, puis Pari. 1-2 : vos créatures ici gagnent +1. 3-5 : +2. 6 : +4.',
@@ -521,7 +527,7 @@ export const CARDS = {
   dieu_set3:   { set: 'recompense', name: 'Nexus, Dieu du Réseau', type: 'C', cost: 6, power: 7, kw: ['Hacker'], text: 'Révélation : Piratage du général adverse jusqu\'à la fin du tour suivant, puis Malware 2. Persistant : +1 par Malware exécuté chez l\'adversaire cette partie.',
                  onReveal: (c, st) => { hackGeneral(st, 1 - c.owner); malware(st, c.owner, 2); },
                  self: (c, st) => st.p[1 - c.owner].malwareRun || 0 },
-  // Tapis vert complété : une carte de casino, pas de Dieu pour un mini-set.
+  // Rien ne va plus complété : une carte de casino, pas de Dieu pour un mini-set.
   as_pique:    { set: 'recompense', name: 'As de pique', type: 'C', cost: 3, power: 4, kw: [], text: 'Révélation : votre prochain dé fait 6. Persistant : +3 si votre Jackpot a eu lieu.',
                  onReveal: (c, st) => load(st, c.owner, 1),
                  self: (c, st) => (st.p[c.owner].jackpot ? 3 : 0) },
@@ -698,7 +704,7 @@ export const GENERALS = {
                onStart: (p, st) => { const c = st.p[p].hand.filter(x => (costOf(st, x) ?? 0) > 0).sort((a, b) => costOf(st, b) - costOf(st, a))[0];
                  if (c) { c.discount = (c.discount || 0) - 1; log(st, '⟦{p}⟧ : {card} coûte 1 de moins.', 'up', { p, card: nm(c.id) }); } } },
 
-  // ---- Set 2.5 : Tapis vert ----
+  // ---- Set 2.5 : Rien ne va plus ----
   velours:   { set: 'tapis', name: 'Velours, Croupière des Fosses', fam: 'Démon', kind: 'Persistant',
                text: 'Chaque fois que vous faites 1 ou 2 à un dé, votre zone la plus faible gagne +2.',
                onRoll: (p, st, z, v) => { if (v <= 2) addZone(st, p, weakestZone(st, p), 2); } },
@@ -943,15 +949,18 @@ export const DECKS = {
              cards: ['siphonneuse', 'vampire_donnees', 'morsure_virale', 'comte_reseau', 'chauve_souris', 'novice', 'servante', 'rodeur_nuit', 'buveuse', 'comtesse', 'seigneur_vampire', 'prince_nuit', 'saignee', 'glitcheuse', 'golem'],
              terrains: ['club', 'chateau', 'bassin', 'ruines', 'sanctuaire'] },
   // Set 2.5 : le casino des neutres, et les Démons qui misent leurs âmes.
-  tapis:   { set: 'tapis', name: 'Tapis vert', fam: null, general: 'fortuna',
-             cards: ['joueuse_des', 'croupier', 'des_pipes', 'cartes_biseautees', 'as_manche', 'quitte_double', 'roulette', 'sept_coeur', 'sept_trefle', 'sept_carreau', 'machine_sous', 'videur', 'flambeur', 'gros_lot', 'directeur'],
+  tapis:   { set: 'tapis', name: 'Maison de jeu', fam: null, general: 'fortuna',
+             cards: ['joueuse_des', 'croupier', 'des_pipes', 'cartes_biseautees', 'as_manche', 'quitte_double', 'roulette', 'sept_pillards', 'sept_sylves', 'sept_fosses', 'machine_sous', 'videur', 'flambeur', 'gros_lot', 'directeur'],
              terrains: ['casino_fosses', 'salle_coffres', 'allee_machines', 'ruines', 'champ'] },
   fosses_misent:{ set: 'tapis', name: 'Les Fosses misent', fam: 'Démon', general: 'velours',
              cards: ['diable_joueur', 'mise_ames', 'usurier', 'joueuse_des', 'flambeur', 'machine_sous', 'roulette', 'directeur', 'diablotin', 'pacte', 'bourreau', 'demon_majeur', 'moissonneur', 'seigneur', 'archidemon'],
              terrains: ['salle_coffres', 'charnier', 'bergerie', 'ruines', 'duel'] },
   septieme_ciel:{ set: 'tapis', name: 'Septième ciel', fam: 'Ange', general: 'seraphine',
-             cards: ['ange_chance', 'bonne_etoile', 'ange_septieme', 'sept_coeur', 'sept_trefle', 'sept_carreau', 'cartes_biseautees', 'croupier', 'joueuse_des', 'gros_lot', 'cherubin', 'gardien', 'heraut', 'dominion', 'archange'],
-             terrains: ['allee_machines', 'casino_fosses', 'prairie', 'sanctuaire', 'champ'] },
+             cards: ['ange_chance', 'aureole', 'archange_hasard', 'croupier', 'des_pipes', 'sept_pillards', 'sept_sylves', 'sept_fosses', 'cartes_biseautees', 'cherubin', 'messagere', 'gardien', 'heraut', 'dominion', 'archange'],
+             terrains: ['casino_fosses', 'prairie', 'sanctuaire', 'champ', 'ruines'] },
+  horde_mise:{ set: 'tapis', name: 'La horde mise tout', fam: 'Gobelin', general: 'grisk',
+             cards: ['gobelin_tricheur', 'roulette_gobeline', 'bookmaker', 'sept_pillards', 'sept_sylves', 'sept_fosses', 'cartes_biseautees', 'croupier', 'joueuse_des', 'eclaireur', 'recruteur', 'chaman', 'porte_etendard', 'chef', 'grand_chef'],
+             terrains: ['allee_machines', 'terrier', 'salle_coffres', 'ruines', 'champ'] },
 };
 
 // ---- Utilitaires ----
@@ -1265,6 +1274,7 @@ function roll(st, p, z, c, id) {
       P.genFired = (P.genFired || 0) + 1; v = d6(st);
     }
     if (P.terrains[z] === 'casino_fosses') v = Math.min(6, v + 1);
+    if (v < 3 && mine(st, p).some(x => fx(x).floor3)) v = 3;
   }
   if (v === 6) P.sixes++;
   if (v <= 2) P.lows++;

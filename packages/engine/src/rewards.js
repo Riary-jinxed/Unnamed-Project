@@ -174,7 +174,7 @@ export const missionLabel = m => ALL_MISSIONS[m.id]?.label(m.target, m.fam, CARD
 export const FRAMES = {
   bronze: 'Cadre de bronze', argent: 'Cadre d\'argent', or: 'Cadre d\'or', legende: 'Cadre légendaire',
   flamme: 'Cadre de flammes', duel: 'Cadre du duelliste', tresor: 'Cadre du trésor', etoile: 'Cadre étoilé',
-  base: 'Couronne du Set de base', set2: 'Couronne du Crépuscule', set3: 'Couronne de la Cité Néon', tapis: 'Cadre du tapis vert',
+  base: 'Couronne du Set de base', set2: 'Couronne du Crépuscule', set3: 'Couronne de la Cité Néon', tapis: 'Cadre du casino',
   platine: 'Cadre de platine', diamant: 'Cadre de diamant', maitre: 'Cadre du grand maître',
   // Bienvenue des nouveaux comptes : 7e jour (welcomeReward).
   bienvenue: 'Cadre de bienvenue',
