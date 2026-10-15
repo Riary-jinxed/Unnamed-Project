@@ -82,11 +82,11 @@ export function createBoss(app) {
       <p class="hint" style="margin:0">${t('Le boss pose un Sbire de puissance 4 dans chaque zone au premier tour. Ces cartes sont renforcées contre lui, sur le plateau :')}</p>
       ${boostChips(D.boss)}`);
   }
-  // Paliers d'une tentative : chacun atteint donne sa récompense, cumulée avec celles d'en dessous.
+  // Paliers d'une tentative : chacun atteint donne sa récompense, cumulée avec celles d'en dessous, une fois par jour.
   const tierGain = x => [x.coins ? coins(x.coins) : '', x.shards ? `<span class="num">${ico('shard')}${x.shards}</span>` : '', x.xp ? `<span class="num">${t('{n} XP', { n: x.xp })}</span>` : ''].filter(Boolean).join(' ');
   function tiersBlock(D) {
-    return block(t('Paliers d\'une tentative'), `<p class="hint" style="margin:0">${t('Chaque palier atteint par une tentative donne sa récompense, et ils se cumulent.')}</p>
-      <ul class="tiers btiers">${D.tiers.map(x => `<li class="${D.best >= x.points ? 'done' : ''}"><b class="num">${t('{n} pts', { n: x.points })}</b><span>${tierGain(x)}</span>${D.best >= x.points ? '<span class="ok">✓</span>' : ''}</li>`).join('')}</ul>`);
+    return block(t('Paliers d\'une tentative'), `<p class="hint" style="margin:0">${t('Chaque palier atteint donne sa récompense, et ils se cumulent. Un palier se gagne une fois par jour : vos autres tentatives du jour ne paient que les paliers pas encore atteints, mais toutes comptent pour le classement.')}</p>
+      <ul class="tiers btiers">${D.tiers.map((x, i) => `<li class="${i < D.paidToday ? 'done' : ''}"><b class="num">${t('{n} pts', { n: x.points })}</b><span>${tierGain(x)}</span>${i < D.paidToday ? `<span class="ok" title="${t('Gagné aujourd\'hui')}">✓</span>` : ''}</li>`).join('')}</ul>`);
   }
   function lastBlock(D) {
     if (!D.last.length) return '';
@@ -213,13 +213,15 @@ export function createBoss(app) {
     const zs = [0, 1, 2].map(z => { const x = (r?.zones || sc?.zones || [])[z] || { power: 0, points: 0 };
       return `<div class="${x.beat ? 'me' : ''}"><div class="eyebrow">${t(ZONE_NAMES[z])}</div><b class="num">${x.points}</b><small class="hint">${t('puissance {n}', { n: x.power })}${x.full ? ` · ${t('pleine')}` : ''}${x.beat ? ` · ${t('gagnée')}` : ''}</small></div>`; }).join('');
     if (!r) return `<div class="sheet"><div class="panel end bend"><h2>${t('Tentative terminée')}</h2><div class="zs">${zs}</div><p class="hint" style="margin:0">${t('Calcul du score…')}</p></div></div>`;
-    const tiers = `<ul class="tiers btiers">${r.tiers.map((x, i) => `<li class="${r.reached.includes(i) ? 'done' : ''}"><b class="num">${t('{n} pts', { n: x.points })}</b><span>${tierGain(x)}</span>${r.reached.includes(i) ? '<span class="ok">✓</span>' : ''}</li>`).join('')}</ul>`;
+    // Paliers atteints : payés par cette tentative (✓), ou déjà gagnés plus tôt dans la journée.
+    const paid = r.paid || r.reached, before = r.reached.filter(i => !paid.includes(i)).length;
+    const tiers = `<ul class="tiers btiers">${r.tiers.map((x, i) => `<li class="${paid.includes(i) ? 'done' : ''}"><b class="num">${t('{n} pts', { n: x.points })}</b><span>${tierGain(x)}</span>${paid.includes(i) ? '<span class="ok">✓</span>' : r.reached.includes(i) ? `<small class="hint">${t('déjà gagné aujourd\'hui')}</small>` : ''}</li>`).join('')}</ul>`;
     const next = r.tiers.find(x => x.points > r.score);
     const gain = [r.gain.bossCoins ? t('+{n} Insignes', { n: r.gain.bossCoins }) : '', r.gain.shards ? t('+{n} Éclats', { n: r.gain.shards }) : '', r.gain.xp ? t('+{n} XP', { n: r.gain.xp }) : ''].filter(Boolean).join(' · ');
     return `<div class="sheet"><div class="panel end bend"><span class="eyebrow">${esc(GENERALS[r.boss]?.name || t('Boss mondial'))}${r.abandoned ? ` · ${t('tentative abandonnée')}` : ''}</span>
       <h2 class="bend-score num">${t('{n} <small>points</small>', { n: r.score })}</h2>
       <div class="zs">${zs}</div>
-      <p style="margin:0">${gain || t('Aucun palier atteint cette fois.')}${r.levelUp ? ` · <b>${t('Niveau {n} !', { n: r.progress.level })}</b>` : ''}${next ? ` <small class="hint">${t('Prochain palier : {n} points.', { n: next.points })}</small>` : ''}</p>
+      <p style="margin:0">${gain || (before ? t('Ces paliers sont déjà gagnés aujourd\'hui : la tentative compte pour le classement.') : t('Aucun palier atteint cette fois.'))}${r.levelUp ? ` · <b>${t('Niveau {n} !', { n: r.progress.level })}</b>` : ''}${next ? ` <small class="hint">${t('Prochain palier : {n} points.', { n: next.points })}</small>` : ''}</p>
       ${tiers}
       <p class="num" style="margin:0">${r.pos ? t('Cette semaine : <b>{n}</b> points, {pos} du classement · meilleure tentative {best}', { n: r.total, pos: nth(r.pos), best: r.best }) : t('Cette semaine : <b>{n}</b> points · meilleure tentative {best}', { n: r.total, best: r.best })}</p>
       <div class="row"><button class="btn primary" data-act="again" ${asked || r.left <= 0 ? 'disabled' : ''}>${asked ? t('Nouvelle tentative…') : r.left > 0 ? t('Nouvelle tentative ({n})', { n: r.left }) : t('Plus de tentative aujourd\'hui')}</button>
