@@ -4,7 +4,8 @@ extends Node
 signal message(d: Dictionary)
 signal closed
 
-var server := "http://localhost:8787"
+# Sur téléphone, le jeu en ligne (adresse déduite du nom du service Render, modifiable à l'accueil) ; sur ordinateur, le serveur local.
+var server := "https://jeu-de-cartes.onrender.com" if OS.has_feature("mobile") else "http://localhost:8787"
 var token := ""
 
 var _ws := WebSocketPeer.new()

@@ -14,7 +14,7 @@ Options après `--` sur la ligne de commande :
 
 | Option | Effet |
 | --- | --- |
-| `--server=URL` | Serveur à joindre (`http://localhost:8787` par défaut). |
+| `--server=URL` | Serveur à joindre (par défaut `http://localhost:8787` sur ordinateur, `https://jeu-de-cartes.onrender.com` sur téléphone). |
 | `--login=… --password=…` | Connexion automatique. |
 | `--auto` | Joue seul : pose les cartes qu'il peut payer dans la zone où il est le plus en retard. |
 | `--drag-test` | Avec `--auto` : pose une carte par tour en la glissant (vrais événements de souris), et écrit le résultat dans la console. |
