@@ -258,7 +258,6 @@ export default {
   "Leçon finie : un Pari, c'est un dé à 6 faces. Les cartes qui trichent pipent le dé ou le deck, et vos 3 Sept en jeu déclenchent le Jackpot : vos créatures gagnent +2.": "Lesson complete: a Bet is a 6-sided die. Cheating cards load the die or the deck, and your 3 Sevens in play trigger the Jackpot: your creatures get +2.",
   "5 tours · lancer les dés, tricher et décrocher le Jackpot": "5 turns · roll the dice, cheat and hit the Jackpot",
   // Nouveautés (news.js)
-  'Nouveautés': 'News',
   'Mise à jour majeure': 'Major update',
   'Annonce de set': 'Set announcement',
   'À la une': 'Featured',
