@@ -22,6 +22,8 @@ import { createGames } from './games.js';
 import { createCatalog } from './cards.js';
 import { createFriends } from './friends.js';
 import { createMail } from './mail.js';
+import { createNews } from './news.js';
+import { planning } from './planning.js';
 import { createClans } from './clans.js';
 import { createBoss } from './boss.js';
 import { createClanBoss } from './clan-boss.js';
@@ -51,9 +53,12 @@ const friends = createFriends(store, accounts, { playing, inviteRoom, abortInvit
 // Courrier : un joueur connecté voit aussitôt arriver un nouveau message (par sa connexion de présence).
 const mail = createMail(store, accounts, { notify: logins => logins.forEach(l => friends.notify(l, { t: 'mail' })) });
 await mail.publishNotes(NOTES_MAJ);
+// Nouveautés : annonces des mises à jour majeures et des sets ; la pastille de l'accueil se met à jour dès qu'une annonce paraît.
+const news = createNews(store, accounts, { notify: logins => logins.forEach(l => friends.notify(l, { t: 'news' })) });
 // Notifications push : rien n'est envoyé à un joueur qui a l'appli ouverte (sa connexion de présence le prévient déjà).
 const push = createPush(store, accounts, { isOnline: friends.online, events: accounts.progress.events });
 friends.setPush(push);
+news.setPush(push);
 push.start();
 // Clans : les parties font avancer les missions du clan ; la fin du mois fige aussi le classement des clans.
 const clans = createClans(store, accounts, push);
@@ -65,6 +70,8 @@ games.routes['GET /api/player'] = (...x) => { const r = playerRoute(...x); r.pla
 // Boss mondial : tentatives jouées dans un salon du serveur (message « boss »), classement de la semaine, magasin.
 const boss = createBoss(store, accounts);
 accounts.setBossTile(a => boss.tile(a));
+// Onglet « À venir » des Nouveautés : sets, saisons, quêtes, événements et Boss mondial des semaines qui viennent.
+news.setUpcoming(() => planning({ store, events: accounts.progress.events, boss, posts: news.shown }));
 // Boss de clan : ouvert par le Maître ou un adjoint, barre de PV commune à tout le clan (message « clanboss »).
 const clanBoss = createClanBoss(store, accounts, clans);
 // Quêtes d'histoire : combats joués dans la page, progression et récompenses des chapitres, quêtes à durée limitée.
@@ -73,7 +80,7 @@ catalog.setExtraCards(() => story.releasedCards());
 accounts.setStoryTile(a => story.tile(a));
 // Onglet Suivi de /admin : rétention et suivi du nouveau contenu.
 const follow = createFollow(store, accounts, { boss, events: accounts.progress.events });
-const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...accounts.progress.events.routes, ...clans.routes, ...clanBoss.routes, ...push.routes, ...boss.routes, ...story.routes, ...follow.routes }, catalog.public);
+const api = apiHandler(accounts, process.env.ADMIN_KEY || '', { ...catalog.routes, ...games.routes, ...friends.routes, ...mail.routes, ...news.routes, ...accounts.progress.events.routes, ...clans.routes, ...clanBoss.routes, ...push.routes, ...boss.routes, ...story.routes, ...follow.routes }, catalog.public);
 
 // ---- API et fichiers statiques ----
 // Les fichiers de client/dist ne changent pas pendant que le serveur tourne : chacun est lu et compressé une seule fois.
@@ -439,6 +446,7 @@ setInterval(() => {
   // Fin de semaine : le classement du boss mondial est figé et ses récompenses données.
   boss.closeWeek();
   boss.announce(push);
+  news.announce().catch(e => console.error('Nouveautés en erreur :', e));
   // Boss de clan dont le temps est écoulé : fermés, récompenses données.
   clanBoss.tick();
   const now = Date.now();

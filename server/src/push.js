@@ -16,6 +16,7 @@ export const PUSH_KINDS = {
   daily: { label: msg('Missions et récompenses du jour'), hint: msg('Un rappel en fin d\'après-midi si vous n\'êtes pas encore venu : nouvelles missions, récompense de connexion, coffres à ouvrir.') },
   events: { label: msg('Événements et Boss mondial'), hint: msg('Le début d\'un événement (double XP, bonus d\'Éclats…) ou l\'arrivée d\'un Boss mondial.') },
   social: { label: msg('Amis et clan'), hint: msg('Une demande d\'ami ou d\'entrée dans votre clan, une demande acceptée.') },
+  news: { label: msg('Nouveautés du jeu'), hint: msg('Une mise à jour majeure, un nouveau set ou l\'annonce du prochain.') },
   season: { label: msg('Fin de saison'), hint: msg('Le dernier jour de la saison classée et du passe de saison.') },
 };
 // Heures (de Paris) des envois planifiés.
