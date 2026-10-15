@@ -1,0 +1,380 @@
+/* Thèmes de l'interface à l'effigie d'un général (themes.js du moteur) : Éclipse d'Ignaroth, Bois de Sylvaën, Aube de Séraphine,
+   Ciel d'Elyndra, Estampe d'Ysmera.
+   Écrits par main.js dans <body data-season>, comme ceux des saisons (halloween.css, cyber.css). Chaque thème donne ses couleurs
+   (variables --th-…) ; les règles communes plus bas les posent sur les panneaux, boutons, onglets, jauges et la table.
+   L'illustration du général (--theme-decor, --theme-perso, posées par main.js) apparaît en fond des menus, en haut, fondue dans la nuit.
+   Ne touche qu'à l'apparence, comme habillage.css ; chaque règle commence par body[data-season=…] pour passer devant lui. */
+
+/* ---- Éclipse d'Ignaroth : soleil noir cerclé de feu, braises et sang de dragon ---- */
+body[data-season="eclipse"] {
+  --bg: #0a0507; --surface: #1c0d10; --sunk: #060203; --ink: #f6e6dc; --muted: #b48c80; --line: #4a1e1a;
+  --accent: #ff6a2a; --accent-ink: #1a0602;
+  --gold-hi: #ffd8b0; --gold: #ff8a3a; --gold-lo: #7a2008; --leather: #24100f; --leather-lo: #120708; --rim: #6a2418;
+  --th-font: "MedievalSharp", "Cinzel", serif; --th-title: #ff9a50; --th-glow: rgb(255 90 30 / .6); --th-glow2: rgb(200 30 20 / .55);
+  --th-panel: linear-gradient(180deg, #26100f, #120607); --th-btn: linear-gradient(180deg, #3a1612, #1e0a08); --th-btn-rim: #7a2a1a;
+  --th-primary: radial-gradient(ellipse 80% 100% at 50% 70%, #ffd090, #ff7a2a 40%, #b8280c 78%, #4a0a04);
+  --th-bar: linear-gradient(90deg, #8a1a0a, #ff5a1a 70%, #ffc070); --th-tab: rgb(255 90 30);
+  --th-zone: linear-gradient(180deg, rgb(20 6 6 / .86), rgb(40 12 10 / .86));
+  background:
+    radial-gradient(ellipse at 50% 120%, rgb(200 40 10 / .3), transparent 60%),
+    radial-gradient(ellipse at 0% 60%, rgb(120 10 30 / .18), transparent 50%),
+    linear-gradient(#1a080a, #0a0507 55%, #050203);
+  background-attachment: fixed; }
+
+/* ---- Bois de Sylvaën : sous-bois profond, mousse, lucioles et lumière qui filtre ---- */
+body[data-season="sylve"] {
+  --bg: #07110b; --surface: #12231a; --sunk: #040a06; --ink: #eef6e4; --muted: #9ab89a; --line: #2e5a3c;
+  --accent: #b8e060; --accent-ink: #0c1a04;
+  --gold-hi: #f0ffd0; --gold: #c8e070; --gold-lo: #4a6a1a; --leather: #142a1c; --leather-lo: #0a160e; --rim: #3a6a3a;
+  --th-font: "Uncial Antiqua", "Cinzel", serif; --th-title: #d8f090; --th-glow: rgb(170 240 100 / .5); --th-glow2: rgb(60 200 140 / .45);
+  --th-panel: linear-gradient(180deg, #16301f, #0a170f); --th-btn: linear-gradient(180deg, #24402a, #122216); --th-btn-rim: #4a7a3a;
+  --th-primary: radial-gradient(ellipse 80% 100% at 50% 70%, #f4ffc0, #b8e060 40%, #5a9a2a 78%, #1a3a0a);
+  --th-bar: linear-gradient(90deg, #2a6a2a, #8ae060 70%, #e0ffa0); --th-tab: rgb(170 240 100);
+  --th-zone: linear-gradient(180deg, rgb(6 16 10 / .86), rgb(16 34 22 / .86));
+  background:
+    radial-gradient(circle at 18% 30%, rgb(220 255 140 / .9) 0 1.5px, transparent 3px), radial-gradient(circle at 74% 22%, rgb(220 255 140 / .8) 0 1.5px, transparent 3px),
+    radial-gradient(circle at 62% 58%, rgb(160 255 200 / .7) 0 1.5px, transparent 3px), radial-gradient(circle at 34% 74%, rgb(220 255 140 / .7) 0 1.5px, transparent 3px),
+    linear-gradient(105deg, transparent 30%, rgb(230 255 180 / .06) 38%, transparent 46%, rgb(230 255 180 / .04) 60%, transparent 66%),
+    radial-gradient(ellipse at 50% 120%, rgb(40 120 70 / .3), transparent 60%),
+    linear-gradient(#10221a, #07110b 55%, #040a06);
+  background-attachment: fixed; }
+
+/* ---- Aube de Séraphine : ciel qui passe du violet de la nuit à l'or et au rose du matin ---- */
+body[data-season="aube"] {
+  --bg: #140e1c; --surface: #261a30; --sunk: #0c0812; --ink: #fff4e6; --muted: #c8a8b8; --line: #5a3a5a;
+  --accent: #ffc85a; --accent-ink: #2a1606;
+  --gold-hi: #fff4d0; --gold: #ffcc6a; --gold-lo: #8a5a1a; --leather: #2a1c32; --leather-lo: #170f1e; --rim: #7a5070;
+  --th-font: "Cinzel Decorative", "Cinzel", serif; --th-title: #ffe0a0; --th-glow: rgb(255 210 120 / .6); --th-glow2: rgb(255 130 170 / .5);
+  --th-panel: linear-gradient(180deg, #2e2038, #18101e); --th-btn: linear-gradient(180deg, #4a3050, #2a1a30); --th-btn-rim: #9a6a8a;
+  --th-primary: radial-gradient(ellipse 80% 100% at 50% 70%, #fffbe0, #ffd070 40%, #f08a6a 78%, #8a3a4a);
+  --th-bar: linear-gradient(90deg, #d86a8a, #ffc060 70%, #fff4c0); --th-tab: rgb(255 200 100);
+  --th-zone: linear-gradient(180deg, rgb(20 12 26 / .86), rgb(44 26 44 / .86));
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 112%, rgb(255 210 120 / .45), rgb(255 130 150 / .2) 50%, transparent 75%),
+    radial-gradient(1px 1px at 14% 12%, #fff 50%, transparent), radial-gradient(1px 1px at 40% 6%, #fff 50%, transparent), radial-gradient(1.5px 1.5px at 76% 14%, #fff 50%, transparent),
+    linear-gradient(#0e0a20, #2a1838 45%, #4a2440 80%, #6a3040);
+  background-attachment: fixed; }
+
+/* ---- Ciel d'Elyndra : nuit étoilée, voie lactée violette et bleue, constellations reliées d'or ---- */
+body[data-season="astral"] {
+  --bg: #05061a; --surface: #10143a; --sunk: #03040f; --ink: #eef0ff; --muted: #9aa4d8; --line: #2a3070;
+  --accent: #ffd870; --accent-ink: #10123a;
+  --gold-hi: #fff4c8; --gold: #ffd870; --gold-lo: #7a5a18; --leather: #0e1240; --leather-lo: #070a24; --rim: #3a4290;
+  --th-font: "Marcellus SC", "Cinzel", serif; --th-title: #ffe8a0; --th-glow: rgb(255 216 112 / .5); --th-glow2: rgb(120 140 255 / .5);
+  --th-panel: linear-gradient(180deg, #141a4a, #080a26); --th-btn: linear-gradient(180deg, #1e2560, #0e1236); --th-btn-rim: #4a54a8;
+  --th-primary: radial-gradient(ellipse 80% 100% at 50% 70%, #fffbe0, #ffd870 40%, #c8902a 78%, #5a3a0a);
+  --th-bar: linear-gradient(90deg, #3a4ab8, #8aa8ff 60%, #fff2c0); --th-tab: rgb(255 216 112);
+  --th-zone: linear-gradient(180deg, rgb(6 8 26 / .84), rgb(16 20 58 / .84));
+  background:
+    radial-gradient(ellipse 60% 30% at 30% 60%, rgb(120 60 200 / .22), transparent 70%),
+    radial-gradient(ellipse 50% 25% at 70% 35%, rgb(40 90 220 / .22), transparent 70%),
+    linear-gradient(160deg, transparent 30%, rgb(160 140 255 / .08) 45%, rgb(120 180 255 / .1) 52%, transparent 66%),
+    linear-gradient(#0a0c2a, #05061a 60%, #03040f);
+  background-attachment: fixed; }
+
+/* ---- Estampe d'Ysmera : papier washi, encre sumi, vermillon des sceaux, indigo des vagues ---- */
+body[data-season="estampe"] {
+  --bg: #efe2c4; --surface: #f6ecd6; --sunk: #e4d4b0; --ink: #1a1410; --muted: #6a5a48; --line: #b8a078;
+  --accent: #c8281a; --accent-ink: #fff6e8;
+  --gold-hi: #8a1a10; --gold: #a8741e; --gold-lo: #6a4a1a; --leather: #ead9b4; --leather-lo: #dcc69c; --rim: #3a302a;
+  --th-font: "Shojumaru", "Cinzel", serif; --th-title: #c8281a; --th-glow: rgb(200 40 26 / .22); --th-glow2: rgb(42 90 122 / .22);
+  --th-panel: linear-gradient(180deg, #f8f0dc, #efe2c4); --th-btn: linear-gradient(180deg, #faf3e2, #e8d8b4); --th-btn-rim: #3a302a;
+  --th-primary: linear-gradient(180deg, #e44a30, #c8281a 55%, #9a180e);
+  --th-bar: linear-gradient(90deg, #1a3a5a, #2a6a8a 70%, #6aa8b8); --th-tab: rgb(200 40 26);
+  --th-zone: linear-gradient(180deg, rgb(246 236 214 / .82), rgb(232 216 180 / .82));
+  color-scheme: light;
+  background:
+    radial-gradient(circle at 18% 22%, rgb(160 120 60 / .06) 0 1px, transparent 2px) 0 0 / 7px 9px,
+    radial-gradient(circle at 70% 60%, rgb(120 90 40 / .05) 0 1px, transparent 2px) 0 0 / 11px 13px,
+    linear-gradient(#f4e9cf, #efe2c4 60%, #e8d8b4);
+  background-attachment: fixed; }
+
+/* ---- Règles communes à tous ---- */
+/* illustration du général en fond des menus, fondue vers le bas ; cachée en partie et sans illustration */
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"])::before { content: ''; position: fixed; inset: 0 0 auto 0; height: 70vh; z-index: -2; pointer-events: none;
+  background: var(--theme-perso, none) 50% 0 / cover no-repeat, var(--theme-decor, none) 50% 0 / cover no-repeat; opacity: .32;
+  -webkit-mask: linear-gradient(#000 20%, transparent); mask: linear-gradient(#000 20%, transparent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]):has(#app.ingame)::before { display: none; }
+
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) h2 { font-family: var(--th-font); font-weight: 400; letter-spacing: .04em; background: none; color: var(--th-title);
+  -webkit-background-clip: border-box; background-clip: border-box; text-shadow: 0 2px 0 #000, 0 0 14px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .top .title { font-family: var(--th-font); font-weight: 400; color: var(--th-title);
+  text-shadow: 0 2px 0 #000, 0 0 14px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .eyebrow { color: var(--gold); }
+
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) {
+  background: var(--th-panel); border-color: var(--rim); --lvfill: var(--th-panel);
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px color-mix(in srgb, var(--gold) 14%, transparent), inset 0 -30px 40px -30px var(--th-glow2), 0 6px 18px rgb(0 0 0 / .6); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .card-box::before { border-color: color-mix(in srgb, var(--gold) 22%, transparent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.card-box.booster.ready, .deckopt.sel, .tile.todo) { border-color: var(--accent);
+  box-shadow: 0 0 0 1px #000, 0 0 20px -4px var(--accent), inset 0 0 26px -10px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tile b { font-family: var(--th-font); font-weight: 400; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .sheet { background: color-mix(in srgb, var(--sunk) 80%, transparent); }
+
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.btn, .seg button) { background: var(--th-btn); border-color: var(--th-btn-rim); color: var(--ink); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.btn.on, .seg button.on) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), inset 0 0 14px -4px var(--accent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .seg button.on { background: var(--th-primary); color: var(--accent-ink); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.btn.primary, .playbtn) { background: var(--th-primary); color: var(--accent-ink); border-color: #000;
+  text-shadow: 0 1px 0 rgb(255 255 255 / .4); box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 24px -4px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .playbtn { animation: playglow-th 3s ease-in-out infinite; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .playbtn > span { font-family: var(--th-font); font-weight: 400; letter-spacing: .06em; }
+@keyframes playglow-th { 0%, 100% { box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 24px -4px var(--th-glow); }
+  50% { box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 42px 0 var(--th-glow2); } }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .chip { background: var(--sunk); border-color: var(--rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(input, textarea, .field select) { background: var(--sunk); border-color: var(--rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .showcase { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6), 0 0 26px -6px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .sc-change { background: var(--th-btn); border-color: var(--accent); color: var(--gold-hi); }
+
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar { background: linear-gradient(180deg, var(--leather), var(--bg)); border-top-color: var(--th-btn-rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar button { color: var(--muted); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar button.on { color: var(--gold-hi); background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); text-shadow: 0 0 10px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar.slid::before { background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); box-shadow: inset 0 2px 0 var(--th-tab); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .tabbar button.on svg { filter: drop-shadow(0 0 6px var(--th-glow)); }
+
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .bar { background: var(--sunk); border-color: var(--rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .bar > span { background: var(--th-bar); box-shadow: 0 0 8px var(--th-glow); }
+
+/* en partie : zones aux couleurs du thème, cartes cerclées de sa lueur */
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]):has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, var(--leather), var(--bg) 70%), var(--bg); }
+body.staged:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"]):has(#app.ingame) { background: var(--bg); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .zone { background: var(--th-zone); border-color: var(--line);
+  box-shadow: inset 0 0 22px #000, inset 0 -26px 30px -18px var(--th-glow2), 0 0 0 1px #000; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .terrain.set { background: var(--th-panel); border-color: var(--accent); color: var(--gold-hi); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .score .v { font-family: var(--th-font); font-weight: 400; }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.hc, .mc) { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 4px 10px rgb(0 0 0 / .55), 0 0 10px -3px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .hc.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 0 18px 2px var(--th-glow); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .dock { background: linear-gradient(180deg, color-mix(in srgb, var(--leather) 60%, transparent), var(--sunk)); border-top-color: var(--th-btn-rim); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) :is(.tturn b, .tseals b) { color: var(--accent); }
+body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .op { background: radial-gradient(circle at 50% 42%, var(--leather) 0, var(--leather-lo) 55%, #000 100%); }
+
+@media (prefers-reduced-motion: reduce) { body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"]) .playbtn { animation: none; } }
+
+/* ---- Éclipse d'Ignaroth, plus loin : passe après les règles communes ---- */
+/* le soleil noir, en haut au milieu, là où l'illustration d'Ignaroth a le sien : disque d'ombre, anneau de feu qui respire, couronne de flammes qui tourne lentement (caché en partie : la table a le sien) */
+body[data-season="eclipse"]::after { content: ''; position: fixed; top: -8px; left: 50%; translate: -50% 0; width: 116px; aspect-ratio: 1; border-radius: 50%; z-index: -1; pointer-events: none;
+  background: radial-gradient(circle, #000 0 54%, #ffe0b0 57%, #ff7a2a 61%, rgb(255 60 20 / .5) 66%, transparent 71%),
+    repeating-conic-gradient(from 0deg, rgb(255 110 40 / .55) 0 4deg, transparent 4deg 11deg, rgb(255 60 20 / .35) 11deg 13deg, transparent 13deg 22deg);
+  -webkit-mask: radial-gradient(circle, #000 60%, transparent 100%); mask: radial-gradient(circle, #000 60%, transparent 100%);
+  box-shadow: 0 0 40px 10px rgb(255 70 20 / .35), 0 0 120px 40px rgb(180 20 10 / .2); animation: eclipse-sun 40s linear infinite, eclipse-burn 4s ease-in-out infinite; }
+body[data-season="eclipse"]:has(#app.ingame)::after { display: none; }
+@keyframes eclipse-sun { to { rotate: 360deg; } }
+@keyframes eclipse-burn { 0%, 100% { box-shadow: 0 0 40px 10px rgb(255 70 20 / .35), 0 0 120px 40px rgb(180 20 10 / .2); }
+  50% { box-shadow: 0 0 56px 16px rgb(255 100 30 / .5), 0 0 160px 60px rgb(200 30 10 / .28); } }
+/* braises au bord de l'écran : vignette rouge sombre */
+body[data-season="eclipse"] #app::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse 120% 90% at 50% 40%, transparent 55%, rgb(90 6 4 / .45) 85%, rgb(40 0 0 / .7)); }
+/* titres : lettres de métal en fusion qui vacillent comme une forge */
+body[data-season="eclipse"] :is(h2, .top .title) { background: linear-gradient(180deg, #ffe8c0 10%, #ff9a40 45%, #d8300c 80%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: none; filter: drop-shadow(0 2px 0 #000) drop-shadow(0 0 8px rgb(255 80 20 / .55)); animation: eclipse-forge 3.4s ease-in-out infinite; }
+@keyframes eclipse-forge { 0%, 100% { filter: drop-shadow(0 2px 0 #000) drop-shadow(0 0 8px rgb(255 80 20 / .55)); } 30% { filter: drop-shadow(0 2px 0 #000) drop-shadow(0 0 4px rgb(255 80 20 / .3)); }
+  60% { filter: drop-shadow(0 2px 0 #000) drop-shadow(0 0 14px rgb(255 120 40 / .8)); } }
+body[data-season="eclipse"] .eyebrow { color: #ff8a4a; text-shadow: 0 0 8px rgb(255 70 20 / .45); }
+/* panneaux : pierre noire fendue, une faille de lave qui luit et respire le long du bas */
+body[data-season="eclipse"] :is(.card-box, .tile, .pbar) { position: relative; }
+body[data-season="eclipse"]::before { opacity: .45; }
+body[data-season="eclipse"] :is(.card-box, .tile, .pbar)::after { content: ''; position: absolute; inset: auto 8% -1px 8%; height: 7px; pointer-events: none; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 100%, rgb(255 160 60 / .9), rgb(255 60 20 / .5) 40%, transparent 72%);
+  -webkit-mask: linear-gradient(90deg, transparent, #000 15% 30%, transparent 34% 38%, #000 42% 70%, transparent 74% 78%, #000 82%, transparent);
+  mask: linear-gradient(90deg, transparent, #000 15% 30%, transparent 34% 38%, #000 42% 70%, transparent 74% 78%, #000 82%, transparent);
+  animation: eclipse-lava 5s ease-in-out infinite; }
+body[data-season="eclipse"] .tile:nth-child(2n)::after { animation-delay: -2.5s; }
+@keyframes eclipse-lava { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+/* bouton Jouer : lave qui coule lentement sous une croûte sombre */
+body[data-season="eclipse"] .playbtn { background: radial-gradient(ellipse 70% 120% at 50% 110%, rgb(255 230 170 / .6), transparent 60%),
+  linear-gradient(100deg, #c8300a, #ff6a1a 18%, #ffb850 34%, #ff6a1a 50%, #ffa040 66%, #e0400e 82%, #c8300a) 0 0 / 220% 100%; color: #1a0402;
+  animation: eclipse-flow 9s linear infinite, playglow-th 3s ease-in-out infinite; }
+body[data-season="eclipse"] .playbtn > span { color: #1a0402; text-shadow: 0 1px 0 rgb(255 220 160 / .6); }
+@keyframes eclipse-flow { to { background-position: 220% 0, 220% 0; } }
+/* jauges : coulée de lave */
+body[data-season="eclipse"] .bar > span { background: linear-gradient(90deg, #6a0e04, #ff5a1a 30%, #ffc070 45%, #ff5a1a 60%, #8a1a0a) 0 0 / 200% 100%; animation: eclipse-flow 4s linear infinite; }
+/* barre d'onglets : liseré de feu */
+body[data-season="eclipse"] .tabbar { box-shadow: 0 -1px 0 #ff5a1a, 0 -8px 24px -8px rgb(255 70 20 / .6); }
+/* en partie : les zones gagnent une faille rougeoyante au fond */
+body[data-season="eclipse"] .zone { box-shadow: inset 0 0 22px #000, inset 0 -30px 34px -18px rgb(255 60 20 / .45), 0 0 0 1px #000; }
+@media (prefers-reduced-motion: reduce) { body[data-season="eclipse"]::after, body[data-season="eclipse"] :is(h2, .top .title, .playbtn, .bar > span, .card-box::after, .tile::after) { animation: none; } }
+
+/* ---- Ciel d'Elyndra, plus loin ---- */
+/* étoiles qui scintillent par-dessus le ciel, et deux constellations reliées d'or (cachées en partie : la table a les siennes) */
+body[data-season="astral"]::after { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 800'%3E%3Cg fill='none' stroke='%23e8c050' stroke-opacity='.45' stroke-width='.8'%3E%3Cpath d='M30 120 70 90 112 104 150 70 190 92'/%3E%3Cpath d='M290 560 330 530 372 548 350 600 300 610z'/%3E%3C/g%3E%3Cg fill='%23fff4c8'%3E%3Ccircle cx='30' cy='120' r='2.4'/%3E%3Ccircle cx='70' cy='90' r='1.8'/%3E%3Ccircle cx='112' cy='104' r='2.6'/%3E%3Ccircle cx='150' cy='70' r='1.8'/%3E%3Ccircle cx='190' cy='92' r='2.2'/%3E%3Ccircle cx='290' cy='560' r='2'/%3E%3Ccircle cx='330' cy='530' r='2.6'/%3E%3Ccircle cx='372' cy='548' r='1.8'/%3E%3Ccircle cx='350' cy='600' r='2.2'/%3E%3Ccircle cx='300' cy='610' r='1.8'/%3E%3C/g%3E%3C/svg%3E") 50% 0 / cover no-repeat,
+    radial-gradient(1px 1px at 12% 18%, #fff 50%, transparent), radial-gradient(1px 1px at 28% 42%, #dfe6ff 50%, transparent),
+    radial-gradient(1.5px 1.5px at 46% 12%, #fff 50%, transparent), radial-gradient(1px 1px at 63% 28%, #fff4c8 50%, transparent),
+    radial-gradient(1px 1px at 82% 46%, #fff 50%, transparent), radial-gradient(1.5px 1.5px at 92% 14%, #dfe6ff 50%, transparent),
+    radial-gradient(1px 1px at 8% 66%, #fff 50%, transparent), radial-gradient(1px 1px at 38% 78%, #fff4c8 50%, transparent),
+    radial-gradient(1.5px 1.5px at 56% 62%, #fff 50%, transparent), radial-gradient(1px 1px at 74% 86%, #dfe6ff 50%, transparent),
+    radial-gradient(1px 1px at 20% 92%, #fff 50%, transparent), radial-gradient(1px 1px at 88% 72%, #fff 50%, transparent);
+  animation: astral-twinkle 5s ease-in-out infinite; }
+body[data-season="astral"]:has(#app.ingame)::after { display: none; }
+@keyframes astral-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+body[data-season="astral"]::before { opacity: .42; }
+/* titres d'or qu'un reflet d'étoile parcourt */
+body[data-season="astral"] :is(h2, .top .title) { background: linear-gradient(100deg, #e8b840 0 40%, #fffbe8 48%, #e8b840 56% 100%) 0 0 / 300% 100%; -webkit-background-clip: text; background-clip: text;
+  color: transparent; text-shadow: none; filter: drop-shadow(0 2px 0 #000) drop-shadow(0 0 8px rgb(255 216 112 / .45)); animation: astral-glint 6s ease-in-out infinite; }
+@keyframes astral-glint { 0%, 60% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+body[data-season="astral"] .eyebrow { color: #b8c4ff; text-shadow: 0 0 8px rgb(140 160 255 / .5); }
+/* panneaux : liseré d'or fin et une étoile à quatre branches qui scintille dans le coin */
+body[data-season="astral"] :is(.card-box, .tile) { position: relative; }
+body[data-season="astral"] :is(.card-box, .tile)::after { content: '✦'; position: absolute; top: 6px; right: 10px; font-size: 13px; line-height: 1; color: #fff2c0; pointer-events: none;
+  text-shadow: 0 0 6px #ffd870, 0 0 14px rgb(140 160 255 / .8); animation: astral-twinkle 3s ease-in-out infinite; }
+body[data-season="astral"] .tile:nth-child(2n)::after { animation-delay: -1.5s; }
+body[data-season="astral"] :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) { border-color: color-mix(in srgb, #ffd870 45%, #3a4290); }
+/* bouton Jouer : nuit profonde cerclée d'or, une orbite qui tourne derrière le texte */
+body[data-season="astral"] #app .playbtn { background: radial-gradient(ellipse 90% 140% at 50% 120%, #3a4ab8, #141a4a 55%, #070a24); color: #fff4c8; border: 1px solid #ffd870;
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 3px rgb(255 216 112 / .35), 0 0 0 1px #000, 0 0 26px -4px rgb(255 216 112 / .6); overflow: hidden; }
+body[data-season="astral"] .playbtn > :is(span, small) { position: relative; z-index: 1; }
+body[data-season="astral"] .playbtn > span { color: #fff4c8; text-shadow: 0 0 10px rgb(255 216 112 / .7); }
+body[data-season="astral"] #app .playbtn::before { content: ''; position: absolute; left: 50%; top: 50%; width: 140%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  background: repeating-conic-gradient(rgb(255 230 160 / .0) 0 8deg, rgb(255 230 160 / .25) 8deg 9deg); -webkit-mask: radial-gradient(circle, transparent 38%, #000 40% 70%, transparent 72%);
+  mask: radial-gradient(circle, transparent 38%, #000 40% 70%, transparent 72%); animation: eclipse-sun 30s linear infinite; }
+@keyframes astral-flow { to { background-position: 200% 0; } }
+body[data-season="astral"] .bar > span { background: linear-gradient(90deg, #2a3aa8, #8aa8ff 30%, #fff8d8 45%, #8aa8ff 60%, #2a3aa8) 0 0 / 200% 100%; animation: astral-flow 5s linear infinite; }
+body[data-season="astral"] .tabbar { box-shadow: 0 -1px 0 rgb(255 216 112 / .7), 0 -10px 24px -10px rgb(140 160 255 / .6); }
+body[data-season="astral"] .zone { box-shadow: inset 0 0 22px #000, inset 0 -26px 30px -18px rgb(140 120 255 / .5), 0 0 0 1px #000; }
+@media (prefers-reduced-motion: reduce) { body[data-season="astral"]::after, body[data-season="astral"] :is(h2, .top .title, .playbtn::before, .bar > span, .card-box::after, .tile::after) { animation: none; } }
+
+/* ---- Estampe d'Ysmera, plus loin : thème clair, sur papier ---- */
+/* grand soleil rouge en haut à droite et vagues seigaiha en bas de l'écran (cachés en partie : la table a les siens) */
+body[data-season="estampe"]::after { content: ''; position: fixed; top: max(70px, 9vh); right: -40px; width: 170px; aspect-ratio: 1; border-radius: 50%; z-index: -1; pointer-events: none;
+  background: radial-gradient(circle at 40% 40%, #e0402a, #c8281a 60%, #a81c10); opacity: .85; animation: estampe-sun 12s ease-in-out infinite; }
+@keyframes estampe-sun { 0%, 100% { translate: 0 0; } 50% { translate: 0 8px; } }
+body[data-season="estampe"] #app::before { content: ''; position: fixed; inset: auto 0 0 0; height: 120px; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 100%, #efe2c4 0 4px, #2a5a7a 4px 6px, #efe2c4 6px 9px, #2a5a7a 9px 11px, #efe2c4 11px 14px, #2a5a7a 14px 16px, #efe2c4 16px 19px, #2a5a7a 19px 20px, transparent 20.5px) 0 0 / 40px 20px,
+    radial-gradient(circle at 50% 100%, #efe2c4 0 4px, #2a5a7a 4px 6px, #efe2c4 6px 9px, #2a5a7a 9px 11px, #efe2c4 11px 14px, #2a5a7a 14px 16px, #efe2c4 16px 19px, #2a5a7a 19px 20px, transparent 20.5px) 20px 10px / 40px 20px;
+  -webkit-mask: linear-gradient(transparent, #000 60%); mask: linear-gradient(transparent, #000 60%); opacity: .55; }
+body[data-season="estampe"]:has(#app.ingame)::after, body[data-season="estampe"] #app.ingame::before { display: none; }
+body[data-season="estampe"]::before { opacity: .5; -webkit-mask: linear-gradient(#000 25%, transparent); mask: linear-gradient(#000 25%, transparent); }
+/* encre : pas d'ombres noires épaisses sur le papier, des traits nets */
+body[data-season="estampe"] :is(h2, .top .title) { color: #c8281a; text-shadow: 1px 1px 0 rgb(26 20 16 / .25); filter: none; }
+body[data-season="estampe"] .eyebrow { color: #2a5a7a; text-shadow: none; }
+body[data-season="estampe"] :is(.showcase, .passband) .eyebrow { color: #f6c8a8; text-shadow: 0 1px 2px #000; }
+body[data-season="estampe"] :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) { border: 2px solid #1a1410;
+  box-shadow: inset 0 0 0 3px #f8f0dc, inset 0 0 0 4px rgb(26 20 16 / .25), 3px 4px 0 rgb(26 20 16 / .18); }
+body[data-season="estampe"] .card-box::before { border-color: transparent; }
+body[data-season="estampe"] :is(.card-box.booster.ready, .deckopt.sel, .tile.todo) { border-color: #c8281a; box-shadow: inset 0 0 0 3px #f8f0dc, inset 0 0 0 4px rgb(200 40 26 / .5), 3px 4px 0 rgb(200 40 26 / .25); }
+/* sceau rouge (hanko) dans le coin des panneaux */
+body[data-season="estampe"] :is(.card-box, .tile) { position: relative; }
+body[data-season="estampe"] :is(.card-box:not(.booster), .tile)::after { content: ''; position: absolute; right: 8px; top: 8px; width: 16px; height: 18px; border-radius: 2px; pointer-events: none;
+  background: linear-gradient(#f6ecd6, #f6ecd6) 50% 30% / 8px 1.5px no-repeat, linear-gradient(#f6ecd6, #f6ecd6) 50% 60% / 8px 1.5px no-repeat, linear-gradient(#f6ecd6, #f6ecd6) 50% 50% / 1.5px 10px no-repeat, #c8281a;
+  box-shadow: inset 0 0 0 1.5px #c8281a, inset 0 0 0 2.5px #f6ecd6; opacity: .85; rotate: -4deg; }
+body[data-season="estampe"] :is(.btn, .seg button) { color: var(--ink); border-width: 1.5px; }
+body[data-season="estampe"] :is(.btn.primary, .playbtn) { background: var(--th-primary); color: #fff6e8; border: 2px solid #1a1410; text-shadow: 1px 1px 0 rgb(0 0 0 / .3);
+  box-shadow: inset 0 0 0 2px #e8b860, inset 0 2px 0 3px rgb(255 255 255 / .2), 3px 4px 0 rgb(26 20 16 / .25); }
+body[data-season="estampe"] .playbtn { animation: none; }
+body[data-season="estampe"] .playbtn > span { color: #fff6e8; }
+body[data-season="estampe"] .playbtn small { color: #ffe0c8; }
+body[data-season="estampe"] .chip { background: var(--surface); color: var(--ink); }
+body[data-season="estampe"] .tabbar { background: linear-gradient(180deg, #f6ecd6, #e8d8b4); border-top: 2px solid #1a1410; }
+body[data-season="estampe"] .tabbar button.on { color: #c8281a; text-shadow: none; background: radial-gradient(ellipse at 50% 30%, rgb(200 40 26 / .14), transparent 70%); }
+body[data-season="estampe"] .bar { background: #e4d4b0; border-color: #1a1410; }
+body[data-season="estampe"] .bar > span { box-shadow: none; }
+body[data-season="estampe"] .showcase { border: 2px solid #1a1410; box-shadow: 3px 4px 0 rgb(26 20 16 / .25); }
+body[data-season="estampe"] .sheet { background: rgb(26 20 16 / .35); }
+/* en partie : zones de papier aux traits d'encre */
+body[data-season="estampe"] .zone { border: 1.5px solid #1a1410; box-shadow: inset 0 0 0 2px rgb(246 236 214 / .6), inset 0 -26px 30px -18px rgb(42 90 122 / .25); }
+body[data-season="estampe"] :is(.hc, .mc) { border-color: #1a1410; box-shadow: 2px 3px 0 rgb(26 20 16 / .3); }
+/* carte trop chère : assombrie plutôt que transparente, qui se perdrait dans le papier */
+body[data-season="estampe"] .hc.cant { opacity: 1; filter: grayscale(.7) brightness(.6); }
+body[data-season="estampe"] .dock { background: linear-gradient(180deg, rgb(239 226 196 / .6), #e8d8b4); border-top: 2px solid #1a1410; }
+body[data-season="estampe"] .op { background: radial-gradient(circle at 50% 42%, #f8f0dc, #e4d4b0); }
+@media (prefers-reduced-motion: reduce) { body[data-season="estampe"]::after { animation: none; } }
+
+/* ---- Bois de Sylvaën, plus loin ---- */
+/* rais de lumière qui filtrent de la canopée et ondulent lentement (cachés en partie : la table a les siens) */
+body[data-season="sylve"]::after { content: ''; position: fixed; inset: -10% -20%; z-index: -1; pointer-events: none;
+  background: repeating-linear-gradient(108deg, transparent 0 9%, rgb(230 255 170 / .07) 10% 13%, transparent 14% 22%, rgb(230 255 170 / .045) 23% 24.5%, transparent 25.5% 34%);
+  -webkit-mask: linear-gradient(#000, transparent 85%); mask: linear-gradient(#000, transparent 85%); animation: sylve-rays 14s ease-in-out infinite alternate; }
+@keyframes sylve-rays { from { translate: -3% 0; opacity: .7; } to { translate: 3% 0; opacity: 1; } }
+body[data-season="sylve"]:has(#app.ingame)::after { display: none; }
+body[data-season="sylve"]::before { opacity: .4; }
+/* titres : vert vivant qui luit comme la mousse au crépuscule, et respire */
+body[data-season="sylve"] :is(h2, .top .title) { background: linear-gradient(180deg, #f4ffd0 5%, #b8e870 45%, #5aa040 90%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: none; filter: drop-shadow(0 2px 0 #021006) drop-shadow(0 0 8px rgb(170 240 100 / .45)); animation: sylve-breathe 5s ease-in-out infinite; }
+@keyframes sylve-breathe { 0%, 100% { filter: drop-shadow(0 2px 0 #021006) drop-shadow(0 0 6px rgb(170 240 100 / .35)); } 50% { filter: drop-shadow(0 2px 0 #021006) drop-shadow(0 0 14px rgb(170 255 120 / .7)); } }
+body[data-season="sylve"] .eyebrow { color: #d8e890; }
+/* panneaux : une branche feuillue posée dans le coin en haut à droite (loin des titres), et un liseré de mousse en bas */
+body[data-season="sylve"] :is(.card-box, .tile) { position: relative; }
+body[data-season="sylve"] :is(.card-box:not(.showcase, .booster), .tile)::after { content: ''; position: absolute; top: -8px; right: -8px; width: 50px; height: 40px; pointer-events: none; scale: -1 1;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 58 46'%3E%3Cpath d='M2 6 C14 10 26 14 44 30' stroke='%235a3a1c' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3Cg fill='%2378c048'%3E%3Cpath d='M12 9 C10 1 18 -1 20 4 C18 8 15 10 12 9z'/%3E%3Cpath d='M20 13 C24 20 18 25 15 21 C15 17 17 14 20 13z'/%3E%3Cpath d='M28 17 C28 8 37 8 37 13 C35 17 31 18 28 17z'/%3E%3C/g%3E%3Cg fill='%23a8e070'%3E%3Cpath d='M35 24 C39 31 34 36 30 32 C30 28 32 25 35 24z'/%3E%3Cpath d='M5 6 C2 0 8 -2 10 2 C9 5 7 6 5 6z'/%3E%3Cpath d='M42 27 C46 20 53 24 51 29 C48 31 45 30 42 27z'/%3E%3C/g%3E%3C/svg%3E") 0 0 / contain no-repeat;
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / .6)); }
+body[data-season="sylve"] :is(.card-box, .tile, .pbar) { box-shadow: inset 0 0 0 1px #000, inset 0 -3px 0 #3a6a2a, inset 0 -14px 18px -10px rgb(140 220 90 / .35), 0 6px 18px rgb(0 0 0 / .6); }
+/* bouton Jouer : bois vivant, écorce sombre, sève lumineuse qui court sous la mousse */
+body[data-season="sylve"] #app .playbtn { background: radial-gradient(ellipse 80% 60% at 50% 110%, rgb(200 255 120 / .55), transparent 70%),
+  repeating-linear-gradient(90deg, rgb(0 0 0 / .14) 0 3px, transparent 3px 11px), linear-gradient(180deg, #6aa040, #3a7024 50%, #1e4612);
+  color: #f4ffd8; border: 1px solid #a8e070; box-shadow: inset 0 2px 0 rgb(240 255 200 / .35), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 26px -4px rgb(170 240 100 / .6); }
+body[data-season="sylve"] .playbtn > span { color: #f4ffd8; text-shadow: 0 2px 0 #0a2006, 0 0 12px rgb(200 255 120 / .7); }
+body[data-season="sylve"] .playbtn > small { color: #d8f0b0; }
+@keyframes sylve-sap { to { background-position: 200% 0; } }
+body[data-season="sylve"] .bar > span { background: linear-gradient(90deg, #2a6a2a, #8ae060 30%, #f0ffb0 45%, #8ae060 60%, #2a6a2a) 0 0 / 200% 100%; animation: sylve-sap 5s linear infinite; }
+body[data-season="sylve"] .tabbar { box-shadow: 0 -1px 0 #6aa040, 0 -10px 24px -10px rgb(170 240 100 / .5); }
+body[data-season="sylve"] .zone { box-shadow: inset 0 0 22px #000, inset 0 -30px 30px -18px rgb(120 210 80 / .4), 0 0 0 1px #000; }
+@media (prefers-reduced-motion: reduce) { body[data-season="sylve"]::after, body[data-season="sylve"] :is(h2, .top .title, .bar > span) { animation: none; } }
+
+/* ---- Aube de Séraphine, plus loin ---- */
+/* gloire de rayons qui tournent lentement depuis le bas, et une mer de nuages roses (cachés en partie : la table a les siens) */
+body[data-season="aube"]::after { content: ''; position: fixed; left: 50%; bottom: -60vmax; width: 140vmax; aspect-ratio: 1; translate: -50% 0; z-index: -1; pointer-events: none;
+  background: repeating-conic-gradient(rgb(255 230 170 / .09) 0 4deg, transparent 4deg 11deg);
+  -webkit-mask: radial-gradient(circle, #000 20%, transparent 70%); mask: radial-gradient(circle, #000 20%, transparent 70%); animation: eclipse-sun 90s linear infinite; }
+body[data-season="aube"] #app::before { content: ''; position: fixed; inset: auto 0 0 0; height: 140px; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse 22% 60% at 10% 100%, rgb(255 236 240 / .55), transparent 70%), radial-gradient(ellipse 26% 70% at 38% 100%, rgb(255 226 200 / .5), transparent 70%),
+    radial-gradient(ellipse 24% 60% at 66% 100%, rgb(255 236 240 / .55), transparent 70%), radial-gradient(ellipse 22% 70% at 92% 100%, rgb(255 220 190 / .5), transparent 70%);
+  animation: aube-clouds 18s ease-in-out infinite alternate; }
+@keyframes aube-clouds { from { translate: -2% 0; } to { translate: 2% 0; } }
+body[data-season="aube"]:has(#app.ingame)::after, body[data-season="aube"] #app.ingame::before { display: none; }
+body[data-season="aube"]::before { opacity: .42; }
+/* titres d'or blanc, auréolés */
+body[data-season="aube"] :is(h2, .top .title) { background: linear-gradient(180deg, #fffdf0 10%, #ffe090 55%, #e8a850 95%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: none; filter: drop-shadow(0 1px 0 #3a1a2a) drop-shadow(0 0 10px rgb(255 230 160 / .65)); }
+body[data-season="aube"] .eyebrow { color: #ffb8c8; text-shadow: 0 0 8px rgb(255 150 180 / .45); }
+/* panneaux : filigrane d'or aux quatre coins et lueur nacrée */
+body[data-season="aube"] :is(.card-box, .tile) { position: relative; }
+body[data-season="aube"] :is(.card-box:not(.showcase), .tile)::after { content: ''; position: absolute; inset: 5px; pointer-events: none; --c: rgb(255 214 130 / .85);
+  background: linear-gradient(var(--c), var(--c)) 0 0 / 16px 1.5px, linear-gradient(var(--c), var(--c)) 0 0 / 1.5px 16px,
+    linear-gradient(var(--c), var(--c)) 100% 0 / 16px 1.5px, linear-gradient(var(--c), var(--c)) 100% 0 / 1.5px 16px,
+    linear-gradient(var(--c), var(--c)) 0 100% / 16px 1.5px, linear-gradient(var(--c), var(--c)) 0 100% / 1.5px 16px,
+    linear-gradient(var(--c), var(--c)) 100% 100% / 16px 1.5px, linear-gradient(var(--c), var(--c)) 100% 100% / 1.5px 16px,
+    radial-gradient(circle, var(--c) 0 2px, transparent 2.5px) 4px 4px / 8px 8px, radial-gradient(circle, var(--c) 0 2px, transparent 2.5px) calc(100% - 4px) 4px / 8px 8px;
+  background-repeat: no-repeat; }
+body[data-season="aube"] :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) { box-shadow: inset 0 0 0 1px #000, inset 0 0 22px -6px rgb(255 220 200 / .3), inset 0 -30px 40px -30px rgb(255 140 170 / .35), 0 6px 18px rgb(0 0 0 / .5); }
+/* bouton Jouer : lumière blanche et or, deux ailes déployées de chaque côté du texte */
+body[data-season="aube"] #app .playbtn { background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 40'%3E%3Cg fill='%23b8742a' fill-opacity='.55'%3E%3Cpath d='M58 34 C40 30 22 20 4 6 C14 8 26 12 34 14 C26 10 20 6 14 2 C30 6 46 16 58 34z'/%3E%3Cpath d='M58 34 C44 32 30 28 16 20 C26 22 36 24 42 24 C34 20 28 16 24 12 C38 16 50 24 58 34z'/%3E%3C/g%3E%3C/svg%3E") 6% 50% / 64px 44px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 40'%3E%3Cg fill='%23b8742a' fill-opacity='.55'%3E%3Cpath d='M2 34 C20 30 38 20 56 6 C46 8 34 12 26 14 C34 10 40 6 46 2 C30 6 14 16 2 34z'/%3E%3Cpath d='M2 34 C16 32 30 28 44 20 C34 22 24 24 18 24 C26 20 32 16 36 12 C22 16 10 24 2 34z'/%3E%3C/g%3E%3C/svg%3E") 94% 50% / 64px 44px no-repeat,
+    radial-gradient(ellipse 80% 100% at 50% 70%, #fffbe8, #ffd880 45%, #e89850 80%, #a85a3a);
+  color: #3a1a10; border: 1px solid #fff0c0; box-shadow: inset 0 2px 0 rgb(255 255 255 / .6), inset 0 -4px 0 rgb(120 50 30 / .3), 0 0 0 1px #3a1a2a, 0 0 34px -2px rgb(255 220 150 / .7); }
+body[data-season="aube"] .playbtn > span { color: #3a1a10; text-shadow: 0 1px 0 rgb(255 255 255 / .6); }
+body[data-season="aube"] .playbtn > small { color: #6a3020; }
+@keyframes aube-light { to { background-position: 200% 0; } }
+body[data-season="aube"] .bar > span { background: linear-gradient(90deg, #e87a9a, #ffd070 30%, #fffbe0 45%, #ffd070 60%, #e87a9a) 0 0 / 200% 100%; animation: aube-light 6s linear infinite; }
+body[data-season="aube"] .tabbar { box-shadow: 0 -1px 0 rgb(255 220 150 / .8), 0 -12px 26px -10px rgb(255 200 150 / .5); }
+body[data-season="aube"] .zone { box-shadow: inset 0 0 22px rgb(0 0 0 / .7), inset 0 -30px 34px -18px rgb(255 180 160 / .4), 0 0 0 1px #000; }
+@media (prefers-reduced-motion: reduce) { body[data-season="aube"]::after, body[data-season="aube"] #app::before, body[data-season="aube"] .bar > span { animation: none; } }
+
+/* aperçus (personnalisation, boutique, récompenses) */
+.theme-eclipse.theme-swatch { background: radial-gradient(circle at 70% 35%, #000 0 6px, #ffe0b0 6.5px, #ff7a2a 7.5px, rgb(255 60 20 / .4) 10px, transparent 15px),
+  radial-gradient(ellipse at 50% 120%, rgb(255 60 20 / .45), transparent 60%), linear-gradient(#2a0a0a, #0a0507); }
+.theme-sylve.theme-swatch { background: radial-gradient(circle at 30% 40%, #e0ff90 0 1.5px, transparent 2.5px), radial-gradient(circle at 70% 65%, #a0ffc8 0 1.5px, transparent 2.5px),
+  linear-gradient(110deg, transparent 35%, rgb(230 255 180 / .15) 45%, transparent 55%), linear-gradient(#1a3a24, #07110b); }
+.theme-astral.theme-swatch { background: radial-gradient(1px 1px at 20% 30%, #fff 50%, transparent), radial-gradient(1.5px 1.5px at 70% 20%, #fff4c8 50%, transparent),
+  radial-gradient(1px 1px at 45% 70%, #fff 50%, transparent), linear-gradient(150deg, transparent 35%, rgb(160 120 255 / .35) 50%, transparent 65%), linear-gradient(#0e1240, #05061a); }
+.theme-estampe.theme-swatch { background: radial-gradient(circle at 75% 30%, #c8281a 0 5px, transparent 5.5px),
+  radial-gradient(circle at 50% 100%, transparent 0 3px, #2a5a7a 3px 4px, transparent 4px 6px, #2a5a7a 6px 7px, transparent 7.5px) 0 100% / 14px 7px repeat-x, #efe2c4; }
+.theme-aube.theme-swatch { background: radial-gradient(ellipse 60% 50% at 50% 110%, #ffd070, #ff8aa0 50%, transparent 80%), linear-gradient(#1a1430, #4a2440 70%, #8a4050); }
+
+/* rayon Thèmes de la boutique : une carte par thème, son ciel et le général par-dessus */
+.themelist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.themeitem { display: grid; justify-items: center; gap: 8px; padding: 10px; text-align: center; border: 1px solid var(--line); border-radius: var(--r); background: color-mix(in srgb, #000 12%, var(--surface)); }
+.themeitem.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.themeitem .row { justify-content: center; gap: 6px; flex-wrap: wrap; }
+.themeitem .btn { display: inline-flex; align-items: center; gap: 4px; }
+.themeitem small.hint { font-size: 12px; }
+.theme-cover.theme-swatch { position: relative; width: 100%; height: 150px; border-radius: 6px; overflow: hidden; box-shadow: inset 0 0 0 1px #000, inset 0 0 20px rgb(0 0 0 / .6); }
+.theme-cover .tc-art { position: absolute; inset: 0; background-size: cover; background-position: 50% 15%; opacity: .85;
+  -webkit-mask: linear-gradient(#000 55%, transparent); mask: linear-gradient(#000 55%, transparent); }
+.theme-swatch.swatch { display: inline-block; width: 22px; height: 15px; vertical-align: -3px; margin-right: 4px; }
+/* thème vendu au rayon Essence, sur la ligne du cadre de la nébuleuse ; thème du magasin du boss */
+.esstheme .theme-cover.theme-swatch { width: 84px; height: 108px; flex: none; }
+.essframe.esstheme { flex-wrap: wrap; }
+.essframe.esstheme > .row { display: flex; flex: 1 1 100%; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.citem.k-theme .citem-art .theme-cover.theme-swatch { height: 140px; }

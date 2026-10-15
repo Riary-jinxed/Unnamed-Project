@@ -14,6 +14,7 @@ export default [
   ['events.js', 'EVENT_EFFECTS', ['name', 'chip', 'short', 'what']],
   ['events.js', 'DEFAULT_EVENTS', ['name']],
   ['pass.js', 'SEASON_THEMES', '*'],
+  ['themes.js', 'EXTRA_THEMES', ['name']],
   // Arts alternatifs.
   ['arts.js', 'ART_RARITIES', ['name']],
   ['arts.js', 'ART_THEMES', ['name', 'title']],

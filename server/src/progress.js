@@ -10,9 +10,10 @@ import { TIERS, PLACES, rankOf, applyResult, seasonId, seasonName, seasonDaysLef
   placeOf, placeShardsKey, placePrismsKey, placeTitles } from '@jeu/engine/ranked';
 import { ARTS, artExists, THEME_IDS, MAX_FAV_ARTS, isEssenceArt } from '@jeu/engine/arts';
 import { PASS_KINDS, PASS_TIERS, BONUS_ODDS, SEASON_MISSIONS, SEASON_CARDS, seasonById, passTrack, refundTier, tierOf as passTierOf, weekOf, passMissionLabel, releasedCards, addMonths,
-  currentSeason, THEME_TIER, SEASON_THEMES } from '@jeu/engine/pass';
+  currentSeason, THEME_TIER } from '@jeu/engine/pass';
 import { boost } from '@jeu/engine/events';
 import { EMOTES, EMOTE_SLOTS, ownsEmote, ownedEmotes, emoteSet } from '@jeu/engine/emotes';
+import { THEMES, EXTRA_THEMES } from '@jeu/engine/themes';
 import { HttpError } from './accounts.js';
 import { createEvents } from './events.js';
 import { msg } from '@jeu/engine/i18n';
@@ -126,10 +127,12 @@ export function createProgress(store) {
     for (const x of ACHIEVEMENTS) {
       // Succès obtenu avant que son émote existe : l'émote est donnée sans bruit.
       if (a.achievements[x.id] && x.emote && !ownsEmote(a.cosmetics.emotes, x.emote)) (a.cosmetics.emotes ||= []).push(x.emote);
+      // De même pour son thème de l'interface.
+      if (a.achievements[x.id] && x.theme && !a.cosmetics.themes?.includes(x.theme)) (a.cosmetics.themes ||= []).push(x.theme);
       if (a.achievements[x.id] || statValue(s, x.stat) < x.goal) continue;
       a.achievements[x.id] = new Date().toISOString();
       grant(a, { kind: 'achievement', label: `Succès : ${x.label}`, labelMsg: msg('Succès : {label}', { label: [x.label] }), shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id],
-        title: x.title ? x.id : undefined, frame: x.frame, emote: x.emote });
+        title: x.title ? x.id : undefined, frame: x.frame, emote: x.emote, theme: x.theme });
     }
   }
 
@@ -581,6 +584,21 @@ export function createProgress(store) {
     if (set.length < EMOTE_SLOTS) a.emoteSet = [...set, emote];
     return emote;
   }
+  // Thème de l'interface (themes.js) du rayon Thèmes (Éclats ou Prismes) ou du rayon Essence (essence universelle). Ceux du magasin
+  // du boss passent par boss.js. Le thème acheté est aussitôt choisi.
+  function buyTheme(a, { theme } = {}) {
+    const x = EXTRA_THEMES[theme];
+    if (!x || !(x.price || x.prisms || x.essence)) throw new HttpError(400, msg('Ce thème n\'est pas en vente.'));
+    if (!a.cosmetics) throw new HttpError(409, msg('Choisissez d\'abord votre deck de départ.'));
+    if (a.cosmetics.themes?.includes(theme)) throw new HttpError(409, msg('Vous avez déjà ce thème.'));
+    const [k, cost, need] = x.prisms ? ['prisms', x.prisms, 'Il vous faut {price} Prismes (vous en avez {have}).']
+      : x.essence ? ['uniEssence', x.essence, 'Il vous faut {price} essence universelle (vous en avez {have}).'] : ['shards', x.price, 'Il vous faut {price} Éclats (vous en avez {have}).'];
+    if ((a[k] || 0) < cost) throw new HttpError(409, msg(need, { price: cost, have: a[k] || 0 }));
+    a[k] = (a[k] || 0) - cost;
+    (a.cosmetics.themes ||= []).push(theme);
+    a.uiTheme = theme;
+    return theme;
+  }
   const canEmote = (a, id) => !!a?.cosmetics && ownsEmote(a.cosmetics.emotes, id);
   // Arts préférés encore possédés (un art retiré du jeu disparaît de la liste).
   const favArts = a => (a.favArts || []).filter(id => a.arts?.[id] && artExists(id)).slice(0, MAX_FAV_ARTS);
@@ -677,14 +695,14 @@ export function createProgress(store) {
       freeChests: a.freeChests || 0, calendar: calendarView(a), welcome: welcomeView(a), pass: passSummary(a), events: events.view(),
       title: a.title, frame: a.frame, back: a.back, theme: a.uiTheme ?? null, favArts: favArts(a), emotes: emoteSet(a.cosmetics.emotes, a.emoteSet),
       cosmetics: { titles: a.cosmetics.titles.map(id => ({ id, label: TITLES[id] || id })), frames: a.cosmetics.frames.map(id => ({ id, label: FRAMES[id] || id })),
-        backs: a.cosmetics.backs.map(id => ({ id, label: BACKS[id] || id })), themes: (a.cosmetics.themes || []).map(id => ({ id, label: SEASON_THEMES[id] || id })),
+        backs: a.cosmetics.backs.map(id => ({ id, label: BACKS[id] || id })), themes: (a.cosmetics.themes || []).filter(id => THEMES[id]).map(id => ({ id, label: THEMES[id] })),
         emotes: ownedEmotes(a.cosmetics.emotes) } };
   }
   // Succès et complétions avec leur avancement, pour la page de profil.
   function achievementsView(a) {
     const s = statsOf(a), c = cfg();
     return ACHIEVEMENTS.filter(x => !x.set || setRevealed(setById(x.set))).map(x => ({ id: x.id, group: x.group, label: x.label, goal: x.goal, value: Math.min(x.goal, statValue(s, x.stat)), done: !!a.achievements?.[x.id],
-      shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id], title: x.title || null, frame: x.frame ? FRAMES[x.frame] : null, frameId: x.frame || null, emote: x.emote || null }));
+      shards: c.achievements[x.id], prisms: c.achievementPrisms[x.id], chests: c.achievementChests[x.id], title: x.title || null, frame: x.frame ? FRAMES[x.frame] : null, frameId: x.frame || null, emote: x.emote || null, theme: x.theme || null }));
   }
   function collectionView(a) {
     return SETS.filter(s => s.cards.length && setRevealed(s)).map(set => ({ id: set.id, name: set.name, done: !!a.completed?.[set.id], reward: SET_REWARDS[set.id] || null,
@@ -737,6 +755,6 @@ export function createProgress(store) {
     passMissions: Object.fromEntries(Object.values(SEASON_MISSIONS).map(m => [m.id, { target: m.target, xp: m.xp }])) } });
 
   // passView : écran du passe, missions rédigées dans la langue du joueur (aussi après un await).
-  return { init, grant, cfg, events, count, best, act, setNeed: (k, f) => { needs[k] = f; }, onCards, passView: a => inLang(a, () => passView(a)), buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, claimWelcome, welcomeView, startWelcome, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings, buyEmote, canEmote,
+  return { init, grant, cfg, events, count, best, act, setNeed: (k, f) => { needs[k] = f; }, onCards, passView: a => inLang(a, () => passView(a)), buyPass, seasonCards, check: a => { if (a.level) checkAchievements(a); }, favArts, claimDay, calendarView, claimWelcome, welcomeView, startWelcome, checkCollection, onGame, onBooster, reroll, equip, view, badge, ranked, onRanked, rankedView, ladder, seasonRewards, placeRewards, lastSeason, closeSeason, essenceRate, essenceRoom, giveEssence, upgradeCard, chooseBorder, borderOf, settleCapped, convertEssence, achievementsView, collectionView, saveSettings, settings, buyEmote, buyTheme, canEmote,
     seen: a => { a.inbox = []; }, setSeasonHook: f => { seasonHook = f; } };
 }

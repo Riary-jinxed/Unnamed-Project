@@ -22,6 +22,7 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | `@jeu/engine/events` | `events.js` | Événements temporaires : bonus (XP, points de classé, Éclats, XP de saison), périodes (week-end, dernier week-end, dernière semaine du mois, dates), multiplicateur du jour. |
 | `@jeu/engine/emotes` | `emotes.js` | Émotes en partie : catalogue (offertes, boutique, succès), taille du sélecteur, limites d'envoi, réponses de l'IA. |
 | `@jeu/engine/pass` | `pass.js` | Passe de saison : saisons (cartes, cosmétiques, missions, arts Promo), paliers gratuits et premium, missions du jour et de la semaine. |
+| `@jeu/engine/themes` | `themes.js` | Thèmes de l'interface : ceux des saisons et ceux à l'effigie d'un général (prix, ou succès qui le donne). |
 
 ## Carte des fichiers
 

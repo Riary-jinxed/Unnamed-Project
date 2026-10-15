@@ -88,3 +88,36 @@
 .bdeckline b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pickrow:has(.bboost-tag) { grid-template-columns: auto 1fr auto auto; }
 .pickrow .bboost-tag { align-self: center; padding: 0 6px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--up); color: #062a12; }
+
+/* ---- Boss de clan (clan-boss.js) ---- */
+/* Barre de PV commune du boss : écran du clan, table et fin de tentative. */
+.cbhp { position: relative; height: 22px; border-radius: 999px; overflow: hidden; background: var(--sunk, var(--bg)); border: 1px solid color-mix(in srgb, var(--foe) 60%, var(--line)); }
+.cbhp-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #a8321a, #e2602a 70%, #ffb04a); transition: width .6s ease-out; }
+.cbhp-tx { position: relative; display: block; text-align: center; font-size: 12px; font-weight: 700; line-height: 20px; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / .7); }
+.cbhp.sm { height: 18px; flex-basis: 100%; }
+.cbhp.sm .cbhp-tx { font-size: 11px; line-height: 16px; }
+@media (prefers-reduced-motion: reduce) { .cbhp-fill { transition: none; } }
+/* À la table : le boss tient à lui seul les trois zones d'en face, en travers du plateau ; vos zones n'ont que votre côté. */
+#app.ingame > .board.oneboss, .board.oneboss { grid-template-rows: minmax(0, 1fr) minmax(0, 1.25fr); }
+.cbzone { grid-column: 1 / -1; position: relative; overflow: hidden; isolation: isolate; display: flex; align-items: flex-end; gap: 10px; min-height: 120px;
+  padding: 10px; border-radius: var(--r); border: 2px solid color-mix(in srgb, var(--fam, var(--foe)) 65%, var(--line));
+  background: radial-gradient(circle at 70% 30%, color-mix(in srgb, var(--fam, var(--foe)) 45%, #000), #0a0608 80%); font-size: 12.5px; }
+.cbzone-art { position: absolute; inset: 0; z-index: -1; }
+.cbzone-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 20%, rgb(0 0 0 / .78)); }
+.cbzone-init { position: absolute; right: 12%; top: 50%; transform: translateY(-55%); font-family: var(--display); font-size: clamp(72px, 22vw, 140px); line-height: 1;
+  color: color-mix(in srgb, var(--fam, var(--foe)) 70%, #fff); opacity: .45; }
+.cbzone-tx { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.cbzone-name { font-family: var(--famfont, var(--display)); font-size: clamp(17px, 5vw, 22px); line-height: 1.1; text-shadow: 0 2px 6px rgb(0 0 0 / .8); }
+.cbzone .bbar-step small { color: #e6dccf; }
+.cbzone .bbar-score { align-self: flex-start; padding: 4px 8px; border-radius: var(--r); background: rgb(0 0 0 / .45); }
+#app.ingame .zone.oneboss { grid-template-rows: auto minmax(0, 1fr) auto; }
+/* Ouverture : choix du boss et du niveau. */
+.cbpicks { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }
+.cbpick { display: grid; justify-items: center; gap: 6px; padding: 8px; border-radius: var(--r); border: 1px solid var(--line); background: var(--sunk, var(--bg)); color: inherit; font: inherit; }
+.cbpick .gport { width: 64px; height: 64px; border-radius: 10px; }
+.cbpick b { font-size: 13px; text-align: center; line-height: 1.2; }
+.cbpick.on, .cblevel.on { outline: 2px solid var(--fam, var(--accent)); outline-offset: 1px; }
+.cblevels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.cblevel { display: grid; gap: 2px; padding: 6px 2px; border-radius: var(--r); border: 1px solid var(--line); background: var(--sunk, var(--bg)); color: inherit; font: inherit; text-align: center; }
+.cblevel small { font-size: 11px; color: var(--muted); }
+.cblevel:disabled { opacity: .45; }
