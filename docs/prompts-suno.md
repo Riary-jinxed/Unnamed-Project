@@ -144,7 +144,7 @@ instrumental japanese tactical battle ambience for a card game match, koto and s
 
 ### Casino (`menu-casino`, `partie-casino`, `boss-casino`)
 
-Le casino du Sept d'or (mini-set d'octobre) : tapis vert, dés, machine à sous. Le nom du thème est provisoire : si le thème du casino s'appelle autrement dans le jeu, renommer les fichiers d'après lui. `boss-casino` sert au boss de la quête du casino.
+Le casino du mini-set « Faites vos jeux » (octobre) : tapis vert, dés, machine à sous. Les fichiers suivent l'identifiant du thème et de la quête dans le code (`casino`), pas leur nom affiché : si cet identifiant change, renommer les fichiers d'après lui. `boss-casino` sert au boss de la quête du casino.
 
 Menus :
 
