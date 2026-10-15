@@ -325,13 +325,20 @@ body:has(#app.ingame) { margin: 0; }
 .card-box.booster.gifts:has(.giftbtns > :nth-child(2)) { grid-template-columns: 1fr; }
 .card-box.booster.gifts:has(.giftbtns > :nth-child(2)) .giftbtns { justify-content: stretch; }
 .card-box.booster.gifts:has(.giftbtns > :nth-child(2)) .giftbtns .btn { flex: 1 1 140px; }
-.famseg { flex-wrap: wrap; align-self: start; }
-.colfilters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.coltabs { align-self: start; }
+.colfilters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
 .colf { display: grid; gap: 2px; min-width: 0; }
 .colf select { width: 100%; min-width: 0; min-height: 36px; font: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); text-overflow: ellipsis; }
 .colf.on select { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .colf select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .colcount { justify-content: space-between; align-items: center; }
+/* Onglet Arts de la collection : nom de l'art et rareté sous la carte ; un art manquant reste en couleur, plus pâle. */
+.ccard.artc { gap: 6px; align-content: start; }
+.ccard.artc.locked .fc { filter: none; opacity: .55; }
+.ccard.artc .lock { bottom: auto; top: 8px; }
+.artcap { display: grid; gap: 1px; padding: 0 4px; border-left: 3px solid var(--rar); line-height: 1.2; }
+.artcap b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.artcap small { font-size: 11px; color: var(--muted, var(--ink)); opacity: .8; }
 .ccard { position: relative; display: grid; padding: 0; border: 0; background: none; text-align: left; }
 .ccard .fc { height: 100%; box-sizing: border-box; }
 /* Galerie de la collection (plus de 200 cartes) : le navigateur ne met en page et ne dessine que les cartes proches de l'écran,

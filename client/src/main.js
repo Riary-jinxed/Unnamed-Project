@@ -47,7 +47,7 @@ import { EMOTES, EMOTE_SLOTS, EMOTE_COOLDOWN_MS, EMOTE_SHOW_MS, SHOP_EMOTES, FRE
 import { STREAK_BONUS, seasonId, seasonName } from '@jeu/engine/ranked';
 import { EVENT_EFFECTS, multLabel } from '@jeu/engine/events';
 import { SEASONS, PASS_TIERS, seasonOfCard, seasonStarted, seasonStart, currentSeason, releaseMonth } from '@jeu/engine/pass';
-import { ARTS, ART_THEMES, THEME_IDS, artsOf, artExists, themeArts, rarityKey, rarityName, chestPool, MAX_FAV_ARTS } from '@jeu/engine/arts';
+import { ARTS, ART_THEMES, THEME_IDS, ART_RARITIES, RARITY_IDS, artsOf, artExists, artVisible, themeArts, rarityKey, rarityName, chestPool, MAX_FAV_ARTS } from '@jeu/engine/arts';
 
 const famVar = kw => famStyle(kw[0]);
 // Couleur et emblème d'une carte : sa famille, ou la famille dont elle porte l'effigie (les Sept, neutres).
@@ -64,7 +64,7 @@ const store = {
 const params = new URLSearchParams(location.search);
 const ui = {
   screen: 'loading', auth: store.get('auth', null), account: null, loginId: '', loginPass: '', starterPick: null, busy: false,
-  booster: null, shop: null, edit: null, deckStep: 0, renaming: null, profile: null, nameDraft: '', colFam: '', colCost: '', colKw: '', colSet: '', joinCode: (params.get('code') || '').toUpperCase(),
+  booster: null, shop: null, edit: null, deckStep: 0, renaming: null, profile: null, nameDraft: '', colTab: 'cards', colFam: '', colCost: '', colKw: '', colSet: '', artFam: '', artTheme: '', artRar: '', joinCode: (params.get('code') || '').toUpperCase(),
   ctrl: null, mode: null, view: null, room: null, lobbyNames: [], error: '',
   pending: [], moves: [], moveSel: null, genZone: null, sel: null, focus: null, msg: '', sheet: null, lastTurn: 0, rematchAsked: false,
   drag: null, fx: null, zoom: null, soloReward: null, avatars: null, player: null, friendFoe: null, rankedAi: false, bossRun: false, rankedData: null,
@@ -248,7 +248,7 @@ function lessonDone() {
 async function takeGift() {
   const r = await call('POST', '/api/tuto/gift');
   if (!r) return;
-  ui.guide = { gen: r.card }; ui.sheet = null; ui.screen = 'collection'; ui.colFam = ui.colCost = ui.colKw = ui.colSet = ''; play('fresh'); render();
+  ui.guide = { gen: r.card }; ui.sheet = null; ui.screen = 'collection'; ui.colTab = 'cards'; ui.colFam = ui.colCost = ui.colKw = ui.colSet = ''; play('fresh'); render();
 }
 function guideCoach() {
   const g = ui.guide; if (!g) return null;
@@ -1441,39 +1441,65 @@ function lockLabel(id) {
   const set = SETS.find(x => x.id === src.set)?.name || src.set;
   return src.kind === 'family' ? t('Récompense : famille {fam} complète ({set})', { fam: t(src.fam), set }) : t('Récompense : set {set} complet', { set });
 }
-// Filtres de la collection, combinables : famille (boutons), coût, mot-clé et set (listes). Les généraux n'ont pas de coût.
+// Filtres de la collection, combinables, en listes : famille, coût, mot-clé et set (onglet Cartes) ; famille, set d'art et
+// rareté (onglet Arts). Les généraux n'ont pas de coût.
 const COST_MAX = 7;
 const costFilter = id => GENERALS[id] ? '' : CARDS[id].x ? 'X' : String(Math.min(CARDS[id].cost, COST_MAX));
 const kwOfCard = id => { const d = CARDS[id] || GENERALS[id], txt = `${d.text || ''} ${GENERALS[id]?.kind || ''}`;
   return KW_FILTERS.filter(k => k.re.test(txt)).map(k => k.name); };
-const colFiltered = () => !!(ui.colFam || ui.colCost || ui.colKw || ui.colSet);
+const famKey = id => famOfCard(id) || 'Neutre';
+const COL_FILTERS = { cards: ['colFam', 'colCost', 'colKw', 'colSet'], arts: ['artFam', 'artTheme', 'artRar'] };
+const colTab = () => (ui.colTab === 'arts' ? 'arts' : 'cards');
+const colFiltered = () => COL_FILTERS[colTab()].some(k => ui[k]);
+const colSel = (key, label, opts) => `<label class="colf${ui[key] ? ' on' : ''}"><span class="eyebrow">${label}</span><select data-colf="${key}">
+    <option value="">${t('Tous')}</option>${opts.map(([v, l]) => `<option value="${esc(v)}" ${ui[key] === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+const famOpts = ids => { const has = new Set(ids.map(famKey)); return [...FAMILIES, 'Neutre'].filter(f => has.has(f)).map(f => [f, t(f)]); };
 function colFilters(all) {
   const costs = new Set(all.map(costFilter)), kws = new Set(all.flatMap(kwOfCard)), sets = new Set(all.map(setOf));
-  const sel = (id, label, cur, opts) => `<label class="colf${cur ? ' on' : ''}"><span class="eyebrow">${label}</span><select id="${id}">
-    <option value="">${t('Tous')}</option>${opts.map(([v, l]) => `<option value="${esc(v)}" ${cur === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
   const costOpts = [...Array(COST_MAX + 1).keys()].map(String).filter(c => costs.has(c)).map(c => [c, c === String(COST_MAX) ? `${c}+` : c]);
   if (costs.has('X')) costOpts.push(['X', 'X']);
-  return `<div class="colfilters">${sel('col-cost', t('Coût'), ui.colCost, costOpts)}
-    ${sel('col-kw', t('Mot-clé'), ui.colKw, KW_FILTERS.filter(k => kws.has(k.name)).map(k => [k.name, t(k.name)]))}
-    ${sel('col-set', t('Set'), ui.colSet, [...SETS.map(x => [x.id, t(x.name)]), ['recompense', t('Récompenses')], ['saison', t('Passe de saison')]].filter(([id]) => sets.has(id)))}</div>`;
+  return `<div class="colfilters">${colSel('colFam', t('Famille'), famOpts(all))}${colSel('colCost', t('Coût'), costOpts)}
+    ${colSel('colKw', t('Mot-clé'), KW_FILTERS.filter(k => kws.has(k.name)).map(k => [k.name, t(k.name)]))}
+    ${colSel('colSet', t('Set'), [...SETS.map(x => [x.id, t(x.name)]), ['recompense', t('Récompenses')], ['saison', t('Passe de saison')]].filter(([id]) => sets.has(id)))}</div>`;
 }
+const colCount = (n, one, many) => (colFiltered() ? `<div class="row colcount"><span class="hint" role="status">${tp(n, one, many)}</span><button class="btn sm" data-act="col-reset">${t('Effacer les filtres')}</button></div>` : '');
+const colTabs = cur => `<div class="seg coltabs" role="tablist" aria-label="${t('Collection')}">${[['cards', t('Cartes')], ['arts', t('Arts')]].map(([id, label]) =>
+  `<button role="tab" data-act="col-tab" data-tab="${id}" class="${cur === id ? 'on' : ''}" aria-selected="${cur === id}">${label}</button>`).join('')}</div>`;
 function renderCollection() {
-  const a = ui.account, fams = [...shownFamilies(), 'Neutre'];
-  const all = OWNABLE.filter(id => !hiddenCard(id));
-  const shown = all.filter(id => (!ui.colFam || (famOfCard(id) || 'Neutre') === ui.colFam) && (!ui.colCost || costFilter(id) === ui.colCost)
+  const top = `<div class="top"><span class="title">${t('Ma collection')}</span><button class="btn" data-act="edit">${t('Modifier le deck')}</button></div>`;
+  if (colTab() === 'arts') return `${top}${colTabs('arts')}${collectionArts()}`;
+  const a = ui.account, all = OWNABLE.filter(id => !hiddenCard(id));
+  const shown = all.filter(id => (!ui.colFam || famKey(id) === ui.colFam) && (!ui.colCost || costFilter(id) === ui.colCost)
     && (!ui.colSet || setOf(id) === ui.colSet) && (!ui.colKw || kwOfCard(id).includes(ui.colKw))).sort(byFamCost);
   const tile = id => { const n = owned(id), lvl = myLevel(id), up = canUpgrade(id);
     return `<button class="ccard ${n ? '' : 'locked'} ${n && (lvl > 1 || up) ? 'tagged' : ''}" data-zoom="${zoomKey(id)}" aria-label="${esc(nameOf(id))}${n ? (up ? t(', niveau {n}, peut monter de niveau', { n: lvl }) : t(', niveau {n}', { n: lvl })) : t(', pas encore obtenue')}">
       ${anyCard(id, n ? lvl : 1, n ? mySel(id) : null, n ? myBorder(id) : 1)}${n > 1 ? `<span class="count num">×${n}</span>` : ''}${n ? '' : `<span class="lock">${esc(lockLabel(id))}</span>`}
       ${n && (lvl > 1 || up) ? `<span class="lvtag num ${up ? 'up' : ''}">${lvl > 1 ? t('Niv. {n}', { n: lvl }) : ''}${up ? `${lvl > 1 ? ' · ' : ''}${t('↑ Améliorer')}` : ''}</span>` : ''}</button>`; };
-  return `<div class="top"><span class="title">${t('Ma collection')}</span><button class="btn" data-act="edit">${t('Modifier le deck')}</button></div>
-  <p class="hint" style="margin:0">${t('{n} cartes sur {total}, généraux compris. Touchez une carte pour la voir en grand et la faire monter de niveau avec l\'essence de ses doublons.', { n: OWNABLE.filter(owned).length, total: OWNABLE.filter(id => !hiddenCard(id)).length })}</p>
-  <div class="seg famseg" role="group" aria-label="${t('Famille')}"><button data-fam="" class="${ui.colFam ? '' : 'on'}">${t('Toutes')}</button>${fams.map(f => `<button data-fam="${f}" class="${ui.colFam === f ? 'on' : ''}">${t(f)}</button>`).join('')}</div>
+  return `${top}${colTabs('cards')}
+  <p class="hint" style="margin:0">${t('{n} cartes sur {total}, généraux compris. Touchez une carte pour la voir en grand et la faire monter de niveau avec l\'essence de ses doublons.', { n: OWNABLE.filter(owned).length, total: all.length })}</p>
   ${colFilters(all)}
-  ${colFiltered() ? `<div class="row colcount"><span class="hint" role="status">${tp(shown.length, '{n} carte', '{n} cartes')}</span><button class="btn sm" data-act="col-reset">${t('Effacer les filtres')}</button></div>` : ''}
+  ${colCount(shown.length, '{n} carte', '{n} cartes')}
   ${shown.length ? `<div class="gallery vignettes">${shown.map(tile).join('')}</div>` : `<p class="wait">${t('Aucune carte ne correspond à ces filtres.')}</p>`}
   <div class="gal-h">${t('Vos terrains')}</div><p class="hint" style="margin:0">${t('Les terrains neutres, et ceux des familles dont vous possédez un général.')}</p>
   <div class="gallery">${allowedTerrains(a).map(terrainCard).join('')}</div>`;
+}
+// Onglet Arts de la collection : tous les arts alternatifs sortis, possédés ou non, filtrables par famille de la carte,
+// set d'art (famille d'arts, ou arts solo) et rareté. Toucher un art ouvre sa carte en grand, où il se choisit s'il est possédé.
+function collectionArts() {
+  const mine = ui.account.arts || {}, all = Object.values(ARTS).filter(x => artExists(x.id) && artVisible(x) && !hiddenCard(x.card));
+  const themes = new Set(all.map(x => x.theme || 'solo')), rars = new Set(all.map(x => x.rarity));
+  const shown = all.filter(x => (!ui.artFam || famKey(x.card) === ui.artFam) && (!ui.artTheme || (x.theme || 'solo') === ui.artTheme) && (!ui.artRar || x.rarity === ui.artRar))
+    .sort((x, y) => !mine[x.id] - !mine[y.id] || byFamCost(x.card, y.card) || x.name.localeCompare(y.name));
+  const tile = x => { const got = !!mine[x.id], n = owned(x.card), lvl = n ? myLevel(x.card) : 1, name = esc(t(x.name));
+    return `<button class="ccard artc rar-${rarityKey(x)} ${got ? '' : 'locked'}" data-zoom="${zoomKey(x.card, x.id)}" aria-label="${name}, ${esc(nameOf(x.card))}${got ? '' : t(', pas encore obtenu')}">
+      ${anyCard(x.card, lvl, x.id, n ? myBorder(x.card) : 1)}${got ? '' : `<span class="lock">${t('Pas encore obtenu')}</span>`}
+      <span class="artcap"><b>${name}</b><small>${esc(t(rarityName(x)))}${x.theme ? ` · ${esc(themeOf(x))}` : ''}</small></span></button>`; };
+  return `<p class="hint" style="margin:0">${t('{n} arts sur {total}. Touchez un art pour voir sa carte en grand et le choisir.', { n: all.filter(x => mine[x.id]).length, total: all.length })}</p>
+  <div class="colfilters">${colSel('artFam', t('Famille'), famOpts(all.map(x => x.card)))}
+    ${colSel('artTheme', t('Set d\'art'), [...THEME_IDS.filter(th => themes.has(th)).map(th => [th, t(ART_THEMES[th].name)]), ...(themes.has('solo') ? [['solo', t('Arts solo')]] : [])])}
+    ${colSel('artRar', t('Rareté'), RARITY_IDS.filter(r => rars.has(r)).map(r => [r, t(ART_RARITIES[r].name)]))}</div>
+  ${colCount(shown.length, '{n} art', '{n} arts')}
+  ${shown.length ? `<div class="gallery vignettes">${shown.map(tile).join('')}</div>` : `<p class="wait">${t('Aucun art ne correspond à ces filtres.')}</p>`}`;
 }
 // Boutique : un espace par set ; les sets à venir y ont déjà leur place.
 // Deux onglets : les sets (cartes et boosters, en Éclats) et les arts alternatifs (en Prismes).
@@ -2577,7 +2603,7 @@ app.addEventListener('change', e => {
   if (e.target.id === 'avatar-file') { pickAvatar(e.target.files[0]); e.target.value = ''; }
   if (e.target.id === 'title-pick') equip({ title: e.target.value || null }, t('Titre changé.'));
   if (e.target.id === 'emotes-off') store.set('emotes-off', e.target.checked);
-  if (['col-cost', 'col-kw', 'col-set'].includes(e.target.id)) { ui[{ 'col-cost': 'colCost', 'col-kw': 'colKw', 'col-set': 'colSet' }[e.target.id]] = e.target.value; render(); }
+  if (e.target.dataset.colf) { ui[e.target.dataset.colf] = e.target.value; render(); }
 });
 app.addEventListener('submit', e => {
   e.preventDefault(); if (ui.busy) return;
@@ -2589,7 +2615,7 @@ app.addEventListener('submit', e => {
 });
 // Les missions repliées ou dépliées le restent d'un affichage à l'autre.
 app.addEventListener('click', e => {
-  const el = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-fam],[data-zoom],[data-frame],[data-back],[data-theme],[data-stop]');
+  const el = e.target.closest('[data-act],[data-hand],[data-card],[data-terrain],[data-general],[data-z],[data-starter],[data-pick],[data-tpick],[data-gpick],[data-step],[data-zoom],[data-frame],[data-back],[data-theme],[data-stop]');
   // Sélecteur d'émotes ouvert : toucher ailleurs le referme.
   if (ui.emotePick && !e.target.closest('.emotepick,[data-act="emotes"]')) { ui.emotePick = false; if (!el) { render(); return; } }
   if (!el) return;
@@ -2653,7 +2679,8 @@ app.addEventListener('click', e => {
     else if (a === 'starter' && ui.starterPick && !ui.busy) call('POST', '/api/starter', { starter: ui.starterPick });
     else if (a === 'booster' && !ui.busy) openBoosterNow();
     else if (a === 'collection') { ui.screen = 'collection'; ui.error = ''; render(); }
-    else if (a === 'col-reset') { ui.colFam = ui.colCost = ui.colKw = ui.colSet = ''; render(); }
+    else if (a === 'col-reset') { for (const k of COL_FILTERS[colTab()]) ui[k] = ''; render(); }
+    else if (a === 'col-tab') { ui.colTab = ds.tab; render(); }
     else if (a === 'shop') openShop('sets');
     else if (a === 'buy-card' && !ui.busy) { const go = () => buy('/api/shop/card', { set: ds.set, card: ds.id }); if (!lacksShards(ui.shop?.prices.cardPrice, t('acheter'), go)) go(); }
     else if (a === 'buy-booster' && !ui.busy) { const go = () => buy('/api/shop/booster', { set: ds.set }); if (!lacksShards(boosterPriceOf(ds.set), t('acheter'), go)) go(); }
@@ -2710,7 +2737,6 @@ app.addEventListener('click', e => {
   if (ds.frame !== undefined && !ui.busy) { equip({ frame: ds.frame || null }, t('Cadre changé.')); return; }
   if (ds.theme !== undefined && !ui.busy) { equip({ theme: ds.theme || null }, t('Thème changé.')); return; }
   if (ds.back && !ui.busy) { equip({ back: ds.back }, t('Dos de carte changé.')); return; }
-  if (ds.fam !== undefined) { ui.colFam = ds.fam; render(); return; }
   if (ds.zoom) { const [kind, id, art] = ds.zoom.split(':'); const back = ui.sheet === 'codex' || ui.sheet === 'player' || ui.sheet === 'game' ? ui.sheet : null; openZoom({ kind, id, art: art || null }); ui.zoomBack = back; ui.msg = ''; render(); return; }
   if (ds.pick) { togglePick(ds.pick); return; }
   if (ds.tpick) { toggleTerrain(ds.tpick); return; }
