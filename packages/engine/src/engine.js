@@ -1009,13 +1009,14 @@ export const DECKS = {
 export function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 export function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
 // Pouvoir du général : appelle son crochet et compte ses déclenchements (il a écrit au journal : il a agi),
-// pour que l'appli joue son effet à chaque fois (viewFor, genFired).
+// pour que l'appli joue son effet à chaque fois (viewFor, genFired). st.acts compte les entrées du journal,
+// même en simulation où le journal n'est pas rempli.
 function genHook(st, p, hook, ...args) {
   const f = GENERALS[st.p[p].general][hook]; if (!f || genHacked(st, p)) return;
-  const n = st.log.length; f(p, st, ...args);
-  if (st.log.length > n) st.p[p].genFired = (st.p[p].genFired || 0) + 1;
+  const n = st.acts || 0; f(p, st, ...args);
+  if ((st.acts || 0) > n) st.p[p].genFired = (st.p[p].genFired || 0) + 1;
 }
-function log(st, msg, kind, vars) { if (!st.sim) st.log.push({ turn: st.turn, msg, kind: kind || '', ...(vars ? { vars } : {}) }); }
+function log(st, msg, kind, vars) { st.acts = (st.acts || 0) + 1; if (!st.sim) st.log.push({ turn: st.turn, msg, kind: kind || '', ...(vars ? { vars } : {}) }); }
 // Les messages du journal sont des modèles (traduits à l'affichage, voir renderLog) aux marqueurs résolus selon qui regarde :
 // ⟦{p}⟧ = nom du joueur p (ou « Vous »), ⟦{p}|il forme|vous formez⟧ = l'une ou l'autre forme ; noms de carte, de général,
 // de terrain et de zone par marqueur (nm, gn, tn, zn), dans la langue de celui qui lit.
@@ -1155,8 +1156,8 @@ function draw(st, p, n, extra = false) {
   return got;
 }
 // En simulation (IA), le journal n'est pas tenu : ses textes ne sont même pas composés.
-function buff(st, c, n) { c.buff += n; if (!st.sim) log(st, '{card} {n}.', n >= 0 ? 'up' : 'down', { card: nm(c.id), n: `${n >= 0 ? '+' : ''}${n}` }); }
-function addZone(st, p, z, n) { st.p[p].zoneBonus[z] += n; if (!st.sim) log(st, '⟦{p}⟧ : zone {z} {n}.', n >= 0 ? 'up' : 'down', { p, z: zn(z), n: `${n >= 0 ? '+' : ''}${n}` }); }
+function buff(st, c, n) { c.buff += n; if (st.sim) st.acts = (st.acts || 0) + 1; else log(st, '{card} {n}.', n >= 0 ? 'up' : 'down', { card: nm(c.id), n: `${n >= 0 ? '+' : ''}${n}` }); }
+function addZone(st, p, z, n) { st.p[p].zoneBonus[z] += n; if (st.sim) st.acts = (st.acts || 0) + 1; else log(st, '⟦{p}⟧ : zone {z} {n}.', n >= 0 ? 'up' : 'down', { p, z: zn(z), n: `${n >= 0 ? '+' : ''}${n}` }); }
 // Carte qui revient en main ou en jeu depuis la défausse : elle repart de zéro.
 function fresh(c) {
   for (const k of ['pending', 'movedTurn', 'playerMoved', 'turnStartZone', 'mobile', 'xPaid', 'hatched', 'enteredTurn', 'discount', 'costMod', 'hacked', 'implants']) delete c[k];

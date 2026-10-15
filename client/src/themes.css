@@ -1,9 +1,11 @@
 /* Thèmes de l'interface à l'effigie d'un général (themes.js du moteur) : Éclipse d'Ignaroth, Bois de Sylvaën, Aube de Séraphine,
-   Ciel d'Elyndra, Estampe d'Ysmera.
+   Ciel d'Elyndra, Estampe d'Ysmera, Roue de Fortuna.
    Écrits par main.js dans <body data-season>, comme ceux des saisons (halloween.css, cyber.css). Chaque thème donne ses couleurs
    (variables --th-…) ; les règles communes plus bas les posent sur les panneaux, boutons, onglets, jauges et la table.
    L'illustration du général (--theme-decor, --theme-perso, posées par main.js) apparaît en fond des menus, en haut, fondue dans la nuit.
-   Ne touche qu'à l'apparence, comme habillage.css ; chaque règle commence par body[data-season=…] pour passer devant lui. */
+   Ne touche qu'à l'apparence, comme habillage.css ; chaque règle commence par body[data-season=…] pour passer devant lui.
+   Les règles communes visent body.theme-extra, classe posée par themes.js (setThemeArt) quand le thème affiché est l'un de
+   ceux-ci (EXTRA_THEMES du moteur) : même priorité que body[data-season=…]. */
 
 /* ---- Éclipse d'Ignaroth : soleil noir cerclé de feu, braises et sang de dragon ---- */
 body[data-season="eclipse"] {
@@ -106,65 +108,65 @@ body[data-season="casino"] {
     linear-gradient(#063a24, #04190f 70%, #020b06);
   background-attachment: fixed; }
 
-/* ---- Règles communes à tous ---- */
+/* ---- Règles communes à tous (body.theme-extra, posée par themes.js) ---- */
 /* illustration du général en fond des menus, fondue vers le bas ; cachée en partie et sans illustration */
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"])::before { content: ''; position: fixed; inset: 0 0 auto 0; height: 70vh; z-index: -2; pointer-events: none;
+body.theme-extra::before { content: ''; position: fixed; inset: 0 0 auto 0; height: 70vh; z-index: -2; pointer-events: none;
   background: var(--theme-perso, none) 50% 0 / cover no-repeat, var(--theme-decor, none) 50% 0 / cover no-repeat; opacity: .32;
   -webkit-mask: linear-gradient(#000 20%, transparent); mask: linear-gradient(#000 20%, transparent); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]):has(#app.ingame)::before { display: none; }
+body.theme-extra:has(#app.ingame)::before { display: none; }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) h2 { font-family: var(--th-font); font-weight: 400; letter-spacing: .04em; background: none; color: var(--th-title);
+body.theme-extra h2 { font-family: var(--th-font); font-weight: 400; letter-spacing: .04em; background: none; color: var(--th-title);
   -webkit-background-clip: border-box; background-clip: border-box; text-shadow: 0 2px 0 #000, 0 0 14px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .top .title { font-family: var(--th-font); font-weight: 400; color: var(--th-title);
+body.theme-extra .top .title { font-family: var(--th-font); font-weight: 400; color: var(--th-title);
   text-shadow: 0 2px 0 #000, 0 0 14px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .eyebrow { color: var(--gold); }
+body.theme-extra .eyebrow { color: var(--gold); }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) {
+body.theme-extra :is(.card-box, .sheet .panel, .pbar, .deckopt, .tile) {
   background: var(--th-panel); border-color: var(--rim); --lvfill: var(--th-panel);
   box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px color-mix(in srgb, var(--gold) 14%, transparent), inset 0 -30px 40px -30px var(--th-glow2), 0 6px 18px rgb(0 0 0 / .6); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .card-box::before { border-color: color-mix(in srgb, var(--gold) 22%, transparent); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.card-box.booster.ready, .deckopt.sel, .tile.todo) { border-color: var(--accent);
+body.theme-extra .card-box::before { border-color: color-mix(in srgb, var(--gold) 22%, transparent); }
+body.theme-extra :is(.card-box.booster.ready, .deckopt.sel, .tile.todo) { border-color: var(--accent);
   box-shadow: 0 0 0 1px #000, 0 0 20px -4px var(--accent), inset 0 0 26px -10px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .tile b { font-family: var(--th-font); font-weight: 400; }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .sheet { background: color-mix(in srgb, var(--sunk) 80%, transparent); }
+body.theme-extra .tile b { font-family: var(--th-font); font-weight: 400; }
+body.theme-extra .sheet { background: color-mix(in srgb, var(--sunk) 80%, transparent); }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.btn, .seg button) { background: var(--th-btn); border-color: var(--th-btn-rim); color: var(--ink); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.btn.on, .seg button.on) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), inset 0 0 14px -4px var(--accent); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .seg button.on { background: var(--th-primary); color: var(--accent-ink); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.btn.primary, .playbtn) { background: var(--th-primary); color: var(--accent-ink); border-color: #000;
+body.theme-extra :is(.btn, .seg button) { background: var(--th-btn); border-color: var(--th-btn-rim); color: var(--ink); }
+body.theme-extra :is(.btn.on, .seg button.on) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), inset 0 0 14px -4px var(--accent); }
+body.theme-extra .seg button.on { background: var(--th-primary); color: var(--accent-ink); }
+body.theme-extra :is(.btn.primary, .playbtn) { background: var(--th-primary); color: var(--accent-ink); border-color: #000;
   text-shadow: 0 1px 0 rgb(255 255 255 / .4); box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 24px -4px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .playbtn { animation: playglow-th 3s ease-in-out infinite; }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .playbtn > span { font-family: var(--th-font); font-weight: 400; letter-spacing: .06em; }
+body.theme-extra .playbtn { animation: playglow-th 3s ease-in-out infinite; }
+body.theme-extra .playbtn > span { font-family: var(--th-font); font-weight: 400; letter-spacing: .06em; }
 @keyframes playglow-th { 0%, 100% { box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 24px -4px var(--th-glow); }
   50% { box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -4px 0 rgb(0 0 0 / .35), 0 0 0 1px #000, 0 0 42px 0 var(--th-glow2); } }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .chip { background: var(--sunk); border-color: var(--rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(input, textarea, .field select) { background: var(--sunk); border-color: var(--rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .showcase { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6), 0 0 26px -6px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .sc-change { background: var(--th-btn); border-color: var(--accent); color: var(--gold-hi); }
+body.theme-extra .chip { background: var(--sunk); border-color: var(--rim); }
+body.theme-extra :is(input, textarea, .field select) { background: var(--sunk); border-color: var(--rim); }
+body.theme-extra .showcase { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / .6), 0 0 26px -6px var(--th-glow); }
+body.theme-extra .sc-change { background: var(--th-btn); border-color: var(--accent); color: var(--gold-hi); }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .tabbar { background: linear-gradient(180deg, var(--leather), var(--bg)); border-top-color: var(--th-btn-rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .tabbar button { color: var(--muted); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .tabbar button.on { color: var(--gold-hi); background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); text-shadow: 0 0 10px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .tabbar.slid::before { background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); box-shadow: inset 0 2px 0 var(--th-tab); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .tabbar button.on svg { filter: drop-shadow(0 0 6px var(--th-glow)); }
+body.theme-extra .tabbar { background: linear-gradient(180deg, var(--leather), var(--bg)); border-top-color: var(--th-btn-rim); }
+body.theme-extra .tabbar button { color: var(--muted); }
+body.theme-extra .tabbar button.on { color: var(--gold-hi); background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); text-shadow: 0 0 10px var(--th-glow); }
+body.theme-extra .tabbar.slid::before { background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--th-tab) 30%, transparent), transparent 70%); box-shadow: inset 0 2px 0 var(--th-tab); }
+body.theme-extra .tabbar button.on svg { filter: drop-shadow(0 0 6px var(--th-glow)); }
 
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .bar { background: var(--sunk); border-color: var(--rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .bar > span { background: var(--th-bar); box-shadow: 0 0 8px var(--th-glow); }
+body.theme-extra .bar { background: var(--sunk); border-color: var(--rim); }
+body.theme-extra .bar > span { background: var(--th-bar); box-shadow: 0 0 8px var(--th-glow); }
 
 /* en partie : zones aux couleurs du thème, cartes cerclées de sa lueur */
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]):has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, var(--leather), var(--bg) 70%), var(--bg); }
+body.theme-extra:has(#app.ingame) { background: radial-gradient(ellipse 90% 60% at 50% 45%, var(--leather), var(--bg) 70%), var(--bg); }
 body.staged:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="casino"]):has(#app.ingame) { background: var(--bg); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .zone { background: var(--th-zone); border-color: var(--line);
+body.theme-extra .zone { background: var(--th-zone); border-color: var(--line);
   box-shadow: inset 0 0 22px #000, inset 0 -26px 30px -18px var(--th-glow2), 0 0 0 1px #000; }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .terrain.set { background: var(--th-panel); border-color: var(--accent); color: var(--gold-hi); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .score .v { font-family: var(--th-font); font-weight: 400; }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.hc, .mc) { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 4px 10px rgb(0 0 0 / .55), 0 0 10px -3px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .hc.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 0 18px 2px var(--th-glow); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .dock { background: linear-gradient(180deg, color-mix(in srgb, var(--leather) 60%, transparent), var(--sunk)); border-top-color: var(--th-btn-rim); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) :is(.tturn b, .tseals b) { color: var(--accent); }
-body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .op { background: radial-gradient(circle at 50% 42%, var(--leather) 0, var(--leather-lo) 55%, #000 100%); }
+body.theme-extra .terrain.set { background: var(--th-panel); border-color: var(--accent); color: var(--gold-hi); }
+body.theme-extra .score .v { font-family: var(--th-font); font-weight: 400; }
+body.theme-extra :is(.hc, .mc) { border-color: var(--th-btn-rim); box-shadow: 0 0 0 1px #000, 0 4px 10px rgb(0 0 0 / .55), 0 0 10px -3px var(--th-glow); }
+body.theme-extra .hc.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 0 18px 2px var(--th-glow); }
+body.theme-extra .dock { background: linear-gradient(180deg, color-mix(in srgb, var(--leather) 60%, transparent), var(--sunk)); border-top-color: var(--th-btn-rim); }
+body.theme-extra :is(.tturn b, .tseals b) { color: var(--accent); }
+body.theme-extra .op { background: radial-gradient(circle at 50% 42%, var(--leather) 0, var(--leather-lo) 55%, #000 100%); }
 
-.calm body:is([data-season="eclipse"], [data-season="sylve"], [data-season="aube"], [data-season="astral"], [data-season="estampe"], [data-season="casino"]) .playbtn { animation: none; }
+.calm body.theme-extra .playbtn { animation: none; }
 
 /* ---- Éclipse d'Ignaroth, plus loin : passe après les règles communes ---- */
 /* le soleil noir, en haut au milieu, là où l'illustration d'Ignaroth a le sien : disque d'ombre, anneau de feu qui respire, couronne de flammes qui tourne lentement (caché en partie : la table a le sien) */

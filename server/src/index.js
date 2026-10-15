@@ -525,7 +525,8 @@ async function shutdown(signal) {
       broadcast(room);
     } catch (e) { console.error('Partie interrompue non enregistrée :', e); }
   }
-  await Promise.race([Promise.allSettled(saves), new Promise(r => setTimeout(r, 15_000))]);
+  // Puis les compteurs du jour pas encore écrits (activity.js).
+  await Promise.race([Promise.allSettled(saves).then(() => accounts.activity.flush()), new Promise(r => setTimeout(r, 15_000))]);
   process.exit(0);
 }
 for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => { shutdown(signal); });

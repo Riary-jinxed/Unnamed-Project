@@ -7,12 +7,13 @@ import { t } from '@jeu/engine/i18n';
 import { EXTRA_THEMES, SHOP_THEMES, themeShop, themeOut } from '@jeu/engine/themes';
 import { ACHIEVEMENTS } from '@jeu/engine/rewards';
 
-// Illustration du thème affiché, en variables CSS sur <body> (lues par themes.css). Appelé à chaque rendu : ne touche au style
-// que quand le thème change.
+// Illustration du thème affiché, en variables CSS sur <body> (lues par themes.css), et classe « theme-extra » quand c'est un de
+// ces thèmes (les règles communes de themes.css la visent). Appelé à chaque rendu : ne touche au style que quand le thème change.
 let shown = null;
 export function setThemeArt(theme) {
   if (theme === shown) return; shown = theme;
   const x = EXTRA_THEMES[theme], art = x && themeArt(x.card, x.art), st = document.body.style;
+  document.body.classList.toggle('theme-extra', !!x);
   for (const [k, layer] of [['--theme-decor', 'decor'], ['--theme-perso', 'perso']]) {
     if (art?.[layer]) st.setProperty(k, `url('${art[layer]}')`); else st.removeProperty(k);
   }

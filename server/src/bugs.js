@@ -46,6 +46,7 @@ export function createBugs(store) {
     const list = [...reports(), r], dropped = list.slice(0, Math.max(0, list.length - MAX_REPORTS));
     await save(list.slice(-MAX_REPORTS));
     await Promise.all(dropped.filter(x => x.shot).map(x => store.removeDoc(shotKey(x.id))));
+    for (const [k, v] of sent) if (now - v.at(-1) >= HOUR_MS) sent.delete(k); // joueurs sans signalement depuis une heure
     sent.set(a.login, [...recent, now]);
     return { ok: true };
   }
@@ -56,9 +57,9 @@ export function createBugs(store) {
     return { reports: list, kinds: BUG_KINDS, statuses: STATUSES, fresh: list.filter(r => r.status === 'new').length };
   };
   const find = id => { const r = reports().find(x => x.id === id); if (!r) throw new HttpError(404, 'Signalement introuvable.'); return r; };
-  function shotOf(id) {
+  async function shotOf(id) {
     const r = find(id);
-    const doc = r.shot && store.doc(shotKey(id));
+    const doc = r.shot && await store.loadDoc(shotKey(id));
     if (!doc) throw new HttpError(404, 'Pas de capture pour ce signalement.');
     return { shot: doc.data };
   }

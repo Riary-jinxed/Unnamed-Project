@@ -1,7 +1,7 @@
 // Réglage des animations (Profil › Réglages) : complètes, réduites ou aucune.
 // Sans choix du joueur, on suit le système (« réduire les animations » du téléphone ou de l'ordinateur).
 // <html> porte data-motion (full, reduced, none) et la classe « calm » dès que les animations sont réduites ou coupées :
-// les feuilles de style en tirent leurs versions calmes (.calm …), et « aucune » coupe tout le reste (style.css).
+// les feuilles de style en tirent leurs versions calmes (.calm …), et « aucune » coupe tout le reste (veil.css, chargé dès la page).
 // index.html pose déjà l'attribut avant le premier affichage, pour que le voile de chargement le respecte.
 const KEY = 'jeu-motion';
 export const MOTION_LEVELS = ['full', 'reduced', 'none'];

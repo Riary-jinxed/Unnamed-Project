@@ -67,9 +67,10 @@ export const popCard = (id, lvl, artId) => pops(lvl) && !isSpell(id) && !!(artId
 const isSpell = id => CARDS[id]?.type === 'S';
 
 // Fond illustré des petites cartes (main, plateau) : le décor seul, recadré sur le haut de la fenêtre de la carte.
+// Ces cartes font au plus une centaine de pixels de large : la vignette (640 px) suffit (à défaut, l'original).
 // artId : art alternatif choisi ; tant que ses images manquent, l'illustration d'origine. Sans illustration : le visuel provisoire.
 export const artBg = (id, artId = null) => { const a = (artId && ALT[artId]?.decor ? ALT[artId] : null) || ART[id];
-  return a?.decor ? `<span class="cart" style="background-image:url('${a.decor}')" aria-hidden="true"></span>`
+  return a?.decor ? `<span class="cart" style="background-image:url('${a.decorThumb || a.decor}')" aria-hidden="true"></span>`
     : provFor(id) ? `<span class="cart prov" aria-hidden="true">${emblem(famOfId(id))}</span>` : ''; };
 
 // Visuel provisoire d'une carte, d'un général ou d'un terrain dont l'illustration n'est pas encore arrivée (set 2 au départ) :
@@ -150,10 +151,13 @@ function generalArt(id, artId) {
 }
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // artId : art alternatif choisi ; tant que ses images manquent, l'illustration d'origine. Sans illustration : rien.
-export function portraitHTML(id, artId = null) {
+// Un portrait fait moins de 90 px de côté (l'image, 2,5 fois plus large, moins de 250 px) : la vignette (640 px) suffit.
+// big : portrait en fond d'une tuile ou d'un bandeau (boss, passe, actualités, quêtes d'histoire), où l'image est bien plus
+// grande : l'original.
+export function portraitHTML(id, artId = null, big = false) {
   const [a, [fx, fy] = []] = generalArt(id, artId); if (!a) return '';
-  const x = clamp(fx, 21, 79), y = clamp(fy, 17, 83);
-  return `<span class="gport-art" style="--fx: ${x}; --fy: ${y}" aria-hidden="true"><img src="${a.decor}" alt="" decoding="async">${a.perso ? `<img src="${a.perso}" alt="" decoding="async">` : ''}</span>`;
+  const x = clamp(fx, 21, 79), y = clamp(fy, 17, 83), src = layer => (!big && a[`${layer}Thumb`]) || a[layer];
+  return `<span class="gport-art" style="--fx: ${x}; --fy: ${y}" aria-hidden="true"><img src="${src('decor')}" alt="" decoding="async">${a.perso ? `<img src="${src('perso')}" alt="" decoding="async">` : ''}</span>`;
 }
 // Général du deck joué, en grand sur l'accueil : décor et personnage entiers, sans cadre ni nom. Sans illustration : rien.
 // Le cadrage suit le visage (style.css, .hero-art), quelle que soit la forme du bandeau (large sur ordinateur, haut sur téléphone).

@@ -1,6 +1,7 @@
 // Tutoriel : des leçons, chacune une partie contre l'IA jouée dans la page, avec des decks, des pioches et des terrains fixés,
 // et des étapes de guidage affichées au-dessus de la main (bulle du guide, et sur PixiJS l'écran assombri autour de l'élément
-// à toucher, avec une main qui montre le geste : stage-coach.js). Ni statistiques ni récompenses.
+// à toucher, avec une main qui montre le geste : stage-coach.js). Pas de statistiques ; chaque leçon finie pour la première fois
+// rapporte des Éclats, et la dernière un booster offert (main.js, POST /api/tuto).
 import { CARDS, newGame, startTurn, runTurn, viewFor } from '@jeu/engine';
 import { t, tp } from '@jeu/engine/i18n';
 
