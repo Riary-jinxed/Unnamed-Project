@@ -224,33 +224,33 @@ instrumental halloween boss battle theme for a card game, the pumpkin king's mad
 
 ## 9. Boss de l'Éclipse (`boss-eclipse`)
 
-Ignaroth sous l'éclipse : un dieu, une entité gigantesque qui dévore les soleils pour se nourrir. Dans l'esprit du thème de Heolstor (Elden Ring Nightreign) : une berceuse lente et céleste au début, belle et triste, puis tout éclate en un affrontement divin, écrasant, à l'échelle du cosmos. Rien d'Halloween : ni boîte à musique grinçante, ni clavecin, ni rien d'« effrayant » ou d'espiègle. Ne pas écrire le nom des jeux dans Suno : il refuse les références à des œuvres existantes. Titre : « Le Dévoreur de soleils ».
+Ignaroth sous l'éclipse : un dieu, une entité gigantesque qui dévore les soleils pour se nourrir. Comme le thème de Heolstor (Elden Ring Nightreign) : ça commence par une boîte à musique seule, une berceuse tendre et mélancolique (pas grinçante ni effrayante), qui ralentit comme si son ressort s'épuisait. Puis tout éclate en un affrontement divin, écrasant, à l'échelle du cosmos, sur la même mélodie. Rien d'Halloween : ni clavecin, ni rien d'espiègle. Ne pas écrire le nom des jeux dans Suno : il refuse les références à des œuvres existantes. Titre : « Le Dévoreur de soleils ».
 
 Style (Instrumental désactivé) :
 
 ```
-epic divine final boss orchestral theme, battle against a colossal god that devours suns, opens with a slow celestial lullaby, solo harp and soft high strings, serene, sorrowful and vast, cosmic awe, then erupts into an overwhelming full symphony orchestra and massive cathedral choir, the lullaby melody becomes a titanic heroic theme, deep choir basses, huge brass chorales, earth-shaking timpani and gran cassa, soaring violins, apocalyptic and majestic, sense of immense scale and divine power, minor key, cinematic, no electronic sounds, no modern drums, no guitar, not spooky
+epic divine final boss orchestral theme, battle against a colossal god that devours suns, opens with a solo music box playing a tender melancholic lullaby, gentle and nostalgic, not creepy, the music box slowly winds down and slows, then the same lullaby melody erupts into an overwhelming full symphony orchestra and massive cathedral choir, titanic heroic theme, deep choir basses, huge brass chorales, earth-shaking timpani and gran cassa, soaring violins, apocalyptic and majestic, immense scale and divine power, minor key, cinematic, no electronic sounds, no modern drums, no guitar, not spooky, not halloween
 ```
 
 Paroles (elles posent juste la structure) :
 
 ```
-[Intro: slow celestial lullaby, solo harp, soft high strings, serene and vast]
+[Intro: solo music box, tender melancholic lullaby]
 
-[Verse: lullaby grows, low strings and distant choir, a sun fading]
+[Verse: music box alone, the melody slowly winds down and slows]
 
-[Break: deep silence, one colossal timpani strike]
+[Break: silence, one colossal timpani strike]
 
 [Climax: eruption, full orchestra and massive choir play the lullaby as a titanic theme]
 
 [Main theme: soaring violins, huge brass chorales, deep choir basses]
 
-[Bridge: lullaby returns softly on harp, then the choir rises again]
+[Bridge: the music box lullaby returns alone, softly]
 
 [Climax: full orchestra and choir, divine, overwhelming, apocalyptic]
 ```
 
-Garder la version où l'explosion arrive le plus nettement. Si le chœur chante de vrais mots, ajouter `choir vowels only, aah ooh` au style. Si c'est encore trop sombre ou inquiétant : ajouter `heroic, awe-inspiring, celestial grandeur`. Si l'explosion manque de force : `massive dynamic contrast, epic orchestral explosion`.
+Garder la version où la boîte à musique est la plus nette et l'explosion la plus franche. Si le chœur chante de vrais mots, ajouter `choir vowels only, aah ooh` au style. Si l'explosion manque de force : `massive dynamic contrast, epic orchestral explosion`.
 
 ## 10. Boss de Néon 2099 (`boss-neon`)
 
