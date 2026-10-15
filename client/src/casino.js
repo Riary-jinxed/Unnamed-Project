@@ -26,8 +26,14 @@ export function createCasino(app) {
   const block = (title, body, cls = '') => `<div class="card-box ${cls}"><span class="eyebrow">${title}</span>${body}</div>`;
   const note = () => (C.note ? `<p class="hint" role="status" style="margin:0">${esc(C.note)}</p>` : '');
 
+  // Garde à jour le résumé du compte (tuile de l'accueil, pastille de l'onglet du casino).
+  function sync(D) {
+    if (!D || !ui.account) return;
+    const open = D.phase === 'open';
+    ui.account.casino = D.phase === 'open' || D.phase === 'shop' ? { phase: D.phase, chips: D.chips, spins: open ? D.spins : 0, runs: open && D.questDone ? D.runs : 0 } : null;
+  }
   async function load() {
-    try { const r = await api('GET', '/api/casino', undefined, ui.auth); C.data = r.casino; } catch (e) { ui.error = e.message; }
+    try { const r = await api('GET', '/api/casino', undefined, ui.auth); C.data = r.casino; sync(C.data); } catch (e) { ui.error = e.message; }
     app.render();
   }
   function open(from = 'home') {
@@ -65,7 +71,7 @@ export function createCasino(app) {
     C.spin = { ...r.spin, strips, at: Date.now(), done: false };
     app.play('dice'); app.render();
     setTimeout(() => {
-      C.data = r.casino; C.spin.done = true;
+      C.data = r.casino; sync(C.data); C.spin.done = true;
       app.play(r.spin.pay === 'jackpot' ? 'jackpot' : r.spin.pay === 'none' ? 'pick' : 'six');
       if (ui.screen === 'casino') app.render();
     }, SPIN_MS[2] + 150);
@@ -84,7 +90,8 @@ export function createCasino(app) {
   }
   function qodHTML() {
     const D = C.data, R = D.run, live = D.phase === 'open';
-    const intro = `<p class="hint" style="margin:0">${t('Une montée de cinq tables contre la maison, avec votre deck joué. Chaque victoire met un pot sur le tapis : encaissez-le, ou remettez-le en jeu à la table suivante, plus dure et mieux payée. Une défaite fait tout perdre, sauf {n} Jetons de consolation. Chaque table a sa règle de la maison, tirée au hasard.', { n: CONSOLATION })}</p>`;
+    const intro = `<p class="hint" style="margin:0">${t('Cinq tables contre la maison, avec votre deck joué. Après chaque victoire, encaissez le pot ou remettez-le en jeu.')}</p>
+      <details class="cmore"><summary>${t('Règles')}</summary><p>${t('Chaque table est plus dure et paie mieux que la précédente. Une défaite fait tout perdre, sauf {n} Jetons de consolation. Chaque table tire un adversaire parmi les decks sortis et une règle de la maison.', { n: CONSOLATION })}</p></details>`;
     if (!D.questDone) return block(t('Quitte ou double'), `${intro}<p style="margin:0"><b>${t('S\'ouvre à la fin de la quête « La Nuit du Sept d\'or ».')}</b></p>
       <button class="btn primary" data-act="casino-quest">${t('Jouer la quête')}</button>`, 'cqod locked');
     if (!R) return block(t('Quitte ou double'), `${intro}${ladderHTML(-1)}
@@ -101,7 +108,7 @@ export function createCasino(app) {
   }
   async function tableCall(path, body) {
     const r = await app.call('POST', path, body); if (!r) return null;
-    C.data = r.casino; app.render(); return r;
+    C.data = r.casino; sync(C.data); app.render(); return r;
   }
 
   // ---- Boutique ----
@@ -126,32 +133,50 @@ export function createCasino(app) {
       return `<div class="citem ${x.owned ? 'owned' : ''} ${soldOut ? 'locked' : ''} k-${x.kind}">${itemVisual(x)}<b>${esc(t(x.name))}</b>
         <small class="hint">${art ? `${esc(rarityName(art))} · ${esc((CARDS[art.card] || GENERALS[art.card]).name)}` : KIND[x.kind]}${cosmetic ? '' : ` · ${t('{n}/{max} pendant l\'événement', { n: x.bought, max: x.limit })}`}</small>${tryIt}${state}</div>`;
     };
-    return block(t('Boutique du casino'), `<p class="hint" style="margin:0">${t('Arts de l\'édition Casino, cadre, titre et thème : seulement ici, et une seule fois. Les ressources se rachètent quelques fois pendant l\'événement.')}</p>
-      <div class="cshop">${D.shop.map(item).join('')}</div>`, 'cshopbox');
+    const buyBtn = x => `<button class="btn sm ${D.chips >= x.price ? 'primary' : ''}" data-act="casino-buy" data-item="${esc(x.id)}" ${ui.busy || D.chips < x.price ? 'disabled' : ''}>${app.ico('jeton')}${x.price}</button>`;
+    const res = x => {
+      const soldOut = x.bought >= x.limit;
+      return `<li class="cres ${soldOut ? 'locked' : ''}">${itemVisual(x)}<span><b>${esc(t(x.name))}</b><small class="hint">${t('{n}/{max} pendant l\'événement', { n: x.bought, max: x.limit })}</small></span>
+        ${soldOut ? `<span class="hint">${t('Épuisé')}</span>` : buyBtn(x)}</li>`;
+    };
+    const cos = D.shop.filter(x => !x.limit), more = D.shop.filter(x => x.limit);
+    return `${block(t('Exclusivités du casino'), `<p class="hint" style="margin:0">${t('Seulement ici, pendant l\'événement, et une seule fois.')}</p>
+      <div class="cshop">${cos.map(item).join('')}</div>`, 'cshopbox')}
+      ${block(t('Ressources'), `<ul class="creslist">${more.map(res).join('')}</ul>`, 'cshopbox')}`;
   }
 
   // ---- Écran ----
   function head() {
-    const D = C.data;
-    return `<div class="top"><button class="btn icon" data-act="casino-back" aria-label="${t('Retour')}">‹</button><span class="title">${t('Casino du Sept d\'or')}</span>
+    const D = C.data, back = C.from === 'story';
+    return `<div class="top">${back ? `<button class="btn icon" data-act="casino-back" aria-label="${t('Retour')}">‹</button>` : ''}<span class="title">${t('Casino')}</span>
       ${D ? `<span class="chipbal" aria-label="${t('{n} Jetons', { n: D.chips })}">${chip(D.chips)}</span>` : ''}</div>`;
   }
-  function earnHTML() {
-    const D = C.data;
-    const when = D.phase === 'open' ? t('Les tables ferment le {to} ; la boutique reste ouverte jusqu\'au {until}. Après, les Jetons qui restent disparaissent.', { to: esc(frDate(D.to)), until: esc(frDate(D.shopUntil)) })
-      : t('Les tables sont fermées. Dernier jour pour dépenser vos Jetons : le {until}.', { until: esc(frDate(D.shopUntil)) });
-    return `<div class="card-box chead"><span class="eyebrow">${t('Événement · Jetons du casino')}</span>
-      <p style="margin:0">${t('Les Jetons ne servent qu\'à la boutique du casino. On en gagne avec les chapitres de la quête ({list}), la machine à sous et Quitte ou double.', { list: QUEST_CHIPS.join(', ') })}</p>
-      <p class="hint" style="margin:0">${when}</p></div>`;
+  // Bandeau de l'événement : temps qui reste, tirages et montées du jour, puis comment gagner des Jetons.
+  function heroHTML() {
+    const D = C.data, open = D.phase === 'open';
+    const days = Math.max(1, Math.ceil((Date.parse(`${D.to}T23:59:59Z`) - Date.now()) / 86400000));
+    const when = open ? tp(days, 'Tables ouvertes encore {n} jour, jusqu\'au {to}', 'Tables ouvertes encore {n} jours, jusqu\'au {to}', { to: esc(frDate(D.to)) })
+      : t('Tables fermées. Boutique ouverte jusqu\'au {until}', { until: esc(frDate(D.shopUntil)) });
+    const pill = (label, n, max, off) => `<span class="cpill ${off ? 'off' : n ? 'todo' : ''}"><small>${label}</small><b class="num">${off ? off : `${n}/${max}`}</b></span>`;
+    const pills = open ? `<div class="cpills">${pill(t('Tirages'), D.spins, D.spinMax)}${pill(t('Montées'), D.runs, D.runMax, D.questDone ? '' : t('Après la quête'))}</div>` : '';
+    const done = D.questDone ? QUEST_CHIPS.length : null;
+    return `<div class="chero"><span class="chero-art" aria-hidden="true">7</span>
+      <span class="eyebrow">${t('Événement · Faites vos jeux')}</span><b class="chero-name">${t('Casino du Sept d\'or')}</b>
+      <small class="chero-when">${when}</small>${pills}
+      <details class="cmore chow"><summary>${t('Comment gagner des Jetons ?')}</summary><ul>
+        <li><b>${t('La quête :')}</b> ${t('{list} Jetons par chapitre, à la première victoire.', { list: QUEST_CHIPS.join(', ') })}${done ? ` <span class="ok">${t('✓ Terminée')}</span>` : ''}</li>
+        <li><b>${t('La machine à sous :')}</b> ${tp(D.spinMax, '{n} tirage par jour.', '{n} tirages par jour.')}</li>
+        <li><b>${t('Quitte ou double :')}</b> ${tp(D.runMax, '{n} montée par jour, après la quête.', '{n} montées par jour, après la quête.')}</li></ul>
+        <p>${t('Les Jetons ne servent qu\'à la boutique du casino et disparaissent quand elle ferme, le {until}.', { until: esc(frDate(D.shopUntil)) })}</p></details></div>`;
   }
   function screen() {
     const D = C.data;
     if (!D) return `${head()}${app.errLine()}<p class="wait">${t('Chargement…')}</p>`;
     if (D.phase === 'soon' || D.phase === 'over') return `${head()}${app.errLine()}<p class="wait">${D.phase === 'soon' ? t('Le casino ouvre le {date}.', { date: esc(frDate(D.from)) }) : t('Le casino a fermé ses portes. À l\'année prochaine !')}</p>`;
-    const tabs = `<div class="seg tabs" role="tablist">${[['jeux', t('Jeux')], ['boutique', t('Boutique')]].map(([k, l]) =>
+    const tabs = `<div class="seg casinotabs" role="tablist">${[['jeux', t('Jeux')], ['boutique', t('Boutique')]].map(([k, l]) =>
       `<button class="${C.tab === k ? 'on' : ''}" role="tab" aria-selected="${C.tab === k}" data-act="casino-tab" data-tab="${k}">${l}</button>`).join('')}</div>`;
     const body = C.tab === 'boutique' || D.phase === 'shop' ? shopHTML() : `${slotHTML()}${qodHTML()}`;
-    return `${head()}${app.errLine()}${note()}${earnHTML()}${D.phase === 'open' ? tabs : ''}${body}`;
+    return `${head()}${app.errLine()}${note()}${heroHTML()}${D.phase === 'open' ? tabs : ''}${body}`;
   }
 
   // ---- Partie ----
@@ -165,7 +190,7 @@ export function createCasino(app) {
     app.render();
     try {
       const r = await api('POST', '/api/casino/table/result', { win: res.winner === 0 }, ui.auth);
-      C.data = r.casino; C.result = { ...C.result, ...r.outcome, pending: false };
+      C.data = r.casino; sync(C.data); C.result = { ...C.result, ...r.outcome, pending: false };
       app.play(r.outcome.win ? 'levelup' : 'pick');
     } catch (e) { C.result = { ...C.result, pending: false, error: e.message }; }
     app.render();

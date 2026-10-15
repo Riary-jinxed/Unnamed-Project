@@ -733,7 +733,7 @@ body.coached .coach-hl { outline-color: transparent; animation: none; }
 .btn.big { padding-block: 12px; font-size: 17px; }
 .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .top .chip[data-act] { font-size: 13px; padding: 4px 10px; font-weight: 600; }
-.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 760px; margin-inline: auto;
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr)); max-width: 760px; margin-inline: auto;
   background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
 .tabbar button { position: relative; border: 0; background: none; padding: 8px 2px 7px; display: grid; justify-items: center; gap: 2px; font-size: 12px; font-weight: 600; color: var(--ink); }
 .tabbar button + button { border-left: 1px solid var(--line); }

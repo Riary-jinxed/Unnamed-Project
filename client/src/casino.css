@@ -3,7 +3,40 @@
 .chipn { white-space: nowrap; }
 .chipn .ico { margin-right: 3px; }
 .top .chipbal { margin-left: auto; font-weight: 700; font-size: 17px; padding: 4px 10px; border-radius: 999px; background: var(--sunk); border: 1px solid var(--line); }
-.chead { background: linear-gradient(160deg, rgb(15 74 46 / .55), rgb(6 32 20 / .35)), var(--card); border-color: #e3b55266; }
+
+/* Bandeau de l'événement : tapis vert, liseré d'or, un grand 7 en filigrane */
+.chero { position: relative; overflow: hidden; isolation: isolate; display: grid; gap: 4px; padding: 16px 16px 12px; border-radius: var(--r); border: 2px solid #e3b552;
+  background: radial-gradient(120% 90% at 20% 0%, #1d7a4c, #0b3d26 55%, #051a10); box-shadow: inset 0 0 0 4px rgb(0 0 0 / .25), 0 6px 18px rgb(0 0 0 / .35); color: #f4ead2; }
+.chero::after { content: ''; position: absolute; inset: 6px; border: 1px dashed rgb(227 181 82 / .35); border-radius: calc(var(--r) - 4px); pointer-events: none; z-index: -1; }
+.chero-art { position: absolute; right: -6px; top: -26px; z-index: -1; font: 700 150px/1 Georgia, serif; color: #c8141f; text-shadow: 0 4px 0 #e3b552; opacity: .32; transform: rotate(10deg); }
+.chero .eyebrow { color: #e3b552; }
+.chero-name { font-family: var(--display); font-size: 24px; line-height: 1.1; color: #fff3cf; text-shadow: 0 2px 0 #000; }
+.chero-when { color: #cfe6d6; font-size: 13.5px; }
+.cpills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.cpill { display: grid; gap: 0; padding: 5px 12px; border-radius: 10px; background: rgb(0 0 0 / .35); border: 1px solid rgb(227 181 82 / .35); line-height: 1.2; }
+.cpill small { font-size: 11px; color: #cfe6d6; }
+.cpill b { font-size: 16px; color: #fff3cf; }
+.cpill.todo { border-color: #e3b552; box-shadow: 0 0 10px rgb(227 181 82 / .35); }
+.cpill.off b { font-size: 13px; color: #cfe6d6; font-weight: 600; }
+.cmore summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.chow { margin-top: 6px; }
+.chow summary { color: #e3b552; }
+.cmore p, .cmore ul { margin: 6px 0 0; font-size: 13.5px; }
+.chow ul { padding-left: 18px; display: grid; gap: 3px; }
+.chow .ok { color: #8fe0a8; font-weight: 700; }
+.casinotabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+.casinotabs button { padding-block: 9px; font-size: 15px; }
+
+/* Ressources de la boutique : une ligne chacune */
+.creslist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cres { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r); background: var(--sunk); border: 1px solid var(--line); }
+.cres > span:nth-child(2) { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.cres b { font-size: 14px; }
+.cres .bres { width: 44px; min-height: 0; flex: none; }
+.cres .bres .ico { width: 30px; height: 30px; }
+.cres .bres .num { display: none; }
+.cres .bpack { width: 30px; height: 42px; border-width: 1.5px; }
+.cres.locked { opacity: .55; }
 
 /* Machine à sous */
 .slot { --gold: #e3b552; position: relative; display: grid; gap: 10px; justify-items: center; padding: 16px 14px 12px; border-radius: 18px;
@@ -51,3 +84,8 @@
 .ctile { position: relative; overflow: hidden; isolation: isolate; background: linear-gradient(150deg, #0f4a2e, #062014 70%); border-color: #e3b55588; }
 .ctile-art { position: absolute; right: 8px; top: 50%; transform: translateY(-50%) rotate(-8deg); z-index: -1; font: 700 34px Georgia, serif; color: #c8141f;
   text-shadow: 0 2px 0 #e3b552; opacity: .55; letter-spacing: 2px; }
+
+/* Onglet du casino dans la barre du bas, pendant l'événement : son jeton en couleurs, et des libellés plus serrés à six onglets */
+.tabbar .tab-event svg { color: #e3b552; filter: drop-shadow(0 0 4px rgb(200 20 31 / .7)); }
+.tabbar .tab-event:not(.on) span:not(.badge) { color: #e8c877; }
+.tabbar[style*="--cols:6"] button { font-size: 11px; letter-spacing: 0; }

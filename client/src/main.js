@@ -1413,17 +1413,22 @@ function walletHTML() {
 }
 // Barre du bas, sur l'accueil et les écrans du menu : on passe de l'un à l'autre sans revenir à l'accueil.
 const HOME_PATH = 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z';
+// Jeton de casino : un anneau, son centre et ses encoches.
+const CASINO_PATH = 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1';
 const tabIcon = d => `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
 // Écrans qui ont la barre du bas, et l'onglet allumé sur chacun (aucun pour les sous-écrans de l'accueil).
-const TABBED = { home: 'home', collection: 'collection', decks: 'decks', shop: 'shop', friends: 'friends', profile: '', ranked: '', pass: '', mail: '', news: '', clan: 'friends', boss: '', story: '' };
+const TABBED = { home: 'home', collection: 'collection', decks: 'decks', shop: 'shop', friends: 'friends', profile: '', ranked: '', pass: '', mail: '', news: '', clan: 'friends', boss: '', story: '', casino: 'casino' };
 function tabbar(cur) {
   const upgradable = OWNABLE.filter(canUpgrade).length, asks = friends.pending();
-  const nav = (act, label, badge, extra = '') => `<button data-act="${act}" ${cur === act ? 'class="on" aria-current="page"' : ''} ${extra}>${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
+  const nav = (act, label, badge, extra = '', cls = '') => `<button data-act="${act}" class="${cls}${cur === act ? ' on' : ''}" ${cur === act ? 'aria-current="page"' : ''} ${extra}>${label}${badge ? `<span class="badge num">${badge}</span>` : ''}</button>`;
   const tab = (act, icon, label, badge) => nav(act, `${tabIcon(icon)}<span>${label}</span>`, badge);
   // L'onglet allumé glisse depuis celui de l'écran précédent (habillage.css, .tabbar.slid).
-  const at = TABS.indexOf(cur), was = ui.screen !== ui.shownScreen ? TABS.indexOf(TABBED[ui.shownScreen]) : -1;
-  const slid = at >= 0 && was >= 0 && at !== was ? ` slid" style="--tab:${at};--from:${was}` : '';
-  return `<nav class="tabbar${slid}" aria-label="${t('Menu')}">${tab('home', HOME_PATH, t('Accueil'))}${tab('collection', 'M7 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM12 8l2 3-2 3-2-3z', t('Collection'), upgradable)}${tab('decks', 'M8 2h11a1 1 0 0 1 1 1v15M5 5h11a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z', t('Decks'))}${tab('shop', 'M5 8h14l-1 12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zM9 8V6a3 3 0 0 1 6 0v2', t('Boutique'))}${tab('friends', 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20c0-3.5 3-6 7-6s7 2.5 7 6M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14c2.4.6 4 2.8 4 6', t('Social'), asks)}</nav>`;
+  // Pendant l'événement du casino, un sixième onglet : le casino, avec ses tirages et montées du jour.
+  const cas = ui.account?.casino, tabs = TABS.filter(k => k !== 'casino' || cas);
+  const at = tabs.indexOf(cur), was = ui.screen !== ui.shownScreen ? tabs.indexOf(TABBED[ui.shownScreen]) : -1;
+  const slid = at >= 0 && was >= 0 && at !== was ? ` slid" style="--tab:${at};--from:${was};--cols:${tabs.length}` : `" style="--cols:${tabs.length}`;
+  const casinoTab = cas ? nav('casino', `${tabIcon(CASINO_PATH)}<span>${t('Casino')}</span>`, cas.spins + cas.runs, 'data-from="home"', 'tab-event') : '';
+  return `<nav class="tabbar${slid}" aria-label="${t('Menu')}">${tab('home', HOME_PATH, t('Accueil'))}${tab('collection', 'M7 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM12 8l2 3-2 3-2-3z', t('Collection'), upgradable)}${tab('decks', 'M8 2h11a1 1 0 0 1 1 1v15M5 5h11a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z', t('Decks'))}${casinoTab}${tab('shop', 'M5 8h14l-1 12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zM9 8V6a3 3 0 0 1 6 0v2', t('Boutique'))}${tab('friends', 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20c0-3.5 3-6 7-6s7 2.5 7 6M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14c2.4.6 4 2.8 4 6', t('Social'), asks)}</nav>`;
 }
 // Cartes de récompense : on dit comment les obtenir.
 function lockLabel(id) {
