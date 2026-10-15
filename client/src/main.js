@@ -74,7 +74,8 @@ const mail = createMail({ ui, render: () => render(), call: (...x) => call(...x)
 // Nouveautés (news.js) : annonces des mises à jour majeures et des sets, à la une sur l'accueil.
 const news = createNews({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine() });
 // Clans (clan.js) : création, adhésion, missions de clan, dons, magasin et classement des clans.
-const clan = createClan({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), avatarHTML: (...x) => avatarHTML(...x), ico: k => ico(k), play: (...x) => play(...x) });
+const clan = createClan({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), avatarHTML: (...x) => avatarHTML(...x), ico: k => ico(k), play: (...x) => play(...x),
+  go: id => goClanBoss(id), editBossDeck: id => { editBossDeck(id); render(); }, leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
 // Boss mondial (boss.js) : boss de la semaine, tentatives, classement et magasin du boss ; à la table, son bandeau et la fin de tentative.
 const boss = createBoss({ ui, render: () => render(), call: (...x) => call(...x), errLine: () => errLine(), avatarHTML: (...x) => avatarHTML(...x), ico: k => ico(k), play: (...x) => play(...x),
   go: () => goBoss(), editBossDeck: id => { editBossDeck(id); render(); }, gotArt: id => { ui.gotArt = { id }; ui.sheet = 'art'; render(); }, leaveGame: () => { if (ui.screen === 'game' || ui.ctrl) leaveTable(); } });
@@ -167,6 +168,14 @@ function goRanked() {
   toTable(t('Votre adversaire s\'installe…'), () => {
     ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = true; ui.sheet = null; ui.lastTurn = 0;
     ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'ranked', auth: ui.auth });
+  });
+}
+// Boss de clan : une tentative contre le boss ouvert du clan (clan-boss.js), jouée par le serveur comme celle du boss mondial.
+function goClanBoss(id) {
+  if (!clan.bossDeck(id) && !deckReady()) return;
+  toTable(t('Le boss se dresse devant vous…'), () => {
+    ui.mode = 'online'; ui.error = ''; ui.avatars = null; ui.friendFoe = null; ui.rankedAi = false; ui.bossRun = true; ui.sheet = null; ui.lastTurn = 0;
+    ui.offline = false; ui.ctrl = connectOnline(handlers, { t: 'clanboss', auth: ui.auth });
   });
 }
 // Boss mondial : une tentative contre le boss de la semaine, jouée par le serveur. Elle compte dès que la partie commence.
@@ -574,7 +583,7 @@ function missionsHTML() {
     <p class="hint" style="margin:0">${t('Nouvelles missions chaque jour à minuit.')}${p.rerollsLeft ? ` ${t('Vous pouvez en changer {n} aujourd\'hui.', { n: p.rerollsLeft })}` : ''}</p>` : '';
   if (!W?.list.length) return daily;
   const bonus = gains(W.bonus);
-  return `${daily}<div class="gal-h">${t('De la semaine')}</div><p class="hint" style="margin:0">${t('Jusqu\'au {date} à minuit.', { date: esc(frDate(W.ends)) })}</p>
+  return `${daily}<div class="gal-h" id="m-week">${t('De la semaine')}</div><p class="hint" style="margin:0">${t('Jusqu\'au {date} à minuit.', { date: esc(frDate(W.ends)) })}</p>
     <div class="missions">${W.list.map((m, i) => missionRow(m, i, false)).join('')}</div>
     ${bonus ? `<p class="hint" style="margin:0">${W.bonus.got ? `✓ ${t('Bonus de la semaine reçu : {gains}', { gains: bonus })}` : t('Toutes accomplies : {gains} en bonus.', { gains: bonus })}</p>` : ''}`;
 }
@@ -1045,10 +1054,13 @@ function genSlot(side, isMe, canGen) {
 }
 function pbar(side, isMe, connected, canGen = false) {
   const seat = isMe ? ui.view.seat : 1 - ui.view.seat, b = badgeOf(seat);
-  const who = { name: side.name, avatar: avatarOf(seat), progress: { frame: b?.frame } };
+  // Le nom d'un boss est un texte du jeu, traduit comme les autres.
+  const who = { name: !isMe && ui.view.boss ? t(side.name) : side.name, avatar: avatarOf(seat), progress: { frame: b?.frame } };
   // Le boss n'a ni main ni deck : sa ligne dit plutôt combien de zones il tient encore.
-  const held = !isMe && ui.view.boss ? [0, 1, 2].filter(z => !ui.view.boss.score.zones[z]?.beat).length : 0;
-  const stats = !isMe && ui.view.boss ? `<span class="num">${held ? tp(held, 'Tient {n} zone sur 3', 'Tient {n} zones sur 3') : t('Débordé partout')}</span>` : [
+  // Le boss de clan ne tient qu'une zone : sa ligne donne ses PV après les dégâts du moment.
+  const held = !isMe && ui.view.boss ? [0, 1, 2].filter(z => !ui.view.boss.score.zones[z]?.beat).length : 0, cb = ui.view.boss?.clan;
+  const stats = !isMe && cb ? `<span class="num">${t('{hp} / {max} PV', { hp: Math.max(0, cb.hp - ui.view.boss.score.total), max: cb.max })}</span>`
+    : !isMe && ui.view.boss ? `<span class="num">${held ? tp(held, 'Tient {n} zone sur 3', 'Tient {n} zones sur 3') : t('Débordé partout')}</span>` : [
     !isMe ? `<span class="num" title="${t('Sceaux de l\'adversaire ce tour')}">${t('Sceaux {n}', { n: side.seals })}</span>` : '',
     `<span class="num">${t('Main {n}', { n: side.handCount })}</span>`, `<span class="num">${t('Deck {n}', { n: side.deckCount })}</span>`,
     side.treasure ? `<span class="num" title="${t('Sceaux non dépensés aux tours précédents')}">${t('Trésor {n}', { n: side.treasure })}</span>` : '',
@@ -1064,7 +1076,7 @@ function pbar(side, isMe, connected, canGen = false) {
   // Bulle et sélecteur d'émotes : à côté du bandeau, pas dedans (les thèmes découpent le bandeau, clip-path, ce qui les cacherait).
   return `<div class="pslot">${bubbleHTML(seat, isMe)}${isMe && emo && ui.emotePick ? emotePickHTML() : ''}<div class="pbar ${isMe ? 'me' : 'foe'}">
     ${pav}
-    <div class="pid"><div class="pline"><span class="who">${isMe ? t('Vous') : esc(side.name)}</span>${b?.level ? `<small class="lv num">${t('niv. {n}', { n: b.level })}</small>` : ''}${ready ? `<span class="chip ok">${t('Prêt')}</span>` : ''}${b?.title ? `<span class="ptitle">${esc(t(b.title))}</span>` : ''}</div>
+    <div class="pid"><div class="pline"><span class="who">${isMe ? t('Vous') : esc(who.name)}</span>${b?.level ? `<small class="lv num">${t('niv. {n}', { n: b.level })}</small>` : ''}${ready ? `<span class="chip ok">${t('Prêt')}</span>` : ''}${b?.title ? `<span class="ptitle">${esc(t(b.title))}</span>` : ''}</div>
       <div class="pstats">${stats}</div></div>
     ${ui.view.noGeneral ? '' : genSlot(side, isMe, canGen)}</div></div>`;
 }
@@ -1121,15 +1133,17 @@ function sealsHTML(seals) {
 function renderGame() {
   const v = ui.view, m = v.me, f = v.foe, g = GENERALS[m.general];
   const play = canPlay();
+  // Boss de clan : il prend la place des trois zones d'en face (boss.js, clanZoneHTML) ; vos 3 zones n'ont que votre côté.
+  const one = !!v.boss?.clan;
   let board = '';
   for (const z of [0, 1, 2]) {
     const a = f.zonePower[z], b = v.phase === 'plan' ? planPower(z) : m.zonePower[z];
     const mz = ui.moveSel !== null ? planZone(ui.moveSel) : -1;
     const target = play && ((ui.sel && freeSlots(z) > 0) || (ui.moveSel !== null && z !== mz && freeSlots(z) > 0));
-    const won = b > a ? 'won-me' : a > b ? 'won-foe' : '';
-    board += `<div class="zone ${won} ${target ? 'target' : ''}" data-z="${z}" ${target ? 'tabindex="0" role="button"' : ''} aria-label="${t('Zone {zone}', { zone: t(ZONE_NAMES[z]) })}">
-      ${f.terrains[z] ? terrainBg(f.terrains[z], 'foe') : ''}${m.terrains[z] ? terrainBg(m.terrains[z], 'me') : ''}${terrainChip(f, z, false)}${slots(f, z, false)}
-      <div class="score"><span class="v foe ${a > b ? 'lead' : ''}">${a}</span><span class="zn">${t(ZONE_NAMES[z])}</span><span class="v me ${b > a ? 'lead' : ''}">${b}</span></div>
+    const won = one ? '' : b > a ? 'won-me' : a > b ? 'won-foe' : '';
+    board += `<div class="zone ${won} ${one ? 'oneboss' : ''} ${target ? 'target' : ''}" data-z="${z}" ${target ? 'tabindex="0" role="button"' : ''} aria-label="${t('Zone {zone}', { zone: t(ZONE_NAMES[z]) })}">
+      ${f.terrains[z] && !one ? terrainBg(f.terrains[z], 'foe') : ''}${m.terrains[z] ? terrainBg(m.terrains[z], 'me') : ''}${one ? '' : `${terrainChip(f, z, false)}${slots(f, z, false)}`}
+      <div class="score">${one ? '' : `<span class="v foe ${a > b ? 'lead' : ''}">${a}</span>`}<span class="zn">${t(ZONE_NAMES[z])}</span><span class="v me ${!one && b > a ? 'lead' : ''}">${b}</span></div>
       ${slots(m, z, true)}${terrainChip(m, z, true)}
       ${ui.genZone === z && g.needsZone ? `<div class="gmark">${t('Général activé ici')}</div>` : ''}</div>`;
   }
@@ -1143,7 +1157,7 @@ function renderGame() {
       <span class="n">${esc(d.name)}</span>${d.text ? `<span class="x">${rich(d.text)}</span>` : `<span class="k">${kwLine(d)}</span>`}${boss.handChip(v, c.id)}</button>`; }).join('');
   const canGen = play && g.activate && !m.generalUsed && m.seals >= (g.activateCost || 0);
   const goLabel = v.phase === 'reveal' ? t('Révélation…') : v.ready.me ? t('En attente…') : v.turn === v.turns ? t('Valider le dernier tour') : t('Valider le tour');
-  const mode = ui.mode === 'online' ? (v.boss ? t('Boss mondial') : v.ranked ? t('Partie classée') : t('Partie {room}', { room: esc(ui.room || '') })) : ui.mode === 'tuto' ? t('Tutoriel') : ui.mode === 'story' ? esc(story.label()) : t('Contre l\'IA');
+  const mode = ui.mode === 'online' ? (v.boss ? (one ? t('Boss de clan') : t('Boss mondial')) : v.ranked ? t('Partie classée') : t('Partie {room}', { room: esc(ui.room || '') })) : ui.mode === 'tuto' ? t('Tutoriel') : ui.mode === 'story' ? esc(story.label()) : t('Contre l\'IA');
   // Hors tutoriel, pas d'encadré d'info : une double touche ouvre la carte en grand, et un refus (zone pleine, sceaux) s'affiche en bulle au-dessus de la main.
   const toast = ui.msg ? `<div class="toast" role="alert">${esc(ui.msg)}</div>` : '';
   return `
@@ -1152,7 +1166,7 @@ function renderGame() {
   ${linkHTML(v)}
   ${pbar(f, false, v.connected[1 - v.seat])}
   ${boss.tableHTML(v)}
-  <div class="board">${board}</div>
+  <div class="board ${one ? 'oneboss' : ''}">${one ? boss.clanZoneHTML(v) : ''}${board}</div>
   ${pbar(m, true, true, canGen)}
   ${ui.coach ? coachHTML(ui.coach) : ''}
   <div class="hand" id="hand">${hand || `<span class="empty">${t('Main vide.')}</span>`}</div>
@@ -1267,40 +1281,75 @@ function renderHome() {
     : giftBtns ? `<div class="card-box booster ready gifts">
       <div><span class="eyebrow">${t('Récompense')}</span><h2>${giftTitle}</h2></div>
       <div class="giftbtns">${giftBtns}</div></div>` : '';
-  // Salon de jeu, à la manière des jeux de cartes mobiles : le général du deck joué en grand, un gros bouton Jouer,
-  // et autour des tuiles (passe, missions, calendrier) qui ouvrent chacune leur écran ou leur feuille.
+  // Salon de jeu, à la manière des jeux de cartes mobiles. Trois blocs :
+  // - le jeu : le général du deck joué en grand, le gros bouton Jouer, contre l'IA et avec un ami ;
+  // - le quotidien : une rangée d'icônes (missions, calendrier, bienvenue, apprendre), pastille quand quelque chose attend ;
+  // - les modes de jeu (histoire ou événement, boss, classé, clan) en tuiles illustrées, puis la progression (passe, niveau) en lignes.
+  // Téléphone : tout en une colonne (.home-play et .home-side en display: contents, l'ordre vient de style.css).
+  // Ordinateur : le jeu à gauche, qui reste en place au défilement, le reste à droite.
   const hero = g ? heroHTML(d.general, mySel(d.general)) : '';
-  const cal = p.calendar;
+  const cal = p.calendar, wel = p.welcome && !p.welcome.expired && (!p.welcome.done || p.welcome.claimed) ? p.welcome : null;
+  const quick = (act, icon, label, sub, dot = false, extra = '') => `<button class="qk ${dot ? 'todo' : ''}" data-act="${act}" ${extra}>
+    <span class="qk-ico">${tabIcon(icon)}${dot ? `<span class="qk-dot${dot === true ? '' : ' num'}">${dot === true ? '' : dot}</span>` : ''}</span><b>${label}</b><small class="num">${sub}</small></button>`;
+  const daily = [
+    p.missions.length ? quick('missions', 'M9 4h6M9 4a2 2 0 0 0-2 2H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1a2 2 0 0 0-2-2M9 13l2 2 4-4',
+      t('Missions'), `${p.missions.length - left}/${p.missions.length}`, left || false) : '',
+    // Missions de la semaine : leur propre icône (même feuille que celles du jour, partie « De la semaine »).
+    p.weekly?.list.length ? quick('missions', 'M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
+      t('Semaine'), `${p.weekly.list.length - weekLeft}/${p.weekly.list.length}`, weekLeft || false, 'data-week="1"') : '',
+    // Calendrier et bienvenue : seulement quand une récompense attend (ils s'ouvrent d'eux-mêmes une fois par visite).
+    cal?.ready ? quick('calendar', 'M4 6a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 10h16M8 3v4M16 3v4',
+      t('Calendrier'), cal.ready ? t('À récupérer') : `${cal.got}/${cal.days.length}`, !!cal.ready) : '',
+    wel?.ready ? quick('welcome', 'M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 7h18v4H3zM12 7v14M12 7c-1.5-3-5-3-5-1s3 1 5 1c2 0 5 1 5-1s-3.5-2-5 1',
+      t('Bienvenue'), wel.ready ? t('À récupérer') : `${wel.got}/${wel.steps}`, !!wel.ready) : '',
+    // Nouveautés (écran de news.js, PR des annonces) : l'icône n'apparaît que quand le serveur envoie le journal (account.news),
+    // avec une pastille tant qu'une annonce n'est pas vue. Le bandeau « À la une » reste en tête de l'accueil.
+    a.news?.last ? quick('news', 'M4 5h13a1 1 0 0 1 1 1v13a2 2 0 0 0 2-2V9h-2M4 5v13a2 2 0 0 0 2 2h14M8 9h6M8 13h6M8 17h3',
+      t('Nouveautés'), a.news.unread ? tp(a.news.unread, '{n} à lire', '{n} à lire') : t('Annonces'), a.news.unread || false) : '',
+    quick('learn', 'M4 5a1 1 0 0 1 1-1h5a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 5a1 1 0 0 0-1-1h-5a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', t('Apprendre'), t('Tuto, codex')),
+  ].join('');
+  const modes = [
+    story.tile(a), boss.tile(a),
+    p.ranked ? `<button class="tile rtile" data-act="ranked"><span class="eyebrow">${t('Classé')}</span><b>${esc(t(p.ranked.seasonName))}</b>
+      <span class="tile-foot">${rankHTML(p.ranked.rank)}</span></button>` : '',
+    clan.tile(a),
+  ].filter(Boolean).join('');
+  const rows = [
+    `<button class="tile hrow" data-act="profile" data-tab="succes"><span class="hrow-txt"><span class="eyebrow">${p.title ? esc(t(titleLabel(p.title))) : t('Niveau du joueur')}</span><b class="num">${t('Niv. {n}', { n: p.level })}</b></span>
+      <span class="hrow-end num">${t('{xp}/{next} XP · Succès', { xp: p.xp, next: p.xpNext })}</span><span class="bar" aria-hidden="true"><span style="width:${pct(p.xp, p.xpNext)}%"></span></span></button>`,
+  ].join('');
+  // Passe de saison : grand bandeau sous Jouer (en tête de la colonne de droite sur ordinateur), à l'image d'un art Promo de la saison.
+  const season = p.pass && SEASONS.find(x => x.id === p.pass.id), promo = season?.promo.map(x => x.art).find(id => ARTS[id] && GENERALS[ARTS[id].card]);
+  const passBand = p.pass ? `<button class="passband theme-${p.pass.theme}" data-act="pass">
+      ${promo ? `<span class="pb-art">${portraitHTML(ARTS[promo].card, promo)}</span>` : ''}
+      <span class="pb-txt"><span class="eyebrow">${t('Passe de saison · {n} j', { n: p.pass.daysLeft })}</span><b>${esc(t(p.pass.name))}</b>
+        <small>${p.pass.todo ? tp(p.pass.todo, '{n} mission du passe à faire', '{n} missions du passe à faire') : t('Toutes les missions du passe sont faites ✓')}</small></span>
+      <span class="pb-tier num"><b>${p.pass.tier}</b><small>/${p.pass.tiers}</small></span>
+      <span class="bar" aria-hidden="true"><span style="width:${pct(p.pass.xp, p.pass.next)}%"></span></span>
+      <span class="pb-foot num"><span>${t('Palier {tier}/{tiers}', { tier: p.pass.tier, tiers: p.pass.tiers })} · ${p.pass.xp}/${p.pass.next} XP</span><span class="pb-go">${p.pass.premium ? t('Premium ✓') : t('Voir le passe')}</span></span></button>` : '';
   return `
   <div class="top hometop hud"><button class="profile-btn" data-act="profile" aria-label="${t('Mon profil')}">${avatarHTML(a)}</button>
     <button class="hud-id" data-act="profile"><b>${esc(a.name)}</b><span class="hud-lv num">${t('Niv. {n}', { n: p.level })}<span class="bar" aria-hidden="true"><span style="width:${pct(p.xp, p.xpNext)}%"></span></span></span></button>
     <span class="wallet">${walletHTML()}</span>${mail.button()}${muteBtn()}</div>
   <div class="setup home lobby">
-    ${gift}${news.banner(a)}
-    <section class="showcase" style="${g ? famVar([g.fam]) : ''}" data-fam="${esc(g?.fam || '')}">
-      <div class="sc-art">${hero || `<span class="sc-init" aria-hidden="true">${esc((g?.name || '?')[0])}</span>`}</div>
-      ${eventChips(p.events?.live || [])}
-      ${p.ranked ? `<button class="sc-rank" data-act="ranked" aria-label="${t('Classement')}">${rankHTML(p.ranked.rank)}<small>${esc(t(p.ranked.seasonName))}</small></button>` : ''}
-      <button class="sc-deck" data-act="decks"><span class="eyebrow">${t('Deck joué')}</span><b>${esc(d ? d.name : t('Aucun deck'))}</b>${g ? `<small>${esc(g.name)}</small>` : ''}<span class="sc-change">${t('Changer')}</span></button>
-    </section>
-    ${deckErr ? `<p class="err" style="margin:0">${esc(deckErr)}</p>` : ''}
-    <button class="playbtn" data-act="${p.ranked ? 'ranked-play' : 'solo'}"><span>${t('Jouer')}</span><small>${p.ranked ? t('Partie classée') : t("Contre l'IA")}</small></button>
-    <div class="duo">${p.ranked ? `<button class="btn" data-act="solo">${t("Contre l'IA")}</button>` : `<button class="btn" data-act="learn">${t('Apprendre')}</button>`}<button class="btn" data-act="play-friend">${t('Avec un ami')}</button></div>
-    ${errLine()}
-    <div class="tiles">
-      ${p.pass ? `<button class="tile passline theme-${p.pass.theme}" data-act="pass"><span class="eyebrow">${t('Passe · {n} j', { n: p.pass.daysLeft })}</span><b>${esc(t(p.pass.name))}</b>
-        <span class="tile-foot num">${t('Palier {tier}/{tiers}', { tier: p.pass.tier, tiers: p.pass.tiers })}</span><span class="bar" aria-hidden="true"><span style="width:${pct(p.pass.xp, p.pass.next)}%"></span></span></button>` : ''}
-      ${p.missions.length || p.weekly?.list.length ? `<button class="tile ${left ? 'todo' : ''}" data-act="missions"><span class="eyebrow">${t('Missions du jour')}</span><b class="num">${p.missions.length - left}/${p.missions.length}</b>
-        <span class="tile-foot">${left ? t('{n} à faire', { n: left }) : t('Toutes faites ✓')}${p.weekly?.list.length ? ` · ${t('Semaine {done}/{total}', { done: p.weekly.list.length - weekLeft, total: p.weekly.list.length })}` : ''}</span></button>` : ''}
-      ${cal ? `<button class="tile ${cal.ready ? 'todo' : ''}" data-act="calendar"><span class="eyebrow">${t('Calendrier')}</span><b>${esc(t(cal.name).split(' ')[0])}</b>
-        <span class="tile-foot num">${cal.ready ? t('Récompense à récupérer') : tp(cal.got, '{n} jour sur {days}', '{n} jours sur {days}', { days: cal.days.length })}</span></button>` : ''}
-      ${p.welcome && !p.welcome.expired && (!p.welcome.done || p.welcome.claimed) ? `<button class="tile welcometile ${p.welcome.ready ? 'todo' : ''}" data-act="welcome"><span class="eyebrow">${t('Bienvenue · {n} j', { n: p.welcome.left })}</span><b class="num">${p.welcome.got}/${p.welcome.steps}</b>
-        <span class="tile-foot">${p.welcome.ready ? t('Cadeau à récupérer') : p.welcome.done ? t('Terminée ✓') : t('Revenez demain')}</span></button>` : ''}
-      ${story.tile(a)}${boss.tile(a)}${clan.tile(a)}${news.tile(a)}
-      <button class="tile" data-act="profile" data-tab="succes"><span class="eyebrow">${t('Progression')}${p.title ? ` · ${esc(t(titleLabel(p.title)))}` : ''}</span><b class="num">${t('Niv. {n}', { n: p.level })}</b>
-        <span class="tile-foot num">${t('{xp}/{next} XP · Succès', { xp: p.xp, next: p.xpNext })}</span></button>
+    <div class="home-play">
+      <section class="showcase" style="${g ? famVar([g.fam]) : ''}" data-fam="${esc(g?.fam || '')}">
+        <div class="sc-art">${hero || `<span class="sc-init" aria-hidden="true">${esc((g?.name || '?')[0])}</span>`}</div>
+        ${eventChips(p.events?.live || [])}
+        <button class="sc-deck" data-act="decks"><span class="eyebrow">${t('Deck joué')}</span><b>${esc(d ? d.name : t('Aucun deck'))}</b>${g ? `<small>${esc(g.name)}</small>` : ''}<span class="sc-change">${t('Changer')}</span></button>
+      </section>
+      ${deckErr ? `<p class="err home-err" style="margin:0">${esc(deckErr)}</p>` : ''}
+      <button class="playbtn" data-act="${p.ranked ? 'ranked-play' : 'solo'}"><span>${t('Jouer')}</span><small>${p.ranked ? t('Partie classée') : t("Contre l'IA")}</small></button>
+      <div class="duo">${p.ranked ? `<button class="btn" data-act="solo">${t("Contre l'IA")}</button>` : `<button class="btn" data-act="learn">${t('Apprendre')}</button>`}<button class="btn" data-act="play-friend">${t('Avec un ami')}</button></div>
+      ${errLine()}
     </div>
-    ${p.ranked ? `<button class="learnline" data-act="learn">${t('Apprendre à jouer : tutoriel et codex des mots-clés')}</button>` : ''}
+    <div class="home-side">
+      ${gift}${news.banner(a)}
+      ${passBand}
+      <nav class="quick" aria-label="${t('Quotidien')}">${daily}</nav>
+      ${modes ? `<section class="home-sec modes-sec"><h3 class="home-h">${t('Modes de jeu')}</h3><div class="tiles modes">${modes}</div></section>` : ''}
+      <section class="home-sec prog-sec"><h3 class="home-h">${t('Progression')}</h3><div class="hrows">${rows}</div></section>
+    </div>
   </div>`;
 }
 // ---- Événements temporaires ----
@@ -2475,7 +2524,7 @@ app.addEventListener('click', e => {
       tryPlace(+ds.zone); }
     else if (a === 'zback') { unplace(ui.zoom.uid); ui.sheet = null; ui.zoom = null; ui.msg = ''; render(); }
     else if (a === 'zstay') { const uid = ui.zoom.uid; ui.sheet = null; ui.zoom = null; ui.moveSel = uid; ui.sel = null; tryPlace(boardZone(uid)); }
-    else if (a === 'log' || a === 'set' || a === 'learn' || a === 'missions') { ui.sheet = a; render(); }
+    else if (a === 'log' || a === 'set' || a === 'learn' || a === 'missions') { ui.sheet = a; render(); if (ds.week) document.getElementById('m-week')?.scrollIntoView({ block: 'start' }); }
     else if (a === 'play-friend') { ui.sheet = a; ui.error = ''; render(); }
     else if (a === 'create') goOnline('create');
     else if (a === 'join') { if (ui.joinCode.length !== 4) { ui.error = t('Le code fait 4 lettres.'); render(); } else goOnline('join'); }

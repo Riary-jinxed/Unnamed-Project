@@ -684,6 +684,48 @@ export const GENERALS = {
                ],
                aura: bossAura, onStart: bossMinions, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') },
 };
+// ---- Boss de clan (clan-boss.js) ----
+// Jamais en collection ni dans la rotation du boss mondial (boss: true, clan: true). Comme un boss mondial, il est le joueur 1, sans
+// deck ni terrain, et joue son script ; mais il n'a pas de Sbire : il tient à lui seul les trois zones d'en face, et ce sont ses
+// PV que les points de vos zones font baisser. Chacun reprend une carte du jeu (card) et l'un de ses arts alternatifs (arts.js).
+const clanBoss = (id, def) => ({ boss: true, clan: true, kind: 'Boss', ...def,
+  aura: bossAura, onStartTurn: (p, st) => bossAct(p, st, 'start'), onEndTurn: (p, st) => bossAct(p, st, 'end') });
+GENERALS.clan_wyrm = clanBoss('clan_wyrm', { name: 'Wyrm du trésor, seigneur de la montagne d\'or', fam: 'Dragon', card: 'wyrm_tresor', art: 'wyrm_or',
+  text: 'Boss de clan. Ses griffes broient vos créatures les plus faibles, et son or s\'éboule sur les zones qui ne sont pas pleines.',
+  boost: { fams: { Elfe: 2, Gobelin: 1 }, cards: { archere: 2, eclaireur: 2, matriarche: 2 } },
+  script: [
+    { when: 'end', name: 'Griffes avides', text: 'votre créature la plus faible à Gauche perd 2', act: (st, p) => grip(st, p, 0, 2) },
+    { when: 'end', name: 'Éboulis d\'or', text: 'chacune de vos zones qui n\'est pas pleine perd 1', act: (st, p) => flood(st, p, 1) },
+    { when: 'end', name: 'Griffes avides', text: 'votre créature la plus faible au Centre perd 2', act: (st, p) => grip(st, p, 1, 2) },
+    { when: 'start', name: 'Tribut du dragon', text: 'la carte la plus chère de votre main coûte 1 de plus', act: (st, p) => tempt(st, p, 1) },
+    { when: 'end', name: 'Griffes avides', text: 'votre créature la plus faible à Droite perd 2', act: (st, p) => grip(st, p, 2, 2) },
+    { when: 'end', name: 'Éboulis d\'or', text: 'chacune de vos zones qui n\'est pas pleine perd 2', act: (st, p) => flood(st, p, 2) },
+    { when: 'end', name: 'Souffle doré', text: 'votre zone la plus puissante perd 4', act: (st, p) => quake(st, p, 4) },
+  ] });
+GENERALS.clan_chevalier = clanBoss('clan_chevalier', { name: 'Chevalier de la mort, héraut du soleil noir', fam: 'Mort-vivant', card: 'chevalier_mort', art: 'chevalier_mort_eclipse',
+  text: 'Boss de clan. Sa lame fauche vos créatures les plus faibles, et le soleil noir gâte votre main et votre deck.',
+  boost: { fams: { Ange: 2, Dragon: 1 }, cards: { juge: 2, seraphin: 2, dragonnet: 2 } },
+  script: [
+    { when: 'end', name: 'Lame funeste', text: 'votre créature la plus faible en jeu est détruite', act: (st, p) => reap(st, p) },
+    { when: 'start', name: 'Soleil noir', text: 'les créatures de votre main perdent 1', act: (st, p) => whisper(st, p) },
+    { when: 'end', name: 'Serment brisé', text: 'vous défaussez une carte de votre main au hasard', act: (st, p) => pact(st, p) },
+    { when: 'end', name: 'Lame funeste', text: 'votre créature la plus faible en jeu est détruite', act: (st, p) => reap(st, p) },
+    { when: 'end', name: 'Ombre d\'éclipse', text: 'les 2 prochaines créatures de votre deck perdent 2', act: (st, p) => numb(st, p) },
+    { when: 'end', name: 'Lame funeste', text: 'votre créature la plus faible en jeu est détruite', act: (st, p) => reap(st, p) },
+    { when: 'end', name: 'Charge funèbre', text: 'chacune de vos zones de moins de 2 créatures perd 3', act: (st, p) => [0, 1, 2].forEach(z => { if (creaturesAt(st, p, z).length < 2) addZone(st, p, z, -3); }) },
+  ] });
+GENERALS.clan_reine = clanBoss('clan_reine', { name: 'Reine sylvestre, dame des mille fleurs', fam: 'Elfe', card: 'reine', art: 'reine_couronne_fleurs',
+  text: 'Boss de clan. Ses ronces renchérissent vos cartes, ses épines rongent vos meilleures créatures, sa forêt dévore les zones vides.',
+  boost: { fams: { 'Démon': 2, Gobelin: 1 }, cards: { pyromane: 2, molosse: 2, rouge: 2 } },
+  script: [
+    { when: 'end', name: 'Épines', text: 'votre créature la plus puissante de chaque zone perd 1', act: (st, p) => [0, 1, 2].forEach(z => scorch(st, p, z, 1)) },
+    { when: 'start', name: 'Ronces', text: 'les 2 cartes les plus chères de votre main coûtent 1 de plus', act: (st, p) => tempt(st, p, 2) },
+    { when: 'end', name: 'Racines', text: 'les 2 prochaines créatures de votre deck perdent 2', act: (st, p) => numb(st, p) },
+    { when: 'end', name: 'Épines', text: 'votre créature la plus puissante de chaque zone perd 1', act: (st, p) => [0, 1, 2].forEach(z => scorch(st, p, z, 1)) },
+    { when: 'start', name: 'Ronces', text: 'les 2 cartes les plus chères de votre main coûtent 1 de plus', act: (st, p) => tempt(st, p, 2) },
+    { when: 'end', name: 'Lierre étrangleur', text: 'votre zone la plus puissante perd 3', act: (st, p) => quake(st, p, 3) },
+    { when: 'end', name: 'Forêt dévorante', text: 'chacune de vos zones qui n\'est pas pleine perd 3', act: (st, p) => flood(st, p, 3) },
+  ] });
 
 // ---- Boss mondiaux : actions de leur script ----
 // p : le joueur visé (celui qui affronte le boss). Le boss écrit d'abord le nom de son action au journal (genHook : il a agi).
@@ -706,6 +748,14 @@ function ashes(st, p, z) {
   st.p[p].board[z].push({ uid: st.nextUid++, id: 'cendres', owner: p, zone: z, buff: 0, revealed: true, order: st.order++ });
   log(st, "Des Cendres d'éclipse tombent chez ⟦{p}⟧ ({z}).", 'down', { p, z: zn(z) });
 }
+// Boss de clan. Étreinte : la créature la plus faible de la zone perd n ; zone vide, la zone perd n.
+function grip(st, p, z, n) { const w = weakest(st, creaturesAt(st, p, z)); if (w) buff(st, w, -n); else addZone(st, p, z, -n); }
+// Ressac, Forêt dévorante : chaque zone qui n'est pas pleine perd n.
+function flood(st, p, n) { [0, 1, 2].forEach(z => { if (creaturesAt(st, p, z).length < SLOTS) addZone(st, p, z, -n); }); }
+// Raz-de-marée : la zone la plus puissante perd n (à égalité, la plus à gauche).
+function quake(st, p, n) { const zs = [0, 1, 2].map(z => zonePower(st, p, z)); addZone(st, p, zs.indexOf(Math.max(...zs)), -n); }
+// Moisson : la créature la plus faible en jeu est détruite.
+function reap(st, p) { const w = weakest(st, mine(st, p)); if (w) destroy(st, w, 1 - p); }
 // Souffle : la créature la plus puissante de la zone perd n ; zone vide, la zone perd n.
 function scorch(st, p, z, n) { const s = strongest(st, creaturesAt(st, p, z)); if (s) buff(st, s, -n); else addZone(st, p, z, -n); }
 function tempt(st, p, n) {
