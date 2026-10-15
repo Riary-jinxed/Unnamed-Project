@@ -158,11 +158,43 @@ Partie :
 instrumental casino heist jazz for a card game match, tense cool spy swing, walking bass ostinato, brushed snare, staccato piano stabs, muted brass hits, vibraphone motif, rolling dice and high stakes, focused and sly, 120 bpm, restrained dynamics, no climax, seamless loop, background game music, no vocals
 ```
 
-Boss (le patron du casino) :
+Boss (`boss-casino`) : Fortuna, la maison qui n'a jamais perdu, à la fin de « La Nuit du Sept d'or ». De l'électro swing, avec un peu de chant : une voix de crooneuse rétro sur quelques lignes, puis de longs passages instrumentaux pour ne pas couvrir le jeu. Titre : « La maison gagne toujours ».
+
+Style (Instrumental désactivé) :
 
 ```
-instrumental high stakes casino boss battle theme for a card game, big band jazz meets orchestra, driving walking bass, fast swing drums, punchy brass section stabs, wild piano runs, dramatic strings, jackpot tension, flashy and dangerous, 150 bpm, constant intensity without a final ending, seamless loop, background game music, no vocals
+electro swing boss battle theme for a fantasy casino card game, vintage 1930s big band samples over punchy electronic house beat, four on the floor kick, swung hi-hats, walking upright bass chopped with synth bass, muted trumpet and clarinet hooks, ragtime piano stabs, vinyl crackle, sultry female retro jazz vocal, sparse vocals with long instrumental sections, glamorous, cheeky and dangerous, 128 bpm, constant energy without a final ending, seamless loop
 ```
+
+Paroles :
+
+```
+[Intro: muted trumpet, vinyl crackle, swing drums]
+
+[Verse]
+Faites vos jeux, la nuit est à moi
+Les dés sont pipés, mais tu ne le sais pas
+Mise tes Sept, mise ton âme
+La maison gagne toujours, madame
+
+[Instrumental: electro swing drop, brass hooks, piano stabs]
+
+[Chorus]
+Rien ne va plus, rien ne va plus
+Tourne, tourne, la roue de Fortuna
+Rien ne va plus, tout est perdu
+La maison gagne toujours
+
+[Instrumental: clarinet solo, chopped vocals "rien ne va plus"]
+
+[Chorus]
+Rien ne va plus, rien ne va plus
+Tourne, tourne, la roue de Fortuna
+
+[Instrumental: big band and beat, full energy]
+```
+
+Si la voix prend trop de place : ajouter `mostly instrumental, vocal chops` au style et ne garder que le refrain. Si Suno chante en anglais avec un accent : ajouter `french lyrics, french female singer`.
 
 ## 6. Boss mondial (`boss-mondial`)
 
