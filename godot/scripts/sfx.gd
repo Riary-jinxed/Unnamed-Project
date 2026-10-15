@@ -20,7 +20,7 @@ var _warm: Array = []
 # Vibrations des moments de partie (durées en millisecondes : vibre, pause, vibre…), comme HAPTICS dans sfx.js.
 const HAPTICS := {
 	"place": [12], "validate": [18], "deny": [25, 40, 25], "spell": [20], "terrain": [30], "general": [20, 40, 30],
-	"hit": [30, 20, 15], "destroy": [45, 30, 70], "turn": [10], "win": [60, 50, 60, 50, 160], "lose": [220], "tie": [70, 80, 70],
+	"hit": [30, 20, 15], "destroy": [45, 30, 70], "turn": [10], "astral": [20, 30, 20, 30, 60], "win": [60, 50, 60, 50, 160], "lose": [220], "tie": [70, 80, 70],
 }
 
 # Recettes : [« t », fréquence, { to, dur, type, vol, at }] pour une note, [« n », { dur, freq, to, q, vol, at, type }] pour un souffle.
@@ -41,6 +41,8 @@ var RECIPES := {
 	"turn": [["t", 587, {"dur": 0.35, "type": "triangle", "vol": 0.1}], ["t", 880, {"dur": 0.5, "vol": 0.07, "at": 0.1}]],
 	"deal": [["n", {"dur": 0.07, "freq": 1800, "to": 700, "vol": 0.18}], ["n", {"dur": 0.07, "freq": 1800, "to": 700, "vol": 0.18, "at": 0.07}], ["n", {"dur": 0.07, "freq": 1800, "to": 700, "vol": 0.18, "at": 0.14}]],
 	"general": [["t", 392, {"dur": 0.4, "type": "sawtooth", "vol": 0.05}], ["t", 523, {"dur": 0.4, "type": "sawtooth", "vol": 0.05, "at": 0.06}], ["t", 659, {"dur": 0.4, "type": "sawtooth", "vol": 0.05, "at": 0.12}]],
+	"swing": [["t", 330, {"to": 660, "dur": 0.28, "type": "triangle", "vol": 0.09}], ["n", {"dur": 0.25, "freq": 900, "to": 2500, "q": 1.5, "vol": 0.06}]],
+	"astral": [["t", 1047, {"dur": 0.45, "vol": 0.07, "at": 0.05}], ["t", 1319, {"dur": 0.45, "vol": 0.07, "at": 0.1}], ["t", 1568, {"dur": 0.45, "vol": 0.07, "at": 0.15}], ["t", 2093, {"dur": 0.45, "vol": 0.07, "at": 0.2}], ["t", 2637, {"dur": 0.45, "vol": 0.07, "at": 0.25}], ["t", 262, {"to": 523, "dur": 0.5, "type": "triangle", "vol": 0.12}], ["n", {"dur": 0.5, "freq": 6000, "q": 3, "vol": 0.05}]],
 	"flip": [["n", {"dur": 0.07, "freq": 2600, "to": 1100, "q": 1.2, "vol": 0.18}]],
 	"hit": [["n", {"dur": 0.1, "freq": 1600, "to": 500, "q": 1.4, "vol": 0.32}], ["t", 170, {"to": 70, "dur": 0.16, "type": "triangle", "vol": 0.3}], ["n", {"dur": 0.05, "freq": 5000, "q": 3, "vol": 0.08, "at": 0.01}]],
 	"win": [["t", 523, {"dur": 0.18, "type": "triangle", "vol": 0.18}], ["t", 659, {"dur": 0.18, "type": "triangle", "vol": 0.18, "at": 0.13}], ["t", 784, {"dur": 0.18, "type": "triangle", "vol": 0.18, "at": 0.26}], ["t", 1047, {"dur": 0.9, "type": "triangle", "vol": 0.18, "at": 0.39}],

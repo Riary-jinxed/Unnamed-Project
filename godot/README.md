@@ -6,7 +6,7 @@ Godot ne contient pas les règles. Il se connecte au serveur avec les mêmes mes
 
 ## Lancer
 
-1. À la racine du dépôt : `npm install`, puis `npm run godot:data`. Le script écrit `godot/data/catalog.json` (cartes, généraux, terrains, tirés de `@jeu/engine`), copie les illustrations en 640 px dans `godot/art/` et les musiques de partie et de menu dans `godot/music/`. Ces dossiers ne sont pas suivis par git ; relancez le script quand une carte ou une illustration change.
+1. À la racine du dépôt : `npm install`, puis `npm run godot:data`. Le script écrit `godot/data/catalog.json` (cartes, généraux, terrains, tirés de `@jeu/engine`, et les mots-clés mis en gras, tirés de `client/src/common.js`), copie les illustrations en 640 px dans `godot/art/` et les musiques de partie et de menu dans `godot/music/`. Ces dossiers ne sont pas suivis par git ; relancez le script quand une carte ou une illustration change.
 2. Lancez un serveur local : `npm start` (port 8787). Il faut un compte avec son deck de départ, créé depuis `/admin`.
 3. Ouvrez le dossier `godot/` dans Godot 4.7 (le premier import des illustrations prend quelques secondes), puis lancez le projet (F5).
 
@@ -45,13 +45,14 @@ Les illustrations sont importées en WebP avec perte et mipmaps (`[importer_defa
 | `scripts/net.gd` | API JSON et WebSocket, ping toutes les 10 s comme l'appli web. |
 | `scripts/main.gd` | Accueil et connexion (session gardée), partie classée contre l'IA, reconnexion à la partie (`rejoin`) si la connexion tombe, captures. |
 | `scripts/sfx.gd` | Bruitages de l'appli web (`client/src/sfx.js`) recalculés en tampons au démarrage, musique, vibrations ; réglages Son et Vibrations. |
-| `scripts/board.gd` | Plateau : place les cartes (main et zones) sur un calque commun pour les animer d'une place à l'autre, prépare le plan (toucher ou glisser-déposer, déplacements, général), effets de révélation et de destruction, journal (toucher la ligne du journal), braises du fond. |
-| `scripts/card_view.gd` | Une carte dessinée : décor et personnage recadrés dans la fenêtre du gabarit 960x1424, nom, cadre de la famille, coût, puissance ; le dos. |
-| `scripts/zone_view.gd` | Une zone : terrains des deux joueurs, puissances au milieu. |
-| `scripts/gfx.gd` | Dessin partagé : rectangles arrondis texturés, pastilles, portraits cadrés sur le visage (`FACES` de `client/src/art.js`). |
-| `shaders/fond.gdshader` | Fond du plateau. |
-| `fonts/` | Cinzel et Alegreya Sans (licence SIL OFL), comme l'appli web. |
+| `scripts/board.gd` | Plateau, même mise en page que l'appli : barre du haut (tour, son, journal, quitter), adversaire et son général, trois zones, main, bas d'écran (votre général, sceaux, « Valider le tour »). Place les cartes sur un calque commun pour les animer d'une place à l'autre, prépare le plan (toucher, glisser-déposer, déplacements, général). Double toucher ou appui long : la carte en grand, avec ses actions. |
+| `scripts/card_view.gd` | Une carte dessinée comme dans l'appli : décor et personnage recadrés dans la fenêtre du gabarit 960x1424, voile, filet de la famille, pièce de coût, médaillon de puissance, nom dans la police de la famille, texte d'effet (mots-clés en gras), bordure du niveau (bronze, argent, or, astral) ; le dos. En grand, la carte penche sous le doigt ou avec le téléphone. |
+| `scripts/zone_view.gd` | Une zone : terrains des deux joueurs, puissances aux couleurs des camps, cadre et lueur du camp qui mène. |
+| `scripts/fx.gd` | Effets repris de `client/src/stage.js` : étincelles de révélation, anneau d'impact et tremblement, éclats de destruction, colonne de lumière quand une zone change de camp, poussière de pose, traînée du glisser-déposer, bandeau de tour, fin de partie (rayons, titre, confettis ou cendres). |
+| `scripts/gfx.gd` | Dessin partagé : rectangles arrondis texturés, dégradés, pièces et médaillons, textes sur plusieurs lignes, portraits cadrés sur le visage (`FACES` de `client/src/art.js`). |
+| `shaders/table.gdshader` | Table du plateau : planches, lampe, brume, et flaque de lumière sous chaque zone à la couleur du camp qui mène. `fond.gdshader` : fond de l'accueil. |
+| `fonts/` | Cinzel, Alegreya Sans et SC, et les polices des familles (Cinzel Decorative, Pirata One, Metal Mania, Uncial Antiqua, MedievalSharp, Creepster, UnifrakturMaguntia, Share Tech Mono, Orbitron), toutes sous licence SIL OFL, comme l'appli web. |
 
 ## Pas encore là
 
-Émotes, récompenses de fin de partie, textes anglais, arts alternatifs et niveaux des cartes, partie solo, menus (collection, decks, boutique…), iOS. Ce sont les étapes suivantes du plan.
+Émotes, avatars et cadres de profil, récompenses de fin de partie, effets propres à chaque général, textes anglais, arts alternatifs, partie solo, menus (collection, decks, boutique…), iOS. Ce sont les étapes suivantes du plan.

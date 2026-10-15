@@ -15,7 +15,12 @@ static func round_pts(r: Rect2, rad: float, seg := 6) -> PackedVector2Array:
 	for c in corners:
 		for i in seg + 1:
 			var a: float = c[1] + PI * 0.5 * i / seg
-			pts.append(c[0] + Vector2(cos(a), sin(a)) * rad)
+			var p: Vector2 = c[0] + Vector2(cos(a), sin(a)) * rad
+			# Coins qui se touchent (cercle) : pas de point en double, sinon la triangulation échoue.
+			if pts.is_empty() or pts[pts.size() - 1].distance_squared_to(p) > 0.01:
+				pts.append(p)
+	if pts.size() > 2 and pts[0].distance_squared_to(pts[pts.size() - 1]) <= 0.01:
+		pts.remove_at(pts.size() - 1)
 	return pts
 
 
@@ -110,3 +115,104 @@ static func portrait(ci: CanvasItem, id, c: Vector2, rad: float, ring: Color) ->
 	else:
 		ci.draw_circle(c, rad, Data.fam_color(Data.generals.get(str(id), {}).get("fam")).darkened(0.4), true, -1.0, true)
 	ci.draw_arc(c, rad, 0, TAU, 48, ring, maxf(2.0, rad * 0.09), true)
+
+
+## Dégradé vertical sombre dans un rectangle arrondi : opacités `alphas` aux hauteurs `stops` (0 en haut, 1 en bas).
+static func vgrad_round(ci: CanvasItem, r: Rect2, rad: float, stops: Array, alphas: Array, col := Color(0, 0, 0)) -> void:
+	var outline := round_pts(r, rad, 6)
+	for i in stops.size() - 1:
+		var y0: float = r.position.y + r.size.y * stops[i]
+		var y1: float = r.position.y + r.size.y * stops[i + 1]
+		var band := PackedVector2Array([Vector2(r.position.x - 1, y0), Vector2(r.end.x + 1, y0), Vector2(r.end.x + 1, y1), Vector2(r.position.x - 1, y1)])
+		for poly in Geometry2D.intersect_polygons(band, outline):
+			var cols := PackedColorArray()
+			for p in poly:
+				var t := clampf((p.y - y0) / maxf(y1 - y0, 0.001), 0.0, 1.0)
+				cols.append(Color(col, lerpf(alphas[i], alphas[i + 1], t)))
+			ci.draw_polygon(poly, cols)
+
+
+## Filet de couleur en haut d'une carte (couleur de la famille).
+static func top_bar(ci: CanvasItem, r: Rect2, rad: float, h: float, col: Color) -> void:
+	var band := PackedVector2Array([r.position - Vector2(1, 1), Vector2(r.end.x + 1, r.position.y - 1), Vector2(r.end.x + 1, r.position.y + h), Vector2(r.position.x - 1, r.position.y + h)])
+	for poly in Geometry2D.intersect_polygons(band, round_pts(r, rad, 6)):
+		ci.draw_colored_polygon(poly, col)
+
+
+## Pièce d'or du coût (sceaux), comme le .seal de l'appli ; rouge sombre si la carte est trop chère.
+static func coin(ci: CanvasItem, c: Vector2, rad: float, text: String, ok := true) -> void:
+	ci.draw_circle(c + Vector2(0, rad * 0.15), rad * 1.08, Color(0, 0, 0, 0.55), true, -1.0, true)
+	var outer := Color("8f5f1c") if ok else Color("6a2a22")
+	var mid := Color("e3b552") if ok else Color("b0584a")
+	var hi := Color("fff0b8") if ok else Color("ffc0b0")
+	ci.draw_circle(c, rad, outer, true, -1.0, true)
+	ci.draw_circle(c - Vector2(rad, rad) * 0.08, rad * 0.86, mid, true, -1.0, true)
+	ci.draw_circle(c - Vector2(rad, rad) * 0.3, rad * 0.4, Color(hi, 0.75), true, -1.0, true)
+	ci.draw_arc(c, rad, 0, TAU, 32, Color("2a1606"), maxf(1.0, rad * 0.12), true)
+	text_fit(ci, Data.font_title, c + Vector2(0, rad * 0.04), text, rad * 1.5, int(rad * 1.3), Color("2a1606"))
+
+
+## Médaillon de puissance : disque sombre cerclé d'or, chiffre doré (vert ou rouge s'il a changé).
+static func medal(ci: CanvasItem, c: Vector2, rad: float, text: String, text_col: Color) -> void:
+	ci.draw_circle(c + Vector2(0, rad * 0.15), rad * 1.1, Color(0, 0, 0, 0.6), true, -1.0, true)
+	ci.draw_circle(c, rad, Color("1b120c"), true, -1.0, true)
+	ci.draw_circle(c - Vector2(0, rad * 0.25), rad * 0.6, Color(1, 0.85, 0.5, 0.08), true, -1.0, true)
+	ci.draw_arc(c, rad - rad * 0.08, 0, TAU, 40, Color("c8902f"), rad * 0.17, true)
+	text_fit(ci, Data.font_title, c + Vector2(0, rad * 0.04), text, rad * 1.6, int(rad * 1.3), text_col, int(rad * 0.22))
+
+
+## Texte sur une ou plusieurs lignes, coupé aux mots et réduit pour tenir dans `r` (nom d'une carte).
+static func text_lines(ci: CanvasItem, font: Font, r: Rect2, text: String, size: int, col: Color, max_lines := 2, outline := 0) -> void:
+	var fs := size
+	var lines: PackedStringArray
+	while true:
+		lines = _wrap(font, text, r.size.x, fs)
+		var h := lines.size() * font.get_height(fs) * 0.92
+		if (lines.size() <= max_lines and h <= r.size.y) or fs <= 8:
+			break
+		fs -= 1
+	var y := r.position.y + font.get_ascent(fs)
+	for l in lines:
+		var pos := Vector2(r.position.x, y)
+		if outline > 0:
+			ci.draw_string_outline(font, pos, l, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, outline, Color(0, 0, 0, 0.85))
+		ci.draw_string(font, pos, l, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+		y += font.get_height(fs) * 0.92
+
+
+static func _wrap(font: Font, text: String, width: float, fs: int) -> PackedStringArray:
+	var out := PackedStringArray()
+	var line := ""
+	for w in text.split(" "):
+		var t := w if line == "" else line + " " + w
+		if line != "" and font.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > width:
+			out.append(line)
+			line = w
+		else:
+			line = t
+	if line != "":
+		out.append(line)
+	return out
+
+
+## Contour en pointillés d'un rectangle arrondi (carte posée ce tour).
+static func dashed_round(ci: CanvasItem, r: Rect2, rad: float, col: Color, width: float) -> void:
+	var pts := round_pts(r, rad, 6)
+	pts.append(pts[0])
+	var dash := width * 3.0
+	var on := true
+	var left := dash
+	for i in pts.size() - 1:
+		var a := pts[i]
+		var b := pts[i + 1]
+		var seg := a.distance_to(b)
+		var at := 0.0
+		while at < seg:
+			var step := minf(left, seg - at)
+			if on:
+				ci.draw_line(a.lerp(b, at / seg), a.lerp(b, (at + step) / seg), col, width, true)
+			at += step
+			left -= step
+			if left <= 0.0:
+				on = not on
+				left = dash

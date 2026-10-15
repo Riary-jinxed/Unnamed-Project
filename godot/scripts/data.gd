@@ -13,6 +13,16 @@ var slots := 4
 var font_title: FontFile = preload("res://fonts/Cinzel-Bold.ttf")
 var font_body: FontFile = preload("res://fonts/AlegreyaSans-Medium.ttf")
 var font_bold: FontFile = preload("res://fonts/AlegreyaSans-Bold.ttf")
+var font_sc: FontFile = preload("res://fonts/AlegreyaSC-Bold.ttf")
+# Police du nom de la carte sur son illustration, une par famille (--famfont de client/src/style.css).
+var fam_fonts := {
+	"Ange": preload("res://fonts/CinzelDecorative-Bold.ttf"), "Démon": preload("res://fonts/PirataOne.ttf"),
+	"Gobelin": preload("res://fonts/MetalMania.ttf"), "Elfe": preload("res://fonts/UncialAntiqua.ttf"),
+	"Dragon": preload("res://fonts/MedievalSharp.ttf"), "Mort-vivant": preload("res://fonts/Creepster.ttf"),
+	"Vampire": preload("res://fonts/UnifrakturMaguntia.ttf"), "Hacker": preload("res://fonts/ShareTechMono.ttf"),
+	"Cyborg": preload("res://fonts/Orbitron-Bold.ttf"),
+}
+var _kw_re: RegEx
 
 var _tex := {}
 
@@ -21,6 +31,11 @@ const WINDOW_UV := Rect2(64.0 / 960.0, 192.0 / 1424.0, 832.0 / 960.0, 1168.0 / 1
 const GOLD := Color("e8c26a")
 const GOLD_DARK := Color("8a6326")
 const INK := Color("1b120d")
+# Couleurs des deux camps (--mine et --foe de l'appli) et des bonus et malus.
+const MINE := Color("77a3e6")
+const FOE := Color("e48069")
+const UP := Color("7ee08a")
+const DOWN := Color("ff8a80")
 
 
 func _ready() -> void:
@@ -36,6 +51,7 @@ func _ready() -> void:
 	families = d.families
 	faces = d.faces
 	slots = int(d.slots)
+	_kw_re = RegEx.create_from_string("(?<!\\p{L})(?:%s)(?!\\p{L})" % "|".join(d.get("keywords", ["Révélation"])))
 
 
 func card(id) -> Dictionary:
@@ -44,6 +60,26 @@ func card(id) -> Dictionary:
 
 func fam_color(fam) -> Color:
 	return Color(families.get(fam if fam != null else "neutre", families.get("neutre", "#99a1b0")))
+
+
+func fam_font(fam) -> Font:
+	return fam_fonts.get(fam, font_title)
+
+
+## Texte d'effet en BBCode, mots-clés en gras (rich de client/src/common.js).
+func rich(text: String) -> String:
+	var s := text.replace("[", "[lb]")
+	return _sub(s, _kw_re.get_pattern(), func(m: RegExMatch) -> String: return "[b][color=#ffd98a]%s[/color][/b]" % m.get_string())
+
+
+## Niveau d'aspect d'une carte pour un joueur (bordure choisie, sinon niveau) : badges envoyés par le serveur.
+static func level_of(badge, id) -> int:
+	if not badge is Dictionary or id == null:
+		return 1
+	var b = badge.get("borders", {}).get(str(id))
+	if b != null:
+		return int(b)
+	return int(badge.get("looks", {}).get(str(id), 1))
 
 
 func tex(path: String) -> Texture2D:

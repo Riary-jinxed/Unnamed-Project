@@ -22,9 +22,12 @@ const famOf = kw => (kw || []).find(k => FAMILIES.includes(k)) || null;
 // Position des visages (portraits des généraux) : la table FACES de client/src/art.js, lue telle quelle.
 const artJs = readFileSync(join(ROOT, 'client/src/art.js'), 'utf8');
 const faces = new Function(`return ${artJs.match(/const FACES = (\{[\s\S]*?\});/)[1]}`)();
+// Mots-clés mis en gras dans les textes d'effet : la liste KEYWORDS de client/src/common.js, lue telle quelle.
+const commonJs = readFileSync(join(ROOT, 'client/src/common.js'), 'utf8');
+const keywords = new Function(`return ${commonJs.match(/const KEYWORDS = (\[[\s\S]*?\]);/)[1]}`)();
 
 const catalog = {
-  slots: SLOTS, turns: TURNS, handMax: HAND_MAX, zones: ZONE_NAMES, families: FAM_COLORS, faces,
+  slots: SLOTS, turns: TURNS, handMax: HAND_MAX, zones: ZONE_NAMES, families: FAM_COLORS, faces, keywords,
   cards: Object.fromEntries(Object.entries(CARDS).map(([id, c]) => [id, {
     name: c.name, type: c.type, cost: c.cost, power: c.power, kw: c.kw || [], text: c.text || '', x: !!c.x, fam: famOf(c.kw) }])),
   generals: Object.fromEntries(Object.entries(GENERALS).map(([id, g]) => [id, {
