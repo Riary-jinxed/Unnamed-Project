@@ -10,7 +10,6 @@ export const COLLECTIBLE = Object.keys(CARDS).filter(k => !CARDS[k].token);
 // Les généraux se collectionnent comme les cartes : même collection, mêmes boosters, mêmes doublons.
 // Les boss mondiaux (boss: true) n'en font pas partie.
 export const GENERAL_IDS = Object.keys(GENERALS).filter(g => !GENERALS[g].boss);
-export const isGeneral = id => !!GENERALS[id];
 // Tout ce qui peut sortir d'un booster : cartes et généraux.
 export const OWNABLE = [...COLLECTIBLE, ...GENERAL_IDS];
 // Booster quotidien : les cartes et généraux des sets marqués « daily », tous avec la même chance de sortir.
@@ -93,7 +92,8 @@ export function draftError(deck, account) {
   }
   if (deck.terrains.length > DECK_TERRAINS || new Set(deck.terrains).size !== deck.terrains.length) return t('Choisissez {n} terrains différents au plus.', { n: DECK_TERRAINS });
   if (deck.terrains.some(t => unrevealed(t))) return t('Ce terrain n\'est pas encore sorti.');
-  if (deck.terrains.some(t => !allowedTerrains(account).includes(t))) return t('Ce terrain demande un général de sa famille dans votre collection.');
+  const terrains = allowedTerrains(account);
+  if (deck.terrains.some(t => !terrains.includes(t))) return t('Ce terrain demande un général de sa famille dans votre collection.');
   if (deck.general !== null && deck.general !== undefined && !allowedGenerals(account).includes(deck.general)) return t('Vous ne possédez pas ce général.');
   return null;
 }
@@ -160,7 +160,8 @@ export const setById = id => SETS.find(s => s.id === id);
 // Date de sortie d'un set (reveal, AAAA-MM-JJ heure de Paris) : avant, il n'existe pas pour les joueurs (boutique, collection, IA).
 export const setRevealed = (set, day = today()) => !set?.reveal || day >= set.reveal;
 // Un identifiant (carte, général, terrain, deck) dont le set d'origine n'est pas encore sorti. Les cartes de récompense suivent le set qui les donne.
-export function unrevealed(id, day = today()) {
+// La date du jour n'est lue que pour un id d'un set daté (setRevealed) : la plupart des appels s'arrêtent avant.
+export function unrevealed(id, day) {
   const set = (CARDS[id] || GENERALS[id] || TERRAINS[id])?.set;
   if (!set || set === 'base') return false;
   const s = SETS.find(x => x.id === set) || DEFAULT_SETS.find(x => x.id === set);
@@ -189,7 +190,8 @@ export function dupOffers(account, n, canLevel, rand = Math.random) {
   const inDecks = new Set((account.decks || []).flatMap(d => [...d.cards, d.general]));
   return [...order(mine.filter(id => inDecks.has(id))), ...order(mine.filter(id => !inDecks.has(id)))].slice(0, n);
 }
-export function setBooster(set, rand = pick) { return Array.from({ length: SHOP.boosterSize }, () => rand(set.cards)); }
+// Cartes d'un booster : size tirages au hasard parmi les cartes du set (doublons possibles).
+export function setBooster(set, size = SHOP.boosterSize, rand = pick) { return Array.from({ length: size }, () => rand(set.cards)); }
 
 // ---- Change de devises ----
 // Prismes changés en Éclats par offres fixes, jamais l'inverse ni au détail : plus l'offre est grosse, plus le bonus l'est.

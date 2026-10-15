@@ -4,9 +4,10 @@
 // « classement-clans » ({ [saison]: { closed, top } }). Compte : clan (identifiant), clanCoins (Écus), clanReq (demandes en attente),
 // clanDon (dons du jour : { date, shards, prisms, uniEssence }). Clan : leader (le Maître), roles ({ login: 'adjoint' | 'souschef' }),
 // bank (trésor : ressources données), boosts ({ projet: date de fin }), chest (semaine du dernier coffre du clan).
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
+import { avatarKey } from './avatar.js';
 import { CARDS, shuffle } from '@jeu/engine';
-import { ARTS, artExists } from '@jeu/engine/arts';
+import { artExists } from '@jeu/engine/arts';
 import { TITLES, FRAMES, BACKS } from '@jeu/engine/rewards';
 import { rankOf, seasonId, seasonName } from '@jeu/engine/ranked';
 import { CLAN_PRICE, CLAN_NAME_MAX, CLAN_TAG_RE, CLAN_DESC_MAX, MAX_REQUESTS, MAX_CLAN_REQUESTS, CLAN_LEVELS, clanLevelOf, clanLevelView, maxMembers,
@@ -19,7 +20,6 @@ import { seasonMsg } from './progress.js';
 
 const LOG_MAX = 30;
 const now = () => new Date().toISOString();
-const avatarKey = a => (a.avatar ? createHash('sha1').update(a.avatar).digest('hex').slice(0, 12) : null);
 const coinsMsg = n => msg(n > 1 ? '{n} Écus' : '{n} Écu', { n });
 
 // push : les notifications push (push.js), pour les demandes d'entrée et leur réponse.

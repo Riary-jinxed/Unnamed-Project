@@ -1,9 +1,9 @@
 // Comptes joueurs : pas d'inscription, l'administrateur crée les identifiants et les communique.
 // API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, boutique, administration.
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
-import { gzipSync } from 'node:zlib';
-import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, setRevealed, dailyOffers, dupOffers, exchangeOffers, setBoosterPrice, shopOrder } from '@jeu/engine/collection';
-import { pick, CARDS, GENERALS } from '@jeu/engine';
+import { gzip } from 'node:zlib';
+import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, setRevealed, dailyOffers, dupOffers, exchangeOffers, setBoosterPrice, setBooster, shopOrder } from '@jeu/engine/collection';
+import { CARDS, GENERALS } from '@jeu/engine';
 import { ART_RARITIES, RARITY_IDS, ESSENCE_ART_PRICES, RETIRED_ARTS } from '@jeu/engine/arts';
 import { THEMES } from '@jeu/engine/themes';
 import { TUTO_LESSONS, levelCost, MAX_CARD_LEVEL, ESSENCE_FRAME } from '@jeu/engine/rewards';
@@ -103,7 +103,9 @@ export function createAccounts(store) {
   for (const a of store.all()) for (const t of a.tokens || []) sessions.set(t, a.login);
   // Un compte désactivé n'a plus de session valable.
   const byToken = token => { const login = sessions.get(String(token || '')); const a = login && store.get(login); return a && !a.disabled ? a : null; };
-  const cfg = () => ({ ...DEFAULT_SETTINGS, ...store.doc('jeu') });
+  // Réglages, recalculés seulement quand /admin enregistre un nouveau document (à lire seulement).
+  let cfgOf, cfgMemo;
+  const cfg = () => { const doc = store.doc('jeu'); if (!cfgMemo || doc !== cfgOf) { cfgOf = doc; cfgMemo = { ...DEFAULT_SETTINGS, ...doc }; } return cfgMemo; };
   const progress = createProgress(store), arts = createArts(store, cfg), activity = createActivity(store);
   // Version du catalogue de cartes publié : l'appli recharge les cartes quand elle change.
   let catalogVersion = 0;
@@ -282,7 +284,7 @@ export function createAccounts(store) {
       if (!(a.freeBoosters > 0)) throw new HttpError(409, msg('Aucun booster offert à ouvrir.'));
       a.freeBoosters--;
     } else pay(a, setBoosterPrice(set, c.boosterPrice));
-    const cards = Array.from({ length: c.boosterSize }, () => pick(set.cards)), got = add(a, cards);
+    const cards = setBooster(set, c.boosterSize), got = add(a, cards);
     activity.count(free ? 'boosterFree' : 'boosterBought');
     await store.put(a);
     return { title: `${free ? 'Booster offert' : 'Booster'} ${set.name}`, titleMsg: msg(free ? 'Booster offert {set}' : 'Booster {set}', { set: [set.name] }), cards, ...got, shop: shopView(a), account: me(a) };
@@ -667,11 +669,13 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
     const key = `${req.method} ${url.pathname}`;
     if (!url.pathname.startsWith('/api/')) return false;
     // Les réponses un peu lourdes (catalogue, statistiques, comptes) sont compressées si le navigateur l'accepte.
+    // Compression hors du fil principal : les autres requêtes et les parties n'attendent pas.
     const json = (status, data) => {
-      let body = Buffer.from(JSON.stringify(data));
+      const body = Buffer.from(JSON.stringify(data));
       const headers = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', vary: 'accept-encoding' };
-      if (body.length > 2048 && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) { body = gzipSync(body); headers['content-encoding'] = 'gzip'; }
-      res.writeHead(status, headers); res.end(body);
+      const send = (b, enc) => { res.writeHead(status, enc ? { ...headers, 'content-encoding': enc } : headers); res.end(b); };
+      if (body.length > 2048 && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) gzip(body, (err, gz) => (err ? send(body) : send(gz, 'gzip')));
+      else send(body);
     };
     // Langue des messages : en-tête X-Lang (français sans en-tête : /admin et anciennes versions de l'appli).
     const lang = pickLang(req.headers['x-lang']), given = validLang(req.headers['x-lang']);
@@ -690,7 +694,10 @@ export function apiHandler(accounts, adminKey, extra = {}, open = []) {
       }
       let body = {};
       if (req.method !== 'GET') {
-        let raw = ''; for await (const chunk of req) { raw += chunk; if (raw.length > 100_000) throw new HttpError(413, msg('Requête trop grande.')); }
+        // Morceaux assemblés avant décodage : un caractère accentué peut être coupé entre deux morceaux.
+        const chunks = []; let size = 0;
+        for await (const chunk of req) { chunks.push(chunk); size += chunk.length; if (size > 100_000) throw new HttpError(413, msg('Requête trop grande.')); }
+        const raw = Buffer.concat(chunks).toString('utf8');
         try { body = raw ? JSON.parse(raw) : {}; } catch { throw new HttpError(400, msg('JSON invalide.')); }
       }
       // Le début de la route (jusqu'à son premier await) tourne dans la langue de la requête : deckError… y sont traduits.

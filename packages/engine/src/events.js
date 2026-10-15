@@ -50,7 +50,6 @@ export function occurrence(ev, day = today()) {
   const monthly = ev.when === 'lastWeekend' ? m => { const sat = lastSaturday(m); return { from: sat, to: addDays(sat, 1) }; }
     : ev.when === 'lastWeek' ? m => ({ from: addDays(monthEnd(m), -6), to: monthEnd(m) }) : null;
   return monthly ? months.map(monthly).find(o => o.to >= day) : null;
-  return null;
 }
 export const isLive = (ev, day = today()) => { if (!ev.on) return false; const o = occurrence(ev, day); return !!o && day >= o.from && day <= o.to; };
 

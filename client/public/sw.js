@@ -1,13 +1,21 @@
 // Service worker minimal : permet l'installation et garde l'appli disponible si le réseau tousse.
-// Les fichiers de /assets/ ont une empreinte dans leur nom (ils ne changent jamais) : servis d'abord depuis le cache.
-// Les musiques (/music/) passent directement par le réseau (et le cache HTTP du navigateur).
+// Le code et les styles de /assets/ ont une empreinte dans leur nom (ils ne changent jamais) : servis d'abord depuis le cache.
+// Les images de /assets/ (près de 200 Mo en tout) et les musiques (/music/) passent directement par le réseau et le cache
+// HTTP du navigateur (gardées un an) : les copier aussi ici remplissait le téléphone, sans jamais rien effacer.
+// Chaque version de l'appli laisse ses anciens fichiers de code : au-delà de MAX_ASSETS, les plus anciens sont retirés.
 // Le reste (pages, icône, manifeste) passe par le réseau, avec le cache en secours hors ligne.
-const CACHE = 'jeu-v3';
+const CACHE = 'jeu-v4', MAX_ASSETS = 120;
 self.addEventListener('install', () => { self.skipWaiting(); });
 self.addEventListener('activate', e => e.waitUntil(
-  caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())));
-const fetchAndKeep = req => fetch(req).then(res => {
-  if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+  // Seuls les anciens caches du service worker (« jeu-… ») : celui des cosmétiques dessinés (cosmetics.js) reste.
+  caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('jeu-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())));
+// Cache Storage rend ses clés dans l'ordre d'ajout : les premières sont les plus anciennes.
+const trim = c => c.keys().then(keys => {
+  const assets = keys.filter(k => new URL(k.url).pathname.startsWith('/assets/'));
+  return Promise.all(assets.slice(0, Math.max(0, assets.length - MAX_ASSETS)).map(k => c.delete(k)));
+});
+const fetchAndKeep = (req, asset = false) => fetch(req).then(res => {
+  if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy).then(() => asset && trim(c))); }
   return res;
 });
 self.addEventListener('fetch', e => {
@@ -16,8 +24,8 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET' || url.origin !== location.origin || path.startsWith('/ws') || path.startsWith('/api/')) return;
   // Musiques : lues par morceaux (requêtes Range) par le lecteur audio, que le cache ne sait pas rejouer.
   if (path.startsWith('/music/')) return;
-  if (path.startsWith('/assets/')) e.respondWith(caches.match(req).then(hit => hit || fetchAndKeep(req)));
-  else e.respondWith(fetchAndKeep(req).catch(() => caches.match(req)));
+  if (path.startsWith('/assets/')) { if (/\.(js|css)$/.test(path)) e.respondWith(caches.match(req).then(hit => hit || fetchAndKeep(req, true))); return; }
+  e.respondWith(fetchAndKeep(req).catch(() => caches.match(req)));
 });
 
 // Notifications push (server/src/push.js) : { title, body, tag, open }. open : l'écran que l'appli ouvre quand on touche la notification.

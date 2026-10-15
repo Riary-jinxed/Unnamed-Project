@@ -326,7 +326,7 @@ export const CARDS = {
   // ANGE : anges synthétiques (Implant)
   ange_synthetique:{ set: 'set3', name: 'Ange synthétique', type: 'C', cost: 2, power: 2, kw: ['Ange'], text: 'Grâce : Implant 1 sur une autre de vos créatures ici.',
                  grace: (c, st) => implant(st, weakest(st, creaturesAt(st, c.owner, c.zone).filter(x => x !== c)), 1) },
-  aureole:     { set: 'set3', name: 'Auréole chromée', type: 'S', cost: 1, power: 0, kw: ['Ange'], text: 'Implant 1 sur chacun de vos Anges ici.',
+  aureole_chromee:{ set: 'set3', name: 'Auréole chromée', type: 'S', cost: 1, power: 0, kw: ['Ange'], text: 'Implant 1 sur chacun de vos Anges ici.',
                  onReveal: (c, st) => creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Ange')).forEach(x => implant(st, x, 1)) },
   seraphin_donnees:{ set: 'set3', name: 'Séraphin de données', type: 'C', cost: 4, power: 3, kw: ['Ange'], text: 'Révélation : Implant 1 sur vos autres Anges en jeu.',
                  onReveal: (c, st) => mine(st, c.owner).filter(x => x !== c && hasKw(x, 'Ange')).forEach(x => implant(st, x, 1)) },
@@ -979,7 +979,7 @@ export const DECKS = {
              cards: ['gamin_augmente', 'charcudoc', 'samourai', 'bras_canon', 'implant_combat', 'surtension', 'chrome', 'cyberpsycho', 'pilote_meca', 'colosse_augmente', 'androide', 'legende_chrome', 'mercenaire_augmente', 'chevalier', 'golem'],
              terrains: ['clinique', 'centrale', 'sanctuaire', 'champ', 'forteresse'] },
   grille:  { set: 'set3', name: 'Grille céleste', fam: 'Ange', general: 'machina',
-             cards: ['ange_synthetique', 'aureole', 'seraphin_donnees', 'archange_cyber', 'cherubin', 'benediction', 'gardien', 'messagere', 'annonciatrice', 'heraut', 'juge', 'dominion', 'seraphin', 'mercenaire_augmente', 'golem'],
+             cards: ['ange_synthetique', 'aureole_chromee', 'seraphin_donnees', 'archange_cyber', 'cherubin', 'benediction', 'gardien', 'messagere', 'annonciatrice', 'heraut', 'juge', 'dominion', 'seraphin', 'mercenaire_augmente', 'golem'],
              terrains: ['nuage', 'prairie', 'sanctuaire', 'champ', 'forteresse'] },
   daemons: { set: 'set3', name: 'Daemons du réseau', fam: 'Démon', general: 'mammon',
              cards: ['daemon_parasite', 'possession', 'daemon_corrupteur', 'archidaemon', 'diablotin', 'cultiste', 'pacte', 'bourreau', 'molosse', 'rituel', 'demon_majeur', 'moissonneur', 'bete', 'seigneur', 'archidemon'],
@@ -1074,37 +1074,50 @@ export function costOf(st, c) {
   const d = CARDS[c.id]; if (d.x) return null;
   let v = d.cost + (c.costMod || 0) + (d.costFn ? d.costFn(st, c.owner) : 0);
   if (d.cost >= 1) v = Math.max(1, v);
-  const druid = d.type === 'S' && c.owner >= 0 && mine(st, c.owner).some(x => x.id === 'grand_druide' && !x.hacked) ? -1 : 0;
+  const druid = d.type === 'S' && c.owner >= 0 && hasLive(st, c.owner, 'grand_druide') ? -1 : 0;
   return Math.max(0, v + (c.discount || 0) + druid);
 }
 export function isMobile(st, c) {
   if (!c.revealed || !isCreature(c) || CARDS[c.id].token) return false;
   if ((CARDS[c.id].mobile || c.mobile) && !c.hacked) return true;
   if (st.p[c.owner].terrains[c.zone] === 'bois') return true;
-  return mine(st, c.owner).some(x => x.id === 'reine' && !x.hacked);
+  return hasLive(st, c.owner, 'reine');
+}
+// Le joueur p a-t-il en jeu une créature révélée et non piratée de cet id ?
+function hasLive(st, p, id) {
+  for (const zone of st.p[p].board) for (const x of zone) if (x.id === id && x.revealed && !x.hacked && isCreature(x)) return true;
+  return false;
 }
 
-export function power(st, c) {
+// Créatures révélées des deux joueurs qui donnent une aura. zonePower les cherche une fois pour toute sa zone.
+function auraSources(st) {
+  const out = [];
+  for (const P of st.p) for (const zone of P.board) for (const s of zone) {
+    if (!s.revealed || s.hacked) continue;
+    const sd = CARDS[s.id]; if (sd.aura && sd.type === 'C') out.push(s);
+  }
+  return out;
+}
+export function power(st, c, auras = auraSources(st)) {
   const d = CARDS[c.id];
   let v = d.power + c.buff;
   if (d.self && !c.hacked) v += d.self(c, st);
-  // Auras des créatures révélées des deux joueurs (boucles simples : power() est appelée des milliers de fois par l'IA).
-  for (const P of st.p) for (const zone of P.board) for (const s of zone) {
-    if (!s.revealed || s.hacked) continue;
-    const sd = CARDS[s.id]; if (sd.aura && sd.type === 'C') v += sd.aura(s, c, st);
-  }
+  for (const s of auras) v += CARDS[s.id].aura(s, c, st);
   for (let p = 0; p < 2; p++) {
     const g = GENERALS[st.p[p].general]; if (g.aura && !genHacked(st, p)) v += g.aura(p, c, st);
     const t = st.p[p].terrains[c.zone]; if (t && TERRAINS[t].aura) v += TERRAINS[t].aura(p, c, st);
   }
   return v;
 }
+// Boucles simples, sans tableau intermédiaire : zonePower est appelée des milliers de fois par l'IA.
+const liveCreatures = zone => { let n = 0; for (const c of zone) if (c.revealed && isCreature(c)) n++; return n; };
 export function zonePower(st, p, z) {
   const P = st.p[p];
   let v = P.zoneBonus[z];
   const t = P.terrains[z]; if (t && TERRAINS[t].flat) v += TERRAINS[t].flat;
-  P.terrains.forEach((tt, tz) => { if (tt === 'forteresse' && tz !== z && creaturesAt(st, p, tz).length >= SLOTS) v += 1; });
-  for (const c of creaturesAt(st, p, z)) v += power(st, c);
+  for (let tz = 0; tz < 3; tz++) if (tz !== z && P.terrains[tz] === 'forteresse' && liveCreatures(P.board[tz]) >= SLOTS) v += 1;
+  let auras = null;
+  for (const c of P.board[z]) if (c.revealed && isCreature(c)) v += power(st, c, auras ??= auraSources(st));
   return v;
 }
 function zoneWinner(st, z) { const a = zonePower(st, 0, z), b = zonePower(st, 1, z); return a > b ? 0 : b > a ? 1 : -1; }
@@ -1141,8 +1154,9 @@ function draw(st, p, n, extra = false) {
   }
   return got;
 }
-function buff(st, c, n) { c.buff += n; log(st, '{card} {n}.', n >= 0 ? 'up' : 'down', { card: nm(c.id), n: `${n >= 0 ? '+' : ''}${n}` }); }
-function addZone(st, p, z, n) { st.p[p].zoneBonus[z] += n; log(st, '⟦{p}⟧ : zone {z} {n}.', n >= 0 ? 'up' : 'down', { p, z: zn(z), n: `${n >= 0 ? '+' : ''}${n}` }); }
+// En simulation (IA), le journal n'est pas tenu : ses textes ne sont même pas composés.
+function buff(st, c, n) { c.buff += n; if (!st.sim) log(st, '{card} {n}.', n >= 0 ? 'up' : 'down', { card: nm(c.id), n: `${n >= 0 ? '+' : ''}${n}` }); }
+function addZone(st, p, z, n) { st.p[p].zoneBonus[z] += n; if (!st.sim) log(st, '⟦{p}⟧ : zone {z} {n}.', n >= 0 ? 'up' : 'down', { p, z: zn(z), n: `${n >= 0 ? '+' : ''}${n}` }); }
 // Carte qui revient en main ou en jeu depuis la défausse : elle repart de zéro.
 function fresh(c) {
   for (const k of ['pending', 'movedTurn', 'playerMoved', 'turnStartZone', 'mobile', 'xPaid', 'hatched', 'enteredTurn', 'discount', 'costMod', 'hacked', 'implants']) delete c[k];
@@ -1569,16 +1583,15 @@ export function gameDetail(st) {
 }
 
 // ---- IA ----
-// Copie profonde d'objets et de tableaux simples, en gardant les références partagées (une carte n'est copiée qu'une fois).
-function copy(v, seen) {
+// Copie profonde d'objets et de tableaux simples. L'état d'une partie n'a ni cycle ni objet partagé (chaque carte
+// n'est rangée qu'à un endroit) : pas besoin de suivre les objets déjà copiés, ce qui rend la copie deux fois plus rapide.
+function copy(v) {
   if (v === null || typeof v !== 'object') return v;
-  let c = seen.get(v); if (c) return c;
-  if (Array.isArray(v)) { c = new Array(v.length); seen.set(v, c); for (let i = 0; i < v.length; i++) c[i] = copy(v[i], seen); }
-  else { c = {}; seen.set(v, c); for (const k in v) c[k] = copy(v[k], seen); }
-  return c;
+  if (Array.isArray(v)) { const c = new Array(v.length); for (let i = 0; i < v.length; i++) c[i] = copy(v[i]); return c; }
+  const c = {}; for (const k in v) c[k] = copy(v[k]); return c;
 }
 // État simulé par l'IA : sans le journal (inutile et coûteux à copier), plusieurs fois plus rapide que structuredClone.
-function clone(st) { const { log: _, trace: __, ...rest } = st; const c = copy(rest, new Map()); c.sim = true; c.log = []; return c; }
+function clone(st) { const { log: _, trace: __, ...rest } = st; const c = copy(rest); c.sim = true; c.log = []; return c; }
 const deckHas = (P, fam) => [...P.hand, ...P.deck].some(c => hasKw(c, fam));
 function evalFor(st, p) {
   let s = 0;
