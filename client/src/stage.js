@@ -69,6 +69,8 @@ async function init() {
   const cloud = cloudTexture();
   fog = [0, 1].map(i => { const f = new Sprite(cloud); f.anchor.set(0.5); f.alpha = 0.09; f.tint = i ? 0xd8b890 : 0xa0b0c0; table.stage.addChild(f); return Object.assign(f, { phase: i * 3, speed: i ? 0.00011 : 0.00007 }); });
   embers = new Container(); table.stage.addChild(embers);
+  // Éclipse d'Ignaroth : couronne de feu du soleil noir, qui respire lentement.
+  const corona = new Sprite(glowTex); corona.anchor.set(0.5); corona.blendMode = 'add'; corona.visible = false; gameBg.addChild(corona);
   // Table du thème affiché (tableLook de season.js) : planches de bois, ou grille néon pour Néon 2099. Redessinée quand le thème change.
   let drawnLook = null;
   const drawTable = () => {
@@ -85,6 +87,18 @@ async function init() {
     }
     lamp.tint = L.lamp; lamp.position.set(w / 2, h * 0.42); lamp.width = w * 1.6; lamp.height = h * 1.1;
     low.visible = !!L.low; if (L.low) { low.tint = L.low; low.position.set(w / 2, h * 1.02); low.width = w * 1.8; low.height = h * 0.7; }
+    corona.visible = !!L.sun;
+    if (L.sun) {
+      // soleil noir en haut à droite, cerclé de feu, et des failles de lave qui luisent entre les planches du bas
+      const sx = w * 0.84, sy = h * 0.09, sr = Math.min(w, h) * 0.065;
+      corona.position.set(sx, sy); corona.width = corona.height = sr * 7; corona.tint = 0xff4a1a;
+      wood.circle(sx, sy, sr * 1.5).fill({ color: 0xff6a2a, alpha: 0.12 }).circle(sx, sy, sr * 1.12).fill({ color: 0xffb060, alpha: 0.5 })
+        .circle(sx, sy, sr * 1.04).fill({ color: 0xffe0b0, alpha: 0.6 }).circle(sx, sy, sr).fill({ color: 0x000000 });
+      for (const [x0, len, k] of [[0.08, 0.3, 1], [0.55, 0.22, -1], [0.78, 0.18, 1]]) {
+        const pts = []; for (let i = 0; i <= 8; i++) pts.push(w * (x0 + len * i / 8), h - 6 - (i % 2 ? 10 : 2) * k - i * 1.5);
+        wood.poly(pts, false).stroke({ width: 6, color: 0xff3a0a, alpha: 0.12 }).poly(pts, false).stroke({ width: 1.5, color: 0xff8a3a, alpha: 0.6 });
+      }
+    }
     if (L.moon) {
       // pleine lune pâle en haut à droite, avec son halo, et quelques pierres tombales penchées sur les bords du bas
       const mx = w * 0.82, my = h * 0.1, mr = Math.min(w, h) * 0.07;
@@ -103,6 +117,10 @@ async function init() {
   table.ticker.add(t => {
     const dt = t.deltaTime;
     if (drawnLook !== tableLook()) drawTable();
+    if (corona.visible) corona.alpha = 0.32 + Math.sin(performance.now() / 900) * 0.1;
+    // Éclipse : quelques cendres tombent aussi sur la partie, rares pour ne pas gêner la lecture des cartes.
+    if (mode === 'game' && drawnLook.sun && Math.random() < 0.015 * dt) { const vy = rnd(0.5, 0.9), hot = Math.random() < 0.3;
+      spawn(sparkTex, rnd(0, innerWidth), -8, { tint: hot ? 0xff6a2a : 0x7a6a66, blend: hot ? 'add' : 'normal', vx: rnd(-0.3, 0.1), vy, drag: 1, scale: rnd(0.06, 0.12), ttl: innerHeight / vy, alpha: rnd(0.35, 0.6) }); }
     scan.clear();
     if (drawnLook.grid) { const y = (performance.now() / 18) % (innerHeight + 120) - 60;
       scan.rect(0, y, innerWidth, 2).fill({ color: drawnLook.grid, alpha: 0.18 }).rect(0, y - 24, innerWidth, 24).fill({ color: drawnLook.grid, alpha: 0.025 }); }
@@ -299,7 +317,7 @@ export function flash(color = 0xffffff, alpha = 0.25) {
 export function ending(result) {
   if (!active()) return;
   cine?.destroy({ children: true });
-  const look = season(), tint = result === 'win' ? (look === 'cyber' ? 0x19e6ff : look === 'halloween' ? 0xff8a2a : 0xffd070) : result === 'lose' ? (look === 'cyber' ? 0xff003c : 0xb03a2a) : 0xa0a8b8, x = innerWidth / 2, y = Math.min(innerHeight * 0.2, 170);
+  const look = season(), tint = result === 'win' ? (look === 'cyber' ? 0x19e6ff : look === 'halloween' ? 0xff8a2a : look === 'eclipse' ? 0xff6a2a : 0xffd070) : result === 'lose' ? (look === 'cyber' ? 0xff003c : 0xb03a2a) : 0xa0a8b8, x = innerWidth / 2, y = Math.min(innerHeight * 0.2, 170);
   const c = cine = new Container(); over.stage.addChild(c);
   const rays = new Container(); rays.position.set(x, y);
   for (let i = 0; i < 14; i++) { const a = (i / 14) * TAU, len = Math.max(innerWidth, innerHeight);

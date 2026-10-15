@@ -26,7 +26,7 @@ const TABLE = {
   cyber: { ground: 0x05070f, planks: null, seam: null, lamp: 0x19e6ff, low: 0xff2bd6, grid: 0x19e6ff,
     font: 'Orbitron, Rajdhani, sans-serif', text: 0xfcee0a, stroke: 0x05070f, band: 0x060a16, edge: 0x19e6ff },
   eclipse: { ground: 0x0e0606, planks: [0x170a09, 0x130807], seam: 0x050202, lamp: 0xff6a2a, low: 0xb01a10, grid: null,
-    font: 'MedievalSharp, Cinzel, serif', text: 0xffb070, stroke: 0x1a0402, band: 0x0c0404, edge: 0xff4a1a },
+    font: 'MedievalSharp, Cinzel, serif', text: 0xffb070, stroke: 0x1a0402, band: 0x0c0404, edge: 0xff4a1a, sun: true },
   sylve: { ground: 0x08120c, planks: [0x0f1d13, 0x0c1810], seam: 0x040904, lamp: 0xe0ffb0, low: 0x2a8a5a, grid: null,
     font: 'Uncial Antiqua, Cinzel, serif', text: 0xe8ffc0, stroke: 0x061006, band: 0x06100a, edge: 0x9ad860 },
   aube: { ground: 0x140e1a, planks: [0x1e1624, 0x1a1220], seam: 0x0a060c, lamp: 0xffd8a0, low: 0xff7aa0, grid: null,
@@ -63,6 +63,31 @@ export function batCanvases() {
     g.beginPath(); g.ellipse(0, 2, 5, 8, 0, 0, Math.PI * 2); g.fill();
     // oreilles
     g.beginPath(); g.moveTo(-4, -4); g.lineTo(-3, -11); g.lineTo(0, -5); g.lineTo(3, -11); g.lineTo(4, -4); g.fill();
+    return c;
+  });
+}
+
+// Éclipse d'Ignaroth : dragon vu de profil, tourné vers la droite, en trois battements d'ailes (hautes, à plat, basses).
+// En blanc pour être teinté ; chaque appel dessine de nouveaux canevas.
+export function dragonCanvases() {
+  return [1, 0.15, -0.7].map(up => {
+    const c = document.createElement('canvas'); c.width = 220; c.height = 140; const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.translate(110, 72);
+    // corps, cou et tête, queue fine qui ondule
+    g.beginPath(); g.moveTo(-96, 6); g.quadraticCurveTo(-60, -6, -30, 2); g.quadraticCurveTo(0, -10, 30, -4);
+    g.quadraticCurveTo(52, -10, 66, -22); g.lineTo(84, -24); g.lineTo(96, -18); g.lineTo(84, -14); g.lineTo(92, -10); g.lineTo(76, -10);
+    g.quadraticCurveTo(62, -6, 48, 8); g.quadraticCurveTo(20, 16, -10, 12); g.quadraticCurveTo(-50, 10, -96, 6); g.fill();
+    // cornes
+    g.beginPath(); g.moveTo(72, -22); g.lineTo(60, -36); g.lineTo(78, -24); g.fill();
+    // pointe de la queue
+    g.beginPath(); g.moveTo(-96, 6); g.lineTo(-108, -2); g.lineTo(-104, 10); g.closePath(); g.fill();
+    // pattes repliées
+    g.beginPath(); g.moveTo(20, 10); g.lineTo(26, 22); g.lineTo(32, 10); g.moveTo(-14, 10); g.lineTo(-10, 22); g.lineTo(-4, 10); g.fill();
+    // aile : bras jusqu'au poignet, trois doigts, membrane festonnée entre eux qui revient au flanc
+    const y = v => v * up, tips = [[-34, y(-60)], [-62, y(-42)], [-80, y(-16)]];
+    g.beginPath(); g.moveTo(26, -2); g.lineTo(8, y(-44) - 2); g.lineTo(tips[0][0], tips[0][1]);
+    for (let i = 1; i < tips.length; i++) { const [ax, ay] = tips[i - 1], [bx, by] = tips[i]; g.quadraticCurveTo((ax + bx) / 2 * 0.8 + 6, (ay + by) / 2 * 0.45, bx, by); }
+    g.quadraticCurveTo(-60, y(-4) + 2, -34, 4); g.lineTo(-6, 2); g.closePath(); g.fill();
     return c;
   });
 }
