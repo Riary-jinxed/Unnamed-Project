@@ -10,7 +10,6 @@ export const COLLECTIBLE = Object.keys(CARDS).filter(k => !CARDS[k].token);
 // Les généraux se collectionnent comme les cartes : même collection, mêmes boosters, mêmes doublons.
 // Les boss mondiaux (boss: true) n'en font pas partie.
 export const GENERAL_IDS = Object.keys(GENERALS).filter(g => !GENERALS[g].boss);
-export const isGeneral = id => !!GENERALS[id];
 // Tout ce qui peut sortir d'un booster : cartes et généraux.
 export const OWNABLE = [...COLLECTIBLE, ...GENERAL_IDS];
 // Booster quotidien : les cartes et généraux des sets marqués « daily », tous avec la même chance de sortir.
@@ -191,7 +190,8 @@ export function dupOffers(account, n, canLevel, rand = Math.random) {
   const inDecks = new Set((account.decks || []).flatMap(d => [...d.cards, d.general]));
   return [...order(mine.filter(id => inDecks.has(id))), ...order(mine.filter(id => !inDecks.has(id)))].slice(0, n);
 }
-export function setBooster(set, rand = pick) { return Array.from({ length: SHOP.boosterSize }, () => rand(set.cards)); }
+// Cartes d'un booster : size tirages au hasard parmi les cartes du set (doublons possibles).
+export function setBooster(set, size = SHOP.boosterSize, rand = pick) { return Array.from({ length: size }, () => rand(set.cards)); }
 
 // ---- Change de devises ----
 // Prismes changés en Éclats par offres fixes, jamais l'inverse ni au détail : plus l'offre est grosse, plus le bonus l'est.

@@ -2,8 +2,8 @@
 // API JSON sous /api : connexion, profil, choix du deck de départ, booster quotidien, deck du joueur, boutique, administration.
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { gzip } from 'node:zlib';
-import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, setRevealed, dailyOffers, dupOffers, exchangeOffers, setBoosterPrice, shopOrder } from '@jeu/engine/collection';
-import { pick, CARDS, GENERALS } from '@jeu/engine';
+import { STARTERS, OWNABLE, grantStarterGenerals, starterKit, openBooster, today, deckError, draftError, MAX_DECKS, SHARDS_PER_DUPLICATE, SHOP, SETS, setById, setRevealed, dailyOffers, dupOffers, exchangeOffers, setBoosterPrice, setBooster, shopOrder } from '@jeu/engine/collection';
+import { CARDS, GENERALS } from '@jeu/engine';
 import { ART_RARITIES, RARITY_IDS, ESSENCE_ART_PRICES, RETIRED_ARTS } from '@jeu/engine/arts';
 import { THEMES } from '@jeu/engine/themes';
 import { TUTO_LESSONS, levelCost, MAX_CARD_LEVEL, ESSENCE_FRAME } from '@jeu/engine/rewards';
@@ -284,7 +284,7 @@ export function createAccounts(store) {
       if (!(a.freeBoosters > 0)) throw new HttpError(409, msg('Aucun booster offert à ouvrir.'));
       a.freeBoosters--;
     } else pay(a, setBoosterPrice(set, c.boosterPrice));
-    const cards = Array.from({ length: c.boosterSize }, () => pick(set.cards)), got = add(a, cards);
+    const cards = setBooster(set, c.boosterSize), got = add(a, cards);
     activity.count(free ? 'boosterFree' : 'boosterBought');
     await store.put(a);
     return { title: `${free ? 'Booster offert' : 'Booster'} ${set.name}`, titleMsg: msg(free ? 'Booster offert {set}' : 'Booster {set}', { set: [set.name] }), cards, ...got, shop: shopView(a), account: me(a) };

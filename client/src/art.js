@@ -20,7 +20,6 @@ const add = (list, key) => { for (const [path, url] of Object.entries(list)) {
   if (id) ((alt ? ALT : ART)[id] ||= {})[key ? `${layer}${key}` : layer] = url;
 } };
 add(files); add(thumbs, 'Thumb');
-export const hasArt = id => !!ART[id]?.decor;
 // Illustration d'un thème de l'interface (themes.js) : { decor, perso } de l'art alternatif s'il existe, sinon de la carte.
 export const themeArt = (card, artId = null) => (artId && ALT[artId]?.decor ? ALT[artId] : ART[card]) || null;
 
@@ -45,9 +44,6 @@ export function sceneHTML(id) {
   const a = ART[id]; if (!a?.decor) return '';
   return `<img src="${a.decor}" alt="" decoding="async" ${pos}>${a.perso ? `<img src="${a.perso}" alt="" decoding="async" ${pos}>` : ''}`;
 }
-// Un art alternatif a-t-il déjà ses images ?
-export const altReady = artId => !!ALT[artId]?.decor;
-
 // Le personnage sort du cadre à partir du premier niveau de carte qui le débloque (rewards.js, « pop »),
 // seulement dans la vue en grand (style.css, .zoomart.pop) : en vignette, il reste dans le cadre.
 // Les sorts ne débordent jamais : leur illustration reste dans le cadre, sans calque personnage.

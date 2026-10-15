@@ -5,7 +5,7 @@
 // cartes   : chaque carte de chaque deck est remplacée par une créature sans effet du même coût ; l'écart de taux de victoire
 //            mesure ce que la carte apporte de plus qu'une créature « vanille » (positif = mieux qu'une vanille).
 // Les résultats bruts sont écrits en JSON dans equilibrage-resultats.json (dossier courant) pour être relus ou comparés.
-import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
+import { Worker, isMainThread, parentPort } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
 import { writeFileSync } from 'node:fs';
 import { CARDS, DECKS, GENERALS, newGame, startTurn, aiPlan, runTurn } from './engine.js';
