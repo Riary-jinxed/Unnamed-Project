@@ -4,6 +4,9 @@ Le jeu est écrit en français ; l'anglais passe par des dictionnaires « texte 
 écrit dans le code sert de clé : un texte sans traduction s'affiche simplement en français. Un nouveau texte marche donc
 tout de suite, il reste à l'ajouter au dictionnaire anglais.
 
+La langue se choisit au premier lancement (proposée d'après celle de l'appareil), puis dans les réglages du profil ; elle est gardée
+sur l'appareil (`localStorage`, `jeu-lang`) et en changer recharge la page (`client/src/lang.js`). La page `/admin` reste en français.
+
 ## Écrire un texte
 
 ```js
@@ -25,6 +28,7 @@ tp(n, '{n} coffre d\'arts', '{n} coffres d\'arts', { x })  // d'autres variables
 - Données (noms de cartes, de titres, d'émotes…) : `t(x.name)` à l'affichage. Les cartes, généraux, terrains, decks et sets
   sont traduits une fois pour toutes au démarrage de l'appli (`localizeCatalog`, `client/src/lang.js`) : `CARDS[id].name`
   est déjà dans la bonne langue. Une table du moteur affichée par `t(x.champ)` s'ajoute à `scripts/i18n-tables.js`.
+  Un nouveau mot-clé de carte s'ajoute aussi à `KEYWORDS_EN` (`client/src/common.js`), qui le met en gras en anglais.
 - Un texte calculé au chargement d'un module (`const LABELS = { a: t('…') }`) marche aussi : la langue est fixée avant
   le chargement des autres modules (premier import de `main.js`), et changer de langue recharge la page.
 - Attention aux variables locales nommées `t` (élément touché, temps…) : elles masquent la fonction. Renommez la variable locale.
@@ -39,6 +43,7 @@ Une variable peut elle-même être un `['modèle', { … }]`.
 Un texte composé par le serveur et rangé dans un objet (courrier, journal du clan…) garde son champ en français (`title`)
 et, s'il contient des variables, y ajoute `titleMsg: msg('modèle', { … })`. L'appli l'affiche par `tField(objet, 'title')` :
 le `…Msg` traduit s'il existe, sinon le texte français traduit tel quel (textes fixes, notes de mise à jour).
+Une annonce des Nouveautés porte sa version anglaise avec elle (`en: { title, summary, body }`, écrite dans `/admin` ou dans `server/src/news-seed.js`).
 
 Journal de partie (`engine.js`) : `log(st, 'modèle', genre, variables)`, affiché par `renderLog`. Marqueurs :
 `⟦{p}⟧` nom du joueur p (« Vous » pour celui qui regarde), `⟦{p}|il pioche|vous piochez⟧` une forme ou l'autre selon qui
@@ -59,19 +64,22 @@ avec `withLang(langue, () => …)` (fonction synchrone seulement).
 | `packages/engine/src/lang/en/server.js` | Textes du serveur (erreurs, notifications, courriers) |
 | `client/src/lang/en/*.js` | Écrans de l'appli |
 
-Un texte présent dans deux fichiers prend la même traduction : peu importe où il est rangé. La page `/admin` reste en français.
+Tous les fichiers d'une langue sont fusionnés en un seul dictionnaire : peu importe où un texte est rangé, et un texte présent deux fois
+n'a qu'une traduction (celle du fichier chargé en dernier dans `index.js`).
 
 ## Vérifier
 
 ```bash
 npm run i18n          # textes sans traduction, par fichier, et variables qui ne correspondent pas
 npm run i18n -- --all # la liste complète
+npm run i18n -- --strict # code d'erreur s'il manque des textes
 ```
 
 ## Ajouter une langue
 
-Ajouter la langue à `LANGS` et `LOCALES` (`i18n.js`), créer ses dictionnaires sur le modèle de `lang/en`, et les charger
-dans `client/src/lang.js` (et `server/src/index.js` pour le serveur).
+Ajouter la langue à `LANGS` et `LOCALES` (`packages/engine/src/i18n.js`), créer ses dictionnaires sur le modèle de `lang/en`, et les charger
+dans `client/src/lang.js` (et `server/src/index.js` pour le serveur, `scripts/i18n.js` pour la vérification). `deviceLang` (`lang.js`)
+ne propose que le français ou l'anglais d'après l'appareil, et les annonces des Nouveautés n'ont qu'une version anglaise (`en`).
 
 ## Lexique anglais
 
@@ -81,6 +89,7 @@ Les noms propres (généraux, personnages) gardent leur nom ; leur titre se trad
 | Français | Anglais |
 | --- | --- |
 | Éclats, Prismes, essence (universelle) | Shards, Prisms, (universal) essence |
+| Jetons, Insignes, Écus, points de classé | Chips, Insignia, Crowns, ranked points |
 | sceau, sceaux | seal, seals |
 | booster, booster du jour, coffre d'arts | booster, daily booster, art chest |
 | carte, créature, sort, jeton, général, terrain | card, creature, spell, token, general, terrain |

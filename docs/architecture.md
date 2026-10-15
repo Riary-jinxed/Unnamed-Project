@@ -5,9 +5,9 @@
 Le dépôt est un monorepo npm (`workspaces` dans le `package.json` racine) :
 
 ```
-packages/engine   @jeu/engine   Règles, cartes, IA, collection, catalogue, récompenses. Aucune dépendance.
-server            @jeu/server   Serveur HTTP + WebSocket (ws), stockage (pg). Sert aussi l'appli compilée.
-client            @jeu/client   Appli web (Vite, sans framework) et page /admin.
+packages/engine   @jeu/engine   Règles, cartes, IA et toutes les données du jeu partagées. Aucune dépendance.
+server            @jeu/server   Serveur HTTP + WebSocket (ws), stockage (pg), notifications (web-push). Sert aussi l'appli compilée.
+client            @jeu/client   Appli web (Vite, sans framework, PixiJS pour les décors et effets) et page /admin.
 ```
 
 Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `packages/engine/package.json`) :
@@ -15,50 +15,42 @@ Le moteur est importé par les deux autres sous ces noms (voir `exports` dans `p
 | Import | Fichier | Contenu |
 | --- | --- | --- |
 | `@jeu/engine` | `engine.js` | Cartes, généraux, terrains, decks préconstruits, règles, IA, vue d'une partie. |
-| `@jeu/engine/collection` | `collection.js` | Deck de départ, boosters, règles de deck, sets, boutique, jour courant. |
+| `@jeu/engine/collection` | `collection.js` | Deck de départ, boosters, règles de deck, sets (date de sortie, mini-sets), boutique, jour courant. |
 | `@jeu/engine/catalog` | `catalog.js` | Catalogue modifiable depuis `/admin` (retouches, nouvelles cartes, sets). |
-| `@jeu/engine/rewards` | `rewards.js` | Niveaux, missions, succès, récompenses de complétion, titres, cadres, dos. |
-| `@jeu/engine/arts` | `arts.js` | Arts alternatifs : catalogue, raretés, arts Promo, offres du jour, coffre, prix en Prismes. |
-| `@jeu/engine/events` | `events.js` | Événements temporaires : bonus (XP, points de classé, Éclats, XP de saison), périodes (week-end, dernier week-end, dernière semaine du mois, dates), multiplicateur du jour. |
-| `@jeu/engine/emotes` | `emotes.js` | Émotes en partie : catalogue (offertes, boutique, succès), taille du sélecteur, limites d'envoi, réponses de l'IA. |
-| `@jeu/engine/pass` | `pass.js` | Passe de saison : saisons (cartes, cosmétiques, missions, arts Promo), paliers gratuits et premium, missions du jour et de la semaine. |
-| `@jeu/engine/themes` | `themes.js` | Thèmes de l'interface : ceux des saisons et ceux à l'effigie d'un général (prix, ou succès qui le donne). |
+| `@jeu/engine/rewards` | `rewards.js` | Niveaux, missions, succès, récompenses de complétion, titres, cadres, dos, niveaux de carte, leçons du tutoriel. |
+| `@jeu/engine/ranked` | `ranked.js` | Mode classé : paliers, divisions, étoiles, force de l'IA, saisons mensuelles. |
+| `@jeu/engine/arts` | `arts.js` | Arts alternatifs : catalogue, raretés, familles d'arts, arts Promo, offres du jour, coffre, prix en Prismes. |
+| `@jeu/engine/events` | `events.js` | Événements temporaires : bonus (XP, points de classé, Éclats, XP de saison), périodes, multiplicateur du jour. |
+| `@jeu/engine/emotes` | `emotes.js` | Émotes en partie : catalogue, taille du sélecteur, limites d'envoi, réponses de l'IA. |
+| `@jeu/engine/pass` | `pass.js` | Passe de saison : saisons, paliers gratuits et premium, missions du jour et de la semaine. |
+| `@jeu/engine/themes` | `themes.js` | Thèmes de l'interface : ceux des saisons et ceux à l'effigie d'un général (prix, boutique, succès). |
+| `@jeu/engine/clans` | `clans.js` | Clans : niveaux, missions de clan, dons contre des Écus, magasin. |
+| `@jeu/engine/boss` | `boss.js` | Boss mondial : rotation, score, paliers, classement, magasin en Insignes. |
+| `@jeu/engine/clan-boss` | `clan-boss.js` | Boss de clan : niveaux, PV communs, récompenses. |
+| `@jeu/engine/story` | `story.js` | Quêtes d'histoire : campagnes et quêtes du moment, chapitres, decks adverses, récompenses. |
+| `@jeu/engine/casino` | `casino.js` | Événement du casino : Jetons, machine à sous, Quitte ou double, boutique. |
+| `@jeu/engine/i18n` | `i18n.js` | Traductions (`t`, `tp`, `msg`…), voir [Traduction](traduction.md). |
+| `@jeu/engine/lang/en` | `lang/en/` | Dictionnaires anglais du moteur et du serveur. |
 
 ## Carte des fichiers
 
-| Fichier | Lignes | Rôle |
-| --- | ---: | --- |
-| `packages/engine/src/engine.js` | ~1000 | Moteur de règles complet et données de toutes les cartes. |
-| `packages/engine/src/collection.js` | ~110 | Collection d'un joueur, boosters, validation des decks, sets et boutique par défaut. |
-| `packages/engine/src/catalog.js` | ~100 | Validation et application du catalogue publié depuis `/admin`. |
-| `packages/engine/src/rewards.js` | ~130 | Données et formules de progression (partagées par serveur et appli). |
-| `packages/engine/src/sim.js` | 40 | `npm run sim` : taux de victoire IA contre IA, par deck ou par général. |
-| `packages/engine/src/eco.js` | ~100 | `npm run eco` : jours nécessaires pour compléter un set selon le profil de joueur. |
-| `packages/engine/src/empreinte.js` | ~30 | `npm run empreinte` : empreinte de parties à hasard fixé, pour vérifier qu'un nettoyage ne change pas le jeu. |
-| `server/src/index.js` | ~165 | Point d'entrée : fichiers statiques, API, salons en ligne (WebSocket). |
-| `server/src/store.js` | ~80 | Stockage : PostgreSQL si `DATABASE_URL`, sinon fichiers JSON. |
-| `server/src/accounts.js` | ~410 | Comptes, sessions, deck de départ, boosters, boutique, decks, profil, administration, routeur de l'API. |
-| `server/src/progress.js` | ~235 | XP, niveaux, missions, succès, complétions, cosmétiques. |
-| `server/src/games.js` | ~90 | Historique des parties, statistiques admin et profil. |
-| `server/src/friends.js` | ~170 | Amis, présence en ligne et défis entre amis. |
-| `server/src/arts.js` | ~75 | Arts alternatifs : offres du jour, coffre, choix de l'art d'une carte, dons depuis `/admin`. |
-| `server/src/cards.js` | ~50 | Brouillon et publication du catalogue de cartes. |
-| `client/src/main.js` | ~1000 | Toute l'appli joueur : état, écrans, partie, animations, interactions. |
-| `client/src/net.js` | 75 | Connexion WebSocket avec reconnexion automatique. |
-| `client/src/friends.js` | ~180 | Écran des amis, bandeau de défi, choix du deck pour une partie entre amis. |
-| `client/src/solo.js` | 25 | Partie contre l'IA, entièrement dans le navigateur. |
-| `client/src/history.js` | ~170 | Onglet Historique du profil : bilan du joueur, dernières parties et détail de chacune (pas de replay). |
-| `client/src/api.js` | 10 | Appel JSON à l'API avec la session. |
-| `client/src/common.js` | 10 | Couleur de famille et échappement HTML, partagés par l'appli et `/admin`. |
-| `client/src/sfx.js` | ~70 | Bruitages synthétisés (Web Audio). |
-| `client/src/opening.js` | ~200 | Ouverture d'un booster (paquet à déchirer, cartes retournées une à une) et d'un coffre d'arts (coffre à frapper), avec `opening.css`. |
-| `client/src/opening-stage.js` | ~210 | Effets PixiJS de ces ouvertures (étincelles, rayons, lumière), seulement avec WebGL. |
-| `client/src/end-stage.js` | ~300 | Écran de fin de partie sur PixiJS : récompenses qui défilent, barre de niveau, étoiles du classé, seulement avec WebGL. |
-| `client/src/shop.js` | ~65 | Étal de la boutique (boosters, coffre), vitrines des sélections du jour, chargement de leurs décors PixiJS. |
-| `client/src/shop-stage.js` | ~290 | Décors PixiJS de la boutique : étal (auvent, lanternes, rayons) et vitrines (velours, projecteurs), poussière, éclats au toucher. |
-| `client/src/admin*.js` | ~720 | Page `/admin` : comptes, boutique, stats, cartes et sets, récompenses. |
-| `client/src/style.css` | | Styles de l'appli et de `/admin` (thème clair et sombre). |
-| `client/public/` | | Icône, manifeste PWA, service worker. |
+| Fichiers | Rôle |
+| --- | --- |
+| `packages/engine/src/engine.js` | Moteur de règles complet et données de toutes les cartes (pur : ni DOM ni réseau). |
+| `packages/engine/src/*.js` | Données et formules partagées (tableau ci-dessus), voir [Moteur](moteur.md). |
+| `packages/engine/src/sim.js`, `equilibrage.js`, `eco.js`, `empreinte.js` | Outils : `npm run sim`, `npm run equilibrage` (IA contre IA), `npm run eco` (jours pour compléter un set), `npm run empreinte` (le moteur joue-t-il toujours pareil). |
+| `packages/engine/test/` | Tests du moteur (`npm test`) : données des cartes, mécaniques, parties complètes ; outils dans `aide.js`. |
+| `server/src/index.js` | Point d'entrée : fichiers statiques, assemblage des routes, salons en ligne (WebSocket). |
+| `server/src/*.js` | Un module par domaine (comptes, progression, parties, amis, clans, boss, quêtes, casino, courrier, Nouveautés, notifications…), voir [Serveur](serveur.md#modules). |
+| `client/src/main.js` | L'appli joueur : état, écrans, partie, interactions. |
+| `client/src/<écran>.js` | Écrans à part : `friends`, `clan`, `clan-boss`, `boss`, `story`, `casino`, `mail`, `news`, `history`, `tutorial`, `codex`, `themes`, `shop`, `opening`. |
+| `client/src/*-stage.js`, `stage*.js` | Décors et effets PixiJS (plateau, accueil, boutique, ouvertures, fin de partie), chargés à la demande et seulement avec WebGL. |
+| `client/src/*.css` | `style.css` (mise en page), `habillage.css` (apparence), une feuille par écran ou par thème (`halloween.css`, `cyber.css`, `themes.css`…). |
+| `client/src/admin*.js` | Page `/admin` : un fichier par onglet. |
+| `client/src/art/` | Illustrations des cartes, des arts alternatifs et des terrains (voir `client/src/art/LISEZMOI.md`). |
+| `client/public/` | Icônes, manifeste PWA, service worker (cache, notifications), musiques (`music/`). |
+| `client/vignettes.js` | Réduit les illustrations en vignettes de 640 px à la compilation. |
+| `scripts/i18n.js` | `npm run i18n` : textes sans traduction. |
 
 ## Partie en ligne
 
@@ -73,7 +65,7 @@ Appli A ──ws──┐                         ┌──ws── Appli B
 ```
 
 1. Le joueur A envoie `create` avec sa session : le serveur crée un salon avec un code de 4 lettres et lui renvoie `lobby` (code, siège, jeton de reconnexion).
-2. B envoie `join` avec le code : la partie démarre avec le deck joué de chaque compte (`startMatch`).
+2. B envoie `join` avec le code : la partie démarre avec le deck demandé par chacun (`deck`), sinon son deck joué (`startMatch`).
 3. Chaque joueur prépare son tour dans l'appli, puis envoie `plan` (cartes posées, déplacements, général). Quand les deux plans sont arrivés, le serveur résout le tour avec `runTurn` et diffuse chaque étape de révélation (`state`) avec une petite pause pour l'animation.
 4. Chaque joueur ne reçoit que `viewFor(st, siège)` : jamais la main ni les cartes cachées de l'adversaire.
 5. En fin de partie, le serveur enregistre la partie et les récompenses de chaque compte, puis les envoie avec l'état final.
@@ -82,17 +74,21 @@ Reprise après une coupure réseau : le siège reste gardé au joueur. Une page 
 
 ## Partie contre l'IA
 
-Elle tourne entièrement dans le navigateur (`client/src/solo.js`) avec le même moteur : l'IA choisit son plan avec `aiPlan`, puis `runTurn` résout le tour. Seuls le résultat et le détail de la partie pour l'historique (`gameDetail`) sont envoyés au serveur (`POST /api/games/solo`), qui l'enregistre et calcule les récompenses à partir du deck enregistré sur le compte.
+Deux cas :
+
+- **Dans le navigateur** : partie libre contre l'IA (`client/src/solo.js`), tutoriel, chapitres des quêtes d'histoire et tables de Quitte ou double (casino). Le même moteur tourne dans la page : l'IA choisit son plan avec `aiPlan`, puis `runTurn` résout le tour. Seul le résultat est envoyé au serveur (`POST /api/games/solo` avec le détail pour l'historique, `POST /api/story/win`, `POST /api/casino/table/result`), qui calcule les récompenses de son côté.
+- **Sur le serveur** : partie classée, boss mondial et boss de clan (messages WebSocket `ranked`, `boss`, `clanboss`). Le serveur y tient le siège de l'IA comme celui d'un joueur, pour que le résultat fasse foi.
 
 ## Appels d'API
 
-L'appli appelle `/api/...` en JSON avec l'en-tête `Authorization: Bearer <session>` (`client/src/api.js`). Le routeur (`apiHandler` dans `server/src/accounts.js`) vérifie la session ou la clé d'administration, lit le corps, appelle la route et renvoie `{ ... }` ou `{ error }` avec le bon code HTTP. La plupart des routes renvoient aussi `account`, le compte à jour, que l'appli garde tel quel.
+L'appli appelle `/api/...` en JSON avec les en-têtes `Authorization: Bearer <session>` et `X-Lang` (sa langue) (`client/src/api.js`) ; `/admin` envoie `X-Admin-Key`. Le routeur (`apiHandler` dans `server/src/accounts.js`) vérifie la session ou la clé d'administration, lit le corps, appelle la route et renvoie `{ ... }` ou `{ error }` avec le bon code HTTP. La plupart des routes renvoient aussi `account`, le compte à jour, que l'appli garde tel quel.
 
 ## Hébergement
 
 - **Render** (`render.yaml`) : un seul service web gratuit. `npm install && npm run build` compile l'appli dans `client/dist`, puis `npm start` lance `server/src/index.js`, qui sert l'appli, l'API et les WebSockets sur le même port. `/health` sert au contrôle de santé.
 - **Neon** : la base PostgreSQL gratuite donnée par `DATABASE_URL`. Les trois tables sont créées au démarrage si elles manquent (voir [Serveur](serveur.md#stockage)).
-- **Variables d'environnement** : `DATABASE_URL` (base), `ADMIN_KEY` (clé de `/admin`), `PORT` (fourni par Render), `DATA_FILE` (fichier local des comptes, facultatif), `RENDER` (posée par Render : avertit si la base manque).
+- **Variables d'environnement** : `DATABASE_URL` (base), `ADMIN_KEY` (clé de `/admin`), `PORT` (fourni par Render), `DATA_FILE` (fichier local des comptes, facultatif), `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` et `VAPID_SUBJECT` (notifications push, facultatives : sans elles le serveur crée ses clés et les garde dans la base). Render pose aussi `RENDER` (avertit si la base manque), `RENDER_EXTERNAL_URL` (contact des notifications) et `RENDER_GIT_COMMIT` (version jointe aux signalements de bugs).
+- **GitHub Actions** (`.github/workflows/tests.yml`) : `npm test` à chaque pull request et à chaque push sur `main`, sans installation (le moteur n'a aucune dépendance). Le déploiement Render n'en dépend pas.
 - **En local** : `npm run dev` lance le serveur (port 8787, rechargé à chaque modification) et Vite (port 5173), qui renvoie `/api` et `/ws` vers le serveur.
 
 ## Performances
@@ -102,3 +98,4 @@ Ce qui a été mesuré et réglé :
 - **IA** : chaque essai de plan copie l'état de la partie pour le simuler. La copie ne prend plus le journal et n'utilise plus `structuredClone`, et le calcul de puissance ne crée plus de tableaux intermédiaires : l'IA est environ 2,4 fois plus rapide (même résultat au coup près, vérifié avec `npm run empreinte`). C'est sensible sur téléphone, où l'IA tourne dans la page.
 - **Fichiers de l'appli** : lus et compressés (gzip) une seule fois par le serveur ; les fichiers de `/assets/` (nom avec empreinte) sont gardés un an par le navigateur et servis depuis le cache du service worker.
 - **API** : les réponses de plus de 2 Ko sont compressées ; la vérification des mots de passe (scrypt) ne bloque plus les parties en cours.
+- **Appli** : PixiJS et les décors ne se chargent qu'au premier besoin (et jamais sans WebGL) ; la collection prend des vignettes de 640 px (`client/vignettes.js`) et ne dessine que les cartes visibles (`content-visibility`) ; un écran qui ne change pas n'est pas reconstruit quand seule une fenêtre s'ouvre ou se ferme par-dessus (`render()`) ; les cosmétiques dessinés (`cosmetics.js`) sont gardés en cache d'une visite à l'autre.
