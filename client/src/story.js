@@ -10,7 +10,7 @@ import { ARTS } from '@jeu/engine/arts';
 import { TITLES } from '@jeu/engine/rewards';
 import { t, tp, locale } from '@jeu/engine/i18n';
 import { QUEST_CHIPS, CASINO_QUEST } from '@jeu/engine/casino';
-import { LORE, NARRATOR, CARD_SHARDS, questById, isLimited, questTab, chapterDeck, foeDeck, castArt, castName, lineScene } from '@jeu/engine/story';
+import { LORE, NARRATOR, CARD_SHARDS, QUESTS, questById, isLimited, questTab, chapterDeck, foeDeck, castArt, castName, lineScene } from '@jeu/engine/story';
 
 const ROMAN = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V' };
 const frDate = d => new Date(`${d}T12:00:00Z`).toLocaleDateString(locale(), { day: 'numeric', month: 'long', timeZone: 'UTC' });
@@ -21,7 +21,7 @@ const starsHTML = tries => `<span class="sstars" aria-label="${t('Difficulté {n
 // app : ce que main.js prête à l'écran (état ui, render, call, errLine, ico, play, anyCard, zoomKey, rewardItem, go : lance un chapitre).
 export function createStory(app) {
   const { ui } = app;
-  const S = ui.storyScreen = { data: null, sel: null, ch: null, talk: null, run: null, result: null, tab: 'main' };
+  const S = ui.storyScreen = { data: null, sel: null, ch: null, talk: null, run: null, result: null, tab: 'main', chron: 'lore' };
   const ico = k => app.ico(k);
   const info = id => S.data?.quests.find(x => x.id === id) || null;
 
@@ -159,7 +159,8 @@ export function createStory(app) {
       ? `<p class="hint" style="margin:0">${t('Des quêtes à durée limitée, avec leurs récompenses à elles : carte de quête, art Promo et titre. Celles qui font avancer l\'histoire rejoignent l\'histoire principale à la fin de l\'événement, sans l\'art Promo.')}</p>
         ${events.length ? `<div class="squests">${events.map(questCard).join('')}</div>` : `<p class="wait">${t('Pas d\'événement en ce moment. Revenez bientôt !')}</p>`}`
       : `<section class="card-box slore"><span class="eyebrow">${t('Avant de commencer')}</span><h2>${esc(t(LORE.title))}</h2>
-          ${LORE.text.map(p => `<p>${esc(t(p))}</p>`).join('')}</section>
+          ${LORE.text.map(p => `<p>${esc(t(p))}</p>`).join('')}
+          <button class="btn schron-open" data-act="chronicles">${t('Chroniques : relire l\'histoire')}</button></section>
         <div class="gal-h">${t('Campagnes')}</div><p class="hint" style="margin:0">${t('Trois livres, à jouer dans l\'ordre : chacun suit un héros et reprend là où le précédent s\'arrête. Vous jouez le deck du héros, pas besoin d\'avoir ses cartes.')}</p>
         <div class="squests">${camps.map(questCard).join('')}</div>
         ${suite.length ? `<div class="gal-h">${t('La suite de l\'histoire')}</div><p class="hint" style="margin:0">${t('Les événements passés qui ont changé les Terres d\'Aube, à rejouer quand vous voulez.')}</p>
@@ -187,6 +188,7 @@ export function createStory(app) {
       ${ch.join ? `<p class="hint" style="margin:0">${t('Victoire : <b>{name}</b> rejoint votre deck pour la suite.', { name: esc(CARDS[ch.join.card].name) })}</p>` : ''}
       <p class="hint" style="margin:0">${joined.length ? t('Votre deck : <b>{deck}</b> avec {general}, renforcé par {allies}.', { deck: esc(t(deck.name)), general: esc(GENERALS[deck.general].name), allies: joined.map(esc).join(', ') }) : t('Votre deck : <b>{deck}</b> avec {general}.', { deck: esc(t(deck.name)), general: esc(GENERALS[deck.general].name) })}
         <button class="linkbtn" data-act="story-deck" data-i="${i}">${t('Voir le deck')}</button></p>
+      ${won ? `<button class="linkbtn" data-act="chronicles" data-quest="${q.id}" data-i="${i}">${t('Relire les dialogues du chapitre')}</button>` : ''}
       <button class="playbtn splay" data-act="story-fight" data-i="${i}" ${locked || ui.busy ? 'disabled' : ''}><span>${locked ? t('Verrouillé') : won ? t('Rejouer') : t('Combattre')}</span>
         <small>${locked ? t('Gagnez d\'abord « {name} »', { name: esc(t(q.chapters[i - 1].name)) }) : won ? t('Sans nouvelle récompense') : t('{name} vous attend', { name: esc(t(ch.foe.name)) })}</small></button></div>`;
   }
@@ -267,6 +269,51 @@ export function createStory(app) {
     return isLimited(q) ? t('Ses récompenses sont à vous pour de bon.') : t('La suite arrive bientôt.');
   }
 
+  // ---- Chroniques ----
+  // Relire l'histoire : l'univers, puis le prologue et les dialogues (avant et après le combat) de chaque chapitre gagné.
+  // Les quêtes dans l'ordre du récit (livres, puis quêtes d'événement canon), puis les contes hors de l'histoire principale.
+  // Une quête apparaît dès qu'on peut la jouer ou qu'on y a gagné un chapitre (même finie depuis) ; S.data.read : chapitres gagnés.
+  const chronOrder = q => (q.book ? q.book : isLimited(q) && q.canon ? 10 : 20);
+  const readOf = id => S.data?.read?.[id] || 0;
+  function chronQuests() {
+    const shown = new Set((S.data?.quests || []).filter(x => x.state === 'open' || x.state === 'archive').map(x => x.id));
+    return QUESTS.filter(q => readOf(q.id) > 0 || shown.has(q.id)).sort((a, b) => chronOrder(a) - chronOrder(b));
+  }
+  function lineHTML(q, ch, [who, text]) {
+    return who === NARRATOR ? `<p class="soutro narr">${esc(t(text))}</p>`
+      : `<div class="soutro">${face(q, who, ch)}<p><b>${esc(castName(who))}</b>${esc(t(text))}</p></div>`;
+  }
+  function chronQuestHTML(q) {
+    const n = readOf(q.id), left = q.chapters.length - n;
+    if (!n) return `<p class="hint schron-lock">${t('Gagnez le premier chapitre de « {name} » pour en lire l\'histoire ici.', { name: esc(t(q.name)) })}</p>`;
+    const chapters = q.chapters.slice(0, n).map((ch, i) => `<section class="schron-ch" id="schron-${q.id}-${i}" style="${famStyle(GENERALS[ch.foe.general]?.fam)}">
+        <span class="eyebrow">${t('Chapitre {n} sur {total} · {place}', { n: i + 1, total: q.chapters.length, place: esc(t(ch.place)) })}</span><h3>${esc(t(ch.name))}</h3>
+        <div class="soutros">${ch.intro.map(l => lineHTML(q, ch, l)).join('')}</div>
+        <p class="schron-cut" aria-hidden="true">⚔</p>
+        <div class="soutros">${ch.outro.map(l => lineHTML(q, ch, l)).join('')}</div></section>`).join('');
+    return `<p class="sprologue">${esc(t(q.prologue))}</p>${chapters}
+      ${left ? `<p class="hint schron-lock">${tp(left, 'Encore {n} chapitre à découvrir : gagnez-le pour lire la suite.', 'Encore {n} chapitres à découvrir : gagnez-les pour lire la suite.')}</p>` : `<p class="sdone"><b>${t('Fin')}</b> ${nextLine(q)}</p>`}`;
+  }
+  function chronSheet() {
+    const list = chronQuests(), cur = S.chron !== 'lore' && list.find(q => q.id === S.chron) || null;
+    const pick = (id, label, sub, locked = false) => `<button class="schron-pick ${(cur ? cur.id : 'lore') === id ? 'on' : ''} ${locked ? 'locked' : ''}" role="tab" aria-selected="${(cur ? cur.id : 'lore') === id}" data-act="chron-pick" data-quest="${id}">
+      <small>${sub}</small><b>${label}</b></button>`;
+    const sub = q => (q.book ? t('Livre {book}', { book: ROMAN[q.book] || q.book }) : q.canon ? t('Suite de l\'histoire') : t('Conte'));
+    const picks = pick('lore', esc(t(LORE.title)), t('L\'univers')) + list.map(q => pick(q.id, esc(t(q.name)), sub(q), !readOf(q.id))).join('');
+    const body = cur ? chronQuestHTML(cur) : `<section class="slore">${LORE.text.map(p => `<p>${esc(t(p))}</p>`).join('')}</section>`;
+    return `<div class="sheet" data-act="close"><div class="panel schron" data-stop="1" role="dialog" aria-label="${t('Chroniques')}">
+      <div class="ph"><h2>${t('Chroniques')}</h2><button class="btn" data-act="close">${t('Fermer')}</button></div>
+      <p class="hint" style="margin:0">${t('L\'histoire des Terres d\'Aube, à relire quand vous voulez : l\'univers, puis les dialogues de chaque chapitre gagné, même après la fin d\'un événement.')}</p>
+      <div class="schron-picks" role="tablist">${picks}</div>
+      <div class="schron-body">${body}</div></div></div>`;
+  }
+  // Ouvre les Chroniques (sur une quête, voire un chapitre) ; charge la progression si l'écran des quêtes ne l'a pas encore fait.
+  async function openChron(quest, i) {
+    S.chron = quest || 'lore'; ui.sheet = 'chronicles'; ui.error = ''; app.play('pick'); app.render();
+    if (!S.data) await load();
+    if (i != null) document.getElementById(`schron-${quest}-${i}`)?.scrollIntoView({ block: 'start' });
+  }
+
   // ---- Partie ----
   // Ce que main.js passe à startSolo pour jouer le chapitre i : decks, nom et force de l'adversaire, bonus de zone, arts, fin.
   function gameOpts(quest, i, name) {
@@ -309,6 +356,8 @@ export function createStory(app) {
     else if (a === 'story-fight' && !ui.busy) fight(Number(ds.i));
     else if (a === 'story-talk') { const T = S.talk; if (!T) return true; if (T.n < T.lines.length - 1) { T.n++; app.play('flip'); app.render(); } else start(); }
     else if (a === 'story-skip') start();
+    else if (a === 'chronicles') openChron(ds.quest, ds.i != null ? Number(ds.i) : null);
+    else if (a === 'chron-pick') { S.chron = ds.quest || 'lore'; app.play('pick'); app.render(); document.querySelector('.schron')?.scrollTo?.(0, 0); }
     else if (a === 'story-deck') { S.deckOf = Number(ds.i); ui.sheet = 'story-deck'; app.render(); }
     else if (a === 'story-map') {
       // Retour à la carte : sur le chapitre suivant après une victoire.
@@ -333,7 +382,7 @@ export function createStory(app) {
 
   return {
     screen, click, endHTML, gameOpts,
-    sheet() { if (ui.sheet === 'story-talk' && S.talk) return talkHTML(); if (ui.sheet === 'story-deck') return deckSheet(); return null; },
+    sheet() { if (ui.sheet === 'story-talk' && S.talk) return talkHTML(); if (ui.sheet === 'story-deck') return deckSheet(); if (ui.sheet === 'chronicles') return chronSheet(); return null; },
     // Partie relancée (Réessayer) : la victoire précédente n'est plus affichée.
     rematched() { S.result = null; },
     // Libellé de la partie dans la barre du haut.

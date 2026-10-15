@@ -126,3 +126,17 @@
 /* Enjeu du chapitre : sur sa fiche et à la dernière réplique avant le combat. */
 .sgoal, .stalk-goal { margin: 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--fam, var(--accent)) 12%, transparent); border-left: 3px solid var(--fam, var(--accent)); line-height: 1.4; }
 .sgoal b, .stalk-goal b { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+
+/* Chroniques : relire l'univers et les dialogues des chapitres gagnés. */
+.schron-open { justify-self: start; margin-top: 4px; }
+.schron-picks { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.schron-pick { flex: none; display: grid; gap: 1px; text-align: left; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); max-width: 200px; }
+.schron-pick small { font-size: 11px; color: var(--muted); }
+.schron-pick b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.schron-pick.on { border-color: var(--gold-hi, var(--accent)); background: color-mix(in srgb, var(--gold-hi, var(--accent)) 14%, var(--surface)); }
+.schron-pick.locked { opacity: .55; }
+.schron-body { display: grid; gap: 14px; }
+.schron-ch { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); scroll-margin-top: 8px; }
+.schron-ch h3 { margin: 0; font-family: var(--famfont, var(--display)); font-size: 18px; }
+.schron-cut { margin: 0; text-align: center; color: var(--muted); font-size: 13px; }
+.schron-lock { margin: 0; }

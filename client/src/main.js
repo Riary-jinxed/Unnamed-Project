@@ -2144,7 +2144,7 @@ function sheetHTML() {
       <div class="gal-h">${t('Tutoriel avancé')}</div>
       <p class="hint" style="margin:0">${t('Une mécanique de famille par leçon : Trésor, Sacrifice, Relève, Drain, Sortilège…')}</p>
       <div class="lessons">${lessons(true)}</div>
-      <div class="row"><button class="btn" data-act="codex">${t('Codex des mots-clés')}</button><button class="btn" data-act="set">${t('Toutes les cartes')}</button></div></div></div>`;
+      <div class="row"><button class="btn" data-act="codex">${t('Codex des mots-clés')}</button><button class="btn" data-act="set">${t('Toutes les cartes')}</button><button class="btn" data-act="chronicles">${t('Chroniques')}</button></div></div></div>`;
   }
   if (ui.sheet === 'chest-info' && ui.screen === 'shop') return chestInfo(ui.shop?.arts);
   if (ui.sheet === 'booster-info' && ui.screen === 'shop') return boosterInfo(ui.shop);
