@@ -5,6 +5,8 @@
 // onde du général, confettis). Les cartes et les zones restent en HTML (main.js) : toucher, glisser-déposer, tutoriel et
 // lecteurs d'écran ne changent pas ; PixiJS lit leur place à l'écran (getBoundingClientRect) pour s'y caler.
 // Sans WebGL ou avec « réduire les animations », rien n'est chargé et fx.js garde ses effets en CSS.
+// Sans eval : la politique de contenu du site (CSP) l'interdit.
+import 'pixi.js/unsafe-eval';
 import { Application, Color, Container, Graphics, Sprite, Text, Texture, UPDATE_PRIORITY } from 'pixi.js';
 import { palette, tableLook, season, chipCanvases } from './season.js';
 import { t } from '@jeu/engine/i18n';

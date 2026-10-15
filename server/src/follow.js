@@ -191,7 +191,8 @@ export function createFollow(store, accounts, { boss, events }) {
   const recent = new Map();
   function track(a, body) {
     const what = String(body?.what || ''), id = String(body?.id || '');
-    const key = { deckShare: 'deckShared', emote: EMOTES[id] ? 'emotesSolo' : null, pushOpen: PUSH_KINDS[id] ? `pushOpened:${id}` : null }[what];
+    const known = { deckShare: 'deckShared', emote: Object.hasOwn(EMOTES, id) ? 'emotesSolo' : null, pushOpen: Object.hasOwn(PUSH_KINDS, id) ? `pushOpened:${id}` : null };
+    const key = Object.hasOwn(known, what) ? known[what] : null;
     if (!key) throw new HttpError(400, 'Signalement inconnu.');
     const now = Date.now(), r = recent.get(a.login);
     if (r && now - r.at < 60_000) { if (r.n >= TRACK_PER_MIN) return { ok: true }; r.n++; } else recent.set(a.login, { at: now, n: 1 });

@@ -4,6 +4,9 @@ import { CARDS, GENERALS, DECKS, TERRAINS, gameDetail, renderLog } from '@jeu/en
 import { ARTS } from '@jeu/engine/arts';
 import { HttpError, activeDeck } from './accounts.js';
 import { t, msg } from '@jeu/engine/i18n';
+import { failLimiter } from './security.js';
+
+const SOLO_RATE = failLimiter({ max: 30, windowMs: 10 * 60_000 });
 
 const MAX_CARDS = 40;
 // Historique des joueurs : parties renvoyées (les plus récentes), tours au plus d'une partie.
@@ -35,7 +38,7 @@ function cleanDetail(d) {
   return {
     turns, trace: (Array.isArray(d.trace) ? d.trace.slice(0, MAX_TURNS) : []).map(t => [0, 1].map(p => nums(t?.[p], 3))),
     sides: [0, 1].map(p => { const S = d.sides?.[p] || {}; return {
-      pow: nums(S.pow, 3), terrains: (Array.isArray(S.terrains) ? S.terrains.slice(0, 3) : []).map(t => (TERRAINS[t] ? t : null)),
+      pow: nums(S.pow, 3), terrains: (Array.isArray(S.terrains) ? S.terrains.slice(0, 3) : []).map(t => (typeof t === 'string' && Object.hasOwn(TERRAINS, t) ? t : null)),
       cut: nums(S.cut, MAX_TURNS, 0, MAX_CARDS * 4), treasure: num(S.treasure, 0), perfect: num(S.perfect, 0, MAX_TURNS), spells: num(S.spells, 0),
       lost: num(S.lost, 0), gen: !!S.gen, genFired: num(S.genFired, 0),
     }; }),
@@ -64,17 +67,21 @@ export function createGames(store, accounts) {
   }
   // Partie contre l'IA terminée dans l'appli. Le joueur joue toujours le deck enregistré sur son compte.
   async function recordSolo(a, body) {
-    const ids = v => (Array.isArray(v) ? v.slice(0, MAX_CARDS).filter(id => typeof id === 'string' && CARDS[id]) : []);
+    // Une partie dure au moins quelques dizaines de secondes : au-delà de 30 en 10 minutes, c'est un script (historique et base gonflés).
+    const wait = SOLO_RATE.wait(a.login); if (wait) throw new HttpError(429, msg('Trop de tentatives : réessayez dans {n} minutes.', { n: Math.max(1, Math.ceil(wait / 60_000)) }));
+    SOLO_RATE.fail(a.login);
+    // Identifiants envoyés par l'appli : seulement des clés propres (« __proto__ » servirait ensuite de clé dans les statistiques).
+    const ids = v => (Array.isArray(v) ? v.slice(0, MAX_CARDS).filter(id => typeof id === 'string' && Object.hasOwn(CARDS, id)) : []);
     const winner = [0, 1, -1].includes(body?.winner) ? body.winner : null;
     const deck = activeDeck(a);
     if (winner === null || !deck) throw new HttpError(400, msg('Résultat invalide.'));
-    const ai = DECKS[body.ai?.deckKey] ? body.ai.deckKey : null;
+    const ai = typeof body.ai?.deckKey === 'string' && Object.hasOwn(DECKS, body.ai.deckKey) ? body.ai.deckKey : null;
     const zones = Array.isArray(body.zones) && body.zones.length === 3 ? body.zones.filter(z => z === 0).length : 0;
     const reward = await accounts.recordGame(a, { mode: 'pve', result: winner === 0 ? 'win' : winner < 0 ? 'draw' : 'loss', played: ids(body.played), general: deck.general,
       sweep: winner === 0 && zones === 3, zones });
     await store.addGame(withDetail({ mode: 'pve', at: new Date().toISOString(), winner, ...reasonOf(cleanReason(body.reason), [a.name, 'IA']), players: [
       { login: a.login, name: a.name, general: deck.general, deck: deck.name, cards: deck.cards.slice(), played: ids(body.played) },
-      { login: null, name: 'IA', general: GENERALS[body.ai?.general] ? body.ai.general : (ai && DECKS[ai].general), deck: ai ? DECKS[ai].name : 'IA',
+      { login: null, name: 'IA', general: typeof body.ai?.general === 'string' && Object.hasOwn(GENERALS, body.ai.general) ? body.ai.general : (ai && DECKS[ai].general), deck: ai ? DECKS[ai].name : 'IA',
         cards: ai ? DECKS[ai].cards.slice() : [], played: ids(body.ai?.played) },
     ] }, body.detail, { kind: 'ia', ms: num(body.ms, 0, 6 * 3_600_000), rewards: [reward], result: { zones: body.zones } }));
     return { ok: true, reward, account: accounts.me(a) };
@@ -88,7 +95,7 @@ export function createGames(store, accounts) {
     const score = (g, i) => (g.winner === i ? 1 : g.winner < 0 ? 0.5 : 0);
     const rec = () => ({ games: 0, wins: 0, losses: 0, draws: 0 });
     const tally = (r, s) => { r.games++; if (s === 1) r.wins++; else if (s === 0) r.losses++; else r.draws++; };
-    const players = {}, generals = {}, cards = {}, vsAi = rec();
+    const players = Object.create(null), generals = Object.create(null), cards = Object.create(null), vsAi = rec();
     for (const g of games) g.players.forEach((P, i) => {
       const s = score(g, i);
       if (P.login) {
@@ -119,7 +126,7 @@ export function createGames(store, accounts) {
   // (TOP_CARDS, jetons à part), dernières parties.
   function playerStats(a) {
     const rec = () => ({ games: 0, wins: 0, losses: 0, draws: 0 });
-    const out = { pvp: rec(), pve: rec(), all: rec() }, gens = {}, cards = {}, recent = [];
+    const out = { pvp: rec(), pve: rec(), all: rec() }, gens = Object.create(null), cards = Object.create(null), recent = [];
     for (const g of store.games()) {
       const i = g.players.findIndex(P => P.login === a.login); if (i < 0 || g.interrupted) continue;
       const k = g.winner === i ? 'wins' : g.winner < 0 ? 'draws' : 'losses', P = g.players[i], foe = g.players[1 - i];
@@ -146,7 +153,7 @@ export function createGames(store, accounts) {
       return out;
     };
     // Bilan : par type de partie, par deck joué, contre chaque général adverse, séries, zones gagnées.
-    const total = rec(), byKind = {}, byDeck = {}, vsGen = {};
+    const total = rec(), byKind = Object.create(null), byDeck = Object.create(null), vsGen = Object.create(null);
     let best = 0, run = 0, zonesWon = 0, zonesGames = 0, sweeps = 0, time = 0, timed = 0;
     // Une partie interrompue par une mise à jour apparaît dans la liste, mais ne compte ni dans le bilan ni dans les séries.
     const played = mine.filter(([g]) => !g.interrupted);

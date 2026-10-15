@@ -9,6 +9,8 @@
 // Une seule petite toile, à la taille de la vitrine, posée dans `.sc-art` par-dessus l'illustration HTML (qui est masquée une
 // fois la toile dessinée). Pour rester léger sur téléphone : définition plafonnée à 1,5, 45 images par seconde au plus, et la
 // boucle s'arrête hors de l'accueil ou quand la vitrine sort de l'écran.
+// Sans eval : la politique de contenu du site (CSP) l'interdit.
+import 'pixi.js/unsafe-eval';
 import { Application, Assets, Color, Container, Sprite, Texture } from 'pixi.js';
 import { season, palette, batCanvases } from './season.js';
 import { guardGL } from './gl-guard.js';

@@ -40,7 +40,7 @@ export function createBugs(store) {
     if (text.length < TEXT_MIN) throw new HttpError(400, msg('Décrivez le problème en quelques mots.'));
     const shot = body.shot ? String(body.shot) : null;
     if (shot && (shot.length > SHOT_MAX || !SHOT_RE.test(shot))) throw new HttpError(400, msg('Capture d\'écran invalide ou trop lourde.'));
-    const r = { id: randomBytes(6).toString('hex'), at: new Date().toISOString(), login: a.login, name: a.name, kind: BUG_KINDS[body.kind] ? body.kind : 'bug',
+    const r = { id: randomBytes(6).toString('hex'), at: new Date().toISOString(), login: a.login, name: a.name, kind: Object.hasOwn(BUG_KINDS, String(body.kind)) ? String(body.kind) : 'bug',
       text, context: { ...cleanContext(body.context), server: process.env.RENDER_GIT_COMMIT?.slice(0, 7) || null }, shot: !!shot, status: 'new', note: '' };
     if (shot) await store.putDoc(shotKey(r.id), { data: shot });
     const list = [...reports(), r], dropped = list.slice(0, Math.max(0, list.length - MAX_REPORTS));

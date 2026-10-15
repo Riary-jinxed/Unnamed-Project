@@ -245,7 +245,8 @@ export function createProgress(store) {
     passAdvance(a, m => (m.kind === key ? n : 0));
   }
   async function reroll(a, { index }) {
-    const ms = missions(a), c = cfg(), m = ms.list[index];
+    // index : un entier (« __proto__ », « length »… ne désignent pas une mission).
+    const ms = missions(a), c = cfg(), m = Number.isInteger(index) ? ms.list[index] : null;
     if (!m || m.done) throw new HttpError(400, msg('Cette mission ne peut pas être remplacée.'));
     if (ms.rerolls >= c.missionRerolls) throw new HttpError(409, msg('Plus de remplacement possible aujourd\'hui.'));
     const [next] = draw(a, missionPool(MISSIONS, c, ms.list.map(x => x.id)), 1, ms.list.filter(x => x !== m));

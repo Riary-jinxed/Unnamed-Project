@@ -15,6 +15,8 @@
 // une toile WebGL ne fait que grandir (le décor en occupe le coin haut gauche, le reste est transparent et coupé par
 // l'élément), et les fonds peints sont gardés par taille. Changer de rayon ne réalloue ni ne repeint plus rien : c'était
 // le plus gros du temps d'un changement de rayon sur téléphone.
+// Sans eval : la politique de contenu du site (CSP) l'interdit.
+import 'pixi.js/unsafe-eval';
 import { Application, Color, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { season, palette, shopColors } from './season.js';
 import { guardGL } from './gl-guard.js';
