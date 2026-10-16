@@ -1,0 +1,8 @@
+# Produits par npm run godot:data (à la racine du dépôt).
+/data/
+/art/
+/music/
+# Cache et exports de Godot.
+/.godot/
+/build/
+/captures/

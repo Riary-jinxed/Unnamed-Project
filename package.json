@@ -20,6 +20,7 @@
     "eco": "node packages/engine/src/eco.js",
     "empreinte": "node packages/engine/src/empreinte.js",
     "equilibrage": "node packages/engine/src/equilibrage.js",
-    "i18n": "node scripts/i18n.js"
+    "i18n": "node scripts/i18n.js",
+    "godot:data": "node scripts/export-godot.js"
   }
 }
