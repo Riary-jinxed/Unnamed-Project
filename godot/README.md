@@ -54,6 +54,7 @@ Les illustrations sont importées en WebP avec perte et mipmaps (`[importer_defa
 | `scripts/gfx.gd` | Dessin partagé : rectangles arrondis texturés, dégradés, pièces et médaillons, textes sur plusieurs lignes, portraits cadrés sur le visage (`FACES` de `client/src/art.js`). |
 | `scripts/mat.gd` | Matières de l'interface : cuir, laiton et pierre (textures de bruit calculées au démarrage), cadres en laiton en relief éclairés par une lampe qui suit le doigt, rivets, coutures, plaques des boutons. |
 | `scripts/look.gd` | Thème de l'interface du compte (couleurs des thèmes de l'appli web) : métal des cadres, cuirs, table de la partie, braises, lingots dorés et fond de l'accueil. Thème de la saison par défaut, comme l'appli. |
+| `scripts/decor.gd`, `scripts/orn.gd`, `shaders/scanlines.gdshader` | Décor de table de chaque thème (repris de `drawTable` de `client/src/stage.js`) et ornements des cadres ; cadres néon à coins coupés et lignes de balayage pour Néon 2099. |
 | `shaders/table.gdshader` | Table du plateau : planches, lampe, brume, et flaque de lumière sous chaque zone à la couleur du camp qui mène. `fond.gdshader` : fond de l'accueil. |
 | `fonts/` | Cinzel, Alegreya Sans et SC, et les polices des familles (Cinzel Decorative, Pirata One, Metal Mania, Uncial Antiqua, MedievalSharp, Creepster, UnifrakturMaguntia, Share Tech Mono, Orbitron), toutes sous licence SIL OFL, comme l'appli web. |
 

@@ -7,6 +7,10 @@ uniform vec4 sol : source_color = vec4(0.078, 0.055, 0.039, 1.0);       // #140e
 uniform vec4 planche_a : source_color = vec4(0.110, 0.078, 0.055, 1.0); // #1c140e
 uniform vec4 planche_b : source_color = vec4(0.098, 0.067, 0.047, 1.0); // #19110c
 uniform vec4 lampe : source_color = vec4(1.0, 0.75, 0.44, 1.0);         // #ffc070
+uniform float planches = 1.0;                                           // 0 : sol uni (néon, ciel, papier, tapis)
+uniform vec4 bas : source_color = vec4(0.0);                             // seconde lueur, au pied de l'écran (alpha 0 : aucune)
+uniform vec4 brume2 : source_color = vec4(0.85, 0.72, 0.56, 1.0);
+uniform float clair = 0.0;                                               // sol clair (estampe) : vignette et grain adoucis
 uniform vec4 brume : source_color = vec4(0.75, 0.68, 0.6, 1.0);        // brume, teintée par le thème
 uniform vec2 lamp_pos = vec2(360.0, 540.0);   // la lampe suit un peu le doigt (Mat.light)
 // Flaques de lumière des zones : centre (pixels) et rayon dans xy/zw, couleur et intensité dans pool_col.
@@ -35,14 +39,19 @@ void fragment() {
 	c *= 0.86 + 0.28 * grain;
 	float edge = min(mod(px.x, w), w - mod(px.x, w));
 	c = mix(sol.rgb * 0.6, c, smoothstep(0.0, 2.0, edge));
+	// Sol uni : léger nuage de texture (fibres du papier, velours du tapis).
+	c = mix(sol.rgb * (0.92 + 0.16 * fbm(px / 6.0)), c, planches);
 	// Lampe chaude centrée vers 42 % de la hauteur, qui respire à peine.
 	vec2 lc = mix(vec2(size.x * 0.5, size.y * 0.42), lamp_pos, 0.45);
 	vec2 lp = (px - lc) / vec2(size.x * 0.8, size.y * 0.55);
-	c += lampe.rgb * 0.22 * smoothstep(1.0, 0.0, length(lp)) * (0.94 + 0.06 * sin(TIME * 0.7));
+	c += lampe.rgb * (0.22 - 0.12 * clair) * smoothstep(1.0, 0.0, length(lp)) * (0.94 + 0.06 * sin(TIME * 0.7));
 	// Brume : deux nappes lentes.
 	float f1 = fbm(vec2(px.x / 260.0 + TIME * 0.035 + sin(TIME * 0.07) * 0.35, px.y / 300.0));
 	float f2 = fbm(vec2(px.x / 340.0 - TIME * 0.025, px.y / 260.0 + 7.0 + sin(TIME * 0.05) * 0.3));
-	c += brume.rgb * 0.09 * (smoothstep(0.45, 0.8, f1) + smoothstep(0.5, 0.85, f2));
+	c += (brume.rgb * smoothstep(0.45, 0.8, f1) + brume2.rgb * smoothstep(0.5, 0.85, f2)) * (0.09 - 0.05 * clair);
+	// Seconde lueur, en bas.
+	vec2 lb = (px - vec2(size.x * 0.5, size.y * 1.02)) / vec2(size.x * 0.9, size.y * 0.35);
+	c += bas.rgb * bas.a * 0.3 * smoothstep(1.0, 0.0, length(lb));
 	// Flaques de lumière des zones.
 	for (int i = 0; i < 3; i++) {
 		vec2 d = (px - pool_rect[i].xy) / max(pool_rect[i].zw, vec2(1.0));
@@ -50,7 +59,7 @@ void fragment() {
 	}
 	// Vignette.
 	float v = smoothstep(1.15, 0.35, distance(UV, vec2(0.5, 0.45)) * 1.25);
-	c *= 0.45 + 0.55 * v;
+	c *= mix(0.45, 0.8, clair) + mix(0.55, 0.2, clair) * v;
 	c += (hash(floor(FRAGCOORD.xy / 2.0)) - 0.5) * 0.025;
 	COLOR = vec4(c, 1.0);
 }

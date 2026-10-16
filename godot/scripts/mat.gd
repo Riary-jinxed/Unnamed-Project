@@ -67,6 +67,12 @@ static func tex(kind: String) -> Texture2D:
 ## Rectangle arrondi rempli d'une matière (texture répétée, tous les `scale` pixels), teinté par `col`.
 static func fill(ci: CanvasItem, kind: String, r: Rect2, rad: float, col: Color, scale := 128.0) -> void:
 	var pts := Gfx.round_pts(r, rad, 6)
+	if Look.frame == "neon":   # verre fumé lisse, plus clair en haut
+		var cols := PackedColorArray()
+		for p in pts:
+			cols.append(col.lerp(Color("16284a"), 0.5 * (1.0 - clampf((p.y - r.position.y) / maxf(r.size.y, 1.0), 0.0, 1.0))))
+		ci.draw_polygon(pts, cols)
+		return
 	var uvs := PackedVector2Array()
 	for p in pts:
 		uvs.append(p / scale)
@@ -108,6 +114,9 @@ static func _shade(base: Color, p: Vector2, n: Vector2, gloss: float) -> Color:
 static func bevel(ci: CanvasItem, r: Rect2, rad: float, w: float, base = null, gloss := 0.9, kind := "brass") -> void:
 	if base == null:
 		base = BRASS
+	if Look.frame == "neon":
+		neon(ci, r, rad, w, base)
+		return
 	var seg := 6
 	var o: Array = _loop(r, rad, seg)
 	var m: Array = _loop(r.grow(-w * 0.5), rad - w * 0.5, seg)
@@ -144,10 +153,59 @@ static func bevel(ci: CanvasItem, r: Rect2, rad: float, w: float, base = null, g
 	ci.draw_polyline(ridge, Color(base.lightened(0.45), 0.35), 1.0, true)
 
 
+## Néon 2099 : couleurs des néons (cyan, magenta, jaune signalétique), comme --neon, --neon2 et --gold de cyber.css.
+const NEON := Color("19e6ff")
+const NEON2 := Color("ff2bd6")
+const SIGNAL := Color("fcee0a")
+
+
+## Couleur de néon d'un cadre : le laiton du thème devient cyan ; une couleur de camp (zone menée) reste la sienne, avivée.
+static func neon_color(base: Color) -> Color:
+	var b := BRASS
+	if absf(base.h - b.h) < 0.06 and absf(base.s - b.s) < 0.35:
+		return NEON
+	return base.lightened(0.25)
+
+
+## Contour à coins coupés (haut droit et bas gauche, comme les panneaux de cyber.css) ; cercle si r est un disque.
+static func cut_pts(r: Rect2, cut: float) -> PackedVector2Array:
+	return PackedVector2Array([r.position, Vector2(r.end.x - cut, r.position.y), Vector2(r.end.x, r.position.y + cut), r.end,
+		Vector2(r.position.x + cut, r.end.y), Vector2(r.position.x, r.end.y - cut), r.position])
+
+
+## Cadre néon : liseré lumineux (halo large, trait vif) ; sur les panneaux, coin magenta et trait jaune en haut à gauche.
+static func neon(ci: CanvasItem, r: Rect2, rad: float, w: float, base: Color) -> void:
+	var col := neon_color(base)
+	var mid := r.grow(-w * 0.5)
+	if rad >= minf(r.size.x, r.size.y) * 0.5 - 1.0:
+		var c := r.get_center()
+		var R := mid.size.x * 0.5
+		ci.draw_arc(c, R, 0, TAU, 48, Color(0.01, 0.02, 0.05, 0.9), w, true)
+		ci.draw_arc(c, R, 0, TAU, 48, Color(col, 0.18), w * 1.8, true)
+		ci.draw_arc(c, R, 0, TAU, 48, Color(col, 0.45), w * 0.7, true)
+		ci.draw_arc(c, R, 0, TAU, 48, col.lightened(0.55), 1.6, true)
+		ci.draw_arc(c, R + w * 0.5, -PI * 0.75, -PI * 0.25, 16, Color(NEON2, 0.9), 2.0, true)
+		return
+	var cut := clampf(rad, 4.0, 14.0)
+	var pts := cut_pts(mid, cut)
+	ci.draw_polyline(pts, Color(0.01, 0.02, 0.05, 0.85), w, true)
+	ci.draw_polyline(pts, Color(col, 0.16), w * 1.8, true)
+	ci.draw_polyline(pts, Color(col, 0.4), maxf(1.5, w * 0.6), true)
+	ci.draw_polyline(pts, col.lightened(0.55), 1.4, true)
+	if mid.size.x > 60 and mid.size.y > 24:
+		ci.draw_line(Vector2(mid.end.x - cut * 1.6, mid.position.y - 1), Vector2(mid.end.x + 1, mid.position.y + cut * 1.6), Color(NEON2, 0.95), 2.0, true)
+		ci.draw_line(mid.position + Vector2(0, -1), mid.position + Vector2(26, -1), Color(SIGNAL, 0.95), 3.0)
+
+
 ## Rivet : tête bombée éclairée du côté de la lampe.
 static func rivet(ci: CanvasItem, c: Vector2, rad: float, base = null) -> void:
 	if base == null:
 		base = BRASS
+	if Look.frame == "neon":   # voyant lumineux au lieu d'un rivet
+		var col := neon_color(base)
+		ci.draw_circle(c, rad * 2.0, Color(col, 0.15), true, -1.0, true)
+		ci.draw_circle(c, rad * 0.8, col.lightened(0.5), true, -1.0, true)
+		return
 	ci.draw_circle(c + Vector2(0, rad * 0.35), rad * 1.1, Color(0, 0, 0, 0.5), true, -1.0, true)
 	ci.draw_circle(c, rad, base.darkened(0.35), true, -1.0, true)
 	var l := (ci.get_global_transform().affine_inverse() * light - c).normalized()
@@ -157,6 +215,8 @@ static func rivet(ci: CanvasItem, c: Vector2, rad: float, base = null) -> void:
 
 ## Couture : petits traits clairs le long d'un contour arrondi (bords des cuirs).
 static func stitch(ci: CanvasItem, r: Rect2, rad: float, col := Color(0.9, 0.78, 0.55, 0.45)) -> void:
+	if Look.frame == "neon":   # pas de couture sur le verre fumé : un filet cyan pointillé
+		col = Color(NEON, 0.22)
 	var pts := Gfx.round_pts(r, rad, 6)
 	var total := 0.0
 	for k in pts.size():
@@ -195,6 +255,9 @@ static func plate_texture(state: String) -> Texture2D:
 	var s := 64
 	var rad := 14.0
 	var bw := 5.0
+	if Look.frame == "neon":
+		_tex[key] = _neon_plate(state)
+		return _tex[key]
 	var img := Image.create(s, s, false, Image.FORMAT_RGBA8)
 	var grain := tex("leather").get_image()
 	var base: Color = Look.leather({"normal": Color("3a2a1c"), "hover": Color("4a3624"), "pressed": Color("2a1d13"), "disabled": Color("2a2018")}[state])
@@ -235,6 +298,32 @@ static func plate_texture(state: String) -> Texture2D:
 	var t2 := ImageTexture.create_from_image(img)
 	_tex[key] = t2
 	return t2
+
+
+## Plaque de bouton de Néon 2099 : verre fumé bleu nuit, coin coupé en haut à droite, liseré cyan et trait vif en bas.
+static func _neon_plate(state: String) -> Texture2D:
+	var s := 64
+	var cut := 12
+	var img := Image.create(s, s, false, Image.FORMAT_RGBA8)
+	var top := Color("11223e") if state != "pressed" else Color("08101f")
+	var bot := Color("08101f")
+	if state == "hover":
+		top = top.lightened(0.15)
+	for y in s:
+		for x in s:
+			if x > s - 1 - cut + y:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+				continue
+			var col := top.lerp(bot, float(y) / s)
+			var edge := mini(mini(x, y), mini(s - 1 - x, s - 1 - y))
+			if edge < 1 or x >= s - 2 - cut + y:
+				col = Color("17607e") if state != "disabled" else Color("1a2a3a")
+			elif y >= s - 3 and state != "disabled":
+				col = NEON.darkened(0.2 if state == "pressed" else 0.0)
+			elif edge < 2:
+				col = col.lerp(NEON, 0.25)
+			img.set_pixel(x, y, col)
+	return ImageTexture.create_from_image(img)
 
 
 static func _sd(p: Vector2, s: int, rad: float) -> float:

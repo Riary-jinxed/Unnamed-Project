@@ -112,7 +112,13 @@ func _draw() -> void:
 	var lead := leader()
 	var side_col: Color = Data.MINE if lead > 0 else Data.FOE
 	# Pierre sombre sous les terrains.
-	Mat.fill(self, "stone", full, rad, Look.leather(Color(0.2, 0.17, 0.15)))
+	if Look.frame == "neon":
+		# Néon 2099 : verre bleu nuit quadrillé (grille holographique de cyber.css).
+		Gfx.vgrad_round(self, full, rad, [0.0, 1.0], [0.9, 0.9], Color("060c1a"))
+		for gy in range(0, int(size.y), 14):
+			draw_line(Vector2(3, gy), Vector2(size.x - 3, gy), Color(Mat.NEON, 0.06), 1.0)
+	else:
+		Mat.fill(self, "stone", full, rad, Look.leather(Color(0.2, 0.17, 0.15)))
 	for mine in [false, true]:
 		var hr := half_rect(mine)
 		var terrain = my_terrain if mine else foe_terrain
@@ -152,6 +158,7 @@ func _draw() -> void:
 	for x in [size.x * 0.5]:
 		Mat.rivet(self, Vector2(x, 3.5), 3.2, brass)
 		Mat.rivet(self, Vector2(x, size.y - 3.5), 3.2, brass)
+	Orn.corners(self, full, true)
 	# Bandeau du milieu : puissance de l'adversaire à gauche, nom de la zone, la vôtre à droite.
 	var strip := Rect2(5, (size.y - STRIP) * 0.5 + 3, size.x - 10, STRIP - 6)
 	Mat.fill(self, "leather", strip, 8, Look.leather(Color(0.22, 0.15, 0.1)), 64.0)

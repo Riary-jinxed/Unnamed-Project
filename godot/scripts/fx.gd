@@ -244,7 +244,7 @@ class Banner extends Control:
 		var k := clampf((t - 0.05) / 0.2, 0.0, 1.0)
 		var ease := 1.0 - pow(1.0 - k, 3.0)
 		var spacing := lerpf(22.0, 4.0, clampf(t / 0.25, 0.0, 1.0))
-		var font := Data.font_title
+		var font := Look.title_font()
 		var fs := 50
 		var w := 0.0
 		for ch in title:
@@ -252,8 +252,13 @@ class Banner extends Control:
 		w -= spacing
 		var x := c.x - w * 0.5 - 60.0 * (1.0 - ease)
 		var y := c.y + 12.0 - (10.0 if sub != "" else 0.0)
+		var glitch := Look.frame == "neon"
 		for ch in title:
 			draw_string_outline(font, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 8, Color(0.08, 0.03, 0.0, fade * ease))
+			if glitch:   # Néon 2099 : décalage cyan et magenta, comme les titres de cyber.css
+				var jit := 3.0 if fmod(t * 7.0, 1.0) < 0.15 else 2.0
+				draw_string(font, Vector2(x + jit, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(Mat.NEON, 0.6 * fade * ease))
+				draw_string(font, Vector2(x - jit, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(Mat.NEON2, 0.5 * fade * ease))
 			draw_string(font, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(edge.lightened(0.35), fade * ease))
 			x += font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + spacing
 		if sub != "":
@@ -374,7 +379,7 @@ class Ending extends Control:
 			rot = -0.05 * (1.0 - k) + 0.03
 		else:
 			sc = lerpf(1.15, 1.0, clampf(t / 0.6, 0.0, 1.0))
-		var font := Data.font_title
+		var font := Look.title_font()
 		var w := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		draw_set_transform(center + Vector2(0, dy), rot, Vector2(sc, sc))
 		var pos := Vector2(-w * 0.5, font.get_ascent(fs) * 0.4)

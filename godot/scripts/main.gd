@@ -24,6 +24,7 @@ var _reconnecting := false
 var account := {}
 var home: Control
 var _bg_mat: ShaderMaterial
+var _decor: Control
 
 
 func _ready() -> void:
@@ -146,6 +147,12 @@ func themed() -> void:
 	_bg_mat.set_shader_parameter("haut", Look.leather(Color(0.13, 0.085, 0.06)))
 	_bg_mat.set_shader_parameter("bas", Look.bg.darkened(0.3) if Look.id != "" else Color(0.035, 0.03, 0.05))
 	_bg_mat.set_shader_parameter("lueur", Look.accent if Look.id != "" else Color(0.55, 0.36, 0.14))
+	# Décor du thème (lune, grille néon, étoiles…) derrière les menus, comme sur la table.
+	if _decor:
+		_decor.queue_free()
+	_decor = preload("res://scripts/decor.gd").new()
+	add_child(_decor)
+	move_child(_decor, 1)
 
 
 func _field(placeholder: String, secret: bool) -> LineEdit:

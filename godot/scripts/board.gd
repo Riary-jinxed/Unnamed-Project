@@ -82,7 +82,18 @@ func _ready() -> void:
 	Look.table(mat)
 	bg.material = mat
 	add_child(bg)
+	add_child(preload("res://scripts/decor.gd").new())
 	_add_embers()
+	if Look.frame == "neon":
+		# Néon 2099 : lignes de balayage d'écran par-dessus tout, sans gêner le toucher (comme cyber.css).
+		var scan := ColorRect.new()
+		scan.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		scan.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		scan.z_index = 300
+		var sm := ShaderMaterial.new()
+		sm.shader = preload("res://shaders/scanlines.gdshader")
+		scan.material = sm
+		add_child(scan)
 	# En-têtes dessinés au-dessus du fond et sous les cartes.
 	hud = Control.new()
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -155,7 +166,7 @@ static func gold_button(text: String) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
-	b.add_theme_font_override("font", Data.font_title)
+	b.add_theme_font_override("font", Look.title_font())
 	b.add_theme_font_size_override("font_size", 24)
 	for st in ["normal", "hover", "pressed", "disabled"]:
 		var sb := StyleBoxTexture.new()
@@ -184,7 +195,11 @@ static func _ingot(state: String) -> Texture2D:
 		stops = [Color("e8cf8a"), Color("d4a446"), Color("a97626"), Color("6e4714")]
 	elif state == "hover":
 		stops = [Color("fff6d0"), Color("f6cd6c"), Color("d29a37"), Color("9a6720")]
-	if Look.id != "" and state != "disabled":
+	if Look.frame == "neon" and state != "disabled":
+		stops = [Color("fff35a"), Color("fcee0a"), Color("e8da00"), Color("8a7f00")]
+		if state == "pressed":
+			stops = [Color("e8da30"), Color("d8c800"), Color("b8aa00"), Color("6a6000")]
+	elif Look.id != "" and state != "disabled":
 		# Lingot aux couleurs du thème : reflet clair, or du thème, puis son ombre.
 		var g := Look.accent.lerp(Data.GOLD, 0.4)
 		stops = [g.lerp(Color.WHITE, 0.6), g, g.darkened(0.25), Data.GOLD_DARK]
@@ -199,7 +214,9 @@ static func _ingot(state: String) -> Texture2D:
 			var d := Vector2(minf(x, 63 - x), minf(y, 63 - y))
 			var corner := 14.0
 			var inside := true
-			if d.x < corner and d.y < corner:
+			if Look.frame == "neon":   # plaque signalétique à coins coupés
+				inside = (63 - x) + y >= corner and x + (63 - y) >= corner
+			elif d.x < corner and d.y < corner:
 				inside = Vector2(corner - d.x, corner - d.y).length() <= corner
 			var edge := minf(d.x, d.y)
 			var c := col
@@ -358,7 +375,7 @@ func set_view(v: Dictionary) -> void:
 			_flash(Data.FOE, 0.18)
 		elif phase == "plan":
 			var last := turn >= int(v.get("turns", 7))
-			_banner("Dernier tour" if last else "Tour %d" % turn, "sur %d" % int(v.get("turns", 7)), Color("f07a66") if last else Data.GOLD)
+			_banner("Dernier tour" if last else "Tour %d" % turn, "sur %d" % int(v.get("turns", 7)), Color("f07a66") if last else Look.edge)
 			_sound("turn", "turn")
 		elif phase == "over":
 			_game_over()
@@ -1119,13 +1136,18 @@ func _add_embers() -> void:
 	p.scale_amount_min = 1.5
 	p.scale_amount_max = 3.5
 	p.texture = Fx.dot_texture()
+	# Braises de trois couleurs tirées au hasard (PALETTE de season.js : dorées, ou violettes et vertes d'Halloween, néons…).
+	var pick := Gradient.new()
+	pick.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
+	pick.set_color(0, Look.embers[0])
+	pick.set_offset(1, 0.34)
+	pick.set_color(1, Look.embers[1])
+	pick.add_point(0.67, Look.embers[2])
+	p.color_initial_ramp = pick
 	var grad := Gradient.new()
-	# Braises dorées, ou aux couleurs du thème (lucioles vertes de Sylvaën, néons jaunes…).
-	var hot := Color(1.0, 0.88, 0.63) if Look.id == "" else Look.accent.lerp(Color.WHITE, 0.3)
-	var cool := Color(1.0, 0.5, 0.2) if Look.id == "" else Look.mist
-	grad.set_color(0, Color(hot, 0.0))
-	grad.add_point(0.2, Color(hot, 0.5))
-	grad.set_color(grad.get_point_count() - 1, Color(cool, 0.0))
+	grad.set_color(0, Color(1, 1, 1, 0.0))
+	grad.add_point(0.2, Color(1, 1, 1, 0.6))
+	grad.set_color(grad.get_point_count() - 1, Color(1, 1, 1, 0.0))
 	p.color_ramp = grad
 	add_child(p)
 	resized.connect(func():
@@ -1508,7 +1530,7 @@ func _show_journal() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
 	panel.add_child(col)
-	col.add_child(_label("Journal", Data.font_title, 32, Data.GOLD))
+	col.add_child(_label("Journal", Look.title_font(), 32, Data.GOLD))
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -1570,7 +1592,7 @@ func _ask_quit() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 18)
 	panel.add_child(col)
-	col.add_child(_label("Quitter la partie ?", Data.font_title, 30, Data.GOLD))
+	col.add_child(_label("Quitter la partie ?", Look.title_font(), 30, Data.GOLD))
 	col.add_child(_label("La partie en cours sera perdue.", Data.font_body, 22, Color("efe1c6")))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
@@ -1837,7 +1859,7 @@ func _draw_hud(ci: Control) -> void:
 	_avatar(ci, Vector2(48, band.get_center().y), 31, fname, Data.FOE, fs, conn[fs] if conn.size() > fs else true, lvl)
 	var nx := 92.0
 	var name_w := w * 0.5 - 50 - nx
-	Gfx.text_lines(ci, Data.font_title, Rect2(nx, band.position.y + 8, name_w, 30), fname, 23, Data.FOE.lightened(0.2), 1, 4)
+	Gfx.text_lines(ci, Look.title_font(), Rect2(nx, band.position.y + 8, name_w, 30), fname, 23, Data.FOE.lightened(0.2), 1, 4)
 	var sy := band.position.y + 58
 	var sx := nx
 	sx = _stat(ci, Vector2(sx, sy), "hand", int(f.get("handCount", 0)))
@@ -1858,6 +1880,7 @@ func _draw_hud(ci: Control) -> void:
 	var dock := Rect2(-2, dy, w + 4, DOCK_H + 4)
 	Mat.fill(ci, "leather", dock, 0, Look.leather(Color(0.3, 0.2, 0.14)))
 	Gfx.vgrad_round(ci, dock, 0, [0.0, 1.0], [0.0, 0.55])
+	Orn.pattern(ci, Rect2(0, dy + 6, w, DOCK_H - 6))
 	Mat.stitch(ci, Rect2(8, dy + 14, w - 16, DOCK_H - 22), 10)
 	ci.draw_rect(Rect2(0, dy - 6, w, 8), Color(0, 0, 0, 0.35))
 	Mat.bevel(ci, Rect2(-12, dy - 4, w + 24, 11), 4, 5.5, Mat.BRASS, 0.9)
@@ -1889,8 +1912,10 @@ func _band(ci: CanvasItem, r: Rect2, side: Color, _mine: bool) -> void:
 		var t := i / 6.0
 		ci.draw_circle(r.position + Vector2(44, r.size.y * 0.5), 90 - i * 12, Color(side, 0.03 + 0.02 * t), true, -1.0, true)
 	Gfx.vgrad_round(ci, r, 14, [0.0, 1.0], [0.0, 0.5])
+	Orn.pattern(ci, r)
 	Mat.stitch(ci, r.grow(-9), 9)
 	Mat.bevel(ci, r, 14, 5.0, Mat.BRASS, 0.8)
+	Orn.corners(ci, r)
 
 
 ## Avatar : image de profil (ou initiale) dans un anneau de la couleur du camp, niveau en pastille, connexion.

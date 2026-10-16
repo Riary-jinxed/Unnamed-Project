@@ -41,7 +41,7 @@ func _build() -> void:
 	# Deux lignes sur le lingot : « Jouer » et le mode de jeu.
 	var p: Dictionary = account.get("progress", {})
 	var ai := str(p.get("ranked", {}).get("ai", ""))
-	for line in [["Jouer", Data.font_title, 46, -16], ["Partie classée contre l'IA" + (" · " + ai if ai != "" else ""), Data.font_body, 21, 30]]:
+	for line in [["Jouer", Look.title_font(), 46, -16], ["Partie classée contre l'IA" + (" · " + ai if ai != "" else ""), Data.font_body, 21, 30]]:
 		var l := Label.new()
 		l.text = line[0]
 		l.add_theme_font_override("font", line[1])
@@ -82,6 +82,8 @@ func _choose(theme: String) -> void:
 	var before = Look.pick
 	Look.pick = "base" if theme == "" else theme
 	Look.apply(theme)
+	if get_parent().has_method("themed"):
+		get_parent().themed()
 	Sfx.play("spell")
 	_msg = ""
 	_build()
@@ -106,8 +108,10 @@ func _draw() -> void:
 	# —— Profil ——
 	var band := Rect2(14, 14, w - 28, 118)
 	Mat.fill(self, "leather", band, 16, Look.leather(Color(0.36, 0.25, 0.17)))
+	Orn.pattern(self, band)
 	Mat.stitch(self, band.grow(-10), 10)
 	Mat.bevel(self, band, 16, 6.0)
+	Orn.corners(self, band)
 	var ac := Vector2(78, 73)
 	if _avatar:
 		var r := Rect2(ac - Vector2(42, 42), Vector2(84, 84))
@@ -140,8 +144,8 @@ func _draw() -> void:
 			_star(sc, 8.5, tint.lightened(0.25) if i < int(rk.get("stars", 0)) else Color(1, 1, 1, 0.18))
 	# —— Titre ——
 	var ty := h - 640
-	Gfx.text_fit(self, Data.font_title, Vector2(w * 0.5, ty + 4), "Jeu de cartes", w - 80, 64, Color(0, 0, 0, 0.6), 0)
-	Gfx.text_fit(self, Data.font_title, Vector2(w * 0.5, ty), "Jeu de cartes", w - 80, 64, Data.GOLD.lightened(0.25), 10, Color(0.1, 0.04, 0.02))
+	Gfx.text_fit(self, Look.title_font(), Vector2(w * 0.5, ty + 4), "Jeu de cartes", w - 80, 64, Color(0, 0, 0, 0.6), 0)
+	Gfx.text_fit(self, Look.title_font(), Vector2(w * 0.5, ty), "Jeu de cartes", w - 80, 64, Data.GOLD.lightened(0.25), 10, Color(0.1, 0.04, 0.02))
 	var orn := Data.GOLD
 	for s in [-1, 1]:
 		var x0: float = w * 0.5 + s * 60
@@ -195,8 +199,8 @@ func _draw_art(w: float, h: float) -> void:
 	var b := Look.bg
 	var y0 := top.end.y - 360
 	draw_polygon(PackedVector2Array([Vector2(0, y0), Vector2(w, y0), Vector2(w, top.end.y), Vector2(0, top.end.y)]),
-		PackedColorArray([Color(b, 0), Color(b, 0), Color(b, 1), Color(b, 1)]))
-	draw_rect(Rect2(0, top.end.y, w, h - top.end.y), b)
+		PackedColorArray([Color(b, 0), Color(b, 0), Color(b, 0.72), Color(b, 0.72)]))
+	draw_rect(Rect2(0, top.end.y, w, h - top.end.y), Color(b, 0.72))
 	draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, 200), Vector2(0, 200)]),
 		PackedColorArray([Color(0, 0, 0, 0.55), Color(0, 0, 0, 0.55), Color(0, 0, 0, 0), Color(0, 0, 0, 0)]))
 	# Lueur du thème au pied de l'écran.
