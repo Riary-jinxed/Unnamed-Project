@@ -73,6 +73,34 @@ func rich(text: String) -> String:
 
 
 ## Niveau d'aspect d'une carte pour un joueur (bordure choisie, sinon niveau) : badges envoyés par le serveur.
+## Style d'animation de l'effet d'une carte ou d'un général (voir Fx.effect) : d'abord la carte elle-même, puis ce que
+## dit son texte, puis sa famille.
+const FX_IDS := {"potion": "potion", "souffle": "fire", "pyromane": "fire", "bombardier": "blast", "petaradeur": "blast",
+	"bras_canon": "blast", "tourelle": "blast", "mecha": "blast", "saignee": "drain", "nuit_rouge": "drain", "spectre": "ghost",
+	"ronces": "leaf", "lueur": "leaf", "pretre_eclipse": "claw", "citrouille": "ghost", "epouvantail": "ghost"}
+const FX_FAMS := {"Ange": "holy", "Démon": "claw", "Dragon": "fire", "Elfe": "leaf", "Mort-vivant": "ghost", "Vampire": "drain",
+	"Hacker": "hack", "Cyborg": "zap"}
+
+
+func fx_style(id, general := false) -> String:
+	var d: Dictionary = generals.get(str(id), {}) if general else card(id)
+	if not general and FX_IDS.has(str(id)):
+		return FX_IDS[str(id)]
+	var t := str(d.get("text", ""))
+	var name := str(d.get("name", "")).to_lower()
+	if name.contains("potion") or name.contains("élixir"):
+		return "potion"
+	if t.contains("Drain"):
+		return "drain"
+	if t.contains("Piratage") or t.contains("Malware"):
+		return "hack"
+	if t.contains("Pari") or t.contains(" dé"):
+		return "dice"
+	if t.contains("Implant") or t.contains("Surcharge"):
+		return "zap"
+	return FX_FAMS.get(str(d.get("fam", "")), "bolt")
+
+
 static func level_of(badge, id) -> int:
 	if not badge is Dictionary or id == null:
 		return 1

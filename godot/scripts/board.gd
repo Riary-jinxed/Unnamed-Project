@@ -11,11 +11,11 @@ signal shot_requested(name: String)
 const CardView := preload("res://scripts/card_view.gd")
 const ZoneView := preload("res://scripts/zone_view.gd")
 
-const TOP_H := 60.0
-const FOE_H := 104.0
+const TOP_H := 52.0
+const FOE_H := 92.0
 const HEAD_H := TOP_H + FOE_H
-const DOCK_H := 112.0
-const HAND_CARD := Vector2(152, 208)
+const DOCK_H := 132.0
+const BOARD_K := 0.8         # échelle du plateau tout en haut (perspective)
 const DOUBLE_TAP := 0.35
 const LONG_PRESS := 0.45
 
@@ -37,6 +37,9 @@ var was_revealed := {}      # uid → true : révélées à la vue précédente
 var last_power := {}        # uid → puissance à la vue précédente
 var zones: Array = []
 var card_size := Vector2(100, 140)
+var hand_card := Vector2(152, 208)
+var _hand_y := 900.0
+var _avatar_tex := [null, null]    # images de profil des deux sièges (envoyées une fois par le serveur)
 
 var bg: ColorRect
 var hud: Control
@@ -120,6 +123,7 @@ func _ready() -> void:
 	snd_btn.draw.connect(func(): _draw_speaker(snd_btn))
 	add_child(snd_btn)
 	log_btn = plate_button("Journal")
+	log_btn.add_theme_font_size_override("font_size", 19)
 	log_btn.pressed.connect(_show_journal)
 	add_child(log_btn)
 	quit_btn = plate_button("")
@@ -231,40 +235,51 @@ func _redraw() -> void:
 # ————— Mise en page —————
 
 func _hand_top() -> float:
-	return size.y - DOCK_H - HAND_CARD.y - 12
+	return _hand_y
 
 
 func _layout() -> void:
 	var w := size.x
-	var top := HEAD_H + 8
-	# Les zones sont mises en page à plat, plus hautes que la place à l'écran : la perspective (Persp) les ramène
-	# entre l'en-tête et la main, plus étroites et plus petites vers l'adversaire.
-	var board_bottom := _hand_top() - 24
-	var hf := Persp.setup(top, board_bottom - top, w * 0.5, 0.8)
+	var h := size.y
+	# Plateau de taille fixe, réglée sur des cartes à deux par rangée : la hauteur en plus d'un grand téléphone va
+	# à la main (cartes plus grandes), pas aux zones. Les zones sont mises en page à plat puis la perspective (Persp)
+	# les ramène à l'écran, plus étroites et plus petites vers l'adversaire.
 	var col_w := (w - 12 - 10) / 3.0
+	var cw := (col_w - 8 - 5) * 0.5
+	var ch := cw * 1.4
+	var hf_need := 2.0 * (2.0 * ch + 5 + 30 + 12) + ZoneView.STRIP
+	var hs_need := hf_need * (1.0 - BOARD_K) / log(1.0 / BOARD_K)
+	var top := HEAD_H + 10
+	var fixed := top + 24 + 14 + DOCK_H
+	var hand_h := clampf(h - fixed - hs_need, 196, 250)
+	hand_card = Vector2(round(hand_h / 1.37), hand_h)
+	_hand_y = h - DOCK_H - 12 - hand_h
+	var avail := h - fixed - hand_h
+	var hs := minf(hs_need, avail)
+	var board_top := top + maxf(0.0, (avail - hs) * 0.35)
+	var hf := Persp.setup(board_top, hs, w * 0.5, BOARD_K)
 	for z in zones.size():
 		var zv: Control = zones[z]
-		zv.position = Vector2(6 + z * (col_w + 5), top)
+		zv.position = Vector2(6 + z * (col_w + 5), board_top)
 		zv.size = Vector2(col_w, hf)
 	var half := (hf - ZoneView.STRIP) * 0.5
-	var cw := (col_w - 8 - 5) * 0.5
-	var ch := minf(cw * 1.4, (half - 30 - 5 - 8) * 0.5)
+	ch = minf(ch, (half - 30 - 5 - 12) * 0.5)
 	card_size = Vector2(ch / 1.4, ch)
-	log_label.position = Vector2(20, board_bottom)
+	log_label.position = Vector2(20, board_top + hs + 2)
 	log_label.size = Vector2(w - 40, 24)
 	var dy := size.y - DOCK_H
-	end_btn.size = Vector2(236, 74)
-	end_btn.position = Vector2(w - 236 - 12, dy + (DOCK_H - 74) * 0.5 + 2)
-	gen_btn.position = Vector2(10, dy + 12)
-	gen_btn.size = Vector2(212, DOCK_H - 22)
-	quit_btn.size = Vector2(54, 46)
-	quit_btn.position = Vector2(w - 54 - 10, 8)
-	log_btn.size = Vector2(0, 46)
+	end_btn.size = Vector2(280, 76)
+	end_btn.position = Vector2(w - 280 - 12, dy + (DOCK_H - 76) * 0.5 + 4)
+	gen_btn.position = Vector2(6, dy + 10)
+	gen_btn.size = Vector2(250, DOCK_H - 16)
+	snd_btn.size = Vector2(46, 40)
+	snd_btn.position = Vector2(10, 6)
+	log_btn.size = Vector2(0, 40)
 	log_btn.reset_size()
-	log_btn.size.y = 46
-	log_btn.position = Vector2(quit_btn.position.x - 10 - log_btn.size.x, 8)
-	snd_btn.size = Vector2(54, 46)
-	snd_btn.position = Vector2(log_btn.position.x - 10 - 54, 8)
+	log_btn.size.y = 40
+	log_btn.position = Vector2(64, 6)
+	quit_btn.size = Vector2(46, 40)
+	quit_btn.position = Vector2(w - 46 - 10, 6)
 	(bg.material as ShaderMaterial).set_shader_parameter("size", size)
 	if not view.is_empty():
 		_place_cards(false)
@@ -288,6 +303,9 @@ func set_view(v: Dictionary) -> void:
 		sel_move = -1
 		plan_turn = turn
 	var old_me: Dictionary = _prev_me
+	if v.get("avatars") is Array:
+		for i in mini(2, v.avatars.size()):
+			_avatar_tex[i] = _decode_avatar(v.avatars[i])
 	_prev_me = me()
 	_events.clear()
 	_just_revealed.clear()
@@ -301,16 +319,19 @@ func set_view(v: Dictionary) -> void:
 	var src = null
 	var src_delay := 0.0
 	var src_col := Data.GOLD
+	var style := "bolt"
 	if not first and not old_me.is_empty():
 		if bool(me().get("generalUsed", false)) and not bool(old_me.get("generalUsed", false)):
 			_sound("general", "general")
 			src = _general_fx(true)
 			src_delay = 0.5
 			src_col = Data.fam_color(_general().get("fam"))
+			style = Data.fx_style(me().get("general"), true)
 	if not first and not prev.is_empty() and bool(foe().get("generalUsed", false)) and not bool(prev.get("foe", {}).get("generalUsed", false)):
 		src = _general_fx(false)
 		src_delay = 0.5
 		src_col = Data.fam_color(Data.generals.get(str(foe().get("general", "")), {}).get("fam"))
+		style = Data.fx_style(foe().get("general"), true)
 	var fl = v.get("flash")
 	if fl != null and cards.has(int(fl)) and src == null:
 		var scv: CardView = cards[int(fl)]
@@ -318,11 +339,12 @@ func set_view(v: Dictionary) -> void:
 		src = _scr(t.pos + t.size * 0.5, t.persp > 0.5)
 		src_delay = 0.62 if _just_revealed.has(int(fl)) else 0.05
 		src_col = Data.fam_color(Data.card(scv.id).get("fam"))
+		style = Data.fx_style(scv.id)
 		if not _just_revealed.has(int(fl)) and not _events.is_empty():
 			_act_pulse(scv)
 		_events = _events.filter(func(ev): return ev.cv != scv)
 	if not first:
-		_play_events(src, src_delay, src_col, zone_before)
+		_play_events(src, src_delay, src_col, zone_before, style)
 	if phase != _last_phase or turn != _last_turn:
 		if phase == "reveal" and _last_phase == "plan":
 			_banner("Révélation", "Les cartes se retournent", Data.FOE)
@@ -339,6 +361,18 @@ func set_view(v: Dictionary) -> void:
 	_redraw()
 	if auto_play:
 		_auto_step()
+
+
+## Image de profil envoyée en data URL (png, jpeg ou webp, voir server/src/accounts.js).
+static func _decode_avatar(url) -> Texture2D:
+	if not url is String or not str(url).begins_with("data:image/"):
+		return null
+	var comma := str(url).find(",")
+	var buf := Marshalls.base64_to_raw(str(url).substr(comma + 1))
+	var img := Image.new()
+	var kind := str(url).substr(11, comma - 11)
+	var err := img.load_png_from_buffer(buf) if kind.begins_with("png") else img.load_jpg_from_buffer(buf) if kind.begins_with("jpeg") else img.load_webp_from_buffer(buf)
+	return ImageTexture.create_from_image(img) if err == OK else null
 
 
 func me() -> Dictionary:
@@ -423,7 +457,7 @@ func _sync_cards(quiet := false) -> void:
 			cards[uid] = cv
 			# Une carte qui arrive : de la pioche (main, en tournant), du haut de l'écran (adversaire).
 			if e.where == "hand":
-				cv.size = HAND_CARD
+				cv.size = hand_card
 				cv.position = Vector2(size.x + 60, _hand_top() + 40)
 				cv.rotation = 0.5
 				cv.set_meta("delay", 0.07 * deal_i)
@@ -502,15 +536,15 @@ func _target_of(e: Dictionary) -> Dictionary:
 	if e.where == "hand":
 		# Main en éventail : les cartes se chevauchent, tournent autour d'un point sous l'écran ; la carte choisie se lève.
 		var n: int = e.count
-		var cw := HAND_CARD.x
+		var cw := hand_card.x
 		var step := minf(cw * 0.86, (size.x - 24 - cw) / maxf(n - 1, 1))
 		var x0 := (size.x - (step * (n - 1) + cw)) * 0.5
 		var t: float = e.index - (n - 1) * 0.5
 		var rot := t * minf(0.075, 0.36 / maxf(n - 1, 1))
 		var x: float = x0 + e.index * step
 		if int(e.d.uid) == sel_hand:
-			return {"pos": Vector2(x, _hand_top() - 30), "size": HAND_CARD, "rot": 0.0, "z": 60, "scale": 1.08, "persp": 0.0}
-		return {"pos": Vector2(x, _hand_top() + 8 + 700.0 * (1.0 - cos(rot))), "size": HAND_CARD, "rot": rot, "z": 20 + e.index, "scale": 1.0, "persp": 0.0}
+			return {"pos": Vector2(x, _hand_top() - 30), "size": hand_card, "rot": 0.0, "z": 60, "scale": 1.08, "persp": 0.0}
+		return {"pos": Vector2(x, _hand_top() + 8 + 700.0 * (1.0 - cos(rot))), "size": hand_card, "rot": rot, "z": 20 + e.index, "scale": 1.0, "persp": 0.0}
 	var zv: Control = zones[e.zone]
 	var r: Rect2 = zv.slot_rect(e.mine, e.slot, card_size)
 	return {"pos": zv.position + r.position, "size": card_size, "rot": 0.0, "z": 2 + e.slot, "scale": 1.0, "persp": 1.0}
@@ -1111,25 +1145,27 @@ func _reveal_fx(cv: CardView, flip: bool) -> void:
 ## Effets d'une étape de la révélation : un projectile part de la source (carte qui agit, ou général) vers chaque cible,
 ## puis l'effet joue à l'impact : chiffre de bonus ou de malus, destruction, invocation, déplacement, pioche.
 ## Sans source connue (fin de tour, terrain), les effets jouent tout de suite.
-func _play_events(src, delay: float, col: Color, zone_before: Array) -> void:
+func _play_events(src, delay: float, col: Color, zone_before: Array, style := "bolt") -> void:
 	var hit := delay
 	for ev in _events:
 		var cv: CardView = ev.cv
 		var to := cv.position + cv.size * 0.5
+		var flat := cv.persp > 0.5
 		if ev.kind in ["draw", "summon", "move"]:
 			var t := _target_of(cv.get_meta("place"))
 			to = t.pos + t.size * 0.5
-		to = Persp.proj(to)
+			flat = t.persp > 0.5
+		var sz := cv.size * (Persp.scale_at(to.y) if flat else 1.0)
+		to = _scr(to, flat)
 		var kind: String = ev.kind
 		var c: Color = col
 		match kind:
 			"power": c = Data.UP if ev.delta > 0 else Data.DOWN
 			"destroy": c = Color("ff5a3c")
-		var travel := 0.0
-		if src != null and src.distance_to(to) > 20.0:
-			travel = clampf(src.distance_to(to) / 1400.0, 0.22, 0.42)
-			Fx.bolt(fx_layer, src, to, c, hit, travel, kind)
-		var at := hit + travel
+		var at := hit
+		if src != null:
+			var up: bool = kind != "destroy" and (kind != "power" or ev.delta > 0)
+			at = Fx.effect(fx_layer, style if kind in ["power", "destroy"] else "bolt", src, to, c, hit, kind, up, sz)
 		get_tree().create_timer(maxf(at, 0.01)).timeout.connect(func(): _impact(ev))
 		if src != null:
 			hit += 0.07
@@ -1207,11 +1243,6 @@ func _act_pulse(cv: CardView) -> void:
 ## Point du plateau à plat vers l'écran (perspective), pour placer les effets.
 func _scr(p: Vector2, on := true) -> Vector2:
 	return Persp.proj(p) if on else p
-
-
-func _gen_center(mine: bool) -> Vector2:
-	var r := _gen_rect(mine)
-	return r.position + Vector2(r.size.y * 0.36 + 10, r.size.y * 0.5)
 
 
 ## Créature détruite : elle pâlit, penche, tombe et rétrécit ; éclats, étincelles orange et petit tremblement.
@@ -1711,10 +1742,16 @@ func _game_over() -> void:
 
 # ————— En-têtes (dessinés) —————
 
-func _gen_rect(mine: bool) -> Rect2:
+## Médaillon du général : au centre de la bande de son camp.
+func _gen_center(mine: bool) -> Vector2:
 	if mine:
-		return Rect2(gen_btn.position, gen_btn.size)
-	return Rect2(size.x - 10 - 250, TOP_H + 6, 250, FOE_H - 12)
+		return Vector2(56, size.y - DOCK_H + DOCK_H * 0.5 + 2)
+	return Vector2(size.x - 54, TOP_H + FOE_H * 0.5 + 2)
+
+
+func _gen_rect(mine: bool) -> Rect2:
+	var c := _gen_center(mine)
+	return Rect2(c - Vector2(42, 42), Vector2(84, 84))
 
 
 func _draw_hud(ci: Control) -> void:
@@ -1723,78 +1760,52 @@ func _draw_hud(ci: Control) -> void:
 	var f := foe()
 	var m := me()
 	var w := size.x
-	# Barre du haut : mode, tour et pastilles des tours.
-	var turn := int(view.get("turn", 1))
-	var turns := int(view.get("turns", 7))
-	var last := turn >= turns
-	_text(ci, Data.font_sc, Vector2(16, 22), "PARTIE CLASSÉE", 16, Color(1, 0.9, 0.75, 0.6))
-	_text(ci, Data.font_sc, Vector2(16, 50), "TOUR", 17, Color(1, 0.9, 0.75, 0.75))
-	var tx := 16.0 + Data.font_sc.get_string_size("TOUR ", HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
-	var tcol := Color("f07a66") if last else Color("ffe08a")
-	_text(ci, Data.font_title, Vector2(tx, 52), str(turn), 32, tcol)
-	tx += Data.font_title.get_string_size(str(turn), HORIZONTAL_ALIGNMENT_LEFT, -1, 32).x
-	_text(ci, Data.font_title, Vector2(tx + 2, 52), "/%d" % turns, 20, Color(1, 0.9, 0.75, 0.7))
-	tx += 40
-	for i in turns:
-		var c := Vector2(tx + i * 16, 44)
-		if i + 1 == turn:
-			ci.draw_circle(c, 8, Color(tcol, 0.3), true, -1.0, true)
-			ci.draw_circle(c, 5.5, tcol, true, -1.0, true)
-		else:
-			ci.draw_circle(c, 4.5, Color(0.7, 0.62, 0.52, 0.85) if i + 1 < turn else Color(0.4, 0.33, 0.27, 0.8), true, -1.0, true)
-	# Adversaire : avatar, nom, niveau, compteurs ; son général à droite.
-	var by := TOP_H
-	var bar := Rect2(8, by + 2, w - 16, FOE_H - 6)
-	_leather(ci, bar, Data.FOE)
 	var names: Array = view.get("names", [])
-	var fname := str(names[1 - _seat()]) if names.size() > 1 and names[1 - _seat()] != null else str(f.get("name", ""))
-	var fbadge = _badge(false)
-	_avatar(ci, Vector2(52, by + FOE_H * 0.5), 28, fname, Data.FOE, true)
-	_text(ci, Data.font_title, Vector2(92, by + 38), fname, 25, Data.FOE.lightened(0.15))
-	var nx := 92 + Data.font_title.get_string_size(fname, HORIZONTAL_ALIGNMENT_LEFT, -1, 25).x + 10
-	if fbadge is Dictionary and fbadge.has("level"):
-		_text(ci, Data.font_body, Vector2(nx, by + 37), "niv. %d" % int(fbadge.level), 17, Color(1, 0.9, 0.75, 0.6))
-	var stats := "Sceaux %d   Main %d   Deck %d" % [int(f.get("seals", 0)), int(f.get("handCount", 0)), int(f.get("deckCount", 0))]
-	_text(ci, Data.font_body, Vector2(92, by + 68), stats, 19, Color(1, 0.9, 0.75, 0.72))
+	var fs := 1 - _seat()
+	var fname := str(names[fs]) if names.size() > fs and names[fs] != null else str(f.get("name", ""))
+	var conn: Array = view.get("connected", [true, true])
+	# Adversaire : bande de cuir, avatar et niveau, nom, compteurs ; son général en médaillon à droite.
+	var band := Rect2(6, TOP_H + 4, w - 12, FOE_H - 8)
+	_band(ci, band, Data.FOE, false)
+	var fb = _badge(false)
+	var lvl := int(fb.get("level", 0)) if fb is Dictionary else 0
+	_avatar(ci, Vector2(48, band.get_center().y), 31, fname, Data.FOE, fs, conn[fs] if conn.size() > fs else true, lvl)
+	var nx := 92.0
+	var name_w := w * 0.5 - 50 - nx
+	Gfx.text_lines(ci, Data.font_title, Rect2(nx, band.position.y + 8, name_w, 30), fname, 23, Data.FOE.lightened(0.2), 1, 4)
+	var sy := band.position.y + 58
+	var sx := nx
+	sx = _stat(ci, Vector2(sx, sy), "hand", int(f.get("handCount", 0)))
+	sx = _stat(ci, Vector2(sx, sy), "deck", int(f.get("deckCount", 0)))
+	_stat(ci, Vector2(sx, sy), "seal", int(f.get("seals", 0)))
 	if bool(view.get("ready", {}).get("foe", false)) and str(view.get("phase", "")) == "plan":
-		var chip := Rect2(nx + 64, by + 16, 64, 28)
-		Gfx.fill_round(ci, chip, 14, Color("2e5a32"))
-		Gfx.frame_round(ci, chip, 14, Color("9be38a"), 1.5)
-		Gfx.text_fit(ci, Data.font_bold, chip.get_center(), "Prêt", 56, 17, Color("d8ffd0"))
-	_gencard(ci, _gen_rect(false), f.get("general"), false)
-	# Bas d'écran : votre général (bouton), vos sceaux, Valider.
+		var chip := Rect2(w * 0.5 + 44, band.position.y + 50, 66, 26)
+		Gfx.fill_round(ci, chip, 13, Color("2e5a32"))
+		Gfx.frame_round(ci, chip, 13, Color("9be38a"), 1.5)
+		Gfx.text_fit(ci, Data.font_bold, chip.get_center(), "Prêt", 56, 16, Color("d8ffd0"))
+	var fg = f.get("general")
+	_gen_label(ci, fg, false, Vector2(_gen_center(false).x - 50, band.position.y + 30), HORIZONTAL_ALIGNMENT_RIGHT)
+	_gen_medal(ci, _gen_center(false), 36, fg, false)
+	# Tour : médaillon au milieu du haut, à cheval sur la bande de l'adversaire.
+	_turn_medal(ci, Vector2(w * 0.5, 44))
+	# Bas d'écran : votre général (bouton), vos sceaux en gemme, Valider.
 	var dy := size.y - DOCK_H
 	var dock := Rect2(-2, dy, w + 4, DOCK_H + 4)
-	ci.draw_rect(dock, Color(0.08, 0.055, 0.04, 0.94))
+	ci.draw_rect(dock, Color(0.07, 0.05, 0.035, 0.96))
+	Gfx.vgrad_round(ci, dock, 0, [0.0, 1.0], [0.0, 0.5])
 	ci.draw_line(Vector2(0, dy), Vector2(w, dy), Color("c8902f"), 2.0)
 	ci.draw_line(Vector2(0, dy + 3), Vector2(w, dy + 3), Color(0, 0, 0, 0.6), 2.0)
-	_gencard(ci, _gen_rect(true), m.get("general"), true)
-	var total := int(m.get("seals", 0))
-	var left := _seals_left() if _can_plan() else total
-	var sx := gen_btn.position.x + gen_btn.size.x + 16
-	_text(ci, Data.font_sc, Vector2(sx, dy + 34), "SCEAUX", 17, Color(1, 0.9, 0.75, 0.7))
-	var lx := sx + Data.font_sc.get_string_size("SCEAUX ", HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
-	_text(ci, Data.font_title, Vector2(lx, dy + 36), str(maxi(left, 0)), 28, Color("ffe08a"))
-	_text(ci, Data.font_title, Vector2(lx + Data.font_title.get_string_size(str(maxi(left, 0)), HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x + 2, dy + 36), "/%d" % total, 18, Color(1, 0.9, 0.75, 0.7))
-	# Pièces : pleines s'il reste à dépenser ; celles que coûterait la carte choisie clignotent.
-	var sel_cost := 0
-	if sel_hand >= 0:
-		sel_cost = _cost_of(_hand_card(sel_hand))
-	var per_row := 6
-	var rad := 10.0 if total <= per_row else 8.5
-	for i in total:
-		var c := Vector2(sx + 11 + (i % per_row) * (rad * 2 + 5), dy + 58 + (i / per_row) * (rad * 2 + 4) + (0 if total > per_row else 6))
-		var full := i < left
-		if full:
-			var blink := i >= left - sel_cost and sel_cost > 0
-			var a := 0.45 + 0.55 * (0.5 + 0.5 * cos(_time * TAU)) if blink else 1.0
-			ci.draw_circle(c, rad, Color("8f5f1c", a), true, -1.0, true)
-			ci.draw_circle(c - Vector2(1, 1), rad * 0.82, Color("e3b552", a), true, -1.0, true)
-			ci.draw_circle(c - Vector2(rad, rad) * 0.3, rad * 0.35, Color(1, 0.95, 0.75, 0.8 * a), true, -1.0, true)
-		else:
-			ci.draw_arc(c, rad * 0.8, 0, TAU, 24, Color(0.75, 0.62, 0.4, 0.6), 2.0, true)
-	var my_name := "Main %d   Deck %d" % [int(m.get("handCount", 0)), int(m.get("deckCount", 0))]
-	_text(ci, Data.font_body, Vector2(sx, dy + DOCK_H - 10), my_name, 17, Color(1, 0.9, 0.75, 0.55))
+	var mg = m.get("general")
+	var gc := _gen_center(true)
+	_gen_medal(ci, gc, 42, mg, true)
+	var ms := _seat()
+	var mb = _badge(true)
+	_avatar(ci, gc + Vector2(-30, 32), 15, str(names[ms]) if names.size() > ms and names[ms] != null else "Vous", Data.MINE, ms, true, 0)
+	_gen_label(ci, mg, true, Vector2(gc.x + 52, dy + 34), HORIZONTAL_ALIGNMENT_LEFT)
+	var mine_stats := Vector2(gc.x + 52, dy + DOCK_H - 22)
+	var mx := _stat(ci, mine_stats, "hand", int(m.get("handCount", 0)))
+	_stat(ci, Vector2(mx, mine_stats.y), "deck", int(m.get("deckCount", 0)))
+	_seal_gem(ci, Vector2((gen_btn.position.x + gen_btn.size.x + end_btn.position.x) * 0.5 + 6, dy + DOCK_H * 0.5 + 2))
 	# Valider : lueur dorée qui respire tant qu'on peut valider (playglow).
 	if not end_btn.disabled:
 		var gr := Rect2(end_btn.position, end_btn.size)
@@ -1804,87 +1815,200 @@ func _draw_hud(ci: Control) -> void:
 			Gfx.fill_round(ci, gr.grow(g), 16 + g, Color(1, 0.75, 0.3, 0.06 + 0.03 * k))
 
 
-## Panneau de cuir d'un joueur, filet de la couleur de son camp à gauche.
-func _leather(ci: CanvasItem, r: Rect2, side: Color) -> void:
-	Gfx.fill_round(ci, r.grow(1), 12, Color(0, 0, 0, 0.6))
-	Gfx.fill_round(ci, r, 12, Color("241a12"))
-	Gfx.vgrad_round(ci, r, 12, [0.0, 1.0], [0.0, 0.35])
-	Gfx.frame_round(ci, r, 12, Color("7a5a2c"), 1.5)
-	Gfx.frame_round(ci, r.grow(-4), 9, Color(Data.GOLD, 0.18), 1.0)
-	var band := Rect2(r.position, Vector2(5, r.size.y))
-	for poly in Geometry2D.intersect_polygons(PackedVector2Array([band.position, Vector2(band.end.x, band.position.y), band.end, Vector2(band.position.x, band.end.y)]), Gfx.round_pts(r, 12)):
-		ci.draw_colored_polygon(poly, side)
+## Bande d'un joueur : cuir sombre, liseré doré, lueur de la couleur de son camp côté avatar.
+func _band(ci: CanvasItem, r: Rect2, side: Color, _mine: bool) -> void:
+	Gfx.fill_round(ci, r.grow(2), 14, Color(0, 0, 0, 0.55))
+	Gfx.fill_round(ci, r, 14, Color("1c140e"))
+	for i in 6:
+		var t := i / 6.0
+		ci.draw_circle(r.position + Vector2(44, r.size.y * 0.5), 90 - i * 12, Color(side, 0.03 + 0.02 * t), true, -1.0, true)
+	Gfx.vgrad_round(ci, r, 14, [0.0, 1.0], [0.0, 0.45])
+	Gfx.frame_round(ci, r, 14, Color("8a6a3a"), 1.5)
+	Gfx.frame_round(ci, r.grow(-4), 11, Color(Data.GOLD, 0.16), 1.0)
 
 
-## Avatar : initiale dans un cercle cerclé de la couleur du camp, pastille verte de connexion.
-func _avatar(ci: CanvasItem, c: Vector2, rad: float, name: String, side: Color, online: bool) -> void:
-	ci.draw_circle(c + Vector2(0, 2), rad + 3, Color(0, 0, 0, 0.5), true, -1.0, true)
-	ci.draw_circle(c, rad, Color("2a1d14"), true, -1.0, true)
-	ci.draw_arc(c, rad, 0, TAU, 40, side, 3.0, true)
-	Gfx.text_fit(ci, Data.font_title, c, name.substr(0, 1).to_upper(), rad * 1.4, int(rad * 1.1), side.lightened(0.25))
-	if online:
-		var conn: Array = view.get("connected", [true, true])
-		var ok: bool = conn[1 - _seat()] if conn.size() > 1 else true
-		ci.draw_circle(c + Vector2(rad * 0.72, rad * 0.72), 6, Color("1a1410"), true, -1.0, true)
-		ci.draw_circle(c + Vector2(rad * 0.72, rad * 0.72), 4.5, Color("5fd06a") if ok else Color("e05a4a"), true, -1.0, true)
+## Avatar : image de profil (ou initiale) dans un anneau de la couleur du camp, niveau en pastille, connexion.
+func _avatar(ci: CanvasItem, c: Vector2, rad: float, name: String, side: Color, seat: int, online: bool, level: int) -> void:
+	ci.draw_circle(c + Vector2(0, 2), rad + 4, Color(0, 0, 0, 0.55), true, -1.0, true)
+	ci.draw_circle(c, rad + 3, side.darkened(0.45), true, -1.0, true)
+	var tex: Texture2D = _avatar_tex[seat] if seat >= 0 and seat < 2 else null
+	if tex:
+		var uv := Gfx.cover_uv(tex, Rect2(0, 0, 1, 1), Vector2(rad, rad) * 2.0, Vector2(0.5, 0.5))
+		Gfx.tex_round(ci, tex, Rect2(c - Vector2(rad, rad), Vector2(rad, rad) * 2.0), uv, rad)
+	else:
+		ci.draw_circle(c, rad, Color("2a1d14"), true, -1.0, true)
+		Gfx.text_fit(ci, Data.font_title, c + Vector2(0, 1), name.substr(0, 1).to_upper(), rad * 1.4, int(rad * 1.15), side.lightened(0.3))
+	ci.draw_arc(c, rad + 1.5, 0, TAU, 48, side.lightened(0.15), maxf(2.0, rad * 0.1), true)
+	if level > 0:
+		var lc := c + Vector2(0, rad + 2)
+		var lr := Rect2(lc - Vector2(17, 10), Vector2(34, 20))
+		Gfx.fill_round(ci, lr, 10, Color("2a1d14"))
+		Gfx.frame_round(ci, lr, 10, Data.GOLD, 1.5)
+		Gfx.text_fit(ci, Data.font_bold, lr.get_center(), str(level), 30, 14, Color("ffe7a6"))
+	if seat != _seat():
+		var d := c + Vector2(rad * 0.74, -rad * 0.74)
+		ci.draw_circle(d, 7, Color("1a1410"), true, -1.0, true)
+		ci.draw_circle(d, 5, Color("5fd06a") if online else Color("e05a4a"), true, -1.0, true)
 
 
-## Carte de général (gencard de l'appli) : portrait qui respire, « GÉNÉRAL », nom, titre, état.
-func _gencard(ci: CanvasItem, r: Rect2, gid, mine: bool) -> void:
+## Compteur avec son icône (main, deck, sceaux) ; renvoie où écrire le suivant.
+func _stat(ci: CanvasItem, at: Vector2, icon: String, n: int) -> float:
+	var col := Color(1, 0.9, 0.75, 0.8)
+	var c := at + Vector2(9, -6)
+	match icon:
+		"hand":   # deux cartes en éventail
+			for k in [-1, 1]:
+				var xf := Transform2D(k * 0.22, c + Vector2(k * 3, 0))
+				var pts := PackedVector2Array([Vector2(-5, -8), Vector2(5, -8), Vector2(5, 8), Vector2(-5, 8)])
+				ci.draw_colored_polygon(xf * pts, Color("3a2a1c"))
+				ci.draw_polyline(xf * PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), col, 1.5, true)
+		"deck":   # pile de cartes
+			for k in 3:
+				var r := Rect2(c + Vector2(-6 + k * 1.5, -9 + k * 2.0), Vector2(11, 15))
+				Gfx.fill_round(ci, r, 2, Color("3a2a1c"))
+				Gfx.frame_round(ci, r, 2, col, 1.3)
+		"seal":   # pièce
+			ci.draw_circle(c, 8, Color("8f5f1c"), true, -1.0, true)
+			ci.draw_circle(c - Vector2(0.5, 0.5), 6.5, Color("e3b552"), true, -1.0, true)
+	var x := at.x + 22
+	_text(ci, Data.font_bold, Vector2(x, at.y), str(n), 19, Color("fff1d6"))
+	return x + Data.font_bold.get_string_size(str(n), HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x + 14
+
+
+## Médaillon du tour : le numéro au centre, un arc par tour autour (passés en or terni, le tour en cours brille).
+func _turn_medal(ci: CanvasItem, c: Vector2) -> void:
+	var turn := int(view.get("turn", 1))
+	var turns := int(view.get("turns", 7))
+	var last := turn >= turns
+	var reveal := str(view.get("phase", "")) == "reveal"
+	var hot := Color("f07a66") if last else Color("ffd36b")
+	var r := 33.0
+	var k := 0.5 + 0.5 * sin(_time * TAU / 1.8)
+	for i in 3:
+		ci.draw_circle(c, r + 8 + i * 4 + 3 * k, Color(hot, 0.05), true, -1.0, true)
+	ci.draw_circle(c + Vector2(0, 3), r + 7, Color(0, 0, 0, 0.6), true, -1.0, true)
+	ci.draw_circle(c, r + 6, Color("2a1d12"), true, -1.0, true)
+	var gap := 0.09
+	for i in turns:
+		var a0 := -PI / 2 + TAU * i / turns + gap
+		var a1 := -PI / 2 + TAU * (i + 1) / turns - gap
+		var col := Color("6b5232")
+		var wd := 4.0
+		if i + 1 < turn:
+			col = Color("b08a4a")
+		elif i + 1 == turn:
+			col = hot.lightened(0.15 * k)
+			wd = 6.0
+		ci.draw_arc(c, r + 2, a0, a1, 12, col, wd, true)
+	ci.draw_circle(c, r - 3, Color("140e09"), true, -1.0, true)
+	ci.draw_arc(c, r - 3, 0, TAU, 48, Color(Data.GOLD, 0.35), 1.2, true)
+	if reveal:
+		var a := _time * 3.0
+		ci.draw_arc(c, r - 7, a, a + 1.6, 16, Color(Data.FOE, 0.8), 2.5, true)
+	Gfx.text_fit(ci, Data.font_sc, c + Vector2(0, -16), "TOUR", 40, 11, Color(1, 0.9, 0.75, 0.7))
+	Gfx.text_fit(ci, Data.font_title, c + Vector2(0, 4), str(turn), 40, 30, hot, 4)
+	Gfx.text_fit(ci, Data.font_body, c + Vector2(0, 21), "sur %d" % turns, 44, 11, Color(1, 0.9, 0.75, 0.6))
+
+
+## Sceaux : gemme taillée avec le nombre restant ; une perle par sceau autour du bas, celles que coûterait
+## la carte choisie clignotent.
+func _seal_gem(ci: CanvasItem, c: Vector2) -> void:
+	var m := me()
+	var total := int(m.get("seals", 0))
+	var left := maxi(_seals_left() if _can_plan() else total, 0)
+	var r := 34.0
+	var lit := left > 0
+	var k := 0.5 + 0.5 * sin(_time * TAU / 2.2)
+	if lit:
+		for i in 3:
+			ci.draw_circle(c, r + 6 + i * 5 + 3 * k, Color(Data.GOLD, 0.05), true, -1.0, true)
+	var hexa := PackedVector2Array()
+	var inner := PackedVector2Array()
+	for i in 6:
+		var a := -PI / 2 + i * TAU / 6.0
+		hexa.append(c + Vector2(cos(a), sin(a)) * r)
+		inner.append(c + Vector2(cos(a), sin(a)) * r * 0.62 + Vector2(0, -2))
+	ci.draw_colored_polygon(hexa, Color("3a2a12") if lit else Color("241c14"))
+	# Facettes : triangles entre le contour et le cœur, plus clairs en haut à gauche.
+	for i in 6:
+		var shade := 0.5 + 0.5 * cos(i * TAU / 6.0 + 2.2)
+		var base := Color("f0c25c") if lit else Color("5a4a36")
+		ci.draw_colored_polygon(PackedVector2Array([hexa[i], hexa[(i + 1) % 6], inner[(i + 1) % 6], inner[i]]), base.darkened(0.55 - 0.4 * shade))
+	ci.draw_colored_polygon(inner, (Color("ffe7a6") if lit else Color("6a5a46")).darkened(0.15))
+	ci.draw_polyline(hexa + PackedVector2Array([hexa[0]]), Color("2a1606"), 2.0, true)
+	Gfx.text_fit(ci, Data.font_title, c + Vector2(0, -2), str(left), 40, 30, Color("2a1606") if lit else Color(1, 0.9, 0.75, 0.7), 0)
+	Gfx.text_fit(ci, Data.font_sc, c + Vector2(0, r + 14), "SCEAUX  %d/%d" % [left, total], 110, 13, Color(1, 0.9, 0.75, 0.7))
+	var sel_cost := _cost_of(_hand_card(sel_hand)) if sel_hand >= 0 else 0
+	for i in total:
+		var a := -PI / 2 + (i - (total - 1) * 0.5) * 0.34
+		var p := c + Vector2(cos(a), sin(a)) * (r + 11)
+		var full := i < left
+		var blink := full and sel_cost > 0 and i >= left - sel_cost
+		var al := 0.4 + 0.6 * (0.5 + 0.5 * cos(_time * TAU)) if blink else 1.0
+		if full:
+			ci.draw_circle(p, 5.5, Color("8f5f1c", al), true, -1.0, true)
+			ci.draw_circle(p - Vector2(0.6, 0.6), 4.2, Color("ffd36b", al), true, -1.0, true)
+		else:
+			ci.draw_arc(p, 4.5, 0, TAU, 16, Color(0.75, 0.62, 0.4, 0.5), 1.5, true)
+
+
+## Médaillon d'un général : portrait qui respire dans un anneau à la couleur de sa famille ; lueur dorée quand il
+## peut être activé, gris une fois utilisé.
+func _gen_medal(ci: CanvasItem, c: Vector2, r: float, gid, mine: bool) -> void:
 	if gid == null:
 		return
 	var g: Dictionary = Data.generals.get(str(gid), {})
 	var fam := Data.fam_color(g.get("fam"))
-	var side := me() if mine else foe()
-	var used := bool(side.get("generalUsed", false))
+	var used := bool((me() if mine else foe()).get("generalUsed", false))
 	var armed := mine and (gen_zone >= 0 or gen_arming)
 	var ready := mine and _can_general() and not armed
-	var accent := Color("e3b552")
-	if ready:
-		var k := 0.5 + 0.5 * sin(_time * TAU / 2.4)
+	if ready or armed:
+		var k := 0.5 + 0.5 * sin(_time * TAU / 2.0)
+		for i in 4:
+			ci.draw_circle(c, r + 6 + i * 4 + 4 * k, Color(Data.GOLD, 0.06 + 0.03 * k), true, -1.0, true)
+		var a := _time * 1.4
 		for i in 3:
-			var gg := (3 - i) * (3.0 + 3.0 * k)
-			Gfx.fill_round(ci, r.grow(gg), 12 + gg, Color(accent, 0.07 + 0.04 * k))
-	Gfx.fill_round(ci, r, 12, Color("120d0a") if not armed else Color("3a2a12"))
-	Gfx.top_bar(ci, r, 12, 3.5, fam)
-	Gfx.frame_round(ci, r, 12, accent if ready or armed else Color("5a4530"), 2.0 if ready or armed else 1.5)
-	# Portrait : respire lentement, gris une fois utilisé.
-	var pr := r.size.y * 0.36
-	var pc := r.position + Vector2(pr + 10, r.size.y * 0.5 + 2)
-	var breath := 1.0 if used else 1.0 + 0.04 * (0.5 + 0.5 * sin(_time * TAU / 4.6))
-	Gfx.portrait(ci, gid, pc, pr * breath, fam if not used else Color(0.45, 0.42, 0.4))
+			ci.draw_arc(c, r + 7, a + i * TAU / 3, a + i * TAU / 3 + 1.2, 16, Color("ffd36b", 0.9), 2.5, true)
+	# Anneau de bronze ciselé : petites dents tout autour.
+	ci.draw_circle(c + Vector2(0, 3), r + 6, Color(0, 0, 0, 0.6), true, -1.0, true)
+	var teeth := PackedVector2Array()
+	for i in 48:
+		var a := i * TAU / 48.0
+		teeth.append(c + Vector2(cos(a), sin(a)) * (r + (6.0 if i % 2 == 0 else 4.0)))
+	ci.draw_colored_polygon(teeth, Color("6a4a22"))
+	ci.draw_circle(c, r + 3, Color("c8902f"), true, -1.0, true)
+	var breath := 1.0 if used else 1.0 + 0.03 * (0.5 + 0.5 * sin(_time * TAU / 4.6))
+	Gfx.portrait(ci, gid, c, r * breath, fam if not used else Color(0.45, 0.42, 0.4))
 	if used:
-		ci.draw_circle(pc, pr, Color(0.1, 0.1, 0.1, 0.55), true, -1.0, true)
-	var x := pc.x + pr + 10
-	var tw := r.end.x - x - 8
-	_text(ci, Data.font_sc, Vector2(x, r.position.y + 22), "GÉNÉRAL", 13, Color(1, 0.9, 0.75, 0.6))
+		ci.draw_circle(c, r, Color(0.1, 0.1, 0.1, 0.6), true, -1.0, true)
+		Gfx.text_fit(ci, Data.font_sc, c, "UTILISÉ" if g.get("activate", false) else "DÉCLENCHÉ", r * 1.9, 13, Color(1, 0.9, 0.75, 0.85), 3)
+
+
+## Nom du général, son titre et son état, à côté du médaillon.
+func _gen_label(ci: CanvasItem, gid, mine: bool, at: Vector2, align: int) -> void:
+	if gid == null:
+		return
+	var g: Dictionary = Data.generals.get(str(gid), {})
+	var used := bool((me() if mine else foe()).get("generalUsed", false))
+	var armed := mine and (gen_zone >= 0 or gen_arming)
+	var ready := mine and _can_general() and not armed
 	var parts := str(g.get("name", "")).split(",", true, 1)
 	var short := parts[0].strip_edges()
-	var epithet := parts[1].strip_edges() if parts.size() > 1 else ""
-	Gfx.text_lines(ci, Data.fam_font(g.get("fam")), Rect2(x, r.position.y + 24, tw, 26), short, 21, Color("fff1d6"), 1, 3)
-	if epithet != "":
-		Gfx.text_lines(ci, Data.font_body, Rect2(x, r.position.y + 48, tw, 18), epithet, 15, Color(1, 0.9, 0.75, 0.75), 1)
-	var note := ""
+	var note := str(g.get("kind", ""))
 	if armed:
 		note = "Activé ce tour" if not gen_arming else "Touchez une zone"
 	elif used:
 		note = "Utilisé" if g.get("activate", false) else "Déclenché"
 	elif ready:
-		note = "Activer" + (" · %d sceau%s" % [int(g.activateCost), "x" if int(g.activateCost) > 1 else ""] if int(g.get("activateCost", 0)) > 0 else "")
-	elif g.get("activate", false):
-		note = "Activable"
-	else:
-		note = str(g.get("kind", ""))
-	var ny := r.end.y - 12
-	var dx := x
-	if g.get("activate", false):
-		var dc := Vector2(x + 5, ny - 5)
-		if ready or armed:
-			ci.draw_circle(dc, 5, accent, true, -1.0, true)
-		else:
-			ci.draw_arc(dc, 4.5, 0, TAU, 16, Color(1, 0.9, 0.75, 0.5), 1.5, true)
-		dx += 14
-	Gfx.text_lines(ci, Data.font_bold, Rect2(dx, ny - 16, r.end.x - dx - 6, 18), note, 15, accent if ready or armed else Color(1, 0.9, 0.75, 0.7), 1)
+		note = "Toucher pour activer" + (" · %d sceau%s" % [int(g.activateCost), "x" if int(g.activateCost) > 1 else ""] if int(g.get("activateCost", 0)) > 0 else "")
+	var wmax := 170.0
+	var fnt := Data.fam_font(g.get("fam"))
+	var fs := 22
+	while fs > 14 and fnt.get_string_size(short, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > wmax:
+		fs -= 1
+	_text(ci, fnt, at, short, fs, Color("fff1d6"), align)
+	var chip_col := Data.GOLD if ready or armed else Data.fam_color(g.get("fam")).lightened(0.2)
+	_text(ci, Data.font_bold, at + Vector2(0, 24), note, 15, chip_col if ready or armed else Color(1, 0.9, 0.75, 0.75), align)
 
 
 func _draw_speaker(b: Button) -> void:

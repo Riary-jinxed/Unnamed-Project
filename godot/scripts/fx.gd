@@ -755,3 +755,525 @@ static func theme_burst(parent: Node, at: Vector2, fam, col: Color) -> void:
 			p.scale_amount_min = 0.8
 			p.scale_amount_max = 1.3
 			p.color_ramp = _fade(Color("5fe8ff"), true)
+
+
+# ————— Effets propres aux cartes —————
+# Chaque carte qui agit a un style (Data.fx_style) : la potion verse une goutte, le souffle de feu crache des flammes,
+# les vampires aspirent le sang, les anges font tomber un rayon de lumière, etc. effect() lance l'animation et renvoie
+# le délai avant l'impact, où le plateau joue le chiffre et l'aura.
+
+static func effect(parent: Node, style: String, from: Vector2, to: Vector2, col: Color, delay: float, kind: String, up: bool, size: Vector2) -> float:
+	var dist := from.distance_to(to)
+	var travel := clampf(dist / 1400.0, 0.22, 0.42)
+	var near := dist < 20.0
+	match style:
+		"potion":
+			if kind == "power" and up:
+				return potion(parent, to, size, delay)
+		"fire":
+			if not up and not near:
+				return flame(parent, from, to, size, delay)
+		"blast":
+			if not up and not near:
+				bolt(parent, from, to, Color("ffb050"), delay, travel, "destroy")
+				_later(parent, delay + travel, func(): explosion(parent, to, size))
+				return delay + travel
+		"drain":
+			if not up and kind == "power":
+				blood(parent, to, from, delay)
+				return delay + 0.08
+			if up and not near:
+				bolt(parent, from, to, Color("e0304a"), delay, travel)
+				return delay + travel
+		"holy":
+			if kind in ["power", "destroy"]:
+				beam(parent, to, size, Color("ffe9a8") if up else Color("fff6e0"), delay)
+				return delay + 0.22
+		"hack":
+			if not near:
+				code(parent, from, to, delay, travel)
+			_later(parent, delay + (0.0 if near else travel), func(): glitch(parent, to, size))
+			return delay + (0.0 if near else travel)
+		"zap":
+			if not near:
+				lightning(parent, from, to, Color("7ff0ff"), delay)
+				return delay + 0.08
+		"claw":
+			if not up and kind in ["power", "destroy"]:
+				if not near:
+					bolt(parent, from, to, Color("b04ad8"), delay, travel * 0.8)
+				var at := delay + (0.0 if near else travel * 0.8)
+				_later(parent, at, func(): claws(parent, to, size))
+				return at
+		"dice":
+			if not near and kind == "power":
+				die(parent, from, to, delay, travel + 0.15)
+				return delay + travel + 0.15
+		"ghost":
+			if not near:
+				bolt(parent, from, to, Color("b8ffd8"), delay, travel * 1.2)
+				_later(parent, delay + travel * 1.2, func(): wisps(parent, to, size))
+				return delay + travel * 1.2
+		"leaf":
+			if not near:
+				bolt(parent, from, to, Color("8fe07a"), delay, travel)
+				_later(parent, delay + travel, func(): leaves(parent, to))
+				return delay + travel
+	if near:
+		return delay
+	bolt(parent, from, to, col, delay, travel, kind)
+	return delay + travel
+
+
+static var _add_mat: CanvasItemMaterial
+
+
+## Mélange additif : les flammes s'éclairent là où elles se superposent.
+static func _additive() -> CanvasItemMaterial:
+	if _add_mat == null:
+		_add_mat = CanvasItemMaterial.new()
+		_add_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	return _add_mat
+
+
+static func _later(parent: Node, t: float, f: Callable) -> void:
+	parent.get_tree().create_timer(maxf(t, 0.01)).timeout.connect(f)
+
+
+## Potion : une fiole apparaît au-dessus de la carte, se penche, une goutte tombe et éclabousse.
+static func potion(parent: Node, at: Vector2, size: Vector2, delay: float) -> float:
+	var f := Flask.new()
+	f.scale = Vector2(1.5, 1.5)
+	f.position = at + Vector2(0, -size.y * 0.5 - 56)
+	f.modulate.a = 0.0
+	f.z_index = 150
+	parent.add_child(f)
+	var tw := f.create_tween()
+	tw.tween_interval(delay)
+	tw.tween_property(f, "modulate:a", 1.0, 0.15)
+	tw.parallel().tween_property(f, "position:y", f.position.y + 10, 0.15)
+	tw.tween_property(f, "rotation", -2.0, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		var d := Drop.new()
+		d.scale = Vector2(1.4, 1.4)
+		d.position = f.position + Vector2(-24, 6)
+		d.z_index = 150
+		parent.add_child(d)
+		var dt := d.create_tween()
+		dt.tween_property(d, "position", at + Vector2(0, -size.y * 0.1), 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		dt.tween_callback(func():
+			splash(parent, at + Vector2(0, -size.y * 0.1), Color("ff4a6a"))
+			d.queue_free()))
+	tw.tween_interval(0.4)
+	tw.tween_property(f, "modulate:a", 0.0, 0.25)
+	tw.tween_callback(f.queue_free)
+	return delay + 0.15 + 0.28 + 0.26
+
+
+class Flask extends Node2D:
+	func _draw() -> void:
+		# Fiole ronde, col étroit, bouchon de liège ; liquide rouge (force) avec un reflet.
+		draw_circle(Vector2(0, 8), 20, Color(0, 0, 0, 0.35), true, -1.0, true)
+		draw_circle(Vector2(0, 6), 18, Color(0.85, 0.9, 1.0, 0.35), true, -1.0, true)
+		draw_circle(Vector2(0, 9), 14, Color("e0304a"), true, -1.0, true)
+		draw_circle(Vector2(-5, 4), 5, Color(1, 0.7, 0.75, 0.8), true, -1.0, true)
+		draw_rect(Rect2(-6, -22, 12, 14), Color(0.85, 0.9, 1.0, 0.45))
+		draw_rect(Rect2(-7, -30, 14, 9), Color("a0703a"))
+		draw_arc(Vector2(0, 6), 18, 0, TAU, 32, Color(1, 1, 1, 0.7), 2.0, true)
+
+
+class Drop extends Node2D:
+	func _draw() -> void:
+		draw_colored_polygon(PackedVector2Array([Vector2(0, -12), Vector2(6, 0), Vector2(0, 6), Vector2(-6, 0)]), Color("ff3a5a"))
+		draw_circle(Vector2(0, 1), 6, Color("ff3a5a"), true, -1.0, true)
+		draw_circle(Vector2(-2, -1), 2, Color(1, 0.8, 0.85), true, -1.0, true)
+
+
+## Éclaboussure : gouttelettes qui retombent et anneau.
+static func splash(parent: Node, at: Vector2, col: Color) -> void:
+	var p := _burst(parent, at, 18, 0.7)
+	p.texture = shape("drop")
+	p.direction = Vector2(0, -1)
+	p.spread = 75
+	p.initial_velocity_min = 120
+	p.initial_velocity_max = 260
+	p.gravity = Vector2(0, 700)
+	p.scale_amount_min = 0.3
+	p.scale_amount_max = 0.55
+	p.color_ramp = _fade(col)
+	ring(parent, at, Vector2(40, 16), Color(col, 0.9), 0.4)
+
+
+## Jet de flammes de la carte qui agit vers sa cible, puis la cible brûle un instant.
+static func flame(parent: Node, from: Vector2, to: Vector2, size: Vector2, delay: float) -> float:
+	var reach := 0.3
+	_later(parent, delay, func():
+		var p := CPUParticles2D.new()
+		p.position = from
+		p.amount = 160
+		p.lifetime = reach
+		p.texture = dot_texture()
+		p.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+		p.emission_sphere_radius = 8
+		p.direction = (to - from).normalized()
+		p.spread = 9
+		p.initial_velocity_min = from.distance_to(to) / reach * 0.95
+		p.initial_velocity_max = from.distance_to(to) / reach * 1.05
+		p.gravity = Vector2(0, -60)
+		p.scale_amount_min = 2.2
+		p.scale_amount_max = 3.6
+		var curve := Curve.new()
+		curve.add_point(Vector2(0, 0.35))
+		curve.add_point(Vector2(1, 1.0))
+		p.scale_amount_curve = curve
+		var g := Gradient.new()
+		g.set_color(0, Color(1, 1, 0.8, 1))
+		g.add_point(0.25, Color("ffb030"))
+		g.add_point(0.6, Color("ff4a1a", 0.85))
+		g.set_color(g.get_point_count() - 1, Color(0.2, 0.08, 0.05, 0.0))
+		p.color_ramp = g
+		p.material = _additive()
+		parent.add_child(p)
+		p.emitting = true
+		_later(parent, 0.45, func(): p.emitting = false)
+		_later(parent, 0.45 + reach + 0.1, p.queue_free))
+	_later(parent, delay + reach, func(): burn(parent, to, size))
+	return delay + reach
+
+
+## Cible qui brûle : flammes qui montent sur toute la carte.
+static func burn(parent: Node, at: Vector2, size: Vector2) -> void:
+	var p := _burst(parent, at + Vector2(0, size.y * 0.25), 30, 0.7)
+	p.explosiveness = 0.3
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = Vector2(size.x * 0.4, size.y * 0.25)
+	p.direction = Vector2(0, -1)
+	p.spread = 20
+	p.initial_velocity_min = 50
+	p.initial_velocity_max = 130
+	p.gravity = Vector2(0, -120)
+	p.scale_amount_min = 1.0
+	p.scale_amount_max = 1.8
+	var g := Gradient.new()
+	g.set_color(0, Color("ffd060"))
+	g.add_point(0.5, Color("ff5020", 0.8))
+	g.set_color(g.get_point_count() - 1, Color(0.15, 0.08, 0.06, 0.0))
+	p.color_ramp = g
+	p.material = _additive()
+
+
+## Explosion : éclair blanc, boule de feu, fumée et éclats.
+static func explosion(parent: Node, at: Vector2, size: Vector2) -> void:
+	ring(parent, at, Vector2(size.x * 0.8, size.x * 0.8), Color("ffd080"), 0.35)
+	var fire := _burst(parent, at, 24, 0.5)
+	fire.spread = 180
+	fire.initial_velocity_min = 80
+	fire.initial_velocity_max = 260
+	fire.damping_min = 300
+	fire.damping_max = 400
+	fire.gravity = Vector2.ZERO
+	fire.scale_amount_min = 1.5
+	fire.scale_amount_max = 2.8
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 1, 0.85))
+	g.add_point(0.3, Color("ff9a30"))
+	g.set_color(g.get_point_count() - 1, Color(0.25, 0.2, 0.18, 0.0))
+	fire.color_ramp = g
+	var smoke := _burst(parent, at, 10, 1.1)
+	smoke.spread = 180
+	smoke.initial_velocity_min = 20
+	smoke.initial_velocity_max = 60
+	smoke.gravity = Vector2(0, -50)
+	smoke.scale_amount_min = 2.5
+	smoke.scale_amount_max = 4.0
+	var sg := Gradient.new()
+	sg.set_color(0, Color(0.3, 0.27, 0.25, 0.6))
+	sg.set_color(1, Color(0.2, 0.18, 0.17, 0.0))
+	smoke.color_ramp = sg
+
+
+## Drain : un filet de sang quitte la cible et rejoint le vampire.
+static func blood(parent: Node, from: Vector2, to: Vector2, delay: float) -> void:
+	_later(parent, delay, func():
+		var dur := 0.45
+		var p := CPUParticles2D.new()
+		p.position = from
+		p.amount = 90
+		p.lifetime = dur
+		p.texture = shape("drop")
+		p.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+		p.emission_sphere_radius = 6
+		p.direction = (to - from).normalized()
+		p.spread = 10
+		p.initial_velocity_min = from.distance_to(to) / dur
+		p.initial_velocity_max = from.distance_to(to) / dur * 1.05
+		p.gravity = Vector2.ZERO
+		p.particle_flag_align_y = true
+		p.scale_amount_min = 0.3
+		p.scale_amount_max = 0.5
+		var g := Gradient.new()
+		g.set_color(0, Color("ff2a44"))
+		g.set_color(1, Color("8a0018", 0.0))
+		p.color_ramp = g
+		parent.add_child(p)
+		p.emitting = true
+		_later(parent, 0.5, func(): p.emitting = false)
+		_later(parent, 0.5 + dur + 0.1, p.queue_free)
+		splash(parent, from, Color("d81b3c")))
+
+
+## Rayon de lumière qui tombe du ciel sur la cible, plumes qui descendent.
+static func beam(parent: Node, at: Vector2, size: Vector2, col: Color, delay: float) -> void:
+	var b := Beam.new()
+	b.position = at
+	b.w = size.x * 0.75
+	b.col = col
+	b.z_index = 140
+	parent.add_child(b)
+	b.visible = false
+	var tw := b.create_tween()
+	tw.tween_interval(delay)
+	tw.tween_callback(func(): b.visible = true)
+	tw.tween_property(b, "t", 1.0, 0.75)
+	tw.tween_callback(b.queue_free)
+	_later(parent, delay + 0.2, func():
+		var p := _burst(parent, at + Vector2(0, -size.y * 0.6), 10, 1.4)
+		p.texture = shape("leaf")
+		p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		p.emission_rect_extents = Vector2(size.x * 0.5, 10)
+		p.direction = Vector2(0, 1)
+		p.spread = 30
+		p.initial_velocity_min = 20
+		p.initial_velocity_max = 60
+		p.gravity = Vector2(0, 40)
+		p.angular_velocity_min = -150
+		p.angular_velocity_max = 150
+		p.scale_amount_min = 0.4
+		p.scale_amount_max = 0.7
+		p.color_ramp = _fade(Color("fff3c4"), true))
+
+
+class Beam extends Node2D:
+	var w := 80.0
+	var col := Color.WHITE
+	var t := 0.0:
+		set(v):
+			t = v
+			queue_redraw()
+
+	func _draw() -> void:
+		var open := minf(t / 0.25, 1.0)
+		var a := 1.0 - clampf((t - 0.5) / 0.5, 0.0, 1.0)
+		var top := -position.y - 10
+		for i in 4:
+			var ww := w * open * (1.0 - i * 0.22)
+			draw_colored_polygon(PackedVector2Array([Vector2(-ww * 0.35, top), Vector2(ww * 0.35, top), Vector2(ww * 0.5, 0), Vector2(-ww * 0.5, 0)]), Color(col, (0.12 + 0.1 * i) * a))
+		draw_set_transform(Vector2.ZERO, 0, Vector2(1, 0.35))
+		draw_circle(Vector2.ZERO, w * 0.6 * open, Color(col, 0.45 * a), true, -1.0, true)
+		draw_set_transform(Vector2.ZERO)
+
+
+## Piratage : un nuage de pixels verts file vers la cible.
+static func code(parent: Node, from: Vector2, to: Vector2, delay: float, travel: float) -> void:
+	_later(parent, delay, func():
+		var p := CPUParticles2D.new()
+		p.position = from
+		p.amount = 36
+		p.lifetime = travel
+		p.texture = shape("square")
+		p.explosiveness = 0.2
+		p.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+		p.emission_sphere_radius = 14
+		p.direction = (to - from).normalized()
+		p.spread = 4
+		p.initial_velocity_min = from.distance_to(to) / travel * 0.92
+		p.initial_velocity_max = from.distance_to(to) / travel
+		p.gravity = Vector2.ZERO
+		p.scale_amount_min = 0.25
+		p.scale_amount_max = 0.45
+		p.color_ramp = _fade(Color("4dff7a"))
+		p.one_shot = true
+		parent.add_child(p)
+		p.emitting = true
+		p.finished.connect(p.queue_free))
+
+
+## Glitch : bandes décalées vertes et magenta qui clignotent sur la carte piratée.
+static func glitch(parent: Node, at: Vector2, size: Vector2) -> void:
+	var g := Glitch.new()
+	g.position = at
+	g.size = size
+	g.z_index = 140
+	parent.add_child(g)
+	var tw := g.create_tween()
+	tw.tween_property(g, "t", 1.0, 0.5)
+	tw.tween_callback(g.queue_free)
+
+
+class Glitch extends Node2D:
+	var size := Vector2(100, 140)
+	var t := 0.0:
+		set(v):
+			t = v
+			queue_redraw()
+
+	func _draw() -> void:
+		var a := 1.0 - t
+		for i in 9:
+			var y := randf_range(-0.5, 0.5) * size.y
+			var h := randf_range(3, 12)
+			var dx := randf_range(-14, 14)
+			var c := Color("4dff7a") if i % 3 == 0 else Color("ff3ad8") if i % 3 == 1 else Color("3ad8ff")
+			draw_rect(Rect2(-size.x * 0.5 + dx, y, size.x * randf_range(0.4, 1.0), h), Color(c, 0.55 * a))
+
+
+## Éclair en zigzag qui crépite de la source à la cible.
+static func lightning(parent: Node, from: Vector2, to: Vector2, col: Color, delay: float) -> void:
+	var l := Lightning.new()
+	l.from = from
+	l.to = to
+	l.col = col
+	l.z_index = 140
+	parent.add_child(l)
+	l.visible = false
+	var tw := l.create_tween()
+	tw.tween_interval(delay)
+	tw.tween_callback(func(): l.visible = true)
+	tw.tween_property(l, "t", 1.0, 0.35)
+	tw.tween_callback(l.queue_free)
+	_later(parent, delay + 0.08, func():
+		var p := _burst(parent, to, 14, 0.35)
+		p.texture = shape("streak")
+		p.particle_flag_align_y = true
+		p.spread = 180
+		p.initial_velocity_min = 200
+		p.initial_velocity_max = 380
+		p.damping_min = 500
+		p.damping_max = 700
+		p.gravity = Vector2.ZERO
+		p.color_ramp = _fade(col, true))
+
+
+class Lightning extends Node2D:
+	var from := Vector2.ZERO
+	var to := Vector2.ZERO
+	var col := Color.WHITE
+	var t := 0.0:
+		set(v):
+			t = v
+			queue_redraw()
+
+	func _draw() -> void:
+		var a := 1.0 - t
+		var n := (to - from).orthogonal().normalized()
+		for pass_i in 2:
+			var pts := PackedVector2Array([from])
+			var steps := 9
+			for i in range(1, steps):
+				pts.append(from.lerp(to, float(i) / steps) + n * randf_range(-18, 18))
+			pts.append(to)
+			draw_polyline(pts, Color(col, 0.35 * a), 9.0, true)
+			draw_polyline(pts, Color(1, 1, 1, 0.9 * a) if pass_i == 0 else Color(col, 0.8 * a), 2.5, true)
+
+
+## Griffes : trois entailles qui lacèrent la carte.
+static func claws(parent: Node, at: Vector2, size: Vector2) -> void:
+	var c := Claws.new()
+	c.position = at
+	c.size = size
+	c.z_index = 140
+	parent.add_child(c)
+	var tw := c.create_tween()
+	tw.tween_property(c, "t", 1.0, 0.55)
+	tw.tween_callback(c.queue_free)
+
+
+class Claws extends Node2D:
+	var size := Vector2(100, 140)
+	var t := 0.0:
+		set(v):
+			t = v
+			queue_redraw()
+
+	func _draw() -> void:
+		var cut := minf(t / 0.25, 1.0)
+		var a := 1.0 - clampf((t - 0.4) / 0.6, 0.0, 1.0)
+		for i in 3:
+			var off := (i - 1) * size.x * 0.22
+			var p0 := Vector2(-size.x * 0.3 + off, -size.y * 0.35)
+			var p1 := Vector2(size.x * 0.25 + off, size.y * 0.35)
+			var p := p0.lerp(p1, cut)
+			var n := (p1 - p0).orthogonal().normalized()
+			draw_colored_polygon(PackedVector2Array([p0, (p0 + p) * 0.5 + n * 5, p, (p0 + p) * 0.5 - n * 5]), Color("ff3a5a", a))
+			draw_line(p0, p, Color(1, 0.85, 0.9, a), 1.5, true)
+
+
+## Pari : un dé qui roule en arc jusqu'à la cible.
+static func die(parent: Node, from: Vector2, to: Vector2, delay: float, travel: float) -> void:
+	var d := Die.new()
+	d.scale = Vector2(1.5, 1.5)
+	d.position = from
+	d.z_index = 150
+	parent.add_child(d)
+	d.visible = false
+	var mid := (from + to) * 0.5 + Vector2(0, -90)
+	var tw := d.create_tween()
+	tw.tween_interval(delay)
+	tw.tween_callback(func(): d.visible = true)
+	tw.tween_method(func(k: float):
+		d.position = from.lerp(mid, k).lerp(mid.lerp(to, k), k)
+		d.rotation = k * TAU * 1.5
+		d.face = int(k * 12) % 6 + 1
+		d.queue_redraw(), 0.0, 1.0, travel)
+	tw.tween_callback(func(): sparkle(parent, to, Vector2(40, 40), Color("ffe08a")))
+	tw.tween_property(d, "modulate:a", 0.0, 0.25)
+	tw.tween_callback(d.queue_free)
+
+
+class Die extends Node2D:
+	var face := 1
+
+	func _draw() -> void:
+		var r := Rect2(-15, -15, 30, 30)
+		Gfx.fill_round(self, r, 6, Color("fff6e6"))
+		Gfx.frame_round(self, r, 6, Color("3a2a1c"), 2.0)
+		var pips := {1: [Vector2.ZERO], 2: [Vector2(-7, -7), Vector2(7, 7)], 3: [Vector2(-7, -7), Vector2.ZERO, Vector2(7, 7)],
+			4: [Vector2(-7, -7), Vector2(7, -7), Vector2(-7, 7), Vector2(7, 7)],
+			5: [Vector2(-7, -7), Vector2(7, -7), Vector2.ZERO, Vector2(-7, 7), Vector2(7, 7)],
+			6: [Vector2(-7, -8), Vector2(7, -8), Vector2(-7, 0), Vector2(7, 0), Vector2(-7, 8), Vector2(7, 8)]}
+		for p in pips[face]:
+			draw_circle(p, 3, Color("c0303a") if face == 1 else Color("2a1d14"), true, -1.0, true)
+
+
+## Âmes : volutes pâles qui s'élèvent de la carte touchée.
+static func wisps(parent: Node, at: Vector2, size: Vector2) -> void:
+	var p := _burst(parent, at, 10, 1.1)
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = size * 0.35
+	p.direction = Vector2(0, -1)
+	p.spread = 40
+	p.initial_velocity_min = 30
+	p.initial_velocity_max = 80
+	p.gravity = Vector2(0, -50)
+	p.scale_amount_min = 1.6
+	p.scale_amount_max = 2.6
+	p.color_ramp = _fade(Color("b8ffd8"), true)
+
+
+## Feuilles qui tourbillonnent autour de la cible.
+static func leaves(parent: Node, at: Vector2) -> void:
+	var p := _burst(parent, at, 12, 0.9)
+	p.texture = shape("leaf")
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 30
+	p.spread = 180
+	p.initial_velocity_min = 40
+	p.initial_velocity_max = 90
+	p.orbit_velocity_min = 0.5
+	p.orbit_velocity_max = 0.8
+	p.gravity = Vector2.ZERO
+	p.angular_velocity_min = -200
+	p.angular_velocity_max = 200
+	p.scale_amount_min = 0.4
+	p.scale_amount_max = 0.7
+	p.color_ramp = _fade(Color("8fe07a"))
