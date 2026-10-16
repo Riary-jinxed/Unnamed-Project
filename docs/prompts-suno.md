@@ -236,10 +236,10 @@ Paroles (latin) :
 
 ```
 [Intro: string tremolo, sudden choir shout]
-Sol niger!
+Eclipsis!
 
 [Phase 1: driving strings, choir chant, brass theme]
-Sol niger oritur
+Sol obscuratur
 Lux moritur in tenebris
 Devorator solis
 Ignaroth, rex umbrarum
@@ -251,7 +251,7 @@ Nulla spes, nulla lux
 [Interlude: solo violin, soft strings, sorrowful]
 
 [Phase 2: faster, full orchestra and choir, desperate]
-Sol niger oritur
+Sol obscuratur
 Devorator solis
 Ignaroth, Ignaroth
 Ultima lux moritur
@@ -260,9 +260,9 @@ Ultima lux moritur
 Nulla spes, nulla lux
 ```
 
-Traduction : « Le soleil noir se lève, la lumière meurt dans les ténèbres, dévoreur de soleils, Ignaroth, roi des ombres. Tout tombe dans l'ombre, plus d'espoir, plus de lumière. La dernière lumière meurt. »
+Traduction : « Le soleil s'obscurcit, la lumière meurt dans les ténèbres, dévoreur de soleils, Ignaroth, roi des ombres. Tout tombe dans l'ombre, plus d'espoir, plus de lumière. La dernière lumière meurt. »
 
-Garder la version où le chœur est le plus puissant et l'orchestre le plus net. Si l'accalmie dure trop : retirer `quiet solo violin interlude` du style et la ligne `[Interlude]`. Si le chœur est noyé : ajouter `choir front and center, massive choir`.
+Garder la version où le chœur est le plus puissant et l'orchestre le plus net. Pas de « soleil noir » (Sol niger, black sun) dans les paroles ni le style : Suno le bloque au contrôle de contenu, l'expression étant aussi un symbole d'extrême droite. Si l'accalmie dure trop : retirer `quiet solo violin interlude` du style et la ligne `[Interlude]`. Si le chœur est noyé : ajouter `choir front and center, massive choir`.
 
 ## 10. Boss de Néon 2099 (`boss-neon`)
 
