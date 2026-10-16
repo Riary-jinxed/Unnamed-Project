@@ -224,42 +224,42 @@ instrumental halloween boss battle theme for a card game, the pumpkin king's mad
 
 ## 9. Boss de l'Éclipse (`boss-eclipse`)
 
-Ignaroth sous l'éclipse, écrit comme un boss de Dark Souls (Heolstor, Gwyn, le Roi sans nom). Ce qui fait ces morceaux : un orchestre symphonique complet et un grand chœur qui chante **de vrais mots en latin** ; un thème tragique aux cuivres ; une mesure à trois temps. Et surtout, comme pour Heolstor, **la musique monte au fil du combat** : un début retenu (cordes graves tenues, harpe, chœur à mi-voix), puis les cordes rythmiques arrivent peu à peu, et la pleine puissance n'éclate qu'à la deuxième phase. Ni synthé, ni batterie, ni effet « film d'horreur ». Ne pas écrire le nom des jeux dans Suno : il refuse les références à des œuvres existantes. Titre : « Devorator Solis ».
+Ignaroth sous l'éclipse, écrit comme un boss de Dark Souls (Heolstor, Gwyn, le Roi sans nom) : du désespoir, pas du grand spectacle. Ce qui fait ces morceaux : un orchestre classique de salle de concert, pas une bande-annonce hollywoodienne ; un orchestre symphonique complet et un grand chœur qui chante **de vrais mots en latin** ; un thème tragique aux cuivres ; une mesure à trois temps. Et surtout, comme pour Heolstor, **la musique monte au fil du combat** : un début retenu (cordes graves tenues, harpe, chœur à mi-voix), puis les cordes rythmiques arrivent peu à peu, et la pleine puissance n'éclate qu'à la deuxième phase. Ni synthé, ni batterie, ni effet « film d'horreur ». Ne pas écrire le nom des jeux dans Suno : il refuse les références à des œuvres existantes. Titre : « Devorator Solis ».
 
 Style (Instrumental désactivé, le chœur chante les paroles) :
 
 ```
-epic dark fantasy boss battle, full symphony orchestra with large latin choir, slow build from restrained to overwhelming, starts sparse and solemn with sustained low strings, soft harp and hushed choir, then a gentle string pulse in 3/4 gradually grows, brass enters later with a tragic heroic theme, intensity rises section by section, full force only in the final phase with driving strings, massive choir and thundering timpani, gothic, majestic and sorrowful, fallen god of eclipse, epic orchestral video game boss music, no synth, no drum kit, no guitar, not horror
+desperate tragic requiem for a doomed battle against a dying god, classical concert orchestra and mournful latin choir, anguished and hopeless, lamenting choir, weeping violins, chromatic descending lines, dissonant unresolved harmonies, minor key, slow build from a sparse funeral lament with low strings and solo cello, gradually more frantic and desperate string figures in 3/4, choir crying out, brass like a death knell, final phase frantic and despairing, raw concert hall recording, romantic era classical style, not hollywood trailer, no heroic fanfare, no synth, no drum kit, no guitar, not horror
 ```
 
 Paroles (latin) :
 
 ```
-[Intro: sustained low strings, soft harp, hushed choir, slow and solemn]
+[Intro: funeral lament, solo cello, low strings, hushed choir]
 Eclipsis
 
 [Phase 1: quiet, a soft string pulse begins, choir half voice]
 Sol obscuratur
 Lux moritur in tenebris
 
-[Build: strings grow stronger, horns enter, choir rises]
+[Build: strings grow frantic, choir cries out, brass tolls like a death knell]
 Devorator solis
 Ignaroth, rex umbrarum
 Omnia in umbra cadunt
 
-[Phase 2: full orchestra, driving strings, massive choir, brass theme]
+[Phase 2: desperate, frantic strings, anguished choir, dissonant brass]
 Sol obscuratur
 Devorator solis
 Ignaroth, Ignaroth
 Ultima lux moritur
 
-[Climax: everything at full force, thundering timpani, choir fortissimo]
+[Climax: hopeless, choir wailing, strings collapsing, timpani like a heartbeat]
 Nulla spes, nulla lux
 ```
 
 Traduction : « Éclipse. Le soleil s'obscurcit, la lumière meurt dans les ténèbres, dévoreur de soleils, Ignaroth, roi des ombres. Tout tombe dans l'ombre. La dernière lumière meurt. Plus d'espoir, plus de lumière. »
 
-Garder la version qui monte le plus progressivement. Pas de « soleil noir » (Sol niger, black sun) dans les paroles ni le style : le contrôle de contenu de Suno l'a probablement bloqué, l'expression étant aussi un symbole d'extrême droite. Si le début reste trop agité : ajouter `very slow quiet intro, no strings ostinato at the start` au style. Si le chœur est noyé : ajouter `choir front and center, massive choir`.
+Garder la version qui monte le plus progressivement. Pas de « soleil noir » (Sol niger, black sun) dans les paroles ni le style : le contrôle de contenu de Suno l'a probablement bloqué, l'expression étant aussi un symbole d'extrême droite. Si le début reste trop agité : ajouter `very slow quiet intro, no strings ostinato at the start` au style. Si le chœur est noyé : ajouter `choir front and center`. Si ça redevient « bande-annonce » : retirer tout mot comme epic, cinematic, heroic ou majestic, et ajouter `sorrowful, despair, no triumph`.
 
 ## 10. Boss de Néon 2099 (`boss-neon`)
 
