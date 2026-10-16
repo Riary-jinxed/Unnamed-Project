@@ -121,8 +121,15 @@ func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
 	var s := size.x / 100.0
 	var rad := 7.0 * s
-	# Ombre portée.
-	Gfx.fill_round(self, Rect2(r.position + Vector2(0, 3 * s), r.size), rad, Color(0, 0, 0, 0.5))
+	# Ombre portée douce, à l'opposé de la lampe (Mat.light, qui suit le doigt) ; plus longue pour une carte en main.
+	var away := (get_global_rect().get_center() - Mat.light).normalized()
+	var lift := (7.0 if in_hand or big else 4.0) * s
+	for i in 3:
+		var off := away * lift * (0.6 + 0.4 * i) + Vector2(0, lift * 0.4)
+		Gfx.fill_round(self, Rect2(r.position + off, r.size).grow((2 - i) * 1.5 * s), rad + 2 * s, Color(0, 0, 0, 0.16))
+	# Épaisseur : la tranche de la carte, visible sous le bord bas.
+	Gfx.fill_round(self, Rect2(r.position + Vector2(0, 2.6 * s), r.size), rad, Color("3a2810"))
+	Gfx.fill_round(self, Rect2(r.position + Vector2(0, 1.3 * s), r.size), rad, Color("7a5a2c"))
 	if selected or glow > 0.0:
 		var g := maxf(glow, 1.0 if selected else 0.0)
 		var col: Color = Data.GOLD if face_down or selected else Data.fam_color(Data.card(id).get("fam"))

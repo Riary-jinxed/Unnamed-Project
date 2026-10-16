@@ -39,7 +39,9 @@ var zones: Array = []
 var card_size := Vector2(100, 140)
 var hand_card := Vector2(152, 208)
 var _hand_y := 900.0
-var _avatar_tex := [null, null]    # images de profil des deux sièges (envoyées une fois par le serveur)
+var _avatar_tex := [null, null]
+var _light_target := Vector2(360, 160)   # la lampe (Mat.light) glisse vers le dernier toucher, puis dérive doucement
+var _light_touch := -10.0    # images de profil des deux sièges (envoyées une fois par le serveur)
 
 var bg: ColorRect
 var hud: Control
@@ -84,6 +86,7 @@ func _ready() -> void:
 	hud = Control.new()
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	hud.draw.connect(func(): _draw_hud(hud))
 	add_child(hud)
 	for z in 3:
@@ -206,21 +209,14 @@ static func plate_button(text: String) -> Button:
 	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_font_override("font", Data.font_body)
 	b.add_theme_font_size_override("font_size", 22)
+	# Plaque de cuir sertie de laiton (Mat.plate_texture), enfoncée quand on appuie.
 	for st in ["normal", "hover", "pressed", "disabled"]:
-		var sb := StyleBoxFlat.new()
-		sb.set_corner_radius_all(10)
-		sb.set_border_width_all(2)
-		sb.corner_detail = 6
-		sb.anti_aliasing = true
-		sb.bg_color = {"normal": Color("3a2a1c"), "hover": Color("4a3624"), "pressed": Color("2a1d13"), "disabled": Color("2a2018")}[st]
-		sb.border_color = {"normal": Color("8a6a3a"), "hover": Color("b08a4a"), "pressed": Color("6a5030"), "disabled": Color("4a3a2a")}[st]
-		sb.border_width_bottom = 4 if st != "pressed" else 2
+		var sb := StyleBoxTexture.new()
+		sb.texture = Mat.plate_texture(st)
+		sb.set_texture_margin_all(18)
 		sb.content_margin_left = 16
 		sb.content_margin_right = 16
 		sb.content_margin_top = 4 if st == "pressed" else 2
-		sb.shadow_color = Color(0, 0, 0, 0.45)
-		sb.shadow_size = 4
-		sb.shadow_offset = Vector2(0, 2)
 		b.add_theme_stylebox_override(st, sb)
 	b.add_theme_color_override("font_color", Color("f1e6cf"))
 	b.add_theme_color_override("font_hover_color", Color("fff4dc"))
@@ -885,6 +881,9 @@ func _on_card_pressed(uid: int) -> void:
 
 
 func _input(e: InputEvent) -> void:
+	if e is InputEventMouseMotion or (e is InputEventMouseButton and e.pressed):
+		_light_target = get_global_mouse_position()
+		_light_touch = _time
 	if _drag.is_empty():
 		return
 	var cv: CardView = cards.get(_drag.uid)
@@ -1030,7 +1029,26 @@ func _process(dt: float) -> void:
 	elif position != Vector2.ZERO:
 		position = Vector2.ZERO
 	_update_pools(dt)
+	_update_light(dt)
 	hud.queue_redraw()
+
+
+## Lampe qui suit le doigt : reflets des cadres de laiton, ombres des cartes, lumière de la table. Sans toucher depuis
+## quelques secondes, elle dérive lentement au-dessus du plateau.
+func _update_light(dt: float) -> void:
+	var target := _light_target
+	if _time - _light_touch > 4.0:
+		target = Vector2(size.x * (0.5 + 0.3 * sin(_time * 0.21)), size.y * (0.3 + 0.12 * cos(_time * 0.17)))
+	var prev := Mat.light
+	Mat.light = Mat.light.lerp(target, 1.0 - exp(-dt * (6.0 if _time - _light_touch < 4.0 else 1.5)))
+	(bg.material as ShaderMaterial).set_shader_parameter("lamp_pos", Mat.light)
+	if prev.distance_to(Mat.light) > 1.0:
+		for uid in cards:
+			cards[uid].queue_redraw()
+		for zv in zones:
+			zv.queue_redraw()
+		for b in [snd_btn, log_btn, quit_btn]:
+			b.queue_redraw()
 
 
 ## Flaques de lumière sous les zones, aux couleurs du camp qui mène (fond PixiJS de l'appli).
@@ -1826,10 +1844,11 @@ func _draw_hud(ci: Control) -> void:
 	# Bas d'écran : votre général (bouton), vos sceaux en gemme, Valider.
 	var dy := size.y - DOCK_H
 	var dock := Rect2(-2, dy, w + 4, DOCK_H + 4)
-	ci.draw_rect(dock, Color(0.07, 0.05, 0.035, 0.96))
-	Gfx.vgrad_round(ci, dock, 0, [0.0, 1.0], [0.0, 0.5])
-	ci.draw_line(Vector2(0, dy), Vector2(w, dy), Color("c8902f"), 2.0)
-	ci.draw_line(Vector2(0, dy + 3), Vector2(w, dy + 3), Color(0, 0, 0, 0.6), 2.0)
+	Mat.fill(ci, "leather", dock, 0, Color(0.3, 0.2, 0.14))
+	Gfx.vgrad_round(ci, dock, 0, [0.0, 1.0], [0.0, 0.55])
+	Mat.stitch(ci, Rect2(8, dy + 14, w - 16, DOCK_H - 22), 10)
+	ci.draw_rect(Rect2(0, dy - 6, w, 8), Color(0, 0, 0, 0.35))
+	Mat.bevel(ci, Rect2(-12, dy - 4, w + 24, 11), 4, 5.5, Mat.BRASS, 0.9)
 	var mg = m.get("general")
 	var gc := _gen_center(true)
 	_gen_medal(ci, gc, 42, mg, true)
@@ -1852,14 +1871,14 @@ func _draw_hud(ci: Control) -> void:
 
 ## Bande d'un joueur : cuir sombre, liseré doré, lueur de la couleur de son camp côté avatar.
 func _band(ci: CanvasItem, r: Rect2, side: Color, _mine: bool) -> void:
-	Gfx.fill_round(ci, r.grow(2), 14, Color(0, 0, 0, 0.55))
-	Gfx.fill_round(ci, r, 14, Color("1c140e"))
+	Gfx.fill_round(ci, r.grow(3), 16, Color(0, 0, 0, 0.55))
+	Mat.fill(ci, "leather", r, 14, Color(0.42, 0.29, 0.2))
 	for i in 6:
 		var t := i / 6.0
 		ci.draw_circle(r.position + Vector2(44, r.size.y * 0.5), 90 - i * 12, Color(side, 0.03 + 0.02 * t), true, -1.0, true)
-	Gfx.vgrad_round(ci, r, 14, [0.0, 1.0], [0.0, 0.45])
-	Gfx.frame_round(ci, r, 14, Color("8a6a3a"), 1.5)
-	Gfx.frame_round(ci, r.grow(-4), 11, Color(Data.GOLD, 0.16), 1.0)
+	Gfx.vgrad_round(ci, r, 14, [0.0, 1.0], [0.0, 0.5])
+	Mat.stitch(ci, r.grow(-9), 9)
+	Mat.bevel(ci, r, 14, 5.0, Mat.BRASS, 0.8)
 
 
 ## Avatar : image de profil (ou initiale) dans un anneau de la couleur du camp, niveau en pastille, connexion.
@@ -1921,7 +1940,9 @@ func _turn_medal(ci: CanvasItem, c: Vector2) -> void:
 	var k := 0.5 + 0.5 * sin(_time * TAU / 1.8)
 	for i in 3:
 		ci.draw_circle(c, r + 8 + i * 4 + 3 * k, Color(hot, 0.05), true, -1.0, true)
-	ci.draw_circle(c + Vector2(0, 3), r + 7, Color(0, 0, 0, 0.6), true, -1.0, true)
+	ci.draw_circle(c + Vector2(0, 4), r + 12, Color(0, 0, 0, 0.6), true, -1.0, true)
+	var rr := r + 12.0
+	Mat.bevel(ci, Rect2(c - Vector2(rr, rr), Vector2(rr, rr) * 2.0), rr, 7.0, Mat.BRASS, 1.0)
 	ci.draw_circle(c, r + 6, Color("2a1d12"), true, -1.0, true)
 	var gap := 0.09
 	for i in turns:
@@ -2005,13 +2026,11 @@ func _gen_medal(ci: CanvasItem, c: Vector2, r: float, gid, mine: bool) -> void:
 		for i in 3:
 			ci.draw_arc(c, r + 7, a + i * TAU / 3, a + i * TAU / 3 + 1.2, 16, Color("ffd36b", 0.9), 2.5, true)
 	# Anneau de bronze ciselé : petites dents tout autour.
-	ci.draw_circle(c + Vector2(0, 3), r + 6, Color(0, 0, 0, 0.6), true, -1.0, true)
-	var teeth := PackedVector2Array()
-	for i in 48:
-		var a := i * TAU / 48.0
-		teeth.append(c + Vector2(cos(a), sin(a)) * (r + (6.0 if i % 2 == 0 else 4.0)))
-	ci.draw_colored_polygon(teeth, Color("6a4a22"))
-	ci.draw_circle(c, r + 3, Color("c8902f"), true, -1.0, true)
+	ci.draw_circle(c + Vector2(0, 4), r + 9, Color(0, 0, 0, 0.6), true, -1.0, true)
+	var rr := r + 8.0
+	Mat.bevel(ci, Rect2(c - Vector2(rr, rr), Vector2(rr, rr) * 2.0), rr, 9.0, Mat.BRASS, 1.0)
+	for i in 4:
+		Mat.rivet(ci, c + Vector2.from_angle(PI * 0.25 + i * PI * 0.5) * (r + 3.5), 2.4)
 	var breath := 1.0 if used else 1.0 + 0.03 * (0.5 + 0.5 * sin(_time * TAU / 4.6))
 	Gfx.portrait(ci, gid, c, r * breath, fam if not used else Color(0.45, 0.42, 0.4))
 	if used:

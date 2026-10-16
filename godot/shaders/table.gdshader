@@ -7,6 +7,7 @@ uniform vec4 sol : source_color = vec4(0.078, 0.055, 0.039, 1.0);       // #140e
 uniform vec4 planche_a : source_color = vec4(0.110, 0.078, 0.055, 1.0); // #1c140e
 uniform vec4 planche_b : source_color = vec4(0.098, 0.067, 0.047, 1.0); // #19110c
 uniform vec4 lampe : source_color = vec4(1.0, 0.75, 0.44, 1.0);         // #ffc070
+uniform vec2 lamp_pos = vec2(360.0, 540.0);   // la lampe suit un peu le doigt (Mat.light)
 // Flaques de lumière des zones : centre (pixels) et rayon dans xy/zw, couleur et intensité dans pool_col.
 uniform vec4 pool_rect[3];
 uniform vec4 pool_col[3];
@@ -34,7 +35,8 @@ void fragment() {
 	float edge = min(mod(px.x, w), w - mod(px.x, w));
 	c = mix(sol.rgb * 0.6, c, smoothstep(0.0, 2.0, edge));
 	// Lampe chaude centrée vers 42 % de la hauteur, qui respire à peine.
-	vec2 lp = (px - vec2(size.x * 0.5, size.y * 0.42)) / vec2(size.x * 0.8, size.y * 0.55);
+	vec2 lc = mix(vec2(size.x * 0.5, size.y * 0.42), lamp_pos, 0.45);
+	vec2 lp = (px - lc) / vec2(size.x * 0.8, size.y * 0.55);
 	c += lampe.rgb * 0.22 * smoothstep(1.0, 0.0, length(lp)) * (0.94 + 0.06 * sin(TIME * 0.7));
 	// Brume : deux nappes lentes.
 	float f1 = fbm(vec2(px.x / 260.0 + TIME * 0.035 + sin(TIME * 0.07) * 0.35, px.y / 300.0));

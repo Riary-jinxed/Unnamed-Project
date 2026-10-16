@@ -35,6 +35,7 @@ var flare := 0.0:           # éclat du cadre quand la zone change de camp ou à
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	var m := ShaderMaterial.new()
 	m.shader = preload("res://shaders/persp.gdshader")
 	material = m
@@ -111,13 +112,13 @@ func _draw() -> void:
 	var lead := leader()
 	var side_col: Color = Data.MINE if lead > 0 else Data.FOE
 	# Pierre sombre sous les terrains.
-	Gfx.fill_round(self, full, rad, Color(0.05, 0.035, 0.027, 0.88))
+	Mat.fill(self, "stone", full, rad, Color(0.2, 0.17, 0.15))
 	for mine in [false, true]:
 		var hr := half_rect(mine)
 		var terrain = my_terrain if mine else foe_terrain
 		var tex := Data.terrain_tex(terrain)
 		var hrad := 10.0
-		var inner := hr.grow(-3)
+		var inner := hr.grow(-6)
 		if tex:
 			var uv := Gfx.cover_uv(tex, Rect2(0, 0, 1, 1), inner.size, Vector2(0.5, 0.5))
 			Gfx.tex_round(self, tex, inner, uv, hrad, Color(0.7, 0.66, 0.62))
@@ -134,8 +135,8 @@ func _draw() -> void:
 			var chip_y := inner.position.y + 14.0 if not mine else inner.end.y - 14.0
 			var fw := minf(Data.font_bold.get_string_size(tname, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x + 18, inner.size.x - 8)
 			var chip := Rect2(inner.get_center().x - fw * 0.5, chip_y - 13, fw, 26)
-			Gfx.fill_round(self, chip, 7, Color(0.16, 0.11, 0.07, 0.95))
-			Gfx.frame_round(self, chip, 7, Color("e3b552"), 1.5)
+			Mat.fill(self, "leather", chip, 7, Color(0.45, 0.3, 0.2), 64.0)
+			Mat.bevel(self, chip, 7, 3.0, Mat.BRASS, 0.6)
 			Gfx.text_fit(self, Data.font_bold, chip.get_center(), tname, chip.size.x - 10, 15, Color("ffe7a6"))
 		if mine and (highlight or drop_hover):
 			Gfx.fill_round(self, inner, hrad, Color(Data.GOLD, (0.22 if drop_hover else 0.06 + 0.08 * shine)))
@@ -145,12 +146,17 @@ func _draw() -> void:
 		for i in 3:
 			var k := (3 - i) * 2.5
 			Gfx.frame_round(self, full.grow(k), rad + k, Color(side_col, (0.1 + 0.25 * flare) * (i + 1) / 3.0), 2.0)
-		Gfx.frame_round(self, full, rad, Color(side_col, 0.85 + 0.15 * flare), 2.0 + 2.0 * flare)
-	else:
-		Gfx.frame_round(self, full, rad, Color("4a3622"), 1.5)
+	# Moulure de laiton, teintée par le camp qui mène, qui brille quand la zone change de camp.
+	var brass: Color = Mat.BRASS.darkened(0.15) if lead == 0 else Mat.BRASS.lerp(side_col, 0.35)
+	Mat.bevel(self, full, rad, 7.0, brass.lightened(0.3 * flare), 0.9)
+	for x in [size.x * 0.5]:
+		Mat.rivet(self, Vector2(x, 3.5), 3.2, brass)
+		Mat.rivet(self, Vector2(x, size.y - 3.5), 3.2, brass)
 	# Bandeau du milieu : puissance de l'adversaire à gauche, nom de la zone, la vôtre à droite.
-	var strip := Rect2(2, (size.y - STRIP) * 0.5 + 3, size.x - 4, STRIP - 6)
-	Gfx.fill_round(self, strip, 8, Color(0.04, 0.028, 0.02, 0.9))
+	var strip := Rect2(5, (size.y - STRIP) * 0.5 + 3, size.x - 10, STRIP - 6)
+	Mat.fill(self, "leather", strip, 8, Color(0.22, 0.15, 0.1), 64.0)
+	Gfx.vgrad_round(self, strip, 8, [0.0, 1.0], [0.0, 0.4])
+	Mat.bevel(self, strip, 8, 3.0, Mat.BRASS.darkened(0.2), 0.6)
 	var c := strip.get_center()
 	var zname := str(Data.zones[zone]).to_upper() if zone < Data.zones.size() else ""
 	Gfx.text_fit(self, Data.font_title, c, zname, strip.size.x - 100, 15, Color(1, 0.92, 0.78, 0.72))
