@@ -28,8 +28,8 @@ var _tex := {}
 
 # Gabarit des illustrations (client/src/art.js) : image 960x1424, fenêtre de la carte 832x1168 placée à (64, 192).
 const WINDOW_UV := Rect2(64.0 / 960.0, 192.0 / 1424.0, 832.0 / 960.0, 1168.0 / 1424.0)
-const GOLD := Color("e8c26a")
-const GOLD_DARK := Color("8a6326")
+var GOLD := Color("e8c26a")       # or des textes et contours, changé par Look.apply selon le thème
+var GOLD_DARK := Color("8a6326")
 const INK := Color("1b120d")
 # Couleurs des deux camps (--mine et --foe de l'appli) et des bonus et malus.
 const MINE := Color("77a3e6")

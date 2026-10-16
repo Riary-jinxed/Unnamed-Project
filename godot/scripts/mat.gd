@@ -6,10 +6,11 @@ class_name Mat
 ## externe, vers l'intérieur sur le bord interne) et prend plus ou moins de lumière selon la direction de la lampe `light`.
 ## Les nœuds qui dessinent avec ces textures doivent avoir texture_repeat = TEXTURE_REPEAT_ENABLED.
 
-const BRASS := Color("c8962e")
-const BRASS_DARK := Color("6a4818")
-const LEATHER := Color("3a2618")
-const STONE := Color("4a4038")
+# Couleurs des matières : celles du thème de base, remplacées par Look.apply selon le thème du compte.
+static var BRASS := Color("c8962e")
+static var BRASS_DARK := Color("6a4818")
+static var LEATHER := Color("3a2618")
+static var STONE := Color("4a4038")
 
 static var light := Vector2(360, 160)   # lampe, en coordonnées de l'écran (suit le doigt, voir board.gd)
 static var _tex := {}
@@ -104,7 +105,9 @@ static func _shade(base: Color, p: Vector2, n: Vector2, gloss: float) -> Color:
 
 
 ## Cadre en relief (moulure bombée) de largeur w à l'intérieur de r, en laiton par défaut.
-static func bevel(ci: CanvasItem, r: Rect2, rad: float, w: float, base := BRASS, gloss := 0.9, kind := "brass") -> void:
+static func bevel(ci: CanvasItem, r: Rect2, rad: float, w: float, base = null, gloss := 0.9, kind := "brass") -> void:
+	if base == null:
+		base = BRASS
 	var seg := 6
 	var o: Array = _loop(r, rad, seg)
 	var m: Array = _loop(r.grow(-w * 0.5), rad - w * 0.5, seg)
@@ -142,7 +145,9 @@ static func bevel(ci: CanvasItem, r: Rect2, rad: float, w: float, base := BRASS,
 
 
 ## Rivet : tête bombée éclairée du côté de la lampe.
-static func rivet(ci: CanvasItem, c: Vector2, rad: float, base := BRASS) -> void:
+static func rivet(ci: CanvasItem, c: Vector2, rad: float, base = null) -> void:
+	if base == null:
+		base = BRASS
 	ci.draw_circle(c + Vector2(0, rad * 0.35), rad * 1.1, Color(0, 0, 0, 0.5), true, -1.0, true)
 	ci.draw_circle(c, rad, base.darkened(0.35), true, -1.0, true)
 	var l := (ci.get_global_transform().affine_inverse() * light - c).normalized()
@@ -174,6 +179,13 @@ static func stitch(ci: CanvasItem, r: Rect2, rad: float, col := Color(0.9, 0.78,
 		k += 1
 
 
+## Oublie les plaques de boutons en cache (changement de thème).
+static func clear_plates() -> void:
+	for k in _tex.keys():
+		if str(k).begins_with("plate_"):
+			_tex.erase(k)
+
+
 ## Plaque de bouton en laiton (texture pour StyleBoxTexture) : bord bombé éclairé d'en haut à gauche, creux enfoncé
 ## quand le bouton est appuyé.
 static func plate_texture(state: String) -> Texture2D:
@@ -185,7 +197,7 @@ static func plate_texture(state: String) -> Texture2D:
 	var bw := 5.0
 	var img := Image.create(s, s, false, Image.FORMAT_RGBA8)
 	var grain := tex("leather").get_image()
-	var base: Color = {"normal": Color("3a2a1c"), "hover": Color("4a3624"), "pressed": Color("2a1d13"), "disabled": Color("2a2018")}[state]
+	var base: Color = Look.leather({"normal": Color("3a2a1c"), "hover": Color("4a3624"), "pressed": Color("2a1d13"), "disabled": Color("2a2018")}[state])
 	var rim := BRASS if state != "disabled" else Color("6a5a46")
 	var ldir := Vector2(-0.55, -0.83)
 	for y in s:

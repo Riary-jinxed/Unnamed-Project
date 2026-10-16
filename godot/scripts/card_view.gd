@@ -128,7 +128,7 @@ func _draw() -> void:
 		var off := away * lift * (0.6 + 0.4 * i) + Vector2(0, lift * 0.4)
 		Gfx.fill_round(self, Rect2(r.position + off, r.size).grow((2 - i) * 1.5 * s), rad + 2 * s, Color(0, 0, 0, 0.16))
 	# Épaisseur : la tranche de la carte, visible sous le bord bas.
-	Gfx.fill_round(self, Rect2(r.position + Vector2(0, 2.6 * s), r.size), rad, Color("3a2810"))
+	Gfx.fill_round(self, Rect2(r.position + Vector2(0, 2.6 * s), r.size), rad, Look.leather(Color("3a2810")))
 	Gfx.fill_round(self, Rect2(r.position + Vector2(0, 1.3 * s), r.size), rad, Color("7a5a2c"))
 	if selected or glow > 0.0:
 		var g := maxf(glow, 1.0 if selected else 0.0)
@@ -143,7 +143,7 @@ func _draw() -> void:
 
 
 func _draw_back(r: Rect2, s: float, rad: float) -> void:
-	Gfx.fill_round(self, r, rad, Color("2a1912"))
+	Gfx.fill_round(self, r, rad, Look.leather(Color("2a1912")))
 	var inner := r.grow(-5 * s)
 	Gfx.fill_round(self, inner, rad * 0.7, Color("3b2418"))
 	# Losanges dorés en treillis.
@@ -156,7 +156,7 @@ func _draw_back(r: Rect2, s: float, rad: float) -> void:
 				draw_colored_polygon(PackedVector2Array([p + Vector2(0, -2.6 * s), p + Vector2(2.6 * s, 0), p + Vector2(0, 2.6 * s), p + Vector2(-2.6 * s, 0)]), Color(Data.GOLD, 0.22))
 	# Emblème central.
 	var e := 15.0 * s
-	draw_circle(c, e * 1.25, Color("2a1912"), true, -1.0, true)
+	draw_circle(c, e * 1.25, Look.leather(Color("2a1912")), true, -1.0, true)
 	draw_arc(c, e * 1.25, 0, TAU, 40, Data.GOLD, 2.0 * s, true)
 	var star := PackedVector2Array()
 	for k in 16:

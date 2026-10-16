@@ -112,7 +112,7 @@ func _draw() -> void:
 	var lead := leader()
 	var side_col: Color = Data.MINE if lead > 0 else Data.FOE
 	# Pierre sombre sous les terrains.
-	Mat.fill(self, "stone", full, rad, Color(0.2, 0.17, 0.15))
+	Mat.fill(self, "stone", full, rad, Look.leather(Color(0.2, 0.17, 0.15)))
 	for mine in [false, true]:
 		var hr := half_rect(mine)
 		var terrain = my_terrain if mine else foe_terrain
@@ -135,7 +135,7 @@ func _draw() -> void:
 			var chip_y := inner.position.y + 14.0 if not mine else inner.end.y - 14.0
 			var fw := minf(Data.font_bold.get_string_size(tname, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x + 18, inner.size.x - 8)
 			var chip := Rect2(inner.get_center().x - fw * 0.5, chip_y - 13, fw, 26)
-			Mat.fill(self, "leather", chip, 7, Color(0.45, 0.3, 0.2), 64.0)
+			Mat.fill(self, "leather", chip, 7, Look.leather(Color(0.45, 0.3, 0.2)), 64.0)
 			Mat.bevel(self, chip, 7, 3.0, Mat.BRASS, 0.6)
 			Gfx.text_fit(self, Data.font_bold, chip.get_center(), tname, chip.size.x - 10, 15, Color("ffe7a6"))
 		if mine and (highlight or drop_hover):
@@ -154,7 +154,7 @@ func _draw() -> void:
 		Mat.rivet(self, Vector2(x, size.y - 3.5), 3.2, brass)
 	# Bandeau du milieu : puissance de l'adversaire à gauche, nom de la zone, la vôtre à droite.
 	var strip := Rect2(5, (size.y - STRIP) * 0.5 + 3, size.x - 10, STRIP - 6)
-	Mat.fill(self, "leather", strip, 8, Color(0.22, 0.15, 0.1), 64.0)
+	Mat.fill(self, "leather", strip, 8, Look.leather(Color(0.22, 0.15, 0.1)), 64.0)
 	Gfx.vgrad_round(self, strip, 8, [0.0, 1.0], [0.0, 0.4])
 	Mat.bevel(self, strip, 8, 3.0, Mat.BRASS.darkened(0.2), 0.6)
 	var c := strip.get_center()

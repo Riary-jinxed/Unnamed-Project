@@ -5,8 +5,10 @@ extends Control
 ##   --auto        joue seul (pose ses cartes au mieux) : essais et captures
 ##   --shots=DOSSIER  enregistre des captures (plan, révélation, fin) ; --frames=DOSSIER : une image toutes les 0,1 s
 ##   --quit        quitte après la fin de la partie
+##   --theme=ID    force un thème de l'interface (essais) ; --home : capture de l'accueil (avec --shots) puis quitte
 
 const Board := preload("res://scripts/board.gd")
+const Home := preload("res://scripts/home.gd")
 
 var args := {}
 var board: Control
@@ -19,6 +21,9 @@ var _reveal_shot := false
 var room := ""
 var seat_token := ""
 var _reconnecting := false
+var account := {}
+var home: Control
+var _bg_mat: ShaderMaterial
 
 
 func _ready() -> void:
@@ -45,16 +50,19 @@ func _ready() -> void:
 		var me := await Net.api(HTTPClient.METHOD_GET, "/api/me")
 		if me.has("error") or not me.has("account"):
 			Net.token = ""
-			_show_home()
+		else:
+			_set_account(me.account)
+		_show_home()
 
 
 func _build_login() -> void:
 	var bg := ColorRect.new()
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://shaders/fond.gdshader")
-	bg.material = mat
+	_bg_mat = ShaderMaterial.new()
+	_bg_mat.shader = preload("res://shaders/fond.gdshader")
+	bg.material = _bg_mat
 	add_child(bg)
+	themed()
 	login_box = VBoxContainer.new()
 	login_box.set_anchors_preset(Control.PRESET_CENTER)
 	login_box.custom_minimum_size = Vector2(560, 0)
@@ -86,43 +94,58 @@ func _show_home() -> void:
 	title.add_theme_constant_override("outline_size", 12)
 	title.add_theme_color_override("font_outline_color", Color(0.12, 0.05, 0.02))
 	login_box.add_child(title)
-	var who := str(Sfx.cfg.get_value("compte", "nom", ""))
-	if Net.token != "":
-		var hello := Label.new()
-		hello.text = "Bonjour %s" % who
-		hello.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hello.add_theme_font_size_override("font_size", 26)
-		hello.add_theme_color_override("font_color", Color(1, 0.92, 0.78, 0.85))
-		login_box.add_child(hello)
-		var go := Board.gold_button("Partie classée contre l'IA")
-		go.custom_minimum_size = Vector2(0, 80)
-		go.add_theme_font_size_override("font_size", 26)
-		go.pressed.connect(_play)
-		login_box.add_child(go)
-		var out := LinkButton.new()
-		out.text = "Changer de compte"
-		out.add_theme_font_size_override("font_size", 20)
-		out.add_theme_color_override("font_color", Color(1, 0.9, 0.75, 0.6))
-		out.pressed.connect(func():
+	if home:
+		home.queue_free()
+		home = null
+	if Net.token != "" and not account.is_empty():
+		# Connecté : l'accueil complet (home.gd) remplace le formulaire.
+		login_box.visible = false
+		home = Home.new(account)
+		home.play_requested.connect(_play)
+		home.logout_requested.connect(func():
 			Net.token = ""
+			account = {}
 			Sfx.cfg.set_value("compte", "jeton", "")
 			Sfx.save()
+			Look.apply("")
+			themed()
 			_show_home())
-		login_box.add_child(out)
-	else:
-		var server := _field("Adresse du serveur", false)
-		server.text = Net.server
-		var user := _field("Identifiant", false)
-		user.text = str(Sfx.cfg.get_value("compte", "login", ""))
-		var pwd := _field("Mot de passe", true)
-		var go := Board.gold_button("Se connecter")
-		go.custom_minimum_size = Vector2(0, 72)
-		go.pressed.connect(func():
-			Net.server = server.text.strip_edges().trim_suffix("/")
-			_do_login(user.text.strip_edges(), pwd.text))
-		pwd.text_submitted.connect(func(_t): go.pressed.emit())
-		login_box.add_child(go)
+		add_child(home)
+		if args.has("home"):
+			await get_tree().create_timer(1.0).timeout
+			_shot("accueil-" + (Look.id if Look.id != "" else "base"))
+			get_tree().quit()
+		return
+	var server := _field("Adresse du serveur", false)
+	server.text = Net.server
+	var user := _field("Identifiant", false)
+	user.text = str(Sfx.cfg.get_value("compte", "login", ""))
+	var pwd := _field("Mot de passe", true)
+	var go := Board.gold_button("Se connecter")
+	go.custom_minimum_size = Vector2(0, 72)
+	go.pressed.connect(func():
+		Net.server = server.text.strip_edges().trim_suffix("/")
+		_do_login(user.text.strip_edges(), pwd.text))
+	pwd.text_submitted.connect(func(_t): go.pressed.emit())
+	login_box.add_child(go)
 	login_box.add_child(err_label)
+
+
+func _set_account(acc: Dictionary) -> void:
+	account = acc
+	Look.from_account(acc)
+	if args.has("theme"):
+		Look.apply(str(args.theme) if str(args.theme) != "base" else "")
+	themed()
+
+
+## Fond des menus aux couleurs du thème (appelé aussi par home.gd quand on en change).
+func themed() -> void:
+	if _bg_mat == null:
+		return
+	_bg_mat.set_shader_parameter("haut", Look.leather(Color(0.13, 0.085, 0.06)))
+	_bg_mat.set_shader_parameter("bas", Look.bg.darkened(0.3) if Look.id != "" else Color(0.035, 0.03, 0.05))
+	_bg_mat.set_shader_parameter("lueur", Look.accent if Look.id != "" else Color(0.55, 0.36, 0.14))
 
 
 func _field(placeholder: String, secret: bool) -> LineEdit:
@@ -158,6 +181,8 @@ func _do_login(user: String, password: String) -> void:
 	Sfx.cfg.set_value("compte", "jeton", Net.token)
 	Sfx.cfg.set_value("compte", "nom", str(me.get("account", {}).get("name", user)))
 	Sfx.save()
+	if me.has("account"):
+		_set_account(me.account)
 	if args.has("auto"):
 		_play()
 	else:
@@ -186,6 +211,9 @@ func _start_game() -> void:
 	board.shot_requested.connect(_shot)
 	add_child(board)
 	login_box.visible = false
+	if home:
+		home.queue_free()
+		home = null
 	Sfx.music("partie")
 	Net.send({"t": "ranked", "auth": Net.token, "lang": "fr"})
 
@@ -195,6 +223,10 @@ func _leave_board() -> void:
 		board.queue_free()
 		board = null
 	room = ""
+	# Niveau, rang et thème ont pu changer pendant la partie.
+	var me := await Net.api(HTTPClient.METHOD_GET, "/api/me")
+	if me.has("account"):
+		_set_account(me.account)
 	_show_home()
 
 
@@ -252,6 +284,9 @@ func _on_message(d: Dictionary) -> void:
 func _error(text: String) -> void:
 	if err_label:
 		err_label.text = text
+	if home:
+		home.set("_msg", text)
+		home.queue_redraw()
 	push_warning(text)
 
 

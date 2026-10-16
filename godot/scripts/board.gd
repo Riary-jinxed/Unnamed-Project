@@ -79,6 +79,7 @@ func _ready() -> void:
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/table.gdshader")
+	Look.table(mat)
 	bg.material = mat
 	add_child(bg)
 	_add_embers()
@@ -183,6 +184,14 @@ static func _ingot(state: String) -> Texture2D:
 		stops = [Color("e8cf8a"), Color("d4a446"), Color("a97626"), Color("6e4714")]
 	elif state == "hover":
 		stops = [Color("fff6d0"), Color("f6cd6c"), Color("d29a37"), Color("9a6720")]
+	if Look.id != "" and state != "disabled":
+		# Lingot aux couleurs du thème : reflet clair, or du thème, puis son ombre.
+		var g := Look.accent.lerp(Data.GOLD, 0.4)
+		stops = [g.lerp(Color.WHITE, 0.6), g, g.darkened(0.25), Data.GOLD_DARK]
+		if state == "pressed":
+			stops = [stops[0].darkened(0.1), g.darkened(0.12), g.darkened(0.35), Data.GOLD_DARK.darkened(0.2)]
+		elif state == "hover":
+			stops = [stops[0].lightened(0.1), g.lightened(0.08), g.darkened(0.18), Data.GOLD_DARK]
 	for y in 64:
 		var t := y / 63.0
 		var col: Color = stops[0].lerp(stops[1], t / 0.3) if t < 0.3 else stops[1].lerp(stops[2], (t - 0.3) / 0.4) if t < 0.7 else stops[2].lerp(stops[3], (t - 0.7) / 0.3)
@@ -242,9 +251,9 @@ func _layout() -> void:
 	# à la main (cartes plus grandes), pas aux zones. Les zones sont mises en page à plat puis la perspective (Persp)
 	# les ramène à l'écran, plus étroites et plus petites vers l'adversaire.
 	var col_w := (w - 12 - 10) / 3.0
-	var cw := (col_w - 8 - 5) * 0.5
+	var cw := (col_w - 22 - 5) * 0.5
 	var ch := cw * 1.4
-	var hf_need := 2.0 * (2.0 * ch + 5 + 30 + 12) + ZoneView.STRIP
+	var hf_need := 2.0 * (2.0 * ch + 5 + 30 + 18) + ZoneView.STRIP
 	var hs_need := hf_need * (1.0 - BOARD_K) / log(1.0 / BOARD_K)
 	var top := HEAD_H + 10
 	var fixed := top + 24 + 14 + DOCK_H
@@ -260,7 +269,7 @@ func _layout() -> void:
 		zv.position = Vector2(6 + z * (col_w + 5), board_top)
 		zv.size = Vector2(col_w, hf)
 	var half := (hf - ZoneView.STRIP) * 0.5
-	ch = minf(ch, (half - 30 - 5 - 12) * 0.5)
+	ch = minf(ch, (half - 30 - 5 - 18) * 0.5)
 	card_size = Vector2(ch / 1.4, ch)
 	log_label.position = Vector2(20, board_top + hs + 2)
 	log_label.size = Vector2(w - 40, 24)
@@ -1111,9 +1120,12 @@ func _add_embers() -> void:
 	p.scale_amount_max = 3.5
 	p.texture = Fx.dot_texture()
 	var grad := Gradient.new()
-	grad.set_color(0, Color(1.0, 0.63, 0.25, 0.0))
-	grad.add_point(0.2, Color(1.0, 0.88, 0.63, 0.5))
-	grad.set_color(grad.get_point_count() - 1, Color(1.0, 0.5, 0.2, 0.0))
+	# Braises dorées, ou aux couleurs du thème (lucioles vertes de Sylvaën, néons jaunes…).
+	var hot := Color(1.0, 0.88, 0.63) if Look.id == "" else Look.accent.lerp(Color.WHITE, 0.3)
+	var cool := Color(1.0, 0.5, 0.2) if Look.id == "" else Look.mist
+	grad.set_color(0, Color(hot, 0.0))
+	grad.add_point(0.2, Color(hot, 0.5))
+	grad.set_color(grad.get_point_count() - 1, Color(cool, 0.0))
 	p.color_ramp = grad
 	add_child(p)
 	resized.connect(func():
@@ -1844,7 +1856,7 @@ func _draw_hud(ci: Control) -> void:
 	# Bas d'écran : votre général (bouton), vos sceaux en gemme, Valider.
 	var dy := size.y - DOCK_H
 	var dock := Rect2(-2, dy, w + 4, DOCK_H + 4)
-	Mat.fill(ci, "leather", dock, 0, Color(0.3, 0.2, 0.14))
+	Mat.fill(ci, "leather", dock, 0, Look.leather(Color(0.3, 0.2, 0.14)))
 	Gfx.vgrad_round(ci, dock, 0, [0.0, 1.0], [0.0, 0.55])
 	Mat.stitch(ci, Rect2(8, dy + 14, w - 16, DOCK_H - 22), 10)
 	ci.draw_rect(Rect2(0, dy - 6, w, 8), Color(0, 0, 0, 0.35))
@@ -1872,7 +1884,7 @@ func _draw_hud(ci: Control) -> void:
 ## Bande d'un joueur : cuir sombre, liseré doré, lueur de la couleur de son camp côté avatar.
 func _band(ci: CanvasItem, r: Rect2, side: Color, _mine: bool) -> void:
 	Gfx.fill_round(ci, r.grow(3), 16, Color(0, 0, 0, 0.55))
-	Mat.fill(ci, "leather", r, 14, Color(0.42, 0.29, 0.2))
+	Mat.fill(ci, "leather", r, 14, Look.leather(Color(0.42, 0.29, 0.2)))
 	for i in 6:
 		var t := i / 6.0
 		ci.draw_circle(r.position + Vector2(44, r.size.y * 0.5), 90 - i * 12, Color(side, 0.03 + 0.02 * t), true, -1.0, true)
@@ -1890,13 +1902,13 @@ func _avatar(ci: CanvasItem, c: Vector2, rad: float, name: String, side: Color, 
 		var uv := Gfx.cover_uv(tex, Rect2(0, 0, 1, 1), Vector2(rad, rad) * 2.0, Vector2(0.5, 0.5))
 		Gfx.tex_round(ci, tex, Rect2(c - Vector2(rad, rad), Vector2(rad, rad) * 2.0), uv, rad)
 	else:
-		ci.draw_circle(c, rad, Color("2a1d14"), true, -1.0, true)
+		ci.draw_circle(c, rad, Look.leather(Color("2a1d14")), true, -1.0, true)
 		Gfx.text_fit(ci, Data.font_title, c + Vector2(0, 1), name.substr(0, 1).to_upper(), rad * 1.4, int(rad * 1.15), side.lightened(0.3))
 	ci.draw_arc(c, rad + 1.5, 0, TAU, 48, side.lightened(0.15), maxf(2.0, rad * 0.1), true)
 	if level > 0:
 		var lc := c + Vector2(0, rad + 2)
 		var lr := Rect2(lc - Vector2(17, 10), Vector2(34, 20))
-		Gfx.fill_round(ci, lr, 10, Color("2a1d14"))
+		Gfx.fill_round(ci, lr, 10, Look.leather(Color("2a1d14")))
 		Gfx.frame_round(ci, lr, 10, Data.GOLD, 1.5)
 		Gfx.text_fit(ci, Data.font_bold, lr.get_center(), str(level), 30, 14, Color("ffe7a6"))
 	if seat != _seat():
@@ -1914,12 +1926,12 @@ func _stat(ci: CanvasItem, at: Vector2, icon: String, n: int) -> float:
 			for k in [-1, 1]:
 				var xf := Transform2D(k * 0.22, c + Vector2(k * 3, 0))
 				var pts := PackedVector2Array([Vector2(-5, -8), Vector2(5, -8), Vector2(5, 8), Vector2(-5, 8)])
-				ci.draw_colored_polygon(xf * pts, Color("3a2a1c"))
+				ci.draw_colored_polygon(xf * pts, Look.leather(Color("3a2a1c")))
 				ci.draw_polyline(xf * PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), col, 1.5, true)
 		"deck":   # pile de cartes
 			for k in 3:
 				var r := Rect2(c + Vector2(-6 + k * 1.5, -9 + k * 2.0), Vector2(11, 15))
-				Gfx.fill_round(ci, r, 2, Color("3a2a1c"))
+				Gfx.fill_round(ci, r, 2, Look.leather(Color("3a2a1c")))
 				Gfx.frame_round(ci, r, 2, col, 1.3)
 		"seal":   # pièce
 			ci.draw_circle(c, 8, Color("8f5f1c"), true, -1.0, true)
@@ -1943,7 +1955,7 @@ func _turn_medal(ci: CanvasItem, c: Vector2) -> void:
 	ci.draw_circle(c + Vector2(0, 4), r + 12, Color(0, 0, 0, 0.6), true, -1.0, true)
 	var rr := r + 12.0
 	Mat.bevel(ci, Rect2(c - Vector2(rr, rr), Vector2(rr, rr) * 2.0), rr, 7.0, Mat.BRASS, 1.0)
-	ci.draw_circle(c, r + 6, Color("2a1d12"), true, -1.0, true)
+	ci.draw_circle(c, r + 6, Look.leather(Color("2a1d12")), true, -1.0, true)
 	var gap := 0.09
 	for i in turns:
 		var a0 := -PI / 2 + TAU * i / turns + gap
@@ -1984,7 +1996,7 @@ func _seal_gem(ci: CanvasItem, c: Vector2) -> void:
 		var a := -PI / 2 + i * TAU / 6.0
 		hexa.append(c + Vector2(cos(a), sin(a)) * r)
 		inner.append(c + Vector2(cos(a), sin(a)) * r * 0.62 + Vector2(0, -2))
-	ci.draw_colored_polygon(hexa, Color("3a2a12") if lit else Color("241c14"))
+	ci.draw_colored_polygon(hexa, Look.leather(Color("3a2a12")) if lit else Look.leather(Color("241c14")))
 	# Facettes : triangles entre le contour et le cœur, plus clairs en haut à gauche.
 	for i in 6:
 		var shade := 0.5 + 0.5 * cos(i * TAU / 6.0 + 2.2)
