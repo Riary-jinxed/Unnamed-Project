@@ -137,6 +137,7 @@ func _ready() -> void:
 	add_child(card_layer)
 	fx_layer = Control.new()
 	fx_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fx_layer.z_index = 140      # effets et bandeaux au-dessus des cartes, sous les panneaux
 	fx_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(fx_layer)
 	_trail = Fx.trail()
@@ -345,6 +346,7 @@ func set_view(v: Dictionary) -> void:
 		_events = _events.filter(func(ev): return ev.cv != scv)
 	if not first:
 		_play_events(src, src_delay, src_col, zone_before, style)
+		_play_rolls(prev, src_delay)
 	if phase != _last_phase or turn != _last_turn:
 		if phase == "reveal" and _last_phase == "plan":
 			_banner("Révélation", "Les cartes se retournent", Data.FOE)
@@ -1116,15 +1118,15 @@ func _reveal_fx(cv: CardView, flip: bool) -> void:
 		cv.face_down = true
 		var data_id := cv.id
 		cv.id = ""
-		tw.tween_property(cv, "scale", Vector2(0.0, 1.12), 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.tween_property(cv, "scale", Vector2(0.18, 1.16), 0.13).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		tw.tween_callback(func():
 			Sfx.play("flip")
 			cv.face_down = false
 			cv.id = data_id
 			cv.queue_redraw())
-		tw.tween_property(cv, "scale", Vector2(1.18, 1.18), 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_property(cv, "scale", Vector2(1.18, 1.18), 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	else:
-		cv.scale = Vector2(0.0, 1.2)
+		cv.scale = Vector2(0.18, 1.16)
 		tw.tween_property(cv, "scale", Vector2(1.18, 1.18), 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func():
 		var col: Color = Data.fam_color(Data.card(cv.id).get("fam"))
@@ -1140,6 +1142,39 @@ func _reveal_fx(cv: CardView, flip: bool) -> void:
 	tw.tween_callback(func(): cv.z_index -= 40)
 	cv.glow = 1.0
 	cv.create_tween().tween_property(cv, "glow", 0.0, 0.9).set_delay(0.35)
+
+
+## Pari : chaque nouveau dé (rolls du moteur) roule au-dessus de la carte qui parie, ou au milieu de sa zone ; les 3 Sept
+## d'un joueur en jeu font tourner la machine à sous du Jackpot.
+func _play_rolls(prev: Dictionary, delay: float) -> void:
+	for side in ["me", "foe"]:
+		var before: Array = prev.get(side, {}).get("rolls", [])
+		var last := 0
+		for r in before:
+			last = maxi(last, int(r.n))
+		var i := 0
+		for r in view.get(side, {}).get("rolls", []):
+			if int(r.n) <= last:
+				continue
+			var at: Vector2
+			if r.get("uid") != null and cards.has(int(r.uid)):
+				var cv: CardView = cards[int(r.uid)]
+				at = _scr(cv.position + cv.size * 0.5, cv.persp > 0.5)
+			else:
+				var zv: Control = zones[clampi(int(r.get("z", 1)), 0, 2)]
+				at = Persp.proj(zv.position + zv.size * Vector2(0.5, 0.75 if side == "me" else 0.25))
+			var d := delay + i * 0.3
+			Fx.dice_roll(fx_layer, at, int(r.v), d)
+			get_tree().create_timer(maxf(d, 0.01)).timeout.connect(func():
+				Sfx.play("dice")
+				if int(r.v) >= 6:
+					Sfx.play("six"))
+			i += 1
+		if int(view.get(side, {}).get("jackpot", 0)) > 0 and int(prev.get(side, {}).get("jackpot", 0)) == 0:
+			var mid: Control = zones[1]
+			Fx.slot_machine(fx_layer, Persp.proj(mid.position + mid.size * 0.5), Data.MINE if side == "me" else Data.FOE)
+			Sfx.play("jackpot")
+			Sfx.feel("jackpot")
 
 
 ## Effets d'une étape de la révélation : un projectile part de la source (carte qui agit, ou général) vers chaque cible,

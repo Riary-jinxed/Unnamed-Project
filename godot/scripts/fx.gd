@@ -26,6 +26,7 @@ static func _burst(parent: Node, at: Vector2, amount: int, life: float) -> CPUPa
 	p.explosiveness = 0.95
 	p.lifetime = life
 	p.texture = dot_texture()
+	p.material = _additive()
 	parent.add_child(p)
 	p.emitting = true
 	p.finished.connect(p.queue_free)
@@ -67,6 +68,7 @@ static func sparkle(parent: Node, at: Vector2, size: Vector2, col: Color) -> voi
 ## Anneau aplati qui s'élargit et s'efface (impact sous une carte, poussière de pose, général).
 static func ring(parent: Node, at: Vector2, radius: Vector2, col: Color, dur: float) -> void:
 	var r := Ring.new()
+	r.material = _additive()
 	r.position = at
 	r.radius = radius
 	r.col = col
@@ -425,6 +427,7 @@ static func bolt(parent: Node, from: Vector2, to: Vector2, col: Color, delay: fl
 	b.to = to
 	b.col = col
 	b.big = kind == "destroy"
+	b.material = _additive()
 	parent.add_child(b)
 	b.visible = false
 	var tw := b.create_tween()
@@ -442,6 +445,7 @@ static func bolt(parent: Node, from: Vector2, to: Vector2, col: Color, delay: fl
 		p.scale_amount_min = 0.5
 		p.scale_amount_max = 0.9
 		p.color_ramp = _fade(col, true)
+		flash(parent, to, 70.0, col)
 		ring(parent, to, Vector2(26, 26), Color(col.lightened(0.3), 0.9), 0.3))
 	tw.tween_property(b, "fade", 1.0, 0.25)
 	tw.tween_callback(b.queue_free)
@@ -511,6 +515,7 @@ static func aura(parent: Node, at: Vector2, size: Vector2, col: Color, up: bool)
 		g.set_color(0, Color(col, 0.8))
 		g.set_color(1, Color(0.16, 0.1, 0.19, 0.0))
 		p.color_ramp = g
+		p.material = null
 
 
 ## Invocation : cercle magique qui tourne et grandit sous la carte, colonne d'étincelles.
@@ -806,9 +811,9 @@ static func effect(parent: Node, style: String, from: Vector2, to: Vector2, col:
 				_later(parent, at, func(): claws(parent, to, size))
 				return at
 		"dice":
-			if not near and kind == "power":
-				die(parent, from, to, delay, travel + 0.15)
-				return delay + travel + 0.15
+			# Le dé roule au-dessus de la carte qui parie (voir dice_roll) : l'effet tombe quand il s'est posé.
+			if kind == "power":
+				return delay + 0.75
 		"ghost":
 			if not near:
 				bolt(parent, from, to, Color("b8ffd8"), delay, travel * 1.2)
@@ -990,6 +995,7 @@ static func explosion(parent: Node, at: Vector2, size: Vector2) -> void:
 	sg.set_color(0, Color(0.3, 0.27, 0.25, 0.6))
 	sg.set_color(1, Color(0.2, 0.18, 0.17, 0.0))
 	smoke.color_ramp = sg
+	smoke.material = null
 
 
 ## Drain : un filet de sang quitte la cible et rejoint le vampire.
@@ -1025,6 +1031,7 @@ static func blood(parent: Node, from: Vector2, to: Vector2, delay: float) -> voi
 ## Rayon de lumière qui tombe du ciel sur la cible, plumes qui descendent.
 static func beam(parent: Node, at: Vector2, size: Vector2, col: Color, delay: float) -> void:
 	var b := Beam.new()
+	b.material = _additive()
 	b.position = at
 	b.w = size.x * 0.75
 	b.col = col
@@ -1130,6 +1137,7 @@ class Glitch extends Node2D:
 ## Éclair en zigzag qui crépite de la source à la cible.
 static func lightning(parent: Node, from: Vector2, to: Vector2, col: Color, delay: float) -> void:
 	var l := Lightning.new()
+	l.material = _additive()
 	l.from = from
 	l.to = to
 	l.col = col
@@ -1232,10 +1240,20 @@ static func die(parent: Node, from: Vector2, to: Vector2, delay: float, travel: 
 
 class Die extends Node2D:
 	var face := 1
+	var result := 0
+	var landed := false
 
 	func _draw() -> void:
 		var r := Rect2(-15, -15, 30, 30)
+		if landed:
+			var c := Color("ffd36b") if result >= 6 else Color("ff6a5a") if result <= 2 else Color("fff3c4")
+			for i in 3:
+				Gfx.fill_round(self, r.grow(3 + i * 3), 8 + i * 3, Color(c, 0.18))
+		draw_set_transform(Vector2(0, 2))
+		Gfx.fill_round(self, r, 6, Color(0, 0, 0, 0.4))
+		draw_set_transform(Vector2.ZERO)
 		Gfx.fill_round(self, r, 6, Color("fff6e6"))
+		Gfx.vgrad_round(self, r, 6, [0.0, 1.0], [0.0, 0.18])
 		Gfx.frame_round(self, r, 6, Color("3a2a1c"), 2.0)
 		var pips := {1: [Vector2.ZERO], 2: [Vector2(-7, -7), Vector2(7, 7)], 3: [Vector2(-7, -7), Vector2.ZERO, Vector2(7, 7)],
 			4: [Vector2(-7, -7), Vector2(7, -7), Vector2(-7, 7), Vector2(7, 7)],
@@ -1277,3 +1295,132 @@ static func leaves(parent: Node, at: Vector2) -> void:
 	p.scale_amount_min = 0.4
 	p.scale_amount_max = 0.7
 	p.color_ramp = _fade(Color("8fe07a"))
+
+
+
+## Éclat de lumière doux à l'impact (une seule grosse particule additive qui s'éteint vite).
+static func flash(parent: Node, at: Vector2, radius: float, col: Color) -> void:
+	var g := _burst(parent, at, 1, 0.28)
+	g.scale_amount_min = radius / 8.0
+	g.scale_amount_max = radius / 8.0
+	g.gravity = Vector2.ZERO
+	g.initial_velocity_max = 0.0
+	var gr := Gradient.new()
+	gr.set_color(0, Color(col.lightened(0.5), 0.75))
+	gr.set_color(1, Color(col, 0.0))
+	g.color_ramp = gr
+
+
+## Pari : un gros dé apparaît au-dessus de la carte qui parie, tourne en changeant de face, se pose sur le résultat
+## (6 en or avec des étincelles, 1-2 en rouge), puis s'efface.
+static func dice_roll(parent: Node, at: Vector2, v: int, delay: float) -> void:
+	var d := Die.new()
+	d.result = v
+	d.position = at + Vector2(0, -20)
+	d.scale = Vector2.ZERO
+	d.z_index = 160
+	parent.add_child(d)
+	var tw := d.create_tween()
+	tw.tween_interval(delay)
+	tw.tween_property(d, "scale", Vector2(2.0, 2.0), 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_method(func(k: float):
+		d.rotation = (1.0 - k) * (1.0 - k) * TAU * 2.2
+		d.position = at + Vector2(0, -20 - 34 * sin(k * PI))
+		d.face = d.result if k > 0.92 else int(k * 14 + v) % 6 + 1
+		d.queue_redraw(), 0.0, 1.0, 0.55)
+	tw.tween_callback(func():
+		d.landed = true
+		d.queue_redraw()
+		if v >= 6:
+			sparkle(parent, at, Vector2(70, 70), Color("ffd36b"))
+			ring(parent, at, Vector2(60, 60), Color("ffd36b"), 0.5)
+		elif v <= 2:
+			ring(parent, at, Vector2(50, 50), Color("ff6a5a"), 0.4))
+	tw.tween_property(d, "scale", Vector2(2.3, 2.3), 0.08)
+	tw.tween_property(d, "scale", Vector2(2.0, 2.0), 0.12)
+	tw.tween_interval(0.85)
+	tw.tween_property(d, "modulate:a", 0.0, 0.3)
+	tw.tween_callback(d.queue_free)
+
+
+## Jackpot : une machine à sous s'allume au-dessus du plateau, ses trois rouleaux tournent et s'arrêtent sur 7 7 7,
+## puis une pluie de pièces.
+static func slot_machine(parent: Node, at: Vector2, tone: Color) -> void:
+	var m := Slot.new()
+	m.position = at
+	m.tone = tone
+	m.z_index = 170
+	m.scale = Vector2(0.2, 0.2)
+	m.modulate.a = 0.0
+	parent.add_child(m)
+	var tw := m.create_tween()
+	tw.tween_property(m, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(m, "modulate:a", 1.0, 0.2)
+	tw.tween_property(m, "t", 1.0, 2.0)
+	tw.tween_interval(0.7)
+	tw.tween_property(m, "modulate:a", 0.0, 0.35)
+	tw.tween_callback(m.queue_free)
+	_later(parent, 1.85, func():
+		var p := _burst(parent, at + Vector2(0, -20), 40, 1.6)
+		p.texture = shape("square")
+		p.direction = Vector2(0, -1)
+		p.spread = 70
+		p.initial_velocity_min = 260
+		p.initial_velocity_max = 520
+		p.gravity = Vector2(0, 900)
+		p.angular_velocity_min = -400
+		p.angular_velocity_max = 400
+		p.scale_amount_min = 0.4
+		p.scale_amount_max = 0.7
+		p.color_ramp = _fade(Color("ffd36b"))
+		flash(parent, at, 220.0, Color("ffd36b")))
+
+
+class Slot extends Node2D:
+	const REEL := ["★", "♦", "BAR", "♣", "♥", "7"]
+	var tone := Color.WHITE
+	var t := 0.0:
+		set(v):
+			t = v
+			queue_redraw()
+
+	func _process(_dt: float) -> void:
+		queue_redraw()
+
+	func _draw() -> void:
+		var w := 300.0
+		var h := 170.0
+		var r := Rect2(-w * 0.5, -h * 0.5, w, h)
+		var now := Time.get_ticks_msec() / 1000.0
+		Gfx.fill_round(self, r.grow(6), 22, Color(0, 0, 0, 0.6))
+		Gfx.fill_round(self, r, 20, Color("5a1018"))
+		Gfx.vgrad_round(self, r, 20, [0.0, 1.0], [0.0, 0.5])
+		Gfx.frame_round(self, r, 20, Color("ffd36b"), 3.0)
+		# Ampoules qui clignotent tout autour.
+		var n := 22
+		for i in n:
+			var k := float(i) / n
+			var p := Vector2(r.position.x + 12 + (w - 24) * k, r.position.y + 10) if i < n / 2 else Vector2(r.position.x + 12 + (w - 24) * (k - 0.5) * 2.0, r.end.y - 10)
+			var on := (i + int(now * 10.0)) % 2 == 0
+			draw_circle(p, 4, Color("fff3c4") if on else Color("a06a20"), true, -1.0, true)
+		# Trois rouleaux : défilent, puis s'arrêtent l'un après l'autre sur 7.
+		for i in 3:
+			var rr := Rect2(-w * 0.5 + 24 + i * 88, -h * 0.5 + 26, 76, 92)
+			Gfx.fill_round(self, rr, 8, Color("fff6e6"))
+			var stop := 0.45 + i * 0.2
+			var sym := "7"
+			var off := 0.0
+			if t < stop:
+				var spin := now * 14.0 + i * 1.7
+				sym = REEL[int(spin) % REEL.size()]
+				off = (spin - floor(spin)) * 40.0 - 20.0
+			Gfx.text_fit(self, Data.font_title, rr.get_center() + Vector2(0, off), sym, 70, 52 if sym == "7" else 34, Color("d81b3c") if sym == "7" else Color("2a1d14"), 0)
+			Gfx.vgrad_round(self, rr, 8, [0.0, 0.25, 0.75, 1.0], [0.45, 0.0, 0.0, 0.45])
+			Gfx.frame_round(self, rr, 8, Color("2a1606"), 2.0)
+		var won := t >= 0.9
+		var label := Rect2(-w * 0.5 + 30, h * 0.5 - 40, w - 60, 30)
+		if won:
+			var k2 := 0.5 + 0.5 * sin(now * 12.0)
+			Gfx.text_fit(self, Data.font_title, label.get_center(), "JACKPOT !", w - 40, 30, Color("ffd36b").lerp(Color.WHITE, k2), 5)
+		else:
+			Gfx.text_fit(self, Data.font_sc, label.get_center(), "FAITES VOS JEUX", w - 40, 18, Color(1, 0.9, 0.75, 0.8), 3)
