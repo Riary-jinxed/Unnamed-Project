@@ -44,3 +44,22 @@ textures/canvas_textures/default_texture_filter=3
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
+
+[shader_globals]
+
+persp_y0={
+"type": "float",
+"value": 0.0
+}
+persp_hs={
+"type": "float",
+"value": 1000.0
+}
+persp_k={
+"type": "float",
+"value": 0.8
+}
+persp_cx={
+"type": "float",
+"value": 360.0
+}

@@ -15,7 +15,7 @@ const TOP_H := 60.0
 const FOE_H := 104.0
 const HEAD_H := TOP_H + FOE_H
 const DOCK_H := 112.0
-const HAND_CARD := Vector2(140, 182)
+const HAND_CARD := Vector2(152, 208)
 const DOUBLE_TAP := 0.35
 const LONG_PRESS := 0.45
 
@@ -231,27 +231,27 @@ func _redraw() -> void:
 # ————— Mise en page —————
 
 func _hand_top() -> float:
-	return size.y - DOCK_H - HAND_CARD.y - 6
+	return size.y - DOCK_H - HAND_CARD.y - 12
 
 
 func _layout() -> void:
 	var w := size.x
-	var top := HEAD_H + 6
-	var col_w := (w - 20 - 12) / 3.0
-	# Les zones prennent la hauteur de deux rangées de cartes par moitié, sans dépasser la place laissée par la main.
-	var cw0 := (col_w - 14 - 6) * 0.5
-	var need := 2.0 * (2.0 * cw0 * 1.4 + 6 + 40) + ZoneView.STRIP
-	var bottom := minf(_hand_top() - 34, top + need)
+	var top := HEAD_H + 8
+	# Les zones sont mises en page à plat, plus hautes que la place à l'écran : la perspective (Persp) les ramène
+	# entre l'en-tête et la main, plus étroites et plus petites vers l'adversaire.
+	var board_bottom := _hand_top() - 24
+	var hf := Persp.setup(top, board_bottom - top, w * 0.5, 0.8)
+	var col_w := (w - 12 - 10) / 3.0
 	for z in zones.size():
 		var zv: Control = zones[z]
-		zv.position = Vector2(10 + z * (col_w + 6), top)
-		zv.size = Vector2(col_w, bottom - top)
-	var half := (bottom - top - ZoneView.STRIP) * 0.5
-	var cw := (col_w - 14 - 6) * 0.5
-	var ch := minf(cw * 1.4, (half - 34 - 6) * 0.5)
+		zv.position = Vector2(6 + z * (col_w + 5), top)
+		zv.size = Vector2(col_w, hf)
+	var half := (hf - ZoneView.STRIP) * 0.5
+	var cw := (col_w - 8 - 5) * 0.5
+	var ch := minf(cw * 1.4, (half - 30 - 5 - 8) * 0.5)
 	card_size = Vector2(ch / 1.4, ch)
-	log_label.position = Vector2(20, bottom + 2)
-	log_label.size = Vector2(w - 40, 30)
+	log_label.position = Vector2(20, board_bottom)
+	log_label.size = Vector2(w - 40, 24)
 	var dy := size.y - DOCK_H
 	end_btn.size = Vector2(236, 74)
 	end_btn.position = Vector2(w - 236 - 12, dy + (DOCK_H - 74) * 0.5 + 2)
@@ -304,20 +304,18 @@ func set_view(v: Dictionary) -> void:
 	if not first and not old_me.is_empty():
 		if bool(me().get("generalUsed", false)) and not bool(old_me.get("generalUsed", false)):
 			_sound("general", "general")
-			_general_fx(true)
-			src = _gen_center(true)
-			src_delay = 0.35
+			src = _general_fx(true)
+			src_delay = 0.5
 			src_col = Data.fam_color(_general().get("fam"))
 	if not first and not prev.is_empty() and bool(foe().get("generalUsed", false)) and not bool(prev.get("foe", {}).get("generalUsed", false)):
-		_general_fx(false)
-		src = _gen_center(false)
-		src_delay = 0.35
+		src = _general_fx(false)
+		src_delay = 0.5
 		src_col = Data.fam_color(Data.generals.get(str(foe().get("general", "")), {}).get("fam"))
 	var fl = v.get("flash")
 	if fl != null and cards.has(int(fl)) and src == null:
 		var scv: CardView = cards[int(fl)]
 		var t := _target_of(scv.get_meta("place"))
-		src = t.pos + t.size * 0.5
+		src = _scr(t.pos + t.size * 0.5, t.persp > 0.5)
 		src_delay = 0.62 if _just_revealed.has(int(fl)) else 0.05
 		src_col = Data.fam_color(Data.card(scv.id).get("fam"))
 		if not _just_revealed.has(int(fl)) and not _events.is_empty():
@@ -438,6 +436,7 @@ func _sync_cards(quiet := false) -> void:
 				cv.size = card_size
 				cv.position = Vector2(size.x * 0.5 - card_size.x * 0.5, -card_size.y - 20) if not e.mine else Vector2(size.x * 0.5, size.y)
 				cv.rotation = -0.18 if not e.mine else 0.0
+				cv.persp = 1.0
 				cv.set_meta("delay", 0.09 * deal_i)
 				deal_i += 1
 				if not quiet and bool(e.d.get("revealed", false)) and str(view.get("phase", "")) == "reveal":
@@ -446,6 +445,7 @@ func _sync_cards(quiet := false) -> void:
 					cv.size = t.size
 					cv.position = t.pos
 					cv.rotation = 0.0
+					cv.persp = 1.0
 					cv.pivot_offset = t.size * 0.5
 					cv.scale = Vector2(0.01, 0.01)
 					cv.set_meta("summon", true)
@@ -500,15 +500,20 @@ func _sync_cards(quiet := false) -> void:
 
 func _target_of(e: Dictionary) -> Dictionary:
 	if e.where == "hand":
+		# Main en éventail : les cartes se chevauchent, tournent autour d'un point sous l'écran ; la carte choisie se lève.
 		var n: int = e.count
-		var step := minf(HAND_CARD.x + 6, (size.x - 24 - HAND_CARD.x) / maxf(n - 1, 1))
-		var x0 := (size.x - (step * (n - 1) + HAND_CARD.x)) * 0.5
-		var t: float = (e.index - (n - 1) * 0.5) / maxf(n * 0.5, 1.0)
-		var lift := 22.0 if int(e.d.uid) == sel_hand else 0.0
-		return {"pos": Vector2(x0 + e.index * step, _hand_top() + 6 + absf(t) * 10 - lift), "size": HAND_CARD, "rot": 0.0 if lift > 0 else t * 0.06, "z": 20 + e.index + (30 if lift > 0 else 0), "scale": 1.04 if lift > 0 else 1.0}
+		var cw := HAND_CARD.x
+		var step := minf(cw * 0.86, (size.x - 24 - cw) / maxf(n - 1, 1))
+		var x0 := (size.x - (step * (n - 1) + cw)) * 0.5
+		var t: float = e.index - (n - 1) * 0.5
+		var rot := t * minf(0.075, 0.36 / maxf(n - 1, 1))
+		var x: float = x0 + e.index * step
+		if int(e.d.uid) == sel_hand:
+			return {"pos": Vector2(x, _hand_top() - 30), "size": HAND_CARD, "rot": 0.0, "z": 60, "scale": 1.08, "persp": 0.0}
+		return {"pos": Vector2(x, _hand_top() + 8 + 700.0 * (1.0 - cos(rot))), "size": HAND_CARD, "rot": rot, "z": 20 + e.index, "scale": 1.0, "persp": 0.0}
 	var zv: Control = zones[e.zone]
 	var r: Rect2 = zv.slot_rect(e.mine, e.slot, card_size)
-	return {"pos": zv.position + r.position, "size": card_size, "rot": 0.0, "z": 2 + e.slot, "scale": 1.0}
+	return {"pos": zv.position + r.position, "size": card_size, "rot": 0.0, "z": 2 + e.slot, "scale": 1.0, "persp": 1.0}
 
 
 func _place_cards(animate: bool) -> void:
@@ -527,12 +532,14 @@ func _place_cards(animate: bool) -> void:
 			tw.tween_property(cv, "position", t.pos, 0.38).set_delay(delay)
 			tw.tween_property(cv, "size", t.size, 0.38).set_delay(delay)
 			tw.tween_property(cv, "rotation", t.rot, 0.38).set_delay(delay)
+			tw.tween_property(cv, "persp", t.persp, 0.38).set_delay(delay)
 			if not cv.has_meta("summon"):
 				tw.tween_property(cv, "scale", Vector2.ONE * t.scale, 0.18).set_delay(delay)
 		else:
 			cv.position = t.pos
 			cv.size = t.size
 			cv.rotation = t.rot
+			cv.persp = t.persp
 			cv.scale = Vector2.ONE * t.scale
 
 
@@ -553,9 +560,9 @@ func _update_zones(quiet := false) -> void:
 		zv.set_powers(int(mp[z]), int(fp[z]))
 		if not quiet:
 			if dm != 0:
-				_float_text(zv.position + zv.power_pos(true) + Vector2(-14, -40), dm, Data.MINE)
+				_float_text(Persp.proj(zv.position + zv.power_pos(true)) + Vector2(-14, -40), dm, Data.MINE)
 			if df != 0:
-				_float_text(zv.position + zv.power_pos(false) + Vector2(-14, -40), df, Data.FOE)
+				_float_text(Persp.proj(zv.position + zv.power_pos(false)) + Vector2(-14, -40), df, Data.FOE)
 			var now: int = zv.leader()
 			if now != before and now != 0:
 				_swing_fx(zv, Data.MINE if now > 0 else Data.FOE)
@@ -863,6 +870,8 @@ func _input(e: InputEvent) -> void:
 			_update_zones(true)
 			cv.selected = true
 			cv.z_index = 120
+			cv.persp = 0.0
+			_drag.offset = cv.size * 0.5
 			cv.pivot_offset = cv.size * 0.5
 			cv.create_tween().tween_property(cv, "scale", Vector2(1.08, 1.08), 0.12)
 			Sfx.play("pick")
@@ -914,7 +923,7 @@ func _drop_ok(z: int) -> bool:
 func _simulate_drag(uid: int, z: int) -> void:
 	var cv: CardView = cards[uid]
 	var from := cv.get_global_rect().get_center()
-	var to: Vector2 = (zones[z] as Control).get_global_rect().get_center() + Vector2(0, 120)
+	var to: Vector2 = Persp.proj((zones[z] as Control).get_global_rect().get_center() + Vector2(0, 120))
 	var ev := InputEventMouseButton.new()
 	ev.button_index = MOUSE_BUTTON_LEFT
 	ev.pressed = true
@@ -950,6 +959,7 @@ func _draggable(cv: CardView) -> bool:
 
 ## Zone sous le doigt : votre moitié, ou le bandeau du milieu (une carte lâchée un peu haut compte quand même).
 func _zone_at(p: Vector2) -> int:
+	p = Persp.unproj(p)
 	for z in 3:
 		var zv: Control = zones[z]
 		var r: Rect2 = zv.get_global_rect()
@@ -999,7 +1009,9 @@ func _update_pools(dt: float) -> void:
 		var c: Color = Data.MINE if lead > 0 else Data.FOE
 		var half: Rect2 = zv.half_rect(lead > 0)
 		var center: Vector2 = zv.position + half.get_center() + Vector2(0, half.size.y * (0.25 if lead > 0 else -0.25))
-		rects.append(Vector4(center.x, center.y, zv.size.x * 0.95, zv.size.y * 0.45))
+		center = Persp.proj(center)
+		var sc := Persp.scale_at(Persp.unproj(center).y)
+		rects.append(Vector4(center.x, center.y, zv.size.x * 0.95 * sc, zv.size.y * 0.4 * sc))
 		cols.append(Vector4(c.r, c.g, c.b, _pool_alpha[z] * (0.9 + 0.1 * sin(_time * 1.3 + z))))
 	mat.set_shader_parameter("pool_rect", rects)
 	mat.set_shader_parameter("pool_col", cols)
@@ -1082,14 +1094,14 @@ func _reveal_fx(cv: CardView, flip: bool) -> void:
 		tw.tween_property(cv, "scale", Vector2(1.18, 1.18), 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func():
 		var col: Color = Data.fam_color(Data.card(cv.id).get("fam"))
-		Fx.sparkle(fx_layer, cv.position + cv.size * 0.5, cv.size, col)
-		Fx.ring(fx_layer, cv.position + Vector2(cv.size.x * 0.5, cv.size.y - 4), Vector2(cv.size.x * 0.8, cv.size.x * 0.36), Color(1, 0.93, 0.8, 0.8), 0.36)
+		Fx.sparkle(fx_layer, _scr(cv.position + cv.size * 0.5, cv.persp > 0.5), cv.size, col)
+		Fx.ring(fx_layer, _scr(cv.position + Vector2(cv.size.x * 0.5, cv.size.y - 4), cv.persp > 0.5), Vector2(cv.size.x * 0.8, cv.size.x * 0.36), Color(1, 0.93, 0.8, 0.8), 0.36)
 		var pw = Data.card(cv.id).get("power")
 		var now_pw := int(cv.power) if cv.power != null else int(pw if pw != null else 0)
 		if Data.card(cv.id).get("type", "C") == "C" and now_pw >= 5:
 			shake(minf(5.0, now_pw - 3) * 1.6)
 		if cv.level >= 5:
-			Fx.astral(fx_layer, cv.position + cv.size * 0.5, cv.size.x))
+			Fx.astral(fx_layer, _scr(cv.position + cv.size * 0.5, cv.persp > 0.5), cv.size.x))
 	tw.tween_property(cv, "scale", Vector2.ONE, 0.32).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func(): cv.z_index -= 40)
 	cv.glow = 1.0
@@ -1107,6 +1119,7 @@ func _play_events(src, delay: float, col: Color, zone_before: Array) -> void:
 		if ev.kind in ["draw", "summon", "move"]:
 			var t := _target_of(cv.get_meta("place"))
 			to = t.pos + t.size * 0.5
+		to = Persp.proj(to)
 		var kind: String = ev.kind
 		var c: Color = col
 		match kind:
@@ -1131,7 +1144,7 @@ func _play_events(src, delay: float, col: Color, zone_before: Array) -> void:
 					continue
 				var explained := _events.any(func(ev): return ev.cv.get_meta("place").get("zone", -1) == z and ev.cv.get_meta("place").get("mine", false) == mine)
 				if not explained:
-					var to: Vector2 = zv.position + zv.power_pos(mine)
+					var to: Vector2 = Persp.proj(zv.position + zv.power_pos(mine))
 					Fx.bolt(fx_layer, src, to, Data.UP if now > before else Data.DOWN, hit, 0.3, "zone")
 					hit += 0.07
 
@@ -1143,8 +1156,8 @@ func _impact(ev: Dictionary) -> void:
 	match str(ev.kind):
 		"power":
 			var d: int = ev.delta
-			_float_text(cv.position + Vector2(cv.size.x - 14, cv.size.y - 30), d, Data.UP if d > 0 else Data.DOWN)
-			Fx.aura(fx_layer, cv.position + cv.size * 0.5, cv.size, Data.UP if d > 0 else Data.DOWN, d > 0)
+			_float_text(Persp.proj(cv.position + Vector2(cv.size.x - 14, cv.size.y - 30)), d, Data.UP if d > 0 else Data.DOWN)
+			Fx.aura(fx_layer, Persp.proj(cv.position + cv.size * 0.5), cv.size, Data.UP if d > 0 else Data.DOWN, d > 0)
 			cv.pivot_offset = cv.size * 0.5
 			var tw := cv.create_tween()
 			tw.tween_property(cv, "scale", Vector2(1.12, 1.12) if d > 0 else Vector2(0.92, 0.92), 0.1)
@@ -1168,7 +1181,7 @@ func _impact(ev: Dictionary) -> void:
 		"summon":
 			var c := Data.fam_color(Data.card(cv.id).get("fam"))
 			var t := _target_of(cv.get_meta("place"))
-			Fx.summon(fx_layer, t.pos + t.size * 0.5, t.size, c)
+			Fx.summon(fx_layer, Persp.proj(t.pos + t.size * 0.5), t.size, c)
 			cv.remove_meta("summon")
 			cv.pivot_offset = t.size * 0.5
 			var tw := cv.create_tween()
@@ -1191,6 +1204,11 @@ func _act_pulse(cv: CardView) -> void:
 	cv.create_tween().tween_property(cv, "glow", 0.0, 0.6)
 
 
+## Point du plateau à plat vers l'écran (perspective), pour placer les effets.
+func _scr(p: Vector2, on := true) -> Vector2:
+	return Persp.proj(p) if on else p
+
+
 func _gen_center(mine: bool) -> Vector2:
 	var r := _gen_rect(mine)
 	return r.position + Vector2(r.size.y * 0.36 + 10, r.size.y * 0.5)
@@ -1201,7 +1219,7 @@ func _destroy_fx(cv: CardView) -> void:
 	_sound("destroy", "destroy")
 	cv.z_index += 50
 	cv.pivot_offset = cv.size * 0.5
-	Fx.shards(fx_layer, cv.position + cv.size * 0.5, cv.size, Data.fam_color(Data.card(cv.id).get("fam")))
+	Fx.shards(fx_layer, Persp.proj(cv.position + cv.size * 0.5), cv.size, Data.fam_color(Data.card(cv.id).get("fam")))
 	shake(6.0)
 	var tw := cv.create_tween()
 	tw.tween_property(cv, "modulate", Color(1.6, 1.4, 1.1, 1.0), 0.1)
@@ -1233,25 +1251,30 @@ func _spell_out(cv: CardView) -> void:
 func _swing_fx(zv, col: Color) -> void:
 	zv.flare = 1.0
 	zv.create_tween().tween_property(zv, "flare", 0.0, 0.85)
-	Fx.rise(fx_layer, zv.position + zv.size * Vector2(0.5, 0.55), zv.size, col)
+	Fx.rise(fx_layer, Persp.proj(zv.position + zv.size * Vector2(0.5, 0.55)), zv.size * Vector2(0.9, 0.85), col)
 
 
 ## Carte posée : anneau de poussière aplati sous la carte et quelques grains.
 func _dust(cv: CardView) -> void:
-	var at := cv.position + Vector2(cv.size.x * 0.5, cv.size.y - 2)
+	var at := Persp.proj(cv.position + Vector2(cv.size.x * 0.5, cv.size.y - 2))
 	Fx.ring(fx_layer, at, Vector2(cv.size.x * 0.55, cv.size.x * 0.16), Color("e8d0a0"), 0.38)
 	Fx.grains(fx_layer, at, cv.size.x)
 
 
 ## Général déclenché : anneaux et étincelles autour de son portrait.
-func _general_fx(mine: bool) -> void:
-	var c := _gen_rect(mine).position + Vector2(48, _gen_rect(mine).size.y * 0.5)
-	var g: Dictionary = Data.generals.get(str((me() if mine else foe()).get("general", "")), {})
+func _general_fx(mine: bool) -> Vector2:
+	var gid = (me() if mine else foe()).get("general")
+	var g: Dictionary = Data.generals.get(str(gid), {})
 	var col := Data.fam_color(g.get("fam"))
-	Fx.ring(fx_layer, c, Vector2(60, 60), col.lightened(0.3), 0.8)
-	Fx.sparkle(fx_layer, c, Vector2(90, 90), col)
+	var from := _gen_center(mine)
+	# Le portrait s'avance au-dessus de la moitié de son camp, au milieu du plateau.
+	var mid: Control = zones[1]
+	var to := Persp.proj(mid.position + mid.size * Vector2(0.5, 0.62 if mine else 0.3))
+	Fx.ring(fx_layer, from, Vector2(60, 60), col.lightened(0.3), 0.8)
+	Fx.general_call(fx_layer, gid, from, to, col, g.get("fam"), str(g.get("name", "")).split(",")[0].strip_edges())
 	if not mine:
 		_sound("general", "general")
+	return to
 
 
 func _float_text(at: Vector2, delta: int, col: Color) -> void:
@@ -1594,7 +1617,7 @@ func _game_over() -> void:
 			get_tree().create_timer(0.22 * z).timeout.connect(func():
 				zv.flare = 1.0
 				zv.create_tween().tween_property(zv, "flare", 0.35, 1.7)
-				Fx.rise(fx_layer, zv.position + zv.size * Vector2(0.5, 0.5), zv.size, Data.MINE if zv.leader() > 0 else Data.FOE))
+				Fx.rise(fx_layer, Persp.proj(zv.position + zv.size * Vector2(0.5, 0.5)), zv.size * Vector2(0.9, 0.85), Data.MINE if zv.leader() > 0 else Data.FOE))
 	await get_tree().create_timer(0.7).timeout
 	Sfx.play(outcome)
 	if outcome == "lose":

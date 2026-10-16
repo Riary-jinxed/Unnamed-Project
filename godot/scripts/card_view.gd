@@ -28,7 +28,18 @@ var glow := 0.0:            # halo animé (sélection, révélation)
 		glow = v
 		queue_redraw()
 
+var persp := 0.0:           # 0 à plat (main, carte glissée), 1 en perspective (posée sur le plateau, voir Persp)
+	set(v):
+		persp = v
+		if v > 0.0 and material == null:
+			var m := ShaderMaterial.new()
+			m.shader = PERSP_SHADER
+			material = m
+		if material:
+			(material as ShaderMaterial).set_shader_parameter("amount", v)
 var _text: RichTextLabel
+
+const PERSP_SHADER := preload("res://shaders/persp.gdshader")
 
 
 func _ready() -> void:
@@ -47,6 +58,10 @@ func set_data(d: Dictionary) -> void:
 	mobile = bool(d.get("mobile", false))
 	_update_text()
 	queue_redraw()
+
+
+func _has_point(p: Vector2) -> bool:
+	return Rect2(Vector2.ZERO, size).has_point(Persp.local_point(self, p) if persp > 0.5 else p)
 
 
 func _gui_input(e: InputEvent) -> void:
@@ -79,6 +94,7 @@ func _update_text() -> void:
 		_text.bbcode_enabled = true
 		_text.scroll_active = false
 		_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_text.use_parent_material = true
 		_text.add_theme_color_override("default_color", Color("f3e6cf"))
 		_text.add_theme_constant_override("outline_size", 4)
 		_text.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))

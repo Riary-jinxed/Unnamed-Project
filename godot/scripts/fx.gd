@@ -552,3 +552,206 @@ class Circle extends Node2D:
 			var ang := -PI / 2 + k * TAU * 2.0 / 6.0
 			star.append(Vector2(cos(ang), sin(ang)) * r * 0.7)
 		draw_polyline(star, Color(col, 0.5 * a), 1.5, true)
+
+
+static var _shapes := {}
+
+
+## Formes de particules : « streak » (trait, s'aligne sur la vitesse), « square » (pixel), « leaf » (feuille), « drop » (goutte).
+static func shape(kind: String) -> Texture2D:
+	if _shapes.has(kind):
+		return _shapes[kind]
+	var n := 24
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	for y in n:
+		for x in n:
+			var u := (x - 11.5) / 11.5
+			var v := (y - 11.5) / 11.5
+			var a := 0.0
+			match kind:
+				"streak":
+					a = clampf(1.0 - Vector2(u * 3.2, v).length(), 0.0, 1.0)
+				"square":
+					a = 1.0 if absf(u) < 0.6 and absf(v) < 0.6 else 0.0
+				"leaf":
+					a = clampf(1.0 - Vector2(u * 2.0, v * (1.0 + 0.6 * absf(v))).length(), 0.0, 1.0) * 3.0
+				"drop":
+					var w := 0.55 * clampf((v + 1.0) * 0.8, 0.0, 1.0) if v < 0.25 else sqrt(maxf(0.0, 0.5625 - (v - 0.25) * (v - 0.25) * 1.0))
+					a = clampf((w - absf(u)) * 6.0, 0.0, 1.0)
+			img.set_pixel(x, y, Color(1, 1, 1, clampf(a, 0.0, 1.0)))
+	_shapes[kind] = ImageTexture.create_from_image(img)
+	return _shapes[kind]
+
+
+## Général qui se déclenche : son portrait jaillit de l'en-tête vers le plateau, rayons et nom, avec l'effet de sa famille
+## (plumes d'or, flammes, pièces, feuilles, souffle, âmes, sang, code, arcs électriques).
+static func general_call(parent: Node, gid, from: Vector2, to: Vector2, col: Color, fam, title: String) -> void:
+	var g := GenCall.new()
+	g.gid = gid
+	g.col = col
+	g.title = title
+	g.position = from
+	g.z_index = 200
+	parent.add_child(g)
+	var tw := g.create_tween()
+	tw.tween_property(g, "position", to, 0.34).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(g, "grow", 1.0, 0.34).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		ring(parent, to, Vector2(110, 110), col.lightened(0.3), 0.6)
+		theme_burst(parent, to, fam, col))
+	tw.tween_interval(0.9)
+	tw.tween_property(g, "position", from, 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(g, "grow", 0.0, 0.32)
+	tw.tween_callback(g.queue_free)
+
+
+class GenCall extends Node2D:
+	var gid
+	var col := Color.WHITE
+	var title := ""
+	var t := 0.0
+	var grow := 0.0
+
+	func _process(dt: float) -> void:
+		t += dt
+		queue_redraw()
+
+	func _draw() -> void:
+		var r := 22.0 + 46.0 * grow
+		var a := clampf(grow, 0.0, 1.0)
+		for i in 14:
+			var ang := t * 0.7 + i * TAU / 14.0
+			var len := r * (2.1 + 0.25 * sin(t * 5.0 + i))
+			draw_colored_polygon(PackedVector2Array([Vector2.ZERO, Vector2.from_angle(ang - 0.07) * len, Vector2.from_angle(ang + 0.07) * len]), Color(col.lightened(0.3), 0.16 * a))
+		for i in 3:
+			draw_circle(Vector2.ZERO, r * (1.18 + 0.12 * i), Color(col, 0.12 * a), true, -1.0, true)
+		Gfx.portrait(self, gid, Vector2.ZERO, r, col)
+		draw_arc(Vector2.ZERO, r + 3, 0, TAU, 64, Color("ffd98a", a), 3.0, true)
+		if a > 0.5 and title != "":
+			var la := (a - 0.5) * 2.0
+			var band := Rect2(-170, r + 12, 340, 36)
+			Gfx.fill_round(self, band, 10, Color(0.06, 0.04, 0.03, 0.85 * la))
+			Gfx.frame_round(self, band, 10, Color(col, 0.9 * la), 2.0)
+			Gfx.text_fit(self, Data.font_title, band.get_center(), title, 320, 24, Color(1, 0.93, 0.75, la), 5)
+
+
+## Gerbe aux couleurs d'une famille, autour d'un point.
+static func theme_burst(parent: Node, at: Vector2, fam, col: Color) -> void:
+	var p := _burst(parent, at, 26, 1.3)
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 40
+	p.spread = 180
+	p.initial_velocity_min = 120
+	p.initial_velocity_max = 260
+	p.damping_min = 80
+	p.damping_max = 140
+	p.gravity = Vector2.ZERO
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.1
+	p.color_ramp = _fade(col)
+	match str(fam):
+		"Ange":   # plumes et rayons d'or qui retombent doucement
+			p.texture = shape("leaf")
+			p.color_ramp = _fade(Color("ffe7a6"), true)
+			p.gravity = Vector2(0, 60)
+			p.angular_velocity_min = -120
+			p.angular_velocity_max = 120
+			p.lifetime = 1.8
+			var r := _burst(parent, at, 16, 0.7)
+			r.texture = shape("streak")
+			r.particle_flag_align_y = true
+			r.spread = 180
+			r.initial_velocity_min = 380
+			r.initial_velocity_max = 520
+			r.gravity = Vector2.ZERO
+			r.scale_amount_min = 1.4
+			r.scale_amount_max = 2.0
+			r.color_ramp = _fade(Color("fff3c4"))
+		"Démon":  # flammes qui montent
+			p.direction = Vector2(0, -1)
+			p.spread = 50
+			p.gravity = Vector2(0, -320)
+			p.amount = 40
+			p.scale_amount_min = 1.0
+			p.scale_amount_max = 2.0
+			p.color_ramp = _fade(Color("ff6a2a"))
+		"Gobelin":  # pièces qui sautent et retombent
+			p.texture = shape("square")
+			p.direction = Vector2(0, -1)
+			p.spread = 70
+			p.initial_velocity_min = 260
+			p.initial_velocity_max = 420
+			p.damping_min = 0
+			p.damping_max = 0
+			p.gravity = Vector2(0, 900)
+			p.angular_velocity_min = -400
+			p.angular_velocity_max = 400
+			p.scale_amount_min = 0.35
+			p.scale_amount_max = 0.55
+			p.color_ramp = _fade(Color("ffcf4a"))
+		"Elfe":  # feuilles en tourbillon
+			p.texture = shape("leaf")
+			p.orbit_velocity_min = 0.35
+			p.orbit_velocity_max = 0.6
+			p.angular_velocity_min = -200
+			p.angular_velocity_max = 200
+			p.lifetime = 1.8
+			p.color_ramp = _fade(Color("8fe07a"))
+		"Dragon":  # souffle de feu en éventail
+			p.texture = shape("streak")
+			p.particle_flag_align_y = true
+			p.amount = 44
+			p.initial_velocity_min = 300
+			p.initial_velocity_max = 560
+			p.scale_amount_min = 1.0
+			p.scale_amount_max = 1.8
+			p.color_ramp = _fade(Color("ff9a3c"))
+		"Mort-vivant":  # âmes vertes qui s'élèvent lentement
+			p.direction = Vector2(0, -1)
+			p.spread = 120
+			p.initial_velocity_min = 40
+			p.initial_velocity_max = 110
+			p.gravity = Vector2(0, -60)
+			p.amount = 34
+			p.scale_amount_min = 2.2
+			p.scale_amount_max = 3.6
+			p.lifetime = 2.0
+			p.color_ramp = _fade(Color("b4ffd2"), true)
+		"Vampire":  # gouttes de sang
+			p.texture = shape("drop")
+			p.direction = Vector2(0, -1)
+			p.spread = 80
+			p.initial_velocity_min = 200
+			p.initial_velocity_max = 380
+			p.damping_min = 0
+			p.damping_max = 0
+			p.gravity = Vector2(0, 800)
+			p.scale_amount_min = 0.5
+			p.scale_amount_max = 0.8
+			p.color_ramp = _fade(Color("d81b3c"))
+		"Hacker":  # pluie de code
+			p.texture = shape("square")
+			p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+			p.emission_rect_extents = Vector2(150, 70)
+			p.direction = Vector2(0, 1)
+			p.spread = 0
+			p.initial_velocity_min = 140
+			p.initial_velocity_max = 320
+			p.damping_min = 0
+			p.damping_max = 0
+			p.explosiveness = 0.5
+			p.amount = 50
+			p.scale_amount_min = 0.25
+			p.scale_amount_max = 0.45
+			p.color_ramp = _fade(Color("4dff7a"))
+		"Cyborg":  # arcs électriques
+			p.texture = shape("streak")
+			p.particle_flag_align_y = true
+			p.initial_velocity_min = 500
+			p.initial_velocity_max = 760
+			p.damping_min = 400
+			p.damping_max = 600
+			p.lifetime = 0.6
+			p.scale_amount_min = 0.8
+			p.scale_amount_max = 1.3
+			p.color_ramp = _fade(Color("5fe8ff"), true)

@@ -35,15 +35,23 @@ var flare := 0.0:           # éclat du cadre quand la zone change de camp ou à
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://shaders/persp.gdshader")
+	material = m
 	resized.connect(queue_redraw)
 	var tw := create_tween().set_loops()
 	tw.tween_property(self, "shine", 1.0, 0.8).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(self, "shine", 0.0, 0.8).set_trans(Tween.TRANS_SINE)
 
 
+func _has_point(p: Vector2) -> bool:
+	return Rect2(Vector2.ZERO, size).has_point(Persp.local_point(self, p))
+
+
 func _gui_input(e: InputEvent) -> void:
 	if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-		if half_rect(true).grow(4).has_point(e.position) or e.position.y > size.y * 0.4:
+		var p := Persp.local_point(self, e.position)
+		if half_rect(true).grow(4).has_point(p) or p.y > size.y * 0.4:
 			tapped.emit(zone)
 		accept_event()
 
@@ -84,11 +92,12 @@ func power_pos(mine: bool) -> Vector2:
 ## Place d'une carte (0 à 3) dans une moitié, en coordonnées de la zone. Les places les plus près du milieu se remplissent d'abord.
 func slot_rect(mine: bool, i: int, card_size: Vector2) -> Rect2:
 	var hr := half_rect(mine)
-	var gap := 6.0
+	var gap := 5.0
+	var chip := 30.0          # nom du terrain, au bord extérieur de la moitié
 	var row := (i % 4) / 2
 	var col := i % 2
 	var block := Vector2(card_size.x * 2 + gap, card_size.y * 2 + gap)
-	var origin := hr.position + (hr.size - block) * 0.5
+	var origin := hr.position + Vector2((hr.size.x - block.x) * 0.5, (hr.size.y - chip - block.y) * 0.5 + (0.0 if mine else chip))
 	var y_row := row if mine else 1 - row
 	var p := origin + Vector2(col * (card_size.x + gap), y_row * (card_size.y + gap))
 	if i >= 4:

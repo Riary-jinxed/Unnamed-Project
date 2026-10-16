@@ -113,7 +113,10 @@ static func portrait(ci: CanvasItem, id, c: Vector2, rad: float, ring: Color) ->
 		if perso:
 			tex_round(ci, perso, r, uv, rad)
 	else:
-		ci.draw_circle(c, rad, Data.fam_color(Data.generals.get(str(id), {}).get("fam")).darkened(0.4), true, -1.0, true)
+		# Pas d'illustration (cartes cyber pas encore exportées) : initiale du nom sur la couleur de la famille.
+		var g: Dictionary = Data.generals.get(str(id), {})
+		ci.draw_circle(c, rad, Data.fam_color(g.get("fam")).darkened(0.45), true, -1.0, true)
+		text_fit(ci, Data.fam_font(g.get("fam")), c, str(g.get("name", "?")).left(1), rad * 1.6, int(rad * 1.1), Color(1, 0.94, 0.82), 4)
 	ci.draw_arc(c, rad, 0, TAU, 48, ring, maxf(2.0, rad * 0.09), true)
 
 
