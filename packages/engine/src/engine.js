@@ -300,19 +300,19 @@ export const CARDS = {
   // CYBORG : Surcharge (sceaux gardés pour la révélation) et Implant
   gamin_augmente:{ set: 'set3', name: 'Gamin augmenté', type: 'C', cost: 1, power: 2, kw: ['Cyborg'], text: 'Surcharge 1 : +2.',
                  onReveal: (c, st) => { if (overload(st, c, 1)) buff(st, c, 2); } },
-  charcudoc:   { set: 'set3', name: 'Charcudoc', type: 'C', cost: 2, power: 2, kw: ['Cyborg'], text: 'Révélation : Implant 2 sur votre autre créature la plus faible ici.',
+  charcudoc:   { set: 'set3', name: 'Charcudoc', type: 'C', cost: 2, power: 3, kw: ['Cyborg'], text: 'Révélation : Implant 2 sur votre autre créature la plus faible ici.',
                  onReveal: (c, st) => implant(st, weakest(st, creaturesAt(st, c.owner, c.zone).filter(x => x !== c)), 2) },
   samourai:    { set: 'set3', name: 'Samouraï des rues', type: 'C', cost: 2, power: 3, kw: ['Cyborg'], text: 'Surcharge 1 : +3.',
                  onReveal: (c, st) => { if (overload(st, c, 1)) buff(st, c, 3); } },
   bras_canon:  { set: 'set3', name: 'Bras-canon', type: 'C', cost: 3, power: 4, kw: ['Cyborg'], text: 'Surcharge 1 : la créature adverse la plus puissante ici perd 2.',
                  onReveal: (c, st) => { const s = strongestFoe(st, c); if (s && overload(st, c, 1)) buff(st, s, -2); } },
-  implant_combat:{ set: 'set3', name: 'Implant de combat', type: 'S', cost: 1, power: 0, kw: ['Cyborg'], text: 'Implant 3 sur votre créature la plus faible ici.',
-                 onReveal: (c, st) => implant(st, weakest(st, creaturesAt(st, c.owner, c.zone)), 3) },
+  implant_combat:{ set: 'set3', name: 'Implant de combat', type: 'S', cost: 1, power: 0, kw: ['Cyborg'], text: 'Implant 4 sur votre créature la plus faible ici.',
+                 onReveal: (c, st) => implant(st, weakest(st, creaturesAt(st, c.owner, c.zone)), 4) },
   surtension:  { set: 'set3', name: 'Surtension', type: 'S', cost: 1, power: 0, kw: ['Cyborg'], text: 'Vos créatures ici gagnent +1. Surcharge 1 : +1 de plus chacune.',
                  onReveal: (c, st) => { const l = creaturesAt(st, c.owner, c.zone); const n = l.length && overload(st, c, 1) ? 2 : 1; l.forEach(x => buff(st, x, n)); } },
   chrome:      { set: 'set3', name: 'Solo chromé', type: 'C', cost: 3, power: 4, kw: ['Cyborg'], text: 'Persistant : +1 par Implant de vos créatures ici.',
                  self: (c, st) => creaturesAt(st, c.owner, c.zone).reduce((s, x) => s + (x.implants || 0), 0) },
-  cyberpsycho: { set: 'set3', name: 'Cyberpsycho', type: 'C', cost: 3, power: 7, kw: ['Cyborg'], text: 'Fin de tour : perd 1.',
+  cyberpsycho: { set: 'set3', name: 'Cyberpsycho', type: 'C', cost: 3, power: 8, kw: ['Cyborg'], text: 'Fin de tour : perd 1.',
                  onEndTurn: (c, st) => buff(st, c, -1) },
   pilote_meca: { set: 'set3', name: 'Pilote de méca', type: 'C', cost: 4, power: 6, kw: ['Cyborg'], text: 'Surcharge 1 : Implant 1 sur vos autres créatures ici.',
                  onReveal: (c, st) => { const l = creaturesAt(st, c.owner, c.zone).filter(x => x !== c); if (l.length && overload(st, c, 1)) l.forEach(x => implant(st, x, 1)); } },
@@ -350,8 +350,8 @@ export const CARDS = {
                  onReveal: (c, st) => { const w = weakest(st, creaturesAt(st, 1 - c.owner, c.zone)); if (w && overload(st, c, 1)) buff(st, w, -2); } },
   ferrailleur: { set: 'set3', name: 'Ferrailleur', type: 'C', cost: 3, power: 3, kw: ['Gobelin'], text: 'Révélation : Horde 1. Surcharge 2 : Horde 3 à la place.',
                  onReveal: (c, st) => horde(st, c.owner, c.zone, overload(st, c, 2) ? 3 : 1) },
-  meca_gobelin:{ set: 'set3', name: 'Méca-gobelin', type: 'C', cost: 4, power: 5, kw: ['Gobelin'], text: 'Surcharge 2 : chacune de vos Hordes gagne +3.',
-                 onReveal: (c, st) => { const h = hordes(st, c.owner); if (h.length && overload(st, c, 2)) h.forEach(x => buff(st, x, 3)); } },
+  meca_gobelin:{ set: 'set3', name: 'Méca-gobelin', type: 'C', cost: 4, power: 5, kw: ['Gobelin'], text: 'Surcharge 2 : chacune de vos Hordes gagne +2.',
+                 onReveal: (c, st) => { const h = hordes(st, c.owner); if (h.length && overload(st, c, 2)) h.forEach(x => buff(st, x, 2)); } },
 
   // ELFE : technomanciens (Piratage)
   technomancienne:{ set: 'set3', name: 'Technomancienne', type: 'C', cost: 2, power: 3, kw: ['Elfe'], text: 'Sortilège : +1, et Piratage sur la créature adverse la plus puissante dans la zone du sort.',
@@ -382,7 +382,7 @@ export const CARDS = {
   sauvegarde:  { set: 'set3', name: 'Sauvegarde corrompue', type: 'S', cost: 1, power: 0, kw: ['Mort-vivant'], text: 'Défausse 1, puis Malware 1.',
                  onReveal: (c, st) => { discardFromHand(st, c.owner, 1); malware(st, c.owner, 1); } },
   zombie_cyber:{ set: 'set3', name: 'Zombie cybernétique', type: 'C', cost: 4, power: 4, kw: ['Mort-vivant'], raise: true, text: 'Relève.' },
-  liche_quantique:{ set: 'set3', name: 'Liche quantique', type: 'C', cost: 5, power: 4, kw: ['Mort-vivant'], text: 'Persistant : +1 par Malware exécuté chez l\'adversaire cette partie.',
+  liche_quantique:{ set: 'set3', name: 'Liche quantique', type: 'C', cost: 5, power: 6, kw: ['Mort-vivant'], text: 'Persistant : +1 par Malware exécuté chez l\'adversaire cette partie.',
                  self: (c, st) => st.p[1 - c.owner].malwareRun || 0 },
 
   // VAMPIRE : vampires de données (Drain et Piratage)
@@ -393,7 +393,7 @@ export const CARDS = {
   morsure_virale:{ set: 'set3', name: 'Morsure virale', type: 'S', cost: 2, power: 0, kw: ['Vampire'], text: 'Drain 2 sur la créature adverse piratée la plus puissante ici (à défaut, la plus puissante ici), au profit de votre Vampire le plus faible ici.',
                  onReveal: (c, st) => { const foes = creaturesAt(st, 1 - c.owner, c.zone), h = foes.filter(x => x.hacked);
                    drain(st, weakest(st, creaturesAt(st, c.owner, c.zone).filter(x => hasKw(x, 'Vampire'))), strongest(st, h.length ? h : foes), 2); } },
-  comte_reseau:{ set: 'set3', name: 'Comte du réseau', type: 'C', cost: 4, power: 3, kw: ['Vampire'], text: 'Fin de tour : Drain 1 sur chaque créature adverse piratée ici.',
+  comte_reseau:{ set: 'set3', name: 'Comte du réseau', type: 'C', cost: 4, power: 4, kw: ['Vampire'], text: 'Fin de tour : Drain 1 sur chaque créature adverse piratée ici.',
                  onEndTurn: (c, st) => { const h = creaturesAt(st, 1 - c.owner, c.zone).filter(x => x.hacked); h.forEach(x => drain(st, c, x, 1)); if (!h.length) return false; } },
 
   // NEUTRES
@@ -679,11 +679,12 @@ export const GENERALS = {
                text: 'Début de tour, aux tours pairs : Implant 1 sur votre créature la plus faible en jeu.',
                onStartTurn: (p, st) => { if (st.turn % 2 === 0) implant(st, weakest(st, mine(st, p)), 1); } },
   machina:   { set: 'set3', name: 'Machina, Ange de la Grille', fam: 'Ange', kind: 'Fin de tour',
-               text: 'Fin de tour : si vous avez dépensé tous vos sceaux, Implant 1 sur votre Ange le plus faible.',
-               onEndTurn: (p, st) => { if (st.p[p].seals === 0) implant(st, weakest(st, mine(st, p).filter(x => hasKw(x, 'Ange'))), 1); } },
+               text: 'Fin de tour, 3 fois par partie : si vous avez dépensé tous vos sceaux, Implant 1 sur votre Ange le plus faible.',
+               onEndTurn: (p, st) => { const P = st.p[p], a = weakest(st, mine(st, p).filter(x => hasKw(x, 'Ange')));
+                 if ((P.generalUses || 0) < 3 && P.seals === 0 && a) { P.generalUses = (P.generalUses || 0) + 1; implant(st, a, 1); } } },
   mammon:    { set: 'set3', name: 'Mammon, Daemon du réseau', fam: 'Démon', kind: 'Persistant',
-               text: 'Les 2 premières fois qu\'une de vos créatures est détruite, Malware 1.',
-               onAllyDestroyed: (p, st) => { const P = st.p[p]; if ((P.generalUses || 0) >= 2) return; P.generalUses = (P.generalUses || 0) + 1; malware(st, p, 1); } },
+               text: 'La première fois qu\'une de vos créatures est détruite, Malware 1.',
+               onAllyDestroyed: (p, st) => { const P = st.p[p]; if ((P.generalUses || 0) >= 1) return; P.generalUses = (P.generalUses || 0) + 1; malware(st, p, 1); } },
   grizzbolt: { set: 'set3', name: 'Grizzbolt le Survolteur', fam: 'Gobelin', kind: 'Persistant',
                text: 'Quand une de vos Surcharges se déclenche, Horde 1 dans sa zone.',
                onOverload: (p, st, z) => horde(st, p, z, 1) },
